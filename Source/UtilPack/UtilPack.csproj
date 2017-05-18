@@ -51,7 +51,9 @@
     <PackageReleaseNotes>Added API to StreamWriterWithResizableBuffer that allows writing without callback.</PackageReleaseNotes>
     <PackageTags>bcl utility binary serialization collection extensions</PackageTags>
     <Title>Utility Package for CLR</Title>
-    <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>
+    <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
+    <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
   </PropertyGroup>
   
   <!--

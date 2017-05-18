@@ -18,18 +18,18 @@
     <ProjectReference Include="..\UtilPack\UtilPack.csproj" />
   </ItemGroup>
   
-    <!-- Assembly information stuff -->
+  <!-- Assembly information stuff -->
   <PropertyGroup>
     <VersionPrefix>1.0.0</VersionPrefix>
     <VersionSuffix>RC1</VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <AssemblyTitle>UtilPack.JSON</AssemblyTitle>
+    <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Product>UtilPack</Product>
     <Description>Library containing asynchronous (de)serialization methods for Newtonsoft.JSON JTokens. These methods are extension methods of the StreamReaderWithResizableBuffer, IEncodingInfo, and StreamWriterWithResizableBuffer types located in UtilPack package.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>
-    <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(AssemblyName).snk</AssemblyOriginatorKeyFilePath>
+    <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
   </PropertyGroup>
   
   <!-- Assembly signing stuff -->
@@ -48,7 +48,7 @@
   
   <!-- NuGet package stuff -->
   <PropertyGroup>
-    <PackageId>UtilPack.JSON</PackageId>
+    <PackageId>$(AssemblyName)</PackageId>
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>

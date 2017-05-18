@@ -44,7 +44,7 @@
   
   <!-- NuGet package stuff -->
   <PropertyGroup>
-    <PackageId>UtilPack</PackageId>
+    <PackageId>$(AssemblyName)</PackageId>
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>

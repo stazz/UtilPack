@@ -21,7 +21,7 @@
   <!-- Assembly information stuff -->
   <PropertyGroup>
     <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>RC1</VersionSuffix>
+    <VersionSuffix>RC2</VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
@@ -52,10 +52,12 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
+    <PackageReleaseNotes>The assembly is now signed.</PackageReleaseNotes>
     <PackageTags>json utility binary serialization extensions async asynchronous deserialization</PackageTags>
     <Title>Asynchronous JSON Serialization</Title>
-    <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>
+    <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
+    <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
   </PropertyGroup>
   
   <!--

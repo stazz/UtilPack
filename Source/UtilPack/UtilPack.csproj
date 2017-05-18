@@ -1,0 +1,202 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard1.0;net40</TargetFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <TreatSpecificWarningsAsErrors />
+  </PropertyGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' != 'net40' ">
+    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.4.0-preview1-25305-02" />
+    <PackageReference Include="System.ValueTuple" Version="4.4.0-preview1-25305-02" />
+  </ItemGroup>
+
+  <!-- Assembly information stuff -->
+  <PropertyGroup>
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionSuffix>RC5</VersionSuffix>
+    <Authors>Stanislav Muhametsin</Authors>
+    <Company>Cometa Solutions Ltd</Company>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <AssemblyTitle>UtilPack.Common</AssemblyTitle>
+    <Product>UtilPack</Product>
+    <Description>Library containing useful and generic methods, which are missing from one or more BCL.</Description>
+    <Copyright>Stanislav Muhametsin</Copyright>
+    <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(AssemblyName).snk</AssemblyOriginatorKeyFilePath>
+  </PropertyGroup>
+  
+  <!-- Assembly signing stuff -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' and Exists('$(AssemblyOriginatorKeyFilePath)')">
+    <AssemblyOriginatorKeyFile>$(AssemblyOriginatorKeyFilePath)</AssemblyOriginatorKeyFile>
+    <SignAssembly>true</SignAssembly>
+  </PropertyGroup>
+  
+  <!-- Disable all debug information in release mode-->
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>False</DebugSymbols>
+    <!-- For some reason, both OutputPath and OutDir properties are empty at this point... go figure. Maybe renamed for MSBuild 15.0? -->
+    <DocumentationFile>$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
+  </PropertyGroup>
+  
+  <!-- NuGet package stuff -->
+  <PropertyGroup>
+    <PackageId>UtilPack</PackageId>
+    <PackageVersion>$(VersionPrefix)</PackageVersion>
+    <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReleaseNotes>Added API to StreamWriterWithResizableBuffer that allows writing without callback.</PackageReleaseNotes>
+    <PackageTags>bcl utility binary serialization collection extensions</PackageTags>
+    <Title>Utility Package for CLR</Title>
+  </PropertyGroup>
+  
+  <!--
+  At least currently (9.5.2017) modifying VersionPrefix/VersionSuffix will cause the assemblyinfo.cs file to regenerate, but with old version strings (??).
+  So... manually delete the file first when building in release mode.
+  If we put BeforeTargets="Build", this will be executed *after* the target which generates the assembly info, so we must put the correct target in BeforeTargets attribute.
+  -->
+  <Target Name="DeleteAssemblyInfoFile" BeforeTargets="CoreGenerateAssemblyInfo">
+    <Delete Condition=" '$(Configuration)' == 'Release' " Files="$(IntermediateOutputPath)$(MSBuildProjectName).AssemblyInfo.cs" />
+  </Target>
+
+  <!-- IL CODE SUPPORT STARTS -->
+  <PropertyGroup>
+    <ILGenerationT4File>$(MSBuildProjectDirectory)/GenerateILFile.tt</ILGenerationT4File>
+    <ILGenerationOutFile>$(MSBuildProjectDirectory)/IL/AdditionalIL.$(TargetFramework).il</ILGenerationOutFile>
+    <ILGenerationOutDir>$([System.IO.Path]::GetDirectoryName($(ILGenerationOutFile)))</ILGenerationOutDir>
+  </PropertyGroup>
+  
+  <!-- Including code in .il files to final assembly -->
+  <Target Name="DoILCompiling" AfterTargets="Compile">
+    <PropertyGroup>
+      <ILTargetsToCall>GenerateILCodeFiles;ILInitialize;ILDecompile;ILCompile</ILTargetsToCall>
+      <ILTargetsToCall Condition=" '$(DocumentationFile)' != ''">$(ILTargetsToCall);GenerateILDocFiles</ILTargetsToCall>
+    </PropertyGroup>
+    
+    <CallTarget Targets="$(ILTargetsToCall)" />
+  </Target>
+
+  <Target Name="GenerateILCodeFiles" Inputs="$(ILGenerationT4File)" Outputs="$(ILGenerationOutFile)">
+    <PropertyGroup>
+      <T4Command>"$(MSBuildExtensionsPath)\..\Common7\IDE\TextTransform.exe" -out "$(ILGenerationOutFile)" -a "!!TFM!$(TargetFramework)" "$(ILGenerationT4File)"</T4Command>
+    </PropertyGroup>
+    <MakeDir Condition="!Exists($(ILGenerationOutDir))" Directories="$(ILGenerationOutDir)" />
+    <Exec Command="$(T4Command)" />
+  </Target>
+  
+  <UsingTask TaskName="MergeXMLDocFiles" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v4.0.dll">
+    <ParameterGroup>
+      <Target ParameterType="System.String" />
+      <Items ParameterType="Microsoft.Build.Framework.ITaskItem[]" />
+    </ParameterGroup>
+    <Task>
+      <Reference Include="System.Xml" />
+      <Reference Include="System.Xml.Linq" />
+      
+      <Using Namespace="System.IO" />
+      <Using Namespace="Microsoft.Build.Framework" />
+      <Using Namespace="System.Xml.Linq" />
+      <Using Namespace="System.Xml.XPath" />
+
+      <Code Type="Fragment" Language="cs">
+        <![CDATA[
+       var targetLocation = this.Target;
+       var targetDocument = XDocument.Load(targetLocation);
+       var members = targetDocument.XPathSelectElement("/doc/members");
+       if (members == null)
+       {
+         throw new Exception("Failed to find members element in target XML documentation file.");
+       }
+       
+       foreach(var item in this.Items)
+       {
+         var docFragment = XDocument.Load(item.GetMetadata("FullPath"));
+         members.Add(docFragment.XPathSelectElements("/doc/members/member"));
+       }
+       
+       using(var fs = File.Open(targetLocation, FileMode.Create, FileAccess.Write, FileShare.None))
+       {
+         targetDocument.Save(fs);
+       }
+     ]]>
+      </Code>
+    </Task>
+  </UsingTask>
+  
+  <Target Name="GenerateILDocFiles">
+    <PropertyGroup>
+      <ILDocumentFile>$(ILGenerationOutDir)/AdditionalIL.$(TargetFramework).xml</ILDocumentFile>
+      <T4Command>"$(MSBuildExtensionsPath)\..\Common7\IDE\TextTransform.exe" -out "$(ILDocumentFile)" -a "!!TFM!$(TargetFramework)" "$(MSBuildProjectDirectory)/GenerateILDocs.tt"</T4Command>
+    </PropertyGroup>
+    <Exec Command="$(T4Command)" />
+    <MergeXMLDocFiles Target="$(DocumentationFile)" Items="$(ILDocumentFile)" />
+  </Target>
+  
+  <Target Name="ILInitialize">
+    <ItemGroup>
+      <IL Include="$(ILGenerationOutFile)" />
+    </ItemGroup>
+    <PropertyGroup>
+      <ILFile>@(IntermediateAssembly->'%(RootDir)%(Directory)%(Filename).il', ' ')</ILFile>
+      <ILResourceFile>@(IntermediateAssembly->'%(RootDir)%(Directory)%(Filename).res', ' ')</ILResourceFile>
+    </PropertyGroup>
+  </Target>
+  
+  <Target Name="ILDecompile" Inputs="@(IntermediateAssembly)" Outputs="$(ILFile)" Condition=" Exists ( @(IntermediateAssembly) ) ">
+    <GetFrameworkSdkPath>
+      <Output TaskParameter="Path" PropertyName="FrameworkSdkPath" />
+    </GetFrameworkSdkPath>
+    <ItemGroup Condition=" '$(OS)' != 'Unix' ">
+      <MatchingILDasmFile Include="$(FrameworkSdkPath)\bin\*\ildasm.exe" />
+    </ItemGroup>
+    <PropertyGroup Condition=" '$(OS)' != 'Unix' ">
+      <ILDasm>%(MatchingILDasmFile.Identity)</ILDasm>
+      <ILDasm Condition="!Exists('$(ILDasm)')">$(FrameworkSdkPath)\bin\NETFX 4.0 Tools\ildasm.exe</ILDasm>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(OS)' == 'Unix' ">
+      <ILDasm>ildasm</ILDasm>
+    </PropertyGroup>
+    <PropertyGroup>
+      <ILDasm>"$(ILDasm)" /utf8 /nobar</ILDasm>
+      <!-- Release mode has no debug symbols. -->
+      <ILDasm Condition=" '$(Configuration)' == 'Debug' or '$(Configuration)' == 'Debug_SL' ">$(ILDasm) /linenum</ILDasm>
+      <ILDasm>$(ILDasm) /output:"$(ILFile)" @(IntermediateAssembly->'"%(FullPath)"', ' ')</ILDasm>
+    </PropertyGroup>
+    <Exec Command="$(ILDasm)" />
+    <ItemGroup>
+      <FileWrites Include="$(ILFile)" />
+      <FileWrites Include="$(ILResourceFile)" />
+    </ItemGroup>
+    <Delete Files="@(IntermediateAssembly)" />
+  </Target>
+  <Target Name="ILCompile" Inputs="@(IL)" Outputs="@(IntermediateAssembly)">
+    <GetFrameworkPath>
+      <Output TaskParameter="Path" PropertyName="FrameworkPath" />
+    </GetFrameworkPath>
+    <PropertyGroup>
+      <ILAsm>"$(FrameworkPath)\ilasm.exe" /nologo /quiet /highentropyva+ /output:@(IntermediateAssembly->'"%(FullPath)"', ' ')</ILAsm>
+      <ILAsm Condition=" '$(FileAlignment)' != '' ">$(ILAsm) /alignment=$(FileAlignment)</ILAsm>
+      <ILAsm Condition=" '$(BaseAddress)' != '' ">$(ILAsm) /base=$(BaseAddress)</ILAsm>
+      <ILAsm Condition=" '$(OutputType)' == 'Library' ">$(ILAsm) /dll</ILAsm>
+      <ILAsm Condition=" '$(DebugType)' == 'pdbonly' ">$(ILAsm) /pdb</ILAsm>
+      <ILAsm Condition=" '$(DebugType)' == 'full' ">$(ILAsm) /debug</ILAsm>
+      <ILAsm Condition=" '$(Optimize)' == 'true' ">$(ILAsm) /optimize</ILAsm>
+      <ILAsm Condition=" '$(Platform)' == 'x64' ">$(ILAsm) /pe64 /x64</ILAsm>
+      <ILAsm Condition=" '$(Platform)' == 'Itanium' ">$(ILAsm) /pe64 /itanium</ILAsm>
+      <ILAsm Condition=" '$(AssemblyOriginatorKeyFile)' != '' ">$(ILAsm) /key:"$(AssemblyOriginatorKeyFile)"</ILAsm>
+      <ILAsm Condition=" Exists ( '$(ILResourceFile)' ) ">$(ILAsm) /resource:"$(ILResourceFile)"</ILAsm>
+      <ILAsm Condition=" Exists ( '$(ILFile)' ) ">$(ILAsm) "$(ILFile)"</ILAsm>
+      <ILAsm Condition=" '$(TargetPlatformIdentifier)' == 'WindowsPhoneApp' ">$(ILAsm) /ssver:6.00</ILAsm>
+    </PropertyGroup>
+    <Copy SourceFiles="@(IL)" DestinationFolder="$(IntermediateOutputPath)" />
+    <ItemGroup>
+      <ILCopied Include="@(IL)">
+        <ActualPath>$(MSBuildProjectDirectory)\$(IntermediateOutputPath)%(IL.Filename)%(IL.Extension)</ActualPath>
+      </ILCopied>
+    </ItemGroup>
+    <Exec Command="$(ILAsm) @(ILCopied->'&quot;%(ActualPath)&quot;', ' ')" />
+  </Target>
+</Project>

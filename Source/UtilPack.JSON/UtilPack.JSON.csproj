@@ -55,6 +55,7 @@
     <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
     <PackageTags>json utility binary serialization extensions async asynchronous deserialization</PackageTags>
     <Title>Asynchronous JSON Serialization</Title>
+    <RepositoryUrl>https://github.com/stazz/UtilPack</RepositoryUrl>
   </PropertyGroup>
   
   <!--

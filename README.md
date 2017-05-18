@@ -10,5 +10,9 @@ The .NET 4 target is lacking any asynchronous code though.
 The UtilPack project is the core of other UtilPack-based projects residing in this repository.
 It provides some of the most commonly used utilities, and also has some IL code to enable things are not possible with just C# code.
 
+The UtilPack Core is located at http://www.nuget.org/packages/UtilPack
+
 # UtilPack.JSON
 This project uses StreamStreamReaderWithResizableBuffer, IEncodingInfo, and StreamWriterWithResizableBuffer types located in UtilPack in order to provide fully asynchronous implementation to serialize and deserialize JSON objects (the JToken and its derivatives in Newtonsoft.JSON package).
+
+The UtilPack.JSON is located at http://www.nuget.org/packages/UtilPack.JSON

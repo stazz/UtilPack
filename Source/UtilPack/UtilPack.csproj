@@ -17,7 +17,7 @@
   <!-- Assembly information stuff -->
   <PropertyGroup>
     <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>RC5</VersionSuffix>
+    <VersionSuffix>RC6</VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
@@ -48,7 +48,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Added API to StreamWriterWithResizableBuffer that allows writing without callback.</PackageReleaseNotes>
+    <PackageReleaseNotes>Revised stream-related interfaces, and made IDisposable only the ones returned by CreateWithLimitedSizeAndSharedBuffer methods. Also generalized character reading API.</PackageReleaseNotes>
     <PackageTags>bcl utility binary serialization collection extensions</PackageTags>
     <Title>Utility Package for CLR</Title>
     <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>

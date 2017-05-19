@@ -52,17 +52,17 @@ public static partial class E_UtilPack
    private const Byte NUMBER_EXP_UPPER = (Byte) 'E';
 
    /// <summary>
-   /// Asynchronously reads the JSON value (array, object, or primitive value) from this <see cref="StreamReaderWithResizableBuffer"/>, with a help of given <see cref="CharacterReader"/>.
+   /// Asynchronously reads the JSON value (array, object, or primitive value) from this <see cref="StreamReaderWithResizableBuffer"/>, with a help of given <see cref="StreamCharacterReader"/>.
    /// Tries to keep the buffer of this stream as little as possible, and allocating as little as possible any other extra objects than created JSON objects (currently parsing a <see cref="Double"/> needs to allocate string).
    /// </summary>
    /// <param name="stream">This <see cref="StreamReaderWithResizableBuffer"/>.</param>
-   /// <param name="reader">The <see cref="CharacterReader"/> used to read characters from this <see cref="StreamReaderWithResizableBuffer"/>.</param>
+   /// <param name="reader">The <see cref="StreamCharacterReader"/> used to read characters from this <see cref="StreamReaderWithResizableBuffer"/>.</param>
    /// <returns>A task which will contain deserialized <see cref="JToken"/> on its completion.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="StreamReaderWithResizableBuffer"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="reader"/> is <c>null</c>.</exception>
    public static ValueTask<JToken> ReadJSONTTokenAsync(
       this StreamReaderWithResizableBuffer stream,
-      CharacterReader reader
+      StreamCharacterReader reader
       )
    {
       return PerformReadJSONTTokenAsync(
@@ -73,7 +73,7 @@ public static partial class E_UtilPack
 
    private static async ValueTask<JToken> PerformReadJSONTTokenAsync(
       StreamReaderWithResizableBuffer stream,
-      CharacterReader reader
+      StreamCharacterReader reader
       )
    {
       stream.EraseReadBytesFromBuffer();
@@ -83,7 +83,7 @@ public static partial class E_UtilPack
       do
       {
          prevIdx = stream.ReadBytesCount;
-         charRead = await reader.ReadNextCharacterAsync( stream );
+         charRead = await reader.ReadNextAsync( stream );
       } while ( Char.IsWhiteSpace( charRead ) );
 
 
@@ -108,7 +108,7 @@ public static partial class E_UtilPack
             {
                array.Add( retVal );
                // Read next non-whitespace character - it will be either array value delimiter (',') or array end (']')
-               charRead = await reader.ReadNextCharacterAsync( stream, c => !Char.IsWhiteSpace( c ) );
+               charRead = await reader.ReadNextAsync( stream, c => !Char.IsWhiteSpace( c ) );
                encounteredContainerEnd = charRead == ARRAY_END;
             }
             retVal = array;
@@ -122,14 +122,14 @@ public static partial class E_UtilPack
             {
                // First JToken should be string being the key
                // Skip whitespace and ':'
-               charRead = await reader.ReadNextCharacterAsync( stream, c => !Char.IsWhiteSpace( c ) && c != OBJ_KEY_VALUE_DELIM );
+               charRead = await reader.ReadNextAsync( stream, c => !Char.IsWhiteSpace( c ) && c != OBJ_KEY_VALUE_DELIM );
                // Unread previously read character
                stream.UnreadBytes( reader.GetByteCount( charRead ) );
                // Read another JToken, this one will be our value
                retVal = await PerformReadJSONTTokenAsync( stream, reader );
                obj.Add( keyStr, retVal );
                // Read next non-whitespace character - it will be either object value delimiter (','), or object end ('}')
-               charRead = await reader.ReadNextCharacterAsync( stream, c => !Char.IsWhiteSpace( c ) );
+               charRead = await reader.ReadNextAsync( stream, c => !Char.IsWhiteSpace( c ) );
                encounteredContainerEnd = charRead == OBJ_END;
             }
             retVal = obj;
@@ -140,39 +140,39 @@ public static partial class E_UtilPack
          case 't':
             // Boolean true
             // read 'r'
-            Validate( await reader.ReadNextCharacterAsync( stream ), 'r' );
+            Validate( await reader.ReadNextAsync( stream ), 'r' );
             // read 'u'
-            Validate( await reader.ReadNextCharacterAsync( stream ), 'u' );
+            Validate( await reader.ReadNextAsync( stream ), 'u' );
             // read 'e'
-            Validate( await reader.ReadNextCharacterAsync( stream ), 'e' );
+            Validate( await reader.ReadNextAsync( stream ), 'e' );
             retVal = new JValue( true );
             break;
          case 'f':
             //Boolean false
             // read 'a'
-            Validate( await reader.ReadNextCharacterAsync( stream ), 'a' );
+            Validate( await reader.ReadNextAsync( stream ), 'a' );
             // read 'l'
-            Validate( await reader.ReadNextCharacterAsync( stream ), 'l' );
+            Validate( await reader.ReadNextAsync( stream ), 'l' );
             // read 's'
-            Validate( await reader.ReadNextCharacterAsync( stream ), 's' );
+            Validate( await reader.ReadNextAsync( stream ), 's' );
             // read 'e'
-            Validate( await reader.ReadNextCharacterAsync( stream ), 'e' );
+            Validate( await reader.ReadNextAsync( stream ), 'e' );
             retVal = new JValue( false );
             break;
          case 'n':
             // null
             // read 'u'
-            Validate( await reader.ReadNextCharacterAsync( stream ), 'u' );
+            Validate( await reader.ReadNextAsync( stream ), 'u' );
             // read 'l'
-            Validate( await reader.ReadNextCharacterAsync( stream ), 'l' );
+            Validate( await reader.ReadNextAsync( stream ), 'l' );
             // read 'l'
-            Validate( await reader.ReadNextCharacterAsync( stream ), 'l' );
+            Validate( await reader.ReadNextAsync( stream ), 'l' );
             retVal = JValue.CreateNull();
             break;
          default:
             // The only possibility is number - or malformed JSON string
             // Read until first non-number-char
-            var lastReadChar = await reader.TryReadNextCharacterAsync( stream, c =>
+            var lastReadChar = await reader.TryReadNextAsync( stream, c =>
             {
                // TODO this isn't strictly according to spec... But will do for now.
                switch ( c )
@@ -229,7 +229,7 @@ public static partial class E_UtilPack
    }
 
    private static async ValueTask<String> ReadJSONStringAsync(
-      CharacterReader reader,
+      StreamCharacterReader reader,
       StreamReaderWithResizableBuffer stream,
       Boolean startQuoteRead
       )
@@ -239,7 +239,7 @@ public static partial class E_UtilPack
       if ( !startQuoteRead )
       {
          stream.EraseReadBytesFromBuffer();
-         charRead = await reader.ReadNextCharacterAsync( stream, c => !Char.IsWhiteSpace( c ) );
+         charRead = await reader.ReadNextAsync( stream, c => !Char.IsWhiteSpace( c ) );
          proceed = charRead == STR_START;
       }
 
@@ -265,11 +265,11 @@ public static partial class E_UtilPack
          do
          {
             curIdx = stream.ReadBytesCount;
-            charRead = await reader.TryReadNextCharacterAsync( stream ) ?? STR_END;
+            charRead = await reader.TryReadNextAsync( stream ) ?? STR_END;
             if ( charRead == STR_ESCAPE_PREFIX )
             {
                // Escape handling - next character decides what we will do
-               charRead = await reader.TryReadNextCharacterAsync( stream ) ?? STR_END;
+               charRead = await reader.TryReadNextAsync( stream ) ?? STR_END;
                Byte replacementByte = 0;
                switch ( charRead )
                {
@@ -307,8 +307,8 @@ public static partial class E_UtilPack
                         var idxAfterDecode = stream.ReadBytesCount;
                         Char? nullableChar;
                         if (
-                           ( nullableChar = await reader.TryReadNextCharacterAsync( stream ) ).HasValue && nullableChar.Value == STR_ESCAPE_PREFIX
-                           && ( nullableChar = await reader.TryReadNextCharacterAsync( stream ) ).HasValue && nullableChar.Value == 'u'
+                           ( nullableChar = await reader.TryReadNextAsync( stream ) ).HasValue && nullableChar.Value == STR_ESCAPE_PREFIX
+                           && ( nullableChar = await reader.TryReadNextAsync( stream ) ).HasValue && nullableChar.Value == 'u'
                            )
                         {
                            var code2 = await DecodeUnicodeEscape();

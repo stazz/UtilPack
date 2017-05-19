@@ -75,14 +75,14 @@ namespace UtilPack
       ValueTask<Boolean> TryReadMoreAsync( Int32 amount );
 
       /// <summary>
-      /// Creates <see cref="StreamReaderWithResizableBufferAndLimitedSize"/> to be used to read the next <paramref name="byteCount"/> bytes.
-      /// If creation is successful, the read bytes will be erased using <see cref="EraseReadBytesFromBuffer"/> before returning the <see cref="StreamReaderWithResizableBufferAndLimitedSize"/>.
-      /// This <see cref="StreamReaderWithResizableBuffer"/> will become unusable until the <see cref="IDisposable.Dispose"/> method is called on returned <see cref="StreamReaderWithResizableBufferAndLimitedSize"/>.
+      /// Creates <see cref="InnerStreamReaderWithResizableBufferAndLimitedSize"/> to be used to read the next <paramref name="byteCount"/> bytes.
+      /// If creation is successful, the read bytes will be erased using <see cref="EraseReadBytesFromBuffer"/> before returning the <see cref="InnerStreamReaderWithResizableBufferAndLimitedSize"/>.
+      /// This <see cref="StreamReaderWithResizableBuffer"/> will become unusable until the <see cref="IDisposable.Dispose"/> method is called on returned <see cref="InnerStreamReaderWithResizableBufferAndLimitedSize"/>.
       /// </summary>
-      /// <param name="byteCount">The amount of bytes to reserve to returned <see cref="StreamReaderWithResizableBufferAndLimitedSize"/>.</param>
-      /// <returns>The <see cref="StreamReaderWithResizableBufferAndLimitedSize"/> with <c>0 ≤ </c><see cref="LimitedSizeInfo.TotalByteCount"/><c> ≤ </c><paramref name="byteCount"/>.</returns>
+      /// <param name="byteCount">The amount of bytes to reserve to returned <see cref="InnerStreamReaderWithResizableBufferAndLimitedSize"/>.</param>
+      /// <returns>The <see cref="InnerStreamReaderWithResizableBufferAndLimitedSize"/> with <c>0 ≤ </c><see cref="LimitedSizeInfo.TotalByteCount"/><c> ≤ </c><paramref name="byteCount"/>.</returns>
       /// <exception cref="InvalidOperationException">If this stream reader is currently unusable (concurrent read or usage of nested buffer created by <see cref="CreateWithLimitedSizeAndSharedBuffer"/>).</exception>
-      StreamReaderWithResizableBufferAndLimitedSize CreateWithLimitedSizeAndSharedBuffer( Int64 byteCount );
+      InnerStreamReaderWithResizableBufferAndLimitedSize CreateWithLimitedSizeAndSharedBuffer( Int64 byteCount );
 
       /// <summary>
       /// Gets the amount of useable bytes in <see cref="AbstractStreamWithResizableBuffer.Buffer"/>.
@@ -148,7 +148,15 @@ namespace UtilPack
    /// <remarks>
    /// <see cref="StreamFactory"/> class provides methods to create objects implementing this interface.
    /// </remarks>
-   public interface StreamReaderWithResizableBufferAndLimitedSize : StreamReaderWithResizableBuffer, LimitedSizeInfo, IDisposable
+   public interface StreamReaderWithResizableBufferAndLimitedSize : StreamReaderWithResizableBuffer, LimitedSizeInfo
+   {
+   }
+   
+   /// <summary>
+   /// This interface augments <see cref="StreamReaderWithResizableBufferAndLimitedSize"/> interface with <see cref="IDisposable.Dispose"/> method from <see cref="IDisposable"/>.
+   /// By calling the <see cref="IDisposable.Dispose"/> method, the <see cref="StreamReaderWithResizableBuffer"/> which created this <see cref="InnerStreamReaderWithResizableBufferAndLimitedSize"/> will become useable again.
+   /// </summary>
+   public interface InnerStreamReaderWithResizableBufferAndLimitedSize : StreamReaderWithResizableBufferAndLimitedSize, IDisposable
    {
    }
 
@@ -177,13 +185,13 @@ namespace UtilPack
       ValueTask<Int32> FlushAsync();
 
       /// <summary>
-      /// Asynchronously creates a new <see cref="StreamWriterWithResizableBufferAndLimitedSize"/> with given byte limit.
-      /// This <see cref="StreamWriterWithResizableBuffer"/> will become unusable until the <see cref="IDisposable.Dispose"/> method is called on returned <see cref="StreamWriterWithResizableBufferAndLimitedSize"/>.
+      /// Asynchronously creates a new <see cref="InnerStreamWriterWithResizableBufferAndLimitedSize"/> with given byte limit.
+      /// This <see cref="StreamWriterWithResizableBuffer"/> will become unusable until the <see cref="IDisposable.Dispose"/> method is called on returned <see cref="InnerStreamWriterWithResizableBufferAndLimitedSize"/>.
       /// </summary>
-      /// <param name="byteLimit">The maximum amount of bytes that returned <see cref="StreamWriterWithResizableBufferAndLimitedSize"/> may write to underlying <see cref="Stream"/>.</param>
-      /// <returns>The task which will result in <see cref="StreamWriterWithResizableBufferAndLimitedSize"/>.</returns>
+      /// <param name="byteLimit">The maximum amount of bytes that returned <see cref="InnerStreamWriterWithResizableBufferAndLimitedSize"/> may write to underlying <see cref="Stream"/>.</param>
+      /// <returns>The task which will result in <see cref="InnerStreamWriterWithResizableBufferAndLimitedSize"/>.</returns>
       /// <exception cref="InvalidOperationException">If this stream writer is currently unusable (concurrent write or usage of nested buffer created by <see cref="CreateWithLimitedSizeAndSharedBuffer"/>).</exception>
-      ValueTask<StreamWriterWithResizableBufferAndLimitedSize> CreateWithLimitedSizeAndSharedBuffer( Int64 byteLimit );
+      ValueTask<InnerStreamWriterWithResizableBufferAndLimitedSize> CreateWithLimitedSizeAndSharedBuffer( Int64 byteLimit );
    }
 
 
@@ -193,9 +201,16 @@ namespace UtilPack
    /// <remarks>
    /// <see cref="StreamFactory"/> class provides methods to create objects implementing this interface.
    /// </remarks>
-   public interface StreamWriterWithResizableBufferAndLimitedSize : StreamWriterWithResizableBuffer, LimitedSizeInfo, IDisposable
+   public interface StreamWriterWithResizableBufferAndLimitedSize : StreamWriterWithResizableBuffer, LimitedSizeInfo
    {
-
+   }
+   
+   /// <summary>
+   /// This interface augments <see cref="StreamWriterWithResizableBufferAndLimitedSize"/> interface with <see cref="IDisposable.Dispose"/> method from <see cref="IDisposable"/>.
+   /// By calling the <see cref="IDisposable.Dispose"/> method, the <see cref="StreamWriterWithResizableBuffer"/> which created this <see cref="InnerStreamWriterWithResizableBufferAndLimitedSize"/> will become useable again.
+   /// </summary>
+   public interface InnerStreamWriterWithResizableBufferAndLimitedSize : StreamWriterWithResizableBufferAndLimitedSize, IDisposable
+   {
    }
 
    /// <summary>
@@ -433,9 +448,9 @@ namespace UtilPack
          return await this.PerformReadAsync( count, false );
       }
 
-      public virtual StreamReaderWithResizableBufferAndLimitedSize CreateWithLimitedSizeAndSharedBuffer( Int64 byteCount )
+      public InnerStreamReaderWithResizableBufferAndLimitedSize CreateWithLimitedSizeAndSharedBuffer( Int64 byteCount )
       {
-         StreamReaderWithResizableBufferAndLimitedSize retVal;
+         InnerStreamReaderWithResizableBufferAndLimitedSize retVal;
          if ( Interlocked.CompareExchange( ref this._state, RESERVED_FOR_INNER_READER, IDLE ) == IDLE )
          {
             var resetState = true;
@@ -446,7 +461,7 @@ namespace UtilPack
                   this.ForgetUsedBytes();
                   resetState = false;
                   var needsStream = byteCount > this._bytesInBuffer - this._bytesInBufferUsedUp;
-                  retVal = new StreamReaderWithResizableBufferAndLimitedSizeImpl(
+                  retVal = new InnerStreamReaderWithResizableBufferAndLimitedSizeImpl(
                      needsStream ? this._stream : null,
                      this.CancellationToken,
                      this._buffer,
@@ -679,13 +694,11 @@ namespace UtilPack
       }
    }
 
-   internal sealed class StreamReaderWithResizableBufferAndLimitedSizeImpl : StreamReaderWithResizableBufferImpl, StreamReaderWithResizableBufferAndLimitedSize
+   internal class StreamReaderWithResizableBufferAndLimitedSizeImpl : StreamReaderWithResizableBufferImpl, StreamReaderWithResizableBufferAndLimitedSize
    {
-      private Int64 _bytesLeft;
-      private Int64 _streamBytesLeftToRead;
-      private readonly Int64 _initialStreamBytesLeftToRead;
-      private readonly Action<Int64, Int64, Int64, Int64, Int32, Int32> _onDispose;
-
+      protected Int64 _bytesLeft;
+      protected Int64 _streamBytesLeftToRead;
+      protected readonly Int64 _initialStreamBytesLeftToRead;
 
       public StreamReaderWithResizableBufferAndLimitedSizeImpl(
          Stream stream,
@@ -693,23 +706,22 @@ namespace UtilPack
          ResizableArray<Byte> buffer,
          Int32 chunkSize,
          Int64 byteCount
-         ) : this( stream, token, buffer, chunkSize, byteCount, 0, null )
+         ) : this( stream, token, buffer, chunkSize, byteCount, 0, true )
       {
       }
-
-      internal StreamReaderWithResizableBufferAndLimitedSizeImpl(
+      
+      protected StreamReaderWithResizableBufferAndLimitedSizeImpl(
          Stream stream,
          CancellationToken token,
          ResizableArray<Byte> buffer,
          Int32 chunkSize,
          Int64 byteCount,
          Int32 bytesInBuffer,
-         Action<Int64, Int64, Int64, Int64, Int32, Int32> onDispose
-         ) : base( stream, token, buffer, bytesInBuffer: Min( byteCount, bytesInBuffer ), chunkSize: chunkSize, checkForStream: onDispose == null )
+         Boolean checkForStream
+         ) : base( stream, token, buffer, bytesInBuffer: Min( byteCount, bytesInBuffer ), chunkSize: chunkSize, checkForStream: checkForStream )
       {
          this._bytesLeft = this.TotalByteCount = byteCount;
          this._initialStreamBytesLeftToRead = this._streamBytesLeftToRead = Math.Max( byteCount - bytesInBuffer, 0 );
-         this._onDispose = onDispose;
       }
 
       public Int64 TotalByteCount { get; }
@@ -733,13 +745,33 @@ namespace UtilPack
          Interlocked.Exchange( ref this._bytesLeft, this._bytesLeft - count );
       }
 
+
+   }
+   
+   internal sealed class InnerStreamReaderWithResizableBufferAndLimitedSizeImpl : StreamReaderWithResizableBufferAndLimitedSizeImpl, InnerStreamReaderWithResizableBufferAndLimitedSize
+   {
+      private readonly Action<Int64, Int64, Int64, Int64, Int32, Int32> _onDispose;
+      
+      public InnerStreamReaderWithResizableBufferAndLimitedSizeImpl(
+         Stream stream,
+         CancellationToken token,
+         ResizableArray<Byte> buffer,
+         Int32 chunkSize,
+         Int64 byteCount,
+         Int32 bytesInBuffer,
+         Action<Int64, Int64, Int64, Int64, Int32, Int32> onDispose
+         ) : base( stream, token, buffer, chunkSize, byteCount, bytesInBuffer, false  )
+      {
+        this._onDispose = onDispose;
+      }
+      
       public void Dispose()
       {
          this._onDispose?.Invoke( this.TotalByteCount, this._bytesLeft, this._initialStreamBytesLeftToRead, this._streamBytesLeftToRead, this._bytesInBufferUsedUp, this._bytesInBuffer );
       }
    }
 
-   internal sealed class EmptyReader : StreamReaderWithResizableBufferAndLimitedSize
+   internal sealed class EmptyReader : InnerStreamReaderWithResizableBufferAndLimitedSize
    {
       public EmptyReader( CancellationToken token )
       {
@@ -759,7 +791,7 @@ namespace UtilPack
       // Return 1 to adhere to contract of Streamreaderwithresizablebuffer.
       public Int32 ChunkSize => 1;
 
-      public StreamReaderWithResizableBufferAndLimitedSize CreateWithLimitedSizeAndSharedBuffer( Int64 byteCount )
+      public InnerStreamReaderWithResizableBufferAndLimitedSize CreateWithLimitedSizeAndSharedBuffer( Int64 byteCount )
       {
          return this;
       }
@@ -854,31 +886,6 @@ namespace UtilPack
          return (offset, count);
       }
 
-      public Int32 AppendToBytes( Int32 count, Action<Byte[], Int32, Int32> appender )
-      {
-         if ( Interlocked.CompareExchange( ref this._state, OPERATING_STREAM, IDLE ) == IDLE )
-         {
-            try
-            {
-               if ( count > 0 && ( count = this.ProcessCountForArrayWrite( count ) ) > 0 )
-               {
-                  this._buffer.CurrentMaxCapacity = this._appendedByteCount + count;
-                  appender( this.Buffer, this._appendedByteCount, count );
-                  Interlocked.Exchange( ref this._appendedByteCount, this._appendedByteCount + count );
-               }
-            }
-            finally
-            {
-               Interlocked.Exchange( ref this._state, IDLE );
-            }
-         }
-         else
-         {
-            throw new InvalidOperationException( "Concurrent write" );
-         }
-         return count;
-      }
-
       public async ValueTask<Int32> FlushAsync()
       {
          Int32 retVal;
@@ -906,9 +913,9 @@ namespace UtilPack
          return retVal;
       }
 
-      public async ValueTask<StreamWriterWithResizableBufferAndLimitedSize> CreateWithLimitedSizeAndSharedBuffer( Int64 byteLimit )
+      public async ValueTask<InnerStreamWriterWithResizableBufferAndLimitedSize> CreateWithLimitedSizeAndSharedBuffer( Int64 byteLimit )
       {
-         StreamWriterWithResizableBufferAndLimitedSize retVal;
+         InnerStreamWriterWithResizableBufferAndLimitedSize retVal;
          if ( Interlocked.CompareExchange( ref this._state, OPERATING_SUB_STREAM, IDLE ) == IDLE )
          {
             var resetState = true;
@@ -918,7 +925,7 @@ namespace UtilPack
                {
                   resetState = false;
                   await this.FlushAsync( OPERATING_SUB_STREAM );
-                  retVal = new StreamWriterWithResizableBufferAndLimitedSizeImpl(
+                  retVal = new InnerStreamWriterWithResizableBufferAndLimitedSizeImpl(
                      this._stream,
                      this.CancellationToken,
                      this._buffer,
@@ -1004,32 +1011,19 @@ namespace UtilPack
       }
    }
 
-   internal sealed class StreamWriterWithResizableBufferAndLimitedSizeImpl : StreamWriterWithResizableBufferImpl, StreamWriterWithResizableBufferAndLimitedSize
+   internal class StreamWriterWithResizableBufferAndLimitedSizeImpl : StreamWriterWithResizableBufferImpl, StreamWriterWithResizableBufferAndLimitedSize
    {
-      private Int64 _bytesLeft;
+      protected Int64 _bytesLeft;
       private Boolean _performFlush;
-      private readonly Action<Int32, Int64> _onDispose;
 
       public StreamWriterWithResizableBufferAndLimitedSizeImpl(
          Stream stream,
          CancellationToken token,
          ResizableArray<Byte> buffer,
          Int64 byteCount
-         ) : this( stream, token, buffer, byteCount, null )
-      {
-
-      }
-
-      internal StreamWriterWithResizableBufferAndLimitedSizeImpl(
-         Stream stream,
-         CancellationToken token,
-         ResizableArray<Byte> buffer,
-         Int64 byteCount,
-         Action<Int32, Int64> onDispose
          ) : base( stream, token, buffer )
       {
          this._bytesLeft = this.TotalByteCount = byteCount;
-         this._onDispose = onDispose;
       }
 
       public Int64 TotalByteCount { get; }
@@ -1073,6 +1067,24 @@ namespace UtilPack
          }
       }
 
+
+   }
+   
+   internal sealed class InnerStreamWriterWithResizableBufferAndLimitedSizeImpl : StreamWriterWithResizableBufferAndLimitedSizeImpl, InnerStreamWriterWithResizableBufferAndLimitedSize
+   {
+      private readonly Action<Int32, Int64> _onDispose;
+      
+      public InnerStreamWriterWithResizableBufferAndLimitedSizeImpl(
+         Stream stream,
+         CancellationToken token,
+         ResizableArray<Byte> buffer,
+         Int64 byteCount,
+         Action<Int32, Int64> onDispose
+      ) : base ( stream, token, buffer, byteCount )
+      {
+         this._onDispose = onDispose;
+      }
+      
       public void Dispose()
       {
          try
@@ -1086,7 +1098,7 @@ namespace UtilPack
       }
    }
 
-   internal sealed class EmptyWriter : StreamWriterWithResizableBufferAndLimitedSize
+   internal sealed class EmptyWriter : InnerStreamWriterWithResizableBufferAndLimitedSize
    {
       private readonly CancellationToken _token;
 
@@ -1105,7 +1117,7 @@ namespace UtilPack
 
       public (Int32 Offset, Int32 Count) ReserveBufferSegment(Int32 count) => (0,0);
 
-      public ValueTask<StreamWriterWithResizableBufferAndLimitedSize> CreateWithLimitedSizeAndSharedBuffer( Int64 byteLimit ) => new ValueTask<StreamWriterWithResizableBufferAndLimitedSize>( byteLimit <= 0 ? this : null );
+      public ValueTask<InnerStreamWriterWithResizableBufferAndLimitedSize> CreateWithLimitedSizeAndSharedBuffer( Int64 byteLimit ) => new ValueTask<InnerStreamWriterWithResizableBufferAndLimitedSize>( byteLimit <= 0 ? this : null );
 
       public ValueTask<Int32> FlushAsync() => new ValueTask<Int32>( 0 );
 

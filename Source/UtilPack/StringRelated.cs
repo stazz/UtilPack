@@ -128,7 +128,7 @@ namespace UtilPack
    /// </summary>
    /// <typeparam name="TValue">The type of values that this reader produces.</typeparam>
    /// <typeparam name="TSource">The type of the source from which to read the next character.</typeparam>
-   public interface PotentiallyAsyncReader<TValue, in TSource>
+   public interface PotentiallyAsyncReaderLogic<TValue, in TSource>
    {
       /// <summary>
       /// Tries to read next item from given <paramref name="source"/>.
@@ -139,40 +139,164 @@ namespace UtilPack
    }
    
    /// <summary>
-   /// This class binds the source type parameter of <see cref="PotentiallyAsyncReader{TValue, TSource}"/> in order to provide read method without parameters.
-   /// This class is intended to be used as parameter type to methods instead of passing a pair of <see cref="PotentiallyAsyncReader{TValue, TSource}"/> and the source object.
+   /// This interface augments <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/> with an event, which is triggered on every read.
    /// </summary>
-   public abstract class PotentiallyAsyncReader<TValue>
+   /// <typeparam name="TValue">The type of values that this reader produces.</typeparam>
+   /// <typeparam name="TSource">The type of the source from which to read the next character.</typeparam>
+   /// <remarks>
+   /// The event contained with this interface would cause the <c>in</c> variance specification of <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/> to be lost, therefore this interface exists.
+   /// </remarks>
+   public interface PotentiallyAsyncReaderLogicObservable<TValue, TSource> : PotentiallyAsyncReaderLogic<TValue, TSource>
    {
-      internal PotentiallyAsyncReader()
-      {
-      }
-      
       /// <summary>
-      /// <see cref="PotentiallyAsyncReader{TValue, TSource}.TryReadNextAsync"/>.
+      /// This event is triggered on every call to <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}.TryReadNextAsync"/>, exposing all the context in <see cref="ReadCompletedEventArgs{TValue, TSource}"/> event arguments.
       /// </summary>
-      /// <returns><see cref="PotentiallyAsyncReader{TValue, TSource}.TryReadNextAsync"/>.</returns>
-      public abstract ValueTask<TValue> TryReadNextAsync();
+      event GenericEventHandler<ReadCompletedEventArgs<TValue, TSource>> ReadCompleted;
    }
    
    /// <summary>
-/// This class augments <see cref="PotentiallyAsyncReader{TValue}"/> with peekability.
+   /// This delegate type is alternative for <see cref="EventHandler{TEventArgs}"/>.
+   /// It differs from the <see cref="EventHandler{TEventArgs}"/> in the following three ways:
+   /// <list type="bullet">
+   /// <item><description>The generic argument <typeparamref name="TArgs"/> has <c>in</c> contravariance specification,</description></item>
+   /// <item><description>The generic argument <typeparamref name="TArgs"/> no longer has a inheritance constraint, and</description></item>
+   /// <item><description>The <c>sender</c> parameter of the <see cref="EventHandler{TEventArgs}"/> is missing.</description></item>
+   /// </list>
    /// </summary>
-   public abstract class PeekablePotentiallyAsyncReader<TValue> : PotentiallyAsyncReader<TValue>
+   /// <typeparameter name="TArgs">The type of the arguments this delegate will receive.</typeparameter>
+   public delegate void GenericEventHandler<in TArgs>(TArgs args);
+   
+   /// <summary>
+   /// This interface acts as base interface for event args of <see cref="PotentiallyAsyncReaderLogicObservable{TValue, TSource}.ReadCompleted"/> and <see cref="PotentiallyAsyncReaderObservable{TValue}.ReadCompleted"/>, but contains all the information that does not require any type arguments.
+   /// </summary>
+   public interface ReadCompletedEventArgs
    {
-      internal PeekablePotentiallyAsyncReader()
-      {
-      }
-      
       /// <summary>
-      /// <see cref="PeekablePotentiallyAsyncReader{TValue, TSource}.TryPeekAsync"/>.
+      /// Gets the value indicating whether this read was successful.
       /// </summary>
-      /// <returns><see cref="PeekablePotentiallyAsyncReader{TValue, TSource}.TryPeekAsync"/>.</returns>
-      public abstract ValueTask<TValue> TryPeekAsync();
+      /// <value>The value indicating whether this read was successful.</value>
+      Boolean Success { get; }
    }
    
    /// <summary>
-   /// This class provides implementation for <see cref="PotentiallyAsyncReader{TValue}.TryReadNextAsync"/>.
+   /// This interface augments <see cref="ReadCompletedEventArgs"/> with read result information.
+   /// </summary>
+   /// <typeparam name="TValue">The type of the values produced by the reader.</typeparam>
+   public interface ReadCompletedEventArgs<out TValue> : ReadCompletedEventArgs
+   {
+      /// <summary>
+      /// Gets the read result.
+      /// </summary>
+      /// <value>The read result.</value>
+      TValue Result { get; }
+   }
+   
+   /// <summary>
+   /// This interface further augments <see cref="ReadCompletedEventArgs{TValue}"/> with read source information.
+   /// </summary>
+   /// <typeparam name="TValue">The type of the values produced by the reader.</typeparam>
+   /// <typeparam name="TSource">The type of the source where the value was read from.</typeparam>
+   public interface ReadCompletedEventArgs<out TValue, out TSource> : ReadCompletedEventArgs<TValue>
+   {
+      /// <summary>
+      /// Gets the source where the value was read from.
+      /// </summary>
+      TSource Source { get; }
+   }
+   
+   /// <summary>
+   /// This class provides default implementation of <see cref="ReadCompletedEventArgs{TValue, TSource}"/>.
+   /// </summary>
+   public class ReadCompletedEventArgsImpl<TValue, TSource> : ReadCompletedEventArgs<TValue, TSource>
+   {
+      /// <summary>
+      /// Creates a new instance of <see cref="ReadCompletedEventArgsImpl{TValue, TSource}"/> with given read information.
+      /// </summary>
+      /// <param name="success">Whether read operation was successful.</param>
+      /// <param name="result">The result of the read operation.</param>
+      /// <param name="source">The source where the <paramref name="result"/> was read from.</param>
+      public ReadCompletedEventArgsImpl(
+         Boolean success,
+         TValue result,
+         TSource source
+         )
+      {
+         this.Success = success;
+         this.Result = result;
+         this.Source = source;
+      }
+      
+      /// <inheritdoc/>
+      public Boolean Success { get; }
+      
+      /// <inheritdoc/>
+      public TValue Result { get; }
+      
+      /// <inheritdoc/>
+      public TSource Source { get; }
+   }
+   
+   /// <summary>
+   /// This itnerface provides observability for <see cref="PotentiallyAsyncReader{TValue}"/> and thus allows <c>out</c> covariance specification on the <typeparamref name="TValue"/>.
+   /// </summary>
+   /// <typeparam name="TValue">The type of values that this reader produces.</typeparam>
+   public interface PotentiallyAsyncReaderObservable<out TValue>
+   {
+      /// <summary>
+      /// This event will be triggered after each read operation.
+      /// </summary>
+      event GenericEventHandler<ReadCompletedEventArgs<TValue>> ReadCompleted;
+   }
+   
+   /// <summary>
+   /// This interface binds the source type parameter of <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/> in order to provide read method without parameters.
+   /// This interface is intended to be used as parameter type to methods instead of passing a pair of <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/> and the source object.
+   /// </summary>
+   /// <typeparam name="TValue">The type of values that this reader produces.</typeparam>
+   public interface PotentiallyAsyncReader<TValue> : PotentiallyAsyncReaderObservable<TValue>
+   {
+      /// <summary>
+      /// <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}.TryReadNextAsync"/>.
+      /// </summary>
+      /// <returns><see cref="PotentiallyAsyncReaderLogic{TValue, TSource}.TryReadNextAsync"/>.</returns>
+      ValueTask<TValue> TryReadNextAsync();
+   }
+   
+   /// <summary>
+   /// This interface augments <see cref="PotentiallyAsyncReader{TValue}"/> with peekability.
+   /// </summary>
+   /// <typeparam name="TValue">The type of values that this reader produces.</typeparam>
+   public interface PeekablePotentiallyAsyncReader<TValue> : PotentiallyAsyncReader<TValue>
+   {
+      
+      /// <summary>
+      /// Tries to peek the next value asynchronously.
+      /// Subsequent calls to this method will use cached peeked value, until <see cref="PotentiallyAsyncReader{TValue}.TryReadNextAsync"/> is called.
+      /// </summary>
+      ValueTask<TValue> TryPeekAsync();
+   }
+   
+   /// <summary>
+   /// This interface augments <see cref="PotentiallyAsyncReader{TValue}"/> with clearable buffer of past read values.
+   /// </summary>
+   /// <typeparam name="TValue">The type of values that this reader produces.</typeparam>
+   /// <typeparam name="TBufferItem">The type of the items in buffer.</typeparam>
+   public interface MemorizingPotentiallyAsyncReader<TValue, TBufferItem> : PotentiallyAsyncReader<TValue>
+   {
+      /// <summary>
+      /// This will become System.Span when it's available.
+      /// </summary>
+      /// <value>The current buffer span.</value>
+      (TBufferItem[] Array, Int32 count) Buffer { get; }
+      
+      /// <summary>
+      /// Clears the current buffer.
+      /// </summary>
+      void ClearBuffer();
+   }
+   
+   /// <summary>
+   /// This class provides implementation for <see cref="PotentiallyAsyncReader{TValue}"/>.
    /// </summary>
    public sealed class BoundPotentiallyAsyncReader<TValue, TSource> : PotentiallyAsyncReader<TValue>
    {
@@ -180,11 +304,11 @@ namespace UtilPack
       /// <summary>
       /// Creates a new instance of <see cref="BoundPotentiallyAsyncReader{TValue, TSource}"/> with given reader and source.
       /// </summary>
-      /// <param name="reader">The <see cref="PotentiallyAsyncReader{TValue, TSource}"/>.</param>
+      /// <param name="reader">The <see cref="PotentiallyAsyncReaderLogicObservable{TValue, TSource}"/>.</param>
       /// <param name="source">The source for <paramref name="reader"/>.</param>
       /// <exception cref="ArgumentNullException">If <paramref name="reader"/> is <c>null</c>.</exception>
       public BoundPotentiallyAsyncReader(
-        PotentiallyAsyncReader<TValue, TSource> reader,
+        PotentiallyAsyncReaderLogicObservable<TValue, TSource> reader,
         TSource source
         )
       {
@@ -202,15 +326,30 @@ namespace UtilPack
       /// Gets the underlying reader.
       /// </summary>
       /// <value>The underlying reader.</value>
-      public PotentiallyAsyncReader<TValue, TSource> Reader { get; }
+      public PotentiallyAsyncReaderLogicObservable<TValue, TSource> Reader { get; }
       
       /// <summary>
-      /// <see cref="PotentiallyAsyncReader{TValue, TSource}.TryReadNextAsync"/>.
+      /// <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}.TryReadNextAsync"/>.
       /// </summary>
-      /// <returns><see cref="PotentiallyAsyncReader{TValue, TSource}.TryReadNextAsync"/>.</returns>
-      public override ValueTask<TValue> TryReadNextAsync()
+      /// <returns><see cref="PotentiallyAsyncReaderLogic{TValue, TSource}.TryReadNextAsync"/>.</returns>
+      public ValueTask<TValue> TryReadNextAsync()
       {
          return this.Reader.TryReadNextAsync( this.Source );
+      }
+      
+      /// <summary>
+      /// <see cref="PotentiallyAsyncReaderLogicObservable{TValue, TSource}.ReadCompleted"/>.
+      /// </summary>
+      public event GenericEventHandler<ReadCompletedEventArgs<TValue>> ReadCompleted
+      {
+         add
+         {
+            this.Reader.ReadCompleted += value;
+         }
+         remove
+         {
+            this.Reader.ReadCompleted -= value;
+         }
       }
    }
    
@@ -219,20 +358,27 @@ namespace UtilPack
    /// </summary>
    public sealed class BoundPeekablePotentiallyAsyncReader<TValue, TSource> : PeekablePotentiallyAsyncReader<TValue>
    {
+      private readonly Func<TValue, Boolean> _readSuccessful;
+      private Boolean _hasPeekedValue;
+      private TValue _peekedValue;
+      private Boolean _ended;
       
       /// <summary>
       /// Creates a new instance of <see cref="BoundPeekablePotentiallyAsyncReader{TValue, TSource}"/> with given reader and source.
       /// </summary>
-      /// <param name="reader">The <see cref="PeekablePotentiallyAsyncReader{TValue, TSource}"/>.</param>
+      /// <param name="reader">The <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/>.</param>
       /// <param name="source">The source for <paramref name="reader"/>.</param>
+      /// <param name="readSuccessful">The callback to check whether read result indicates successful read.</param>
       /// <exception cref="ArgumentNullException">If <paramref name="reader"/> is <c>null</c>.</exception>
-      public BoundPeekablePotentiallyAsyncReader(
-        PeekablePotentiallyAsyncReader<TValue, TSource> reader,
-        TSource source
+      internal BoundPeekablePotentiallyAsyncReader(
+        PotentiallyAsyncReaderLogic<TValue, TSource> reader,
+        TSource source,
+        Func<TValue, Boolean> readSuccessful
         )
       {
          this.Reader = ArgumentValidator.ValidateNotNull( nameof(reader), reader);
          this.Source = source;
+         this._readSuccessful = ArgumentValidator.ValidateNotNull( nameof(readSuccessful), readSuccessful);
       }
       
       /// <summary>
@@ -245,25 +391,163 @@ namespace UtilPack
       /// Gets the underlying reader.
       /// </summary>
       /// <value>The underlying reader.</value>
-      public PeekablePotentiallyAsyncReader<TValue, TSource> Reader { get; }
+      public PotentiallyAsyncReaderLogic<TValue, TSource> Reader { get; }
       
       /// <summary>
-      /// <see cref="PotentiallyAsyncReader{TValue, TSource}.TryReadNextAsync"/>.
+      /// <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}.TryReadNextAsync"/>.
       /// </summary>
-      /// <returns><see cref="PotentiallyAsyncReader{TValue, TSource}.TryReadNextAsync"/>.</returns>
-      public override ValueTask<TValue> TryReadNextAsync()
+      /// <returns><see cref="PotentiallyAsyncReaderLogic{TValue, TSource}.TryReadNextAsync"/>.</returns>
+      public async ValueTask<TValue> TryReadNextAsync()
       {
-         return this.Reader.TryReadNextAsync( this.Source );
+         // TODO Interlocked.CompareExchange(ref this._state ... ) guards
+         TValue retVal;
+         Boolean readSuccessful;
+         if ( this._ended )
+         {
+            retVal = this._peekedValue;
+            readSuccessful = false;
+         }
+         else if ( this._hasPeekedValue)
+         {
+            retVal = this._peekedValue;
+            this._hasPeekedValue = false;
+            readSuccessful = true;
+         }
+         else
+         {
+            retVal = await this.Reader.TryReadNextAsync( this.Source );
+            readSuccessful = this._readSuccessful( retVal );
+            if ( !readSuccessful )
+            {
+               this._ended = true;
+               this._peekedValue = retVal;
+            }
+         }
+         
+         this.ReadCompleted?.Invoke( new ReadCompletedEventArgsImpl<TValue, TSource>( readSuccessful, retVal, this.Source ) );
+         
+         return retVal;
       }
       
       /// <summary>
-      /// <see cref="PeekablePotentiallyAsyncReader{TValue, TSource}.TryPeekAsync"/>.
+      /// <see cref="PeekablePotentiallyAsyncReader{TValue}.TryPeekAsync"/>.
       /// </summary>
-      /// <returns><see cref="PeekablePotentiallyAsyncReader{TValue, TSource}.TryPeekAsync"/>.</returns>
-      public override ValueTask<TValue> TryPeekAsync()
+      /// <returns><see cref="PeekablePotentiallyAsyncReader{TValue}.TryPeekAsync"/>.</returns>
+      public async ValueTask<TValue> TryPeekAsync()
       {
-         return this.Reader.TryPeekAsync( this.Source );
+         TValue retVal;
+         if ( this._ended )
+         {
+            retVal = this._peekedValue;
+         }
+         else if ( this._hasPeekedValue )
+         {
+            retVal = this._peekedValue;
+         }
+         else
+         {
+            retVal = await this.Reader.TryReadNextAsync( this.Source );
+            this._peekedValue = retVal;
+            if ( !this._readSuccessful( retVal ) )
+            {
+               this._ended = true;
+            }
+         }
+         
+         return retVal;
       }
+      
+      /// <summary>
+      /// <see cref="PotentiallyAsyncReaderLogicObservable{TValue, TSource}.ReadCompleted"/>.
+      /// </summary>
+      public event GenericEventHandler<ReadCompletedEventArgs<TValue>> ReadCompleted;
+   }
+   
+   /// <summary>
+   /// This class implements <see cref="MemorizingPotentiallyAsyncReader{TValue, TBufferItem}"/>.
+   /// </summary>
+   /// <typeparam name="TValue">The type of values this reader produces.</typeparam>
+   /// <typeparam name="TBufferItem">The type of buffer items that this reader memorizes.</typeparam>
+   /// <typeparam name="TSource">The type of source bound to this reader.</typeparam>
+   public sealed class BoundMemorizingPotentiallyAsyncReader<TValue, TBufferItem, TSource> : MemorizingPotentiallyAsyncReader<TValue, TBufferItem>
+   {
+      private readonly ResizableArray<TBufferItem> _buffer;
+      private readonly Func<TValue, Boolean> _readSuccessful;
+      private readonly Func<TValue, TBufferItem> _transform;
+      private Int32 _bufferSize;
+      
+      internal BoundMemorizingPotentiallyAsyncReader(
+        PotentiallyAsyncReaderLogic<TValue, TSource> reader,
+        TSource source,
+        Func<TValue, Boolean> readSuccessful,
+        ResizableArray<TBufferItem> buffer,
+        Func<TValue, TBufferItem> transform
+        )
+      {
+         this.Reader = ArgumentValidator.ValidateNotNull( nameof(reader), reader);
+         this.Source = source;
+         this._readSuccessful = ArgumentValidator.ValidateNotNull( nameof(readSuccessful), readSuccessful );
+         this._buffer = buffer ?? new ResizableArray<TBufferItem>();
+         this._transform = ArgumentValidator.ValidateNotNull( nameof(transform), transform );
+      }
+      
+      /// <summary>
+      /// Gets the source of this reader.
+      /// </summary>
+      /// <value>The source of this reader.</value>
+      public TSource Source { get; }
+      
+      /// <summary>
+      /// Gets the underlying reader.
+      /// </summary>
+      /// <value>The underlying reader.</value>
+      public PotentiallyAsyncReaderLogic<TValue, TSource> Reader { get; }
+      
+      /// <summary>
+      /// <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}.TryReadNextAsync"/>.
+      /// </summary>
+      /// <returns><see cref="PotentiallyAsyncReaderLogic{TValue, TSource}.TryReadNextAsync"/>.</returns>
+      public async ValueTask<TValue> TryReadNextAsync()
+      {
+         var retVal = await this.Reader.TryReadNextAsync( this.Source );
+         var success = this._readSuccessful( retVal );
+         if ( success )
+         {
+            var newSize = this._bufferSize + 1;
+            this._buffer.CurrentMaxCapacity = newSize;
+            this._buffer.Array[newSize - 1] = this._transform( retVal );
+            Interlocked.Exchange( ref this._bufferSize, newSize );
+         }
+         
+         this.ReadCompleted?.Invoke( new ReadCompletedEventArgsImpl<TValue, TSource>( success, retVal, this.Source ) );
+         
+         return retVal;
+      }
+      
+      /// <summary>
+      /// This will become System.Span when it's available.
+      /// </summary>
+      /// <value>The current buffer span.</value>
+      public (TBufferItem[] Array, Int32 count) Buffer
+      {
+         get
+         {
+            return (this._buffer.Array, this._bufferSize);
+         }
+      }
+      
+      /// <summary>
+      /// Clears the current buffer.
+      /// </summary>
+      public void ClearBuffer()
+      {
+         Interlocked.Exchange(ref this._bufferSize, 0);
+      }
+      
+      /// <summary>
+      /// <see cref="PotentiallyAsyncReaderObservable{TValue}.ReadCompleted"/>.
+      /// </summary>
+      public event GenericEventHandler<ReadCompletedEventArgs<TValue>> ReadCompleted;
    }
    
    /// <summary>
@@ -336,141 +620,93 @@ namespace UtilPack
    }
    
    /// <summary>
-   /// This class implements <see cref="PotentiallyAsyncReader{TValue, TSource}"/> to provide pseudo-asynchronous character reading over a <see cref="StringIndex"/>.
+   /// This class implements <see cref="PotentiallyAsyncReaderLogicObservable{TValue, TSource}"/> to provide pseudo-asynchronous character reading over a <see cref="StringIndex"/>.
    /// </summary>
-   public sealed class StringCharacterReader : PotentiallyAsyncReader<Char?, StringIndex>
+   public sealed class StringCharacterReader : PotentiallyAsyncReaderLogicObservable<Char?, StringIndex>
    {
-      /// <summary>
-      /// Gets the default, stateless instance.
-      /// </summary>
-      public static readonly StringCharacterReader Instance = new StringCharacterReader();
+      ///// <summary>
+      ///// Gets the default, stateless instance.
+      ///// </summary>
+      //public static readonly StringCharacterReader Instance = new StringCharacterReader();
       
-      private StringCharacterReader()
-      {
-      }
+      //public StringCharacterReader()
+      //{
+      //}
       
       /// <inheritdoc />
       public ValueTask<Char?> TryReadNextAsync( StringIndex source )
       {
          ArgumentValidator.ValidateNotNull( nameof( source ), source );
-         return new ValueTask<Char?>( source.TryGetNextIndex( out Int32 idx ) ? source.String[idx] : (Char?)null );
+         var retVal = source.TryGetNextIndex( out Int32 idx ) ? source.String[idx] : (Char?)null;
+         this.ReadCompleted?.Invoke( new ReadCompletedEventArgsImpl<Char?, StringIndex>( retVal.HasValue, retVal, source ) );
+         return new ValueTask<Char?>( retVal );
       }
+      
+      /// <summary>
+      /// <see cref="PotentiallyAsyncReaderLogicObservable{TValue, TSource}.ReadCompleted"/>.
+      /// </summary>
+      public event GenericEventHandler<ReadCompletedEventArgs<Char?, StringIndex>> ReadCompleted;
    }
    
    /// <summary>
-   /// This class provides method to easily crate <see cref="PeekablePotentiallyAsyncReader{TValue, TSource}"/> instances.
+   /// This class provides method to easily create various readers, e.g. <see cref="BoundPeekablePotentiallyAsyncReader{TValue, TSource}"/> instances.
    /// </summary>
-   public static class PeekableReaderFactory
+   public static class ReaderFactory
    {
       /// <summary>
-      /// Creates new <see cref="PeekablePotentiallyAsyncReader{TValue, TSource}"/> which reads nullable struct values.
+      /// Creates new <see cref="BoundPeekablePotentiallyAsyncReader{TValue, TSource}"/> which reads nullable struct values.
       /// </summary>
+      /// <param name="reader">The underlying <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/>.</param>
+      /// <param name="source">The source to use with <paramref name="reader"/>.</param>
       /// <typeparam name="TValue">The struct type to read.</typeparam>
       /// <typeparam name="TSource">The source from which to read.</typeparam>
-      /// <returns>A new <see cref="PeekablePotentiallyAsyncReader{TValue, TSource}"/> which reads nullable struct values.</returns>
-      public static PeekablePotentiallyAsyncReader<TValue?, TSource> NewNullableValueReader<TValue, TSource>(
-        PotentiallyAsyncReader<TValue?, TSource> reader
+      /// <returns>A new <see cref="BoundPeekablePotentiallyAsyncReader{TValue, TSource}"/> which reads nullable struct values.</returns>
+      /// <exception cref="ArgumentNullException">If <paramref name="reader"/> is <c>null</c>.</exception>
+      public static BoundPeekablePotentiallyAsyncReader<TValue?, TSource> NewNullablePeekableValueReader<TValue, TSource>(
+        PotentiallyAsyncReaderLogic<TValue?, TSource> reader,
+        TSource source
         )
         where TValue : struct
       {
-         return new PeekablePotentiallyAsyncReader<TValue?, TSource>(
+         return new BoundPeekablePotentiallyAsyncReader<TValue?, TSource>(
             reader,
+            source,
             nullable => nullable.HasValue
             );
       }
-   }
-   
-   /// <summary>
-   /// This class wraps another <see cref="PotentiallyAsyncReader{TValue, TSource}"/> to implement peek functionality.
-   /// </summary>
-   public sealed class PeekablePotentiallyAsyncReader<TValue, TSource> : PotentiallyAsyncReader<TValue, TSource>
-   {
-      private readonly Func<TValue, Boolean> _readSuccessful;
-      private Boolean _hasPeekedValue;
-      private TValue _peekedValue;
-      private Boolean _ended;
       
       /// <summary>
-      /// Creates new instance of <see cref="PeekablePotentiallyAsyncReader{TValue, TSource}"/> wrapping another <see cref="PotentiallyAsyncReader{TValue, TSource}"/>.
+      /// Creates new <see cref="BoundMemorizingPotentiallyAsyncReader{TValue, TBufferItem, TSource}"/> which reads nullable struct values.
       /// </summary>
-      /// <param name="reader">The actual reader performing reading.</param>
-      /// <param name="readSuccessful">The callback to check whether result of reader was successful.</param>
+      /// <param name="reader">The underlying <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/>.</param>
+      /// <param name="source">The source to use with <paramref name="reader"/>.</param>
+      /// <param name="buffer">The optional existing buffer to use.</param>
+      /// <typeparam name="TValue">The struct type to read.</typeparam>
+      /// <typeparam name="TSource">The source from which to read.</typeparam>
+      /// <returns>A new <see cref="BoundMemorizingPotentiallyAsyncReader{TValue, TBuffer, TSource}"/> which reads nullable struct values.</returns>
       /// <exception cref="ArgumentNullException">If <paramref name="reader"/> is <c>null</c>.</exception>
-      public PeekablePotentiallyAsyncReader(
-         PotentiallyAsyncReader<TValue, TSource> reader,
-         Func<TValue, Boolean> readSuccessful
+      public static BoundMemorizingPotentiallyAsyncReader<TValue?, TValue, TSource> NewNullableMemorizingValueReader<TValue, TSource>(
+         PotentiallyAsyncReaderLogic<TValue?, TSource> reader,
+         TSource source,
+         ResizableArray<TValue> buffer = null
          )
+         where TValue : struct
       {
-         this.Reader = ArgumentValidator.ValidateNotNull( nameof(reader), reader );
-         this._readSuccessful = ArgumentValidator.ValidateNotNull( nameof(readSuccessful), readSuccessful);
-      }
-      
-      /// <summary>
-      /// Gets the underlying reader of this <see cref="PeekablePotentiallyAsyncReader{TValue, TSource}"/>.
-      /// </summary>
-      /// <value>the underlying reader of this <see cref="PeekablePotentiallyAsyncReader{TValue, TSource}"/>.</value>
-      public PotentiallyAsyncReader<TValue, TSource> Reader { get; }
-      
-      /// <inheritdoc />
-      public async ValueTask<TValue> TryReadNextAsync( TSource source )
-      {
-         // TODO Interlocked.CompareExchange(ref this._state ... ) guards
-         TValue retVal;
-         if ( this._ended )
-         {
-            retVal = this._peekedValue;
-         }
-         else if ( this._hasPeekedValue)
-         {
-            retVal = this._peekedValue;
-            this._hasPeekedValue = false;
-         }
-         else
-         {
-            retVal = await this.Reader.TryReadNextAsync( source );
-            if ( !this._readSuccessful( retVal ) )
-            {
-               this._ended = true;
-               this._peekedValue = retVal;
-            }
-         }
-         
-         return retVal;
-      }
-      
-      /// <summary>
-      /// Tries to peek the next value asynchronously.
-      /// Subsequent calls to this method will use cached peeked value, until <see cref="TryReadNextAsync"/> is called.
-      /// </summary>
-      /// <param name="source">The source to peek from.</param>
-      public async ValueTask<TValue> TryPeekAsync( TSource source )
-      {
-         TValue retVal;
-         if ( this._ended )
-         {
-            retVal = this._peekedValue;
-         }
-         else if ( this._hasPeekedValue )
-         {
-            retVal = this._peekedValue;
-         }
-         else
-         {
-            retVal = await this.Reader.TryReadNextAsync( source );
-            this._peekedValue = retVal;
-            if ( !this._readSuccessful( retVal ) )
-            {
-               this._ended = true;
-            }
-         }
-         
-         return retVal;
-      }
+         return new BoundMemorizingPotentiallyAsyncReader<TValue?, TValue, TSource>(
+            reader,
+            source,
+            nullable => nullable.HasValue,
+            buffer,
+            nullable => nullable.Value
+            );
+      }  
+     
    }
+
    /// <summary>
    /// This class provides functionality to read characters from <see cref="StreamReaderWithResizableBuffer"/>.
    /// </summary>
-   public sealed class StreamCharacterReader : PotentiallyAsyncReader<Char?, StreamReaderWithResizableBuffer>
+   public sealed class StreamCharacterReader : PotentiallyAsyncReaderLogicObservable<Char?, StreamReaderWithResizableBuffer>
    {
       private const Int32 IDLE = 0;
       private const Int32 BUSY = 1;
@@ -484,7 +720,7 @@ namespace UtilPack
       /// </summary>
       /// <param name="encodingInfo">The <see cref="IEncodingInfo"/>.</param>
       /// <exception cref="ArgumentNullException">If <paramref name="encodingInfo"/> is <c>null</c>.</exception>
-      public StreamCharacterReader(
+      internal StreamCharacterReader(
          IEncodingInfo encodingInfo
          )
       {
@@ -536,8 +772,12 @@ namespace UtilPack
 
                   encoding.GetChars( stream.Buffer, arrayIndex, stream.ReadBytesCount - arrayIndex, auxArray, 0 );
                }
+               
+               var retVal = charReadSuccessful ? auxArray[0] : (Char?) null;
+               
+               this.ReadCompleted?.Invoke( new ReadCompletedEventArgsImpl<Char?, StreamReaderWithResizableBuffer>( charReadSuccessful, retVal, stream ) );
 
-               return charReadSuccessful ? auxArray[0] : (Char?) null;
+               return retVal;
             }
             finally
             {
@@ -549,6 +789,11 @@ namespace UtilPack
             throw BusyException();
          }
       }
+      
+      /// <summary>
+      /// <see cref="PotentiallyAsyncReaderLogicObservable{TValue, TSource}.ReadCompleted"/>.
+      /// </summary>
+      public event GenericEventHandler<ReadCompletedEventArgs<Char?, StreamReaderWithResizableBuffer>> ReadCompleted;
 
       /// <summary>
       /// Gets the amount of bytes taken by given character, without allocating new character array.
@@ -1119,14 +1364,14 @@ public static partial class E_UtilPack
    /// Helper method to try to read next character from <typeparamref name="TSource"/>, or throw if no more characters can be read.
    /// </summary>
    /// <typeparam name="TValue">The type of values that this reader produces.</typeparam>
-   /// <typeparam name="TSource">The type of the source of this <see cref="PotentiallyAsyncReader{TValue, TSource}"/>.</typeparam>
-   /// <param name="reader">This <see cref="PotentiallyAsyncReader{TValue, TSource}"/>.</param>
+   /// <typeparam name="TSource">The type of the source of this <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/>.</typeparam>
+   /// <param name="reader">This <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/>.</param>
    /// <param name="source">The <typeparamref name="TSource"/> to read from.</param>
    /// <returns>A task which will return character read.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="PotentiallyAsyncReader{TValue, TSource}"/> is <c>null</c>.</exception>
+   /// <exception cref="NullReferenceException">If this <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/> is <c>null</c>.</exception>
    /// <exception cref="EndOfStreamException">If no more characters could be read from the source.</exception>
    public static async ValueTask<TValue> ReadNextAsync<TValue, TSource>(
-      this PotentiallyAsyncReader<TValue?, TSource> reader,
+      this PotentiallyAsyncReaderLogic<TValue?, TSource> reader,
       TSource source
    )
       where TValue : struct
@@ -1154,14 +1399,14 @@ public static partial class E_UtilPack
    /// Helper method to try to read next value from <typeparamref name="TSource"/> until suitable value has been read, or values will end.
    /// </summary>
    /// <typeparam name="TValue">The type of values that this reader produces.</typeparam>
-   /// <typeparam name="TSource">The type of the source of this <see cref="PotentiallyAsyncReader{TValue, TSource}"/>.</typeparam>
-   /// <param name="reader">This <see cref="PotentiallyAsyncReader{TValue, TSource}"/>.</param>
+   /// <typeparam name="TSource">The type of the source of this <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/>.</typeparam>
+   /// <param name="reader">This <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/>.</param>
    /// <param name="source">The <typeparamref name="TSource"/> to read from.</param>
    /// <param name="checker">Optional callback to check value. If it is supplied, this method will keep reading values until this callback returns <c>true</c>.</param>
    /// <returns>A task which will return value read.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="PotentiallyAsyncReader{TValue, TSource}"/> is <c>null</c>.</exception>
+   /// <exception cref="NullReferenceException">If this <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/> is <c>null</c>.</exception>
    public static async ValueTask<TValue?> TryReadNextAsync<TValue, TSource>(
-      this PotentiallyAsyncReader<TValue?, TSource> reader,
+      this PotentiallyAsyncReaderLogic<TValue?, TSource> reader,
       TSource source,
       Func<TValue, Boolean> checker
    )
@@ -1181,21 +1426,37 @@ public static partial class E_UtilPack
    /// Helper method to try to read next value from <typeparamref name="TSource"/>, or throw if no more values can be read.
    /// </summary>
    /// <typeparam name="TValue">The type of values that this reader produces.</typeparam>
-   /// <typeparam name="TSource">The type of the source of this <see cref="PotentiallyAsyncReader{TValue, TSource}"/>.</typeparam>
-   /// <param name="reader">This <see cref="PotentiallyAsyncReader{TValue, TSource}"/>.</param>
+   /// <typeparam name="TSource">The type of the source of this <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/>.</typeparam>
+   /// <param name="reader">This <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/>.</param>
    /// <param name="source">The <typeparamref name="TSource"/> to read from.</param>
    /// <param name="checker">Optional callback to check value. If it is supplied, this method will keep reading values until this callback returns <c>true</c>.</param>
    /// <returns>A task which will return value read.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="PotentiallyAsyncReader{TValue, TSource}"/> is <c>null</c>.</exception>
+   /// <exception cref="NullReferenceException">If this <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/> is <c>null</c>.</exception>
    /// <exception cref="EndOfStreamException">If no more values could be read from the source.</exception>
    public static async ValueTask<TValue> ReadNextAsync<TValue, TSource>(
-      this PotentiallyAsyncReader<TValue?, TSource> reader,
+      this PotentiallyAsyncReaderLogic<TValue?, TSource> reader,
       TSource source,
       Func<TValue, Boolean> checker
    )
       where TValue : struct
    {
       return await ArgumentValidator.ValidateNotNullReference( reader ).TryReadNextAsync( source, checker ) ?? throw new EndOfStreamException();
+   }
+   
+   /// <summary>
+   /// This helper method will make this <see cref="PotentiallyAsyncReaderLogicObservable{TValue, TSource}"/> clear the underlying buffer of <see cref="StreamReaderWithResizableBuffer"/> after each character, until the <see cref="IDisposable.Dispose"/> method is called.
+   /// </summary>
+   /// <param name="reader">This <see cref="PotentiallyAsyncReaderLogicObservable{TValue, TSource}"/>.</param>
+   /// <returns>The <see cref="IDisposable"/> to specify a segment of code which will cause underlying stream buffer to empty after each character read.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="PotentiallyAsyncReaderLogicObservable{TValue, TSource}"/> is <c>null</c>.</exception>
+   public static IDisposable ClearStreamAfterEachRead<TValue>(
+      this PotentiallyAsyncReaderLogicObservable<TValue, StreamReaderWithResizableBuffer> reader
+      )
+   {
+      GenericEventHandler<ReadCompletedEventArgs<TValue, StreamReaderWithResizableBuffer>> evtHandler = (args) => args.Source.EraseReadBytesFromBuffer();
+      
+      ArgumentValidator.ValidateNotNullReference( reader ).ReadCompleted += evtHandler;
+      return new UsingHelper( () => reader.ReadCompleted -= evtHandler );
    }
 
 #endif

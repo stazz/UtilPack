@@ -913,6 +913,34 @@ public static partial class E_UtilPack
    {
       return obj.HasValue ? obj.Value.GetType() : null;
    }
+   
+   /// <summary>
+   /// Tries to interpret this character as hexadecimal character (0-9, A-F, or a-f), and return the hexadecimal value.
+   /// </summary>
+   /// <param name="c">This character.</param>
+   /// <returns>The hexadecimal value (<c>0 ≤ return_value ≤ 16</c>), or <c>null</c> if this character is not a hexadecimal character.</returns>
+   public static Int32? GetHexadecimalValue( this Char c )
+   {
+      if ( c >= '0' && c <= '9' )
+      {
+         // Assume '0'-'9'
+         return c - '0';
+      }
+      else if ( c >= 'A' && c <= 'F' )
+      {
+         // Assume 'A'-'F'
+         return c - '7';
+      }
+      else if ( c >= 'a' && c <= 'f' )
+      {
+         // Assume 'a'-'f'
+         return c - 'W';
+      }
+      else
+      {
+         return null;
+      }
+   }
 
    ///// <summary>
    ///// Helper method to get the value from nullable, if it has a value, or return default value for type, if the nullable does not have a value.

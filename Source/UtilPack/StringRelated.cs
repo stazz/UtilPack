@@ -281,18 +281,41 @@ namespace UtilPack
    /// </summary>
    /// <typeparam name="TValue">The type of values that this reader produces.</typeparam>
    /// <typeparam name="TBufferItem">The type of the items in buffer.</typeparam>
-   public interface MemorizingPotentiallyAsyncReader<TValue, TBufferItem> : PotentiallyAsyncReader<TValue>
+   public interface MemorizingPotentiallyAsyncReader<TValue, TBufferItem> : PotentiallyAsyncReader<TValue>, PeekablePotentiallyAsyncReader<TValue>
    {
       /// <summary>
       /// This will become System.Span when it's available.
       /// </summary>
       /// <value>The current buffer span.</value>
-      (TBufferItem[] Array, Int32 count) Buffer { get; }
+      TBufferItem[] Buffer { get; }
+      
+      /// <summary>
+      /// Gets the amount of useable items in <see cref="Buffer"/>.
+      /// </summary>
+      /// <value>The amount of useable items in <see cref="Buffer"/>.</value>
+      Int32 BufferCount { get; }
       
       /// <summary>
       /// Clears the current buffer.
       /// </summary>
       void ClearBuffer();
+      
+      /// <summary>
+      /// Erases a specific segment in buffer.
+      /// When this method completes, the <see cref="BufferCount"/> will be decremented by <paramref name="count"/>.
+      /// </summary>
+      /// <param name="firstDeletableIndex">The index of the first item to be deleted.</param>
+      /// <param name="count">The amount of items to delete.</param>
+      /// <remarks>
+      /// This method will do nothing if parameters are invalid in some way (e.g. out of range).
+      /// </remarks>
+      void EraseBufferSegment( Int32 firstDeletableIndex, Int32 count );
+      
+      /// <summary>
+      /// Moves read-mark so that next call to <see cref="PotentiallyAsyncReader{TValue}.TryReadNextAsync"/> will return buffered item instead of reading from underlying source.
+      /// </summary>
+      /// <param name="amount">The amount of items to forget. Negative amounts signify "all currently memorized items".</param>
+      void ForgetBufferedItems( Int32 amount = -1 );
    }
    
    /// <summary>
@@ -469,19 +492,22 @@ namespace UtilPack
    /// <typeparam name="TValue">The type of values this reader produces.</typeparam>
    /// <typeparam name="TBufferItem">The type of buffer items that this reader memorizes.</typeparam>
    /// <typeparam name="TSource">The type of source bound to this reader.</typeparam>
-   public sealed class BoundMemorizingPotentiallyAsyncReader<TValue, TBufferItem, TSource> : MemorizingPotentiallyAsyncReader<TValue, TBufferItem>
+   public sealed class BoundMemorizingPotentiallyAsyncReader<TValue, TBufferItem, TSource> : MemorizingPotentiallyAsyncReader<TValue, TBufferItem>, PeekablePotentiallyAsyncReader<TValue>
    {
       private readonly ResizableArray<TBufferItem> _buffer;
       private readonly Func<TValue, Boolean> _readSuccessful;
       private readonly Func<TValue, TBufferItem> _transform;
+      private readonly Func<TBufferItem, TValue> _transformBack;
       private Int32 _bufferSize;
+      private Int32 _bufferUseable;
       
       internal BoundMemorizingPotentiallyAsyncReader(
         PotentiallyAsyncReaderLogic<TValue, TSource> reader,
         TSource source,
         Func<TValue, Boolean> readSuccessful,
         ResizableArray<TBufferItem> buffer,
-        Func<TValue, TBufferItem> transform
+        Func<TValue, TBufferItem> transform,
+        Func<TBufferItem, TValue> transformBack
         )
       {
          this.Reader = ArgumentValidator.ValidateNotNull( nameof(reader), reader);
@@ -489,6 +515,7 @@ namespace UtilPack
          this._readSuccessful = ArgumentValidator.ValidateNotNull( nameof(readSuccessful), readSuccessful );
          this._buffer = buffer ?? new ResizableArray<TBufferItem>();
          this._transform = ArgumentValidator.ValidateNotNull( nameof(transform), transform );
+         this._transformBack = ArgumentValidator.ValidateNotNull( nameof(transformBack), transformBack );
       }
       
       /// <summary>
@@ -509,17 +536,51 @@ namespace UtilPack
       /// <returns><see cref="PotentiallyAsyncReaderLogic{TValue, TSource}.TryReadNextAsync"/>.</returns>
       public async ValueTask<TValue> TryReadNextAsync()
       {
-         var retVal = await this.Reader.TryReadNextAsync( this.Source );
-         var success = this._readSuccessful( retVal );
+         var success = this._bufferUseable < this._bufferSize;
+         TValue retVal;
          if ( success )
          {
-            var newSize = this._bufferSize + 1;
-            this._buffer.CurrentMaxCapacity = newSize;
-            this._buffer.Array[newSize - 1] = this._transform( retVal );
-            Interlocked.Exchange( ref this._bufferSize, newSize );
+            retVal = this._transformBack( this._buffer.Array[this._bufferUseable] );
+            Interlocked.Increment( ref this._bufferUseable );
+         }
+         else
+         {
+            retVal = await this.Reader.TryReadNextAsync( this.Source );
+            success = this._readSuccessful( retVal );
+            if ( success )
+            {
+               var newSize = this._bufferSize + 1;
+               this._buffer.CurrentMaxCapacity = newSize;
+               this._buffer.Array[newSize - 1] = this._transform( retVal );
+               Interlocked.Exchange( ref this._bufferSize, newSize );
+               Interlocked.Exchange( ref this._bufferUseable, newSize );
+            }
          }
          
          this.ReadCompleted?.Invoke( new ReadCompletedEventArgsImpl<TValue, TSource>( success, retVal, this.Source ) );
+         
+         return retVal;
+      }
+      
+      /// <inheritdoc />
+      public async ValueTask<TValue> TryPeekAsync()
+      {
+         TValue retVal;
+         if ( this._bufferUseable < this._bufferSize )
+         {
+            retVal = this._transformBack( this._buffer.Array[this._bufferUseable] );
+         }
+         else
+         {
+            retVal = await this.Reader.TryReadNextAsync( this.Source );
+            if ( this._readSuccessful( retVal ) )
+            {
+               var newSize = this._bufferSize + 1;
+               this._buffer.CurrentMaxCapacity = newSize;
+               this._buffer.Array[newSize - 1] = this._transform( retVal );
+               Interlocked.Exchange( ref this._bufferSize, newSize );
+            }
+         }
          
          return retVal;
       }
@@ -528,11 +589,23 @@ namespace UtilPack
       /// This will become System.Span when it's available.
       /// </summary>
       /// <value>The current buffer span.</value>
-      public (TBufferItem[] Array, Int32 count) Buffer
+      public TBufferItem[] Buffer
       {
          get
          {
-            return (this._buffer.Array, this._bufferSize);
+            return this._buffer.Array;
+         }
+      }
+      
+      /// <summary>
+      /// Gets the amount of useable items in <see cref="Buffer"/>.
+      /// </summary>
+      /// <value>The amount of useable items in <see cref="Buffer"/>.</value>
+      public Int32 BufferCount
+      {
+         get
+         {
+            return this._bufferUseable;
          }
       }
       
@@ -541,7 +614,36 @@ namespace UtilPack
       /// </summary>
       public void ClearBuffer()
       {
-         Interlocked.Exchange(ref this._bufferSize, 0);
+         // TODO this is copy-paste from stream reader
+         if ( this._bufferUseable > 0 && this._bufferUseable <= this._bufferSize )
+         {
+            this._buffer.Array.ShiftArraySegmentLeft( ref this._bufferSize, 0, this._bufferUseable );
+            Interlocked.Exchange( ref this._bufferUseable, 0 );
+         }
+      }
+      
+      /// <inheritdoc />
+      public void EraseBufferSegment( Int32 firstDeletableIndex, Int32 count )
+      {
+         if ( firstDeletableIndex >= 0 && count > 0 && firstDeletableIndex + count <= this._bufferUseable )
+         {
+            this.Buffer.ShiftArraySegmentLeft( ref this._bufferSize, firstDeletableIndex, count );
+            Interlocked.Exchange( ref this._bufferUseable, this._bufferUseable - count );
+         }
+      }
+      
+      /// <inheritdoc />
+      public void ForgetBufferedItems( Int32 amount )
+      {
+         if ( amount < 0 )
+         {
+            amount = this._bufferUseable;
+         }
+
+         if ( amount > 0 && amount <= this._bufferUseable )
+         {
+            Interlocked.Exchange( ref this._bufferUseable, this._bufferUseable - amount );
+         }
       }
       
       /// <summary>
@@ -697,7 +799,8 @@ namespace UtilPack
             source,
             nullable => nullable.HasValue,
             buffer,
-            nullable => nullable.Value
+            nullable => nullable.Value,
+            existing => existing
             );
       }  
      
@@ -714,13 +817,14 @@ namespace UtilPack
       private readonly Char[] _chars;
       private readonly Int32 _minChar;
       private Int32 _state;
+      private Int32 _lowSurrogate;
 
       /// <summary>
       /// Creates new instance of <see cref="StreamCharacterReader"/> with given <see cref="IEncodingInfo"/>.
       /// </summary>
       /// <param name="encodingInfo">The <see cref="IEncodingInfo"/>.</param>
       /// <exception cref="ArgumentNullException">If <paramref name="encodingInfo"/> is <c>null</c>.</exception>
-      internal StreamCharacterReader(
+      public StreamCharacterReader(
          IEncodingInfo encodingInfo
          )
       {
@@ -751,30 +855,49 @@ namespace UtilPack
          {
             try
             {
-               var encoding = this.Encoding.Encoding;
+               Char? retVal;
+               Boolean charReadSuccessful;
+               if ( this._lowSurrogate != 0 )
+               {
+                  // We have read surrogate pair previously -> return low surrogate
+                  retVal = (Char)this._lowSurrogate;
+                  charReadSuccessful = true;
+                  Interlocked.Exchange(ref this._lowSurrogate, 0);
+               }
+               else
+               {
+               var decoder = this.Encoding.Encoding.GetDecoder();
                var auxArray = this._chars;
                var minChar = this._minChar;
                var arrayIndex = stream.ReadBytesCount;
-               var charReadSuccessful = await stream.TryReadMoreAsync( minChar );
+               charReadSuccessful = await stream.TryReadMoreAsync( minChar );
                if ( charReadSuccessful )
                {
-                  var charCount = 1;
-                  while ( charCount == 1 && await stream.TryReadMoreAsync( minChar ) )
+                  Int32 charCount = 0;
+                  Boolean completed;
+                  do
                   {
-                     charCount = encoding.GetCharCount( stream.Buffer, arrayIndex, stream.ReadBytesCount - arrayIndex );
-                  }
+                     decoder.Convert( stream.Buffer, arrayIndex, stream.ReadBytesCount - arrayIndex, auxArray, 0, 2, true, out Int32 bytesUsed, out charCount, out completed );
+                  } while ( (charCount < 2 || !completed ) && await stream.TryReadMoreAsync( minChar ) );
 
                   if ( charCount > 1 )
                   {
-                     // Unread peeked byte
-                     stream.UnreadBytes( minChar );
+                     // Check for surrogate pair
+                     if ( Char.IsHighSurrogate( auxArray[0] ) )
+                     {
+                        Interlocked.Exchange( ref this._lowSurrogate, (Int32)auxArray[1] );
+                     }
+                     else
+                     {
+                        // Unread peeked byte
+                        stream.UnreadBytes( minChar );
+                     }
                   }
-
-                  encoding.GetChars( stream.Buffer, arrayIndex, stream.ReadBytesCount - arrayIndex, auxArray, 0 );
                }
                
-               var retVal = charReadSuccessful ? auxArray[0] : (Char?) null;
+               retVal = charReadSuccessful ? auxArray[0] : (Char?) null;
                
+               }
                this.ReadCompleted?.Invoke( new ReadCompletedEventArgsImpl<Char?, StreamReaderWithResizableBuffer>( charReadSuccessful, retVal, stream ) );
 
                return retVal;
@@ -890,6 +1013,7 @@ namespace UtilPack
 public static partial class E_UtilPack
 {
 #if NETSTANDARD1_0
+
    /// <summary>
    /// Parses ASCII integer string to 32-bit integer from encoded string without allocating a string.
    /// Negative numbers are supported, as is optional <c>+</c> prefix.
@@ -967,6 +1091,7 @@ public static partial class E_UtilPack
       }
       return retVal;
    }
+
 #endif
 
    /// <summary>
@@ -1334,32 +1459,57 @@ public static partial class E_UtilPack
    /// <exception cref="ArgumentNullException">If <paramref name="array"/> is <c>null</c>.</exception>
    public static Byte ReadHexDecimal( this IEncodingInfo encoding, Byte[] array, ref Int32 idx )
    {
-      Int32 ExtractHexValue( Int32 asciiChar )
-      {
-         if ( asciiChar <= '9' )
-         {
-            // Assume '0'-'9'
-            return asciiChar - '0';
-         }
-         else if ( asciiChar <= 'F' )
-         {
-            // Assume 'A'-'F'
-            return asciiChar - '7';
-         }
-         else
-         {
-            // Assume 'a'-'f'
-            return asciiChar - 'W';
-         }
-      }
-
-      return (Byte) (( ExtractHexValue( encoding.ReadASCIIByte( array, ref idx ) ) << 4 ) |
-             ExtractHexValue( encoding.ReadASCIIByte( array, ref idx ) ) );
+      return(Byte)( (((Char)encoding.ReadASCIIByte( array, ref idx )).GetHexadecimalValue().GetValueOrDefault() << 4)
+      | (((Char)encoding.ReadASCIIByte( array, ref idx )).GetHexadecimalValue().GetValueOrDefault()));
    }
 
 
 #if NETSTANDARD1_0
 
+   /// <summary>
+   /// Tries to parse integer as from a character reader.
+   /// </summary>
+   /// <param name="reader">This <see cref="PeekablePotentiallyAsyncReader{TValue}"/>.</param>
+   /// <returns>Task which either returns parsed integer value, or <c>null</c> if parsing was unsuccessful.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="PeekablePotentiallyAsyncReader{TValue}"/> is <c>null</c>.</exception>
+   public static async ValueTask<Int64?> TryParseInt64TextualGenericAsync( this PeekablePotentiallyAsyncReader<Char?> reader )
+   {
+      var readValue = await ArgumentValidator.ValidateNotNullReference( reader ).TryPeekAsync();
+      var isNegative = readValue.HasValue && readValue.Value == '-';
+      if ( isNegative || ( readValue.HasValue && readValue.Value == '+' ) )
+      {
+         // Consume peeked value and read next
+         await reader.TryReadNextAsync();
+         readValue = await reader.TryPeekAsync();
+      }
+      
+      Int64? result; 
+      if ( readValue.HasValue && readValue >= '0' && readValue <= '9' )
+      {
+         result = 0;
+         do
+         {
+            // Update result
+            result = 10 * result + ( readValue - '0' );
+            // Consume prev character
+            await reader.TryReadNextAsync();
+            // Peek next character
+            readValue = await reader.TryPeekAsync();
+         } while ( readValue.HasValue && readValue >= '0' && readValue <= '9' );
+         
+         if ( isNegative )
+         {
+            result = -result;
+         }
+      }
+      else
+      {
+         result = null;
+      }
+      
+      return result;
+   }
+   
    /// <summary>
    /// Helper method to try to read next character from <typeparamref name="TSource"/>, or throw if no more characters can be read.
    /// </summary>
@@ -1403,9 +1553,9 @@ public static partial class E_UtilPack
    /// <param name="reader">This <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/>.</param>
    /// <param name="source">The <typeparamref name="TSource"/> to read from.</param>
    /// <param name="checker">Optional callback to check value. If it is supplied, this method will keep reading values until this callback returns <c>true</c>.</param>
-   /// <returns>A task which will return value read.</returns>
+   /// <returns>A task which will return last value read.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/> is <c>null</c>.</exception>
-   public static async ValueTask<TValue?> TryReadNextAsync<TValue, TSource>(
+   public static async ValueTask<TValue?> TryReadUntilAsync<TValue, TSource>(
       this PotentiallyAsyncReaderLogic<TValue?, TSource> reader,
       TSource source,
       Func<TValue, Boolean> checker
@@ -1430,17 +1580,148 @@ public static partial class E_UtilPack
    /// <param name="reader">This <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/>.</param>
    /// <param name="source">The <typeparamref name="TSource"/> to read from.</param>
    /// <param name="checker">Optional callback to check value. If it is supplied, this method will keep reading values until this callback returns <c>true</c>.</param>
-   /// <returns>A task which will return value read.</returns>
+   /// <returns>A task which will return last value read.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/> is <c>null</c>.</exception>
    /// <exception cref="EndOfStreamException">If no more values could be read from the source.</exception>
-   public static async ValueTask<TValue> ReadNextAsync<TValue, TSource>(
+   public static async ValueTask<TValue> ReadUntilAsync<TValue, TSource>(
       this PotentiallyAsyncReaderLogic<TValue?, TSource> reader,
       TSource source,
       Func<TValue, Boolean> checker
    )
       where TValue : struct
    {
-      return await ArgumentValidator.ValidateNotNullReference( reader ).TryReadNextAsync( source, checker ) ?? throw new EndOfStreamException();
+      return await reader.TryReadUntilAsync( source, checker ) ?? throw new EndOfStreamException();
+   }
+   
+   /// <summary>
+   /// Helper method to try to read next value from this <see cref="PotentiallyAsyncReader{TValue}"/> until suitable value has been read, or values will end.
+   /// </summary>
+   /// <typeparam name="TValue">The type of values that this reader produces.</typeparam>
+   /// <param name="reader">This <see cref="PotentiallyAsyncReader{TValue}"/>.</param>
+   /// <param name="checker">Optional callback to check value. If it is supplied, this method will keep reading values until this callback returns <c>true</c>.</param>
+   /// <returns>A task which will return last value read.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="PotentiallyAsyncReader{TValue}"/> is <c>null</c>.</exception>
+   public static async ValueTask<TValue?> TryReadUntilAsync<TValue>(
+      this PotentiallyAsyncReader<TValue?> reader,
+      Func<TValue, Boolean> checker
+   )
+      where TValue : struct
+   {
+      ArgumentValidator.ValidateNotNullReference( reader );
+      TValue? charRead;
+      do
+      {
+         charRead = await reader.TryReadNextAsync();
+      } while ( charRead.HasValue && !(checker?.Invoke( charRead.Value ) ?? true) );
+      
+      return charRead;
+   }
+   
+   /// <summary>
+   /// Helper method to try to read next value from this <see cref="PotentiallyAsyncReader{TValue}"/>, or throw if no more values can be read.
+   /// </summary>
+   /// <typeparam name="TValue">The type of values that this reader produces.</typeparam>
+   /// <param name="reader">This <see cref="PotentiallyAsyncReader{TValue}"/>.</param>
+   /// <param name="checker">Optional callback to check value. If it is supplied, this method will keep reading values until this callback returns <c>true</c>.</param>
+   /// <returns>A task which will return last value read.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="PotentiallyAsyncReader{TValue}"/> is <c>null</c>.</exception>
+   /// <exception cref="EndOfStreamException">If no more values could be read from the source.</exception>
+   public static async ValueTask<TValue> ReadUntilAsync<TValue>(
+      this PotentiallyAsyncReader<TValue?> reader,
+      Func<TValue, Boolean> checker
+   )
+      where TValue : struct
+   {
+      return await reader.TryReadUntilAsync( checker ) ?? throw new EndOfStreamException();
+   }
+   
+   /// <summary>
+   /// Helper method to try to peek next value from this <see cref="PeekablePotentiallyAsyncReader{TValue}"/> until suitable value has been read, or values will end.
+   /// </summary>
+   /// <typeparam name="TValue">The type of values that this reader produces.</typeparam>
+   /// <param name="reader">This <see cref="PeekablePotentiallyAsyncReader{TValue}"/>.</param>
+   /// <param name="checker">Optional callback to check value. If it is supplied, this method will keep reading values until this callback returns <c>true</c>.</param>
+   /// <returns>A task which will return last value peeked.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="PeekablePotentiallyAsyncReader{TValue}"/> is <c>null</c>.</exception>
+   public static async ValueTask<TValue?> TryPeekUntilAsync<TValue>(
+      this PeekablePotentiallyAsyncReader<TValue?> reader,
+      Func<TValue, Boolean> checker
+   )
+      where TValue : struct
+   {
+      ArgumentValidator.ValidateNotNullReference( reader );
+      var val = await reader.TryPeekAsync();
+      while ( val.HasValue && !(checker?.Invoke( val.Value ) ?? true ) )
+      {
+         await reader.TryReadNextAsync();
+         val = await reader.TryPeekAsync();
+      }
+      
+      return val;
+   }
+   
+   /// <summary>
+   /// Helper method to try to peek next value from this <see cref="PeekablePotentiallyAsyncReader{TValue}"/>, or throw if no more values can be read.
+   /// </summary>
+   /// <typeparam name="TValue">The type of values that this reader produces.</typeparam>
+   /// <param name="reader">This <see cref="PeekablePotentiallyAsyncReader{TValue}"/>.</param>
+   /// <param name="checker">Optional callback to check value. If it is supplied, this method will keep reading values until this callback returns <c>true</c>.</param>
+   /// <returns>A task which will return last value peeked.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="PeekablePotentiallyAsyncReader{TValue}"/> is <c>null</c>.</exception>
+   /// <exception cref="EndOfStreamException">If no more values could be read from the source.</exception>
+   public static async ValueTask<TValue> PeekUntilAsync<TValue>(
+      this PeekablePotentiallyAsyncReader<TValue?> reader,
+      Func<TValue, Boolean> checker
+   )
+      where TValue : struct
+   {
+      return await reader.TryPeekUntilAsync( checker ) ?? throw new EndOfStreamException();
+   }
+   
+   /// <summary>
+   /// Tries to read more items into the buffer of this <see cref="MemorizingPotentiallyAsyncReader{TValue, TBufferItem}"/>.
+   /// </summary>
+   /// <param name="reader">This <see cref="MemorizingPotentiallyAsyncReader{TValue, TBufferItem}"/>.</param>
+   /// <param name="amountToRead">The amount of items to read.</param>
+   /// <returns>A task which will tell how many items were actually read.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="MemorizingPotentiallyAsyncReader{TValue, TBufferItem}"/> is <c>null</c>.</exception>
+   public static async ValueTask<Int32> TryReadMore<TValue>(
+      this MemorizingPotentiallyAsyncReader<TValue?, TValue> reader,
+      Int32 amountToRead
+      )
+      where TValue : struct
+   {
+      ArgumentValidator.ValidateNotNullReference( reader );
+      
+      var leftToRead = amountToRead;
+      while ( leftToRead > 0 && ( await reader.TryReadNextAsync() ).HasValue )
+      {
+         --leftToRead;
+      }
+      
+      return amountToRead - leftToRead;
+   }
+   
+   /// <summary>
+   /// Read more items into the buffer of this <see cref="MemorizingPotentiallyAsyncReader{TValue, TBufferItem}"/>, or throws if not enough items could be read.
+   /// </summary>
+   /// <param name="reader">This <see cref="MemorizingPotentiallyAsyncReader{TValue, TBufferItem}"/>.</param>
+   /// <param name="amountToRead">The amount of items to read.</param>
+   /// <returns>A task always returning <c>true</c>.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="MemorizingPotentiallyAsyncReader{TValue, TBufferItem}"/> is <c>null</c>.</exception>
+   /// <exception cref="EndOfStreamException">If not enough items could be read.</exception>
+   public static async ValueTask<Boolean> ReadMoreOrThrow<TValue>(
+      this MemorizingPotentiallyAsyncReader<TValue?, TValue> reader,
+      Int32 amountToRead
+      )
+      where TValue : struct
+   {
+      if ( await reader.TryReadMore( amountToRead ) != amountToRead )
+      {
+         throw new EndOfStreamException();
+      }
+      
+      return true;
    }
    
    /// <summary>

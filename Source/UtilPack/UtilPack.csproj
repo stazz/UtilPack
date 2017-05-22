@@ -73,7 +73,7 @@
   </PropertyGroup>
   
   <!-- Including code in .il files to final assembly -->
-  <Target Name="DoILCompiling" AfterTargets="Compile">
+  <Target Name="DoILCompiling" AfterTargets="Compile" Condition=" '$(Configuration)' == 'Release' ">
     <PropertyGroup>
       <ILTargetsToCall>GenerateILCodeFiles;ILInitialize;ILDecompile;ILCompile</ILTargetsToCall>
       <ILTargetsToCall Condition=" '$(DocumentationFile)' != ''">$(ILTargetsToCall);GenerateILDocFiles</ILTargetsToCall>

@@ -32,7 +32,7 @@
 //   public static Type GetGenericDefinitionIfGenericType( this Type type )
 //   {
 //      return type != null && type
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //         .GetTypeInfo()
 //#endif
 //         .IsGenericType ? type.GetGenericTypeDefinition() : type;
@@ -46,7 +46,7 @@
 //   public static Type GetGenericDefinitionIfContainsGenericParameters( this Type type )
 //   {
 //      return type != null && type
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //         .GetTypeInfo()
 //#endif
 //         .ContainsGenericParameters && !type.IsGenericParameter ? type.GetGenericTypeDefinition() : type;
@@ -127,21 +127,21 @@
 //   {
 //      return parentType != null && subType != null
 //         && ( parentType
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //         .GetTypeInfo()
 //#endif
 //         .IsAssignableFrom( subType
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //         .GetTypeInfo()
 //#endif
 //         )
 //            || ( parentType
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //            .GetTypeInfo()
 //#endif
 //            .IsGenericTypeDefinition
 //                  && subType.GetAllParentTypes().Any( b => b
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //                  .GetTypeInfo()
 //#endif
 //                  .IsGenericType && b.GetGenericTypeDefinition().Equals( parentType ) )
@@ -178,7 +178,7 @@
 //      if ( type != null )
 //      {
 //         if ( includeItself && type
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //            .GetTypeInfo()
 //#endif
 //            .IsInterface )
@@ -186,7 +186,7 @@
 //            yield return type;
 //         }
 //         foreach ( var iFace in type
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //            .GetTypeInfo().ImplementedInterfaces
 //#else
 //            .GetInterfaces()
@@ -207,13 +207,13 @@
 //   public static IEnumerable<Type> GetClassHierarchy( this Type type, Boolean includeItself = true )
 //   {
 //      return type == null || type
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //         .GetTypeInfo()
 //#endif
 //         .IsInterface ?
 //         Empty<Type>.Enumerable :
 //         type.AsSingleBranchEnumerable( t => t
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //         .GetTypeInfo()
 //#endif
 //         .BaseType, includeFirst: includeItself );
@@ -228,7 +228,7 @@
 //   public static IEnumerable<Type> GetAllParentTypes( this Type type, Boolean includeItself = true )
 //   {
 //      return ( includeItself ? type : ( type == null ? null : type
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //         .GetTypeInfo()
 //#endif
 //         .BaseType ) ).GetClassHierarchy().Concat( type.GetImplementedInterfaces( includeItself ) );
@@ -336,7 +336,7 @@
 //      )
 //   {
 //      var result = LoadPropertyOrThrow( type, propertyName, acceptNonPublic )
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //         .GetMethod
 //#else
 //         .GetGetMethod( true )
@@ -365,7 +365,7 @@
 //      )
 //   {
 //      var result = LoadPropertyOrThrow( type, propertyName, acceptNonPublic )
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //         .SetMethod
 //#else
 //         .GetSetMethod(true )
@@ -773,7 +773,7 @@
 //      ArgumentValidator.ValidateNotNullReference( type );
 //      ArgumentValidator.ValidateNotNull( "Method name", methodName );
 
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //      return type.GetRuntimeMethods().Where( m => ( acceptNonPublic || m.IsPublic ) && String.Equals( m.Name, methodName ) );
 //#else
 //      var flags = (BindingFlags) DEFAULT_METHOD_SEARCH_FLAGS;
@@ -789,7 +789,7 @@
 //   {
 //      ArgumentValidator.ValidateNotNullReference( type );
 //      ArgumentValidator.ValidateNotNull( "Field name", fieldName );
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //      return type.GetRuntimeFields().Where( f => ( acceptNonPublic || f.IsPublic ) && String.Equals( f.Name, fieldName ) );
 //#else
 
@@ -805,7 +805,7 @@
 //   private static IEnumerable<ConstructorInfo> GetConstructorsPortable( this Type type, Boolean acceptNonPublic, Boolean acceptStatic )
 //   {
 //      ArgumentValidator.ValidateNotNullReference( type );
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //      var retVal = type.GetTypeInfo().DeclaredConstructors;
 //      if ( !acceptStatic )
 //      {
@@ -838,7 +838,7 @@
 //      ArgumentValidator.ValidateNotNullReference( type );
 //      ArgumentValidator.ValidateNotNull( "Property name", propertyName );
 
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 //      return type.GetRuntimeProperties().Where( p => String.Equals( p.Name, propertyName ) && ( acceptNonPublic || ( p.GetMethod?.IsPublic ?? false ) || ( p.SetMethod?.IsPublic ?? false ) ) );
 //#else
 //      var flags = (BindingFlags) DEFAULT_METHOD_SEARCH_FLAGS;
@@ -850,7 +850,7 @@
 //#endif
 //   }
 
-//#if NETSTANDARD1_0
+//#if IS_NETSTANDARD
 
 //   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
 //   internal static Type[] GetGenericArguments( this Type type )

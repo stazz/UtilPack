@@ -194,7 +194,7 @@ namespace UtilPack
          {
             Type elementType;
             var iFaces = t
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
                .GetTypeInfo().ImplementedInterfaces
 #else
                .GetInterfaces()
@@ -202,7 +202,7 @@ namespace UtilPack
                ;
             if ( iFaces
                .Where( iface => iface
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
                .GetTypeInfo()
 #endif
                .IsGenericType && Equals( iface.GetGenericTypeDefinition(), typeof( IList<> ) ) )
@@ -213,7 +213,7 @@ namespace UtilPack
             }
             else if ( iFaces
                .Where( iface => iface
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
                .GetTypeInfo()
 #endif
                .IsGenericType && Equals( iface.GetGenericTypeDefinition(), typeof( ICollection<> ) ) )
@@ -237,7 +237,7 @@ namespace UtilPack
       {
          var method = typeof( ArrayEqualityComparer<> )
                .MakeGenericType( arrayElementType )
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
                .GetRuntimeProperty( nameof( ArrayEqualityComparer<Int32>.DefaultArrayEqualityComparer ) )
                ?.GetMethod
 #else
@@ -252,14 +252,14 @@ namespace UtilPack
       {
          var method = typeof( ListEqualityComparer<,> )
             .MakeGenericType( listType, listType.
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
             GetTypeInfo().GenericTypeParameters
 #else
             GetGenericArguments()
 #endif
             [0]
             )
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
             .GetRuntimeProperty( nameof( ListEqualityComparer<List<Int32>, Int32>.DefaultListEqualityComparer ) )
             ?.GetMethod
 #else
@@ -274,14 +274,14 @@ namespace UtilPack
       {
          var method = typeof( CollectionEqualityComparer<,> )
             .MakeGenericType( collectionType, collectionType.
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
             GetTypeInfo().GenericTypeParameters
 #else
             GetGenericArguments()
 #endif
             [0]
             )
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
             .GetRuntimeProperty( nameof( CollectionEqualityComparer<List<Int32>, Int32>.DefaultCollectionEqualityComparer ) )
             ?.GetMethod
 #else

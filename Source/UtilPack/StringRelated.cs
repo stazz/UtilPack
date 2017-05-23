@@ -153,7 +153,7 @@ namespace UtilPack
 
 public static partial class E_UtilPack
 {
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
 
    /// <summary>
    /// Parses ASCII integer string to 32-bit integer from encoded string without allocating a string.
@@ -605,7 +605,7 @@ public static partial class E_UtilPack
    }
 
 
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
 
    /// <summary>
    /// Tries to parse integer as from a character reader.

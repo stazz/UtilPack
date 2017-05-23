@@ -176,6 +176,13 @@ namespace UtilPack
       /// <returns>The range information about actually reserved segment.</returns>
       /// <exception cref="InvalidOperationException">If this stream writer is currently unusable (concurrent write or usage of nested buffer created by <see cref="CreateWithLimitedSizeAndSharedBuffer"/>).</exception>
       (Int32 Offset, Int32 Count) ReserveBufferSegment(Int32 count);
+      
+      /// <summary>
+      /// This method marks the given amount of bytes as free at the end of the buffer.
+      /// </summary>
+      /// <param name="count">The amount of bytes to free up. Negative values are treated as freeing up all of the buffer.</param>
+      /// <exception cref="InvalidOperationException">If this stream writer is currently unusable (concurrent write or usage of nested buffer created by <see cref="CreateWithLimitedSizeAndSharedBuffer"/>).</exception>
+      void UnreserveBufferSegment(Int32 count);
 
       /// <summary>
       /// This method asynchronously flushes the buffer contents to underlying <see cref="Stream"/>.
@@ -183,6 +190,12 @@ namespace UtilPack
       /// <returns>The task which returns amount of bytes actually written to underlying <see cref="Stream"/>.</returns>
       /// <exception cref="InvalidOperationException">If this stream writer is currently unusable (concurrent write or usage of nested buffer created by <see cref="CreateWithLimitedSizeAndSharedBuffer"/>).</exception>
       ValueTask<Int32> FlushAsync();
+      
+      /// <summary>
+      /// Returns the current amount of reserved bytes in this <see cref="StreamWriterWithResizableBuffer"/>.
+      /// </summary>
+      /// <value>The current amount of reserved bytes in this <see cref="StreamWriterWithResizableBuffer"/>.</value>
+      Int32 ReservedBufferCount { get; }
 
       /// <summary>
       /// Asynchronously creates a new <see cref="InnerStreamWriterWithResizableBufferAndLimitedSize"/> with given byte limit.
@@ -850,6 +863,8 @@ namespace UtilPack
       }
 
       public Byte[] Buffer => this._buffer.Array;
+      
+      public Int32 ReservedBufferCount => this._appendedByteCount;
 
       public CancellationToken CancellationToken { get; }
       
@@ -880,10 +895,37 @@ namespace UtilPack
          }
          else
          {
-            throw new InvalidOperationException( "Concurrent write" );
+            throw BusyException();
          }
          
          return (offset, count);
+      }
+      
+      public void UnreserveBufferSegment(Int32 count)
+      {
+         if ( count != 0 )
+         {
+            if ( Interlocked.CompareExchange( ref this._state, OPERATING_STREAM, IDLE ) == IDLE )
+            {
+               try
+               {
+                  if (count < 0 || count > this._appendedByteCount )
+                  {
+                     count = this._appendedByteCount;
+                  }
+                  Interlocked.Exchange( ref this._appendedByteCount, this._appendedByteCount - count );
+                  this.AfterUnreserve( count );
+               }
+               finally
+               {
+                  Interlocked.Exchange( ref this._state, IDLE );
+               }
+            }
+            else
+            {
+               throw BusyException();
+            }
+         }
       }
 
       public async ValueTask<Int32> FlushAsync()
@@ -907,7 +949,7 @@ namespace UtilPack
          }
          else
          {
-            throw new InvalidOperationException( "Concurrent write" );
+            throw BusyException();
          }
 
          return retVal;
@@ -958,7 +1000,7 @@ namespace UtilPack
          }
          else
          {
-            throw new InvalidOperationException( "Concurrent write" );
+            throw BusyException();
          }
 
          return retVal;
@@ -985,7 +1027,7 @@ namespace UtilPack
          }
          else
          {
-            throw new InvalidOperationException( "Concurrent write" );
+            throw BusyException();
          }
 
          return retVal;
@@ -994,6 +1036,10 @@ namespace UtilPack
       protected virtual Int32 ProcessCountForArrayWrite( Int32 count )
       {
          return count;
+      }
+      
+      protected virtual void AfterUnreserve( Int32 unreserveCount )
+      {
       }
 
       protected virtual Int64 ProcessCountForInnerStream( Int64 count )
@@ -1008,6 +1054,11 @@ namespace UtilPack
          {
             await stream.FlushAsync( token );
          }
+      }
+      
+      private static InvalidOperationException BusyException()
+      {
+         return new InvalidOperationException( "This writer is not useable right now." );
       }
    }
 
@@ -1042,6 +1093,15 @@ namespace UtilPack
             }
          }
          return count;
+      }
+      
+      protected override void AfterUnreserve( Int32 unreserveCount )
+      {
+         Interlocked.Exchange( ref this._bytesLeft, this._bytesLeft + unreserveCount );
+         if ( this._performFlush && this._bytesLeft > 0 )
+         {
+            this._performFlush = false;
+         }
       }
 
       protected override Int64 ProcessCountForInnerStream( Int64 count )
@@ -1108,6 +1168,8 @@ namespace UtilPack
       }
 
       public Byte[] Buffer => Empty<Byte>.Array;
+      
+      public Int32 ReservedBufferCount => 0;
 
       public CancellationToken CancellationToken { get; }
 
@@ -1116,6 +1178,8 @@ namespace UtilPack
       public Int64 BytesLeft => 0;
 
       public (Int32 Offset, Int32 Count) ReserveBufferSegment(Int32 count) => (0,0);
+      
+      public void UnreserveBufferSegment(Int32 count) {}
 
       public ValueTask<InnerStreamWriterWithResizableBufferAndLimitedSize> CreateWithLimitedSizeAndSharedBuffer( Int64 byteLimit ) => new ValueTask<InnerStreamWriterWithResizableBufferAndLimitedSize>( byteLimit <= 0 ? this : null );
 

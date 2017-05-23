@@ -94,6 +94,75 @@ namespace UtilPack
 #endif
 
    /// <summary>
+   /// This delegate type is alternative for <see cref="EventHandler{TEventArgs}"/>.
+   /// It differs from the <see cref="EventHandler{TEventArgs}"/> in the following three ways:
+   /// <list type="bullet">
+   /// <item><description>The generic argument <typeparamref name="TArgs"/> has <c>in</c> contravariance specification,</description></item>
+   /// <item><description>The generic argument <typeparamref name="TArgs"/> no longer has a inheritance constraint, and</description></item>
+   /// <item><description>The <c>sender</c> parameter of the <see cref="EventHandler{TEventArgs}"/> is missing.</description></item>
+   /// </list>
+   /// </summary>
+   /// <typeparameter name="TArgs">The type of the arguments this delegate will receive.</typeparameter>
+   public delegate void GenericEventHandler<in TArgs>(TArgs args);
+   
+   /// <summary>
+   /// This class contains extension method which are for types not contained in this library.
+   /// </summary>
+   public static partial class UtilPackExtensions
+   {
+      /// <summary>
+      /// Gets given integer as enumerable of characters.
+      /// </summary>
+      /// <param name="i64">This integer.</param>
+      /// <returns>Enumerable of characters that are textual representation of this integer.</returns>
+      public static IEnumerable<Char> AsCharEnumerable( this Int64 i64 )
+      {
+         if ( i64 == 0 )
+         {
+            yield return '0';
+         }
+         else
+         {
+            if ( i64 < 0 )
+            {
+               yield return '-';
+               i64 = Math.Abs( i64 );
+            }
+         
+            var div = 1;
+            var original = i64;
+            while ( ( i64 /= 10 ) > 0 )
+            {
+               div *= 10;
+            }
+            
+            while ( div > 0 )
+            {
+               yield return (Char)( original / div + '0');
+               original %= div;
+               div /= 10;
+            }
+         }
+      }
+      
+      /// <summary>
+      /// Helper method to return string as enumerable of characters.
+      /// </summary>
+      /// <param name="str">This <see cref="String"/>. May be <c>null</c>, then empty enumerable is returned.</param>
+      public static IEnumerable<Char> AsCharEnumerable( this String str )
+      {
+         if ( str != null )
+         {
+            var max = str.Length;
+            for ( var i = 0; i < max; ++i )
+            {
+              yield return str[i];
+           }
+         }
+      }
+   }
+   
+   /// <summary>
    /// This class holds reference to <see cref="Func{T, TResult}"/> which directly returns the given argument, i.e. identity function.
    /// </summary>
    /// <typeparam name="T">The type of argument and return value of callback.</typeparam>

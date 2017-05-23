@@ -19,7 +19,8 @@ It provides some of the most commonly used utilities, and also has some IL code 
 The UtilPack Core is located at http://www.nuget.org/packages/UtilPack
 
 # UtilPack.JSON
-This project uses StreamReaderWithResizableBuffer, IEncodingInfo, and StreamWriterWithResizableBuffer types located in UtilPack in order to provide fully asynchronous functionality to serialize and deserialize JSON objects (the JToken and its derivatives in Newtonsoft.JSON package).
-This functionality is available as extension methods to the types mentioned above just by including UtilPack.JSON as a reference to your project.
+This project uses various types located in UtilPack in order to provide fully asynchronous functionality to serialize and deserialize JSON objects (the JToken and its derivatives in Newtonsoft.JSON package).
+The deserialization functionality is available through ```UtilPack.JSON.JTokenStreamReader``` class.
+The serialization functionality is available through extension method to ```UtilPack.PotentiallyAsyncWriterLogic<IEnumerable<Char>, TSink>``` class.
 
 The UtilPack.JSON is located at http://www.nuget.org/packages/UtilPack.JSON

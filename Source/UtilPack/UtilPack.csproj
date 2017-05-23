@@ -67,7 +67,7 @@
 
   <!-- IL CODE SUPPORT STARTS -->
   <PropertyGroup>
-    <ILGenerationT4File>$(MSBuildProjectDirectory)/GenerateILFile.tt</ILGenerationT4File>
+    <ILGenerationT4File>$(MSBuildProjectDirectory)/GenerateILFile.tt.msbuild</ILGenerationT4File>
     <ILGenerationOutFile>$(MSBuildProjectDirectory)/IL/AdditionalIL.$(TargetFramework).il</ILGenerationOutFile>
     <ILGenerationOutDir>$([System.IO.Path]::GetDirectoryName($(ILGenerationOutFile)))</ILGenerationOutDir>
   </PropertyGroup>
@@ -132,7 +132,7 @@
   <Target Name="GenerateILDocFiles">
     <PropertyGroup>
       <ILDocumentFile>$(ILGenerationOutDir)/AdditionalIL.$(TargetFramework).xml</ILDocumentFile>
-      <T4Command>"$(MSBuildExtensionsPath)\..\Common7\IDE\TextTransform.exe" -out "$(ILDocumentFile)" -a "!!TFM!$(TargetFramework)" "$(MSBuildProjectDirectory)/GenerateILDocs.tt"</T4Command>
+      <T4Command>"$(MSBuildExtensionsPath)\..\Common7\IDE\TextTransform.exe" -out "$(ILDocumentFile)" -a "!!TFM!$(TargetFramework)" "$(MSBuildProjectDirectory)/GenerateILDocs.tt.msbuild"</T4Command>
     </PropertyGroup>
     <Exec Command="$(T4Command)" />
     <MergeXMLDocFiles Target="$(DocumentationFile)" Items="$(ILDocumentFile)" />

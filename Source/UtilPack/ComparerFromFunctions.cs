@@ -201,14 +201,22 @@ namespace UtilPack
 #endif
                ;
             if ( iFaces
-               .Where( iface => Equals( iface.GetGenericDefinitionIfGenericType(), typeof( IList<> ) ) )
+               .Where( iface => iface
+#if NETSTANDARD1_0
+               .GetTypeInfo()
+#endif
+               .IsGenericType && Equals( iface.GetGenericTypeDefinition(), typeof( IList<> ) ) )
                .TryGetSingle( out elementType )
                )
             {
                retVal = (IEqualityComparer<T>) GetEqualityComparerForListElementType( elementType );
             }
             else if ( iFaces
-               .Where( iface => Equals( iface.GetGenericDefinitionIfGenericType(), typeof( ICollection<> ) ) )
+               .Where( iface => iface
+#if NETSTANDARD1_0
+               .GetTypeInfo()
+#endif
+               .IsGenericType && Equals( iface.GetGenericTypeDefinition(), typeof( ICollection<> ) ) )
                .TryGetSingle( out elementType )
             )
             {
@@ -221,44 +229,67 @@ namespace UtilPack
          }
          return retVal;
       }
+#if !NETSTANDARD1_0
+      private const BindingFlags DEFAULT_METHOD_SEARCH_FLAGS = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic;
+#endif
 
       private static Object GetEqualityComparerForArrayElementType( Type arrayElementType )
       {
-         return typeof( ArrayEqualityComparer<> )
+         var method = typeof( ArrayEqualityComparer<> )
                .MakeGenericType( arrayElementType )
-               .LoadPropertyOrThrow( nameof( ArrayEqualityComparer<Int32>.DefaultArrayEqualityComparer ) )
 #if NETSTANDARD1_0
-               .GetMethod
+               .GetRuntimeProperty( nameof( ArrayEqualityComparer<Int32>.DefaultArrayEqualityComparer ) )
+               ?.GetMethod
 #else
-               .GetGetMethod()
+               .GetProperty( nameof( ArrayEqualityComparer<Int32>.DefaultArrayEqualityComparer ), DEFAULT_METHOD_SEARCH_FLAGS )
+               ?.GetGetMethod( true )
 #endif
-               .Invoke( null, null );
+               ;
+         return ( method ?? throw new InvalidOperationException( "Could not find property which should exist." ) ).Invoke( null, null );
       }
 
       private static Object GetEqualityComparerForListElementType( Type listType )
       {
-         return typeof( ListEqualityComparer<,> )
-            .MakeGenericType( listType, listType.GetGenericArguments()[0] )
-            .LoadPropertyOrThrow( nameof( ListEqualityComparer<List<Int32>, Int32>.DefaultListEqualityComparer ) )
+         var method = typeof( ListEqualityComparer<,> )
+            .MakeGenericType( listType, listType.
 #if NETSTANDARD1_0
-            .GetMethod
+            GetTypeInfo().GenericTypeParameters
 #else
-            .GetGetMethod()
+            GetGenericArguments()
 #endif
-            .Invoke( null, null );
+            [0]
+            )
+#if NETSTANDARD1_0
+            .GetRuntimeProperty( nameof( ListEqualityComparer<List<Int32>, Int32>.DefaultListEqualityComparer ) )
+            ?.GetMethod
+#else
+            .GetProperty( nameof( ListEqualityComparer<List<Int32>, Int32>.DefaultListEqualityComparer ), DEFAULT_METHOD_SEARCH_FLAGS )
+            ?.GetGetMethod( true )
+#endif
+            ;
+         return ( method ?? throw new InvalidOperationException( "Could not find property which should exist." ) ).Invoke( null, null );
       }
 
       private static Object GetEqualityComparerForCollectionElementType( Type collectionType )
       {
-         return typeof( CollectionEqualityComparer<,> )
-            .MakeGenericType( collectionType, collectionType.GetGenericArguments()[0] )
-            .LoadPropertyOrThrow( nameof( CollectionEqualityComparer<List<Int32>, Int32>.DefaultCollectionEqualityComparer ) )
+         var method = typeof( CollectionEqualityComparer<,> )
+            .MakeGenericType( collectionType, collectionType.
 #if NETSTANDARD1_0
-            .GetMethod
+            GetTypeInfo().GenericTypeParameters
 #else
-            .GetGetMethod()
+            GetGenericArguments()
 #endif
-            .Invoke( null, null );
+            [0]
+            )
+#if NETSTANDARD1_0
+            .GetRuntimeProperty( nameof( CollectionEqualityComparer<List<Int32>, Int32>.DefaultCollectionEqualityComparer ) )
+            ?.GetMethod
+#else
+            .GetProperty( nameof( CollectionEqualityComparer<List<Int32>, Int32>.DefaultCollectionEqualityComparer ), DEFAULT_METHOD_SEARCH_FLAGS )
+            ?.GetGetMethod( true )
+#endif
+            ;
+         return ( method ?? throw new InvalidOperationException( "Could not find property which should exist." ) ).Invoke( null, null );
       }
    }
 

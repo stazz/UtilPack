@@ -42,7 +42,7 @@ namespace UtilPack
       /// <returns>Task which returns amount of units serialized to <paramref name="sink"/>.</returns>
       ValueTask<Int32> TryWriteAsync( TValue value, TSink sink );
    }
-   
+
    /// <summary>
    /// This class implements <see cref="PotentiallyAsyncWriterLogic{TValue, TSink}"/> to serialize characters to byte stream with given encoding.
    /// </summary>
@@ -50,14 +50,14 @@ namespace UtilPack
    {
       private const Int32 IDLE = 0;
       private const Int32 BUSY = 1;
-      
+
       private readonly IEncodingInfo _encoding;
       private readonly Int32 _maxSingleCharSize;
       private readonly Char[] _auxArray;
       private readonly Int32 _maxBufferSize;
-      
+
       private Int32 _state;
-      
+
       /// <summary>
       /// Creates new instance of <see cref="StreamCharacterWriter"/> with given parameters.
       /// </summary>
@@ -68,7 +68,7 @@ namespace UtilPack
          Int32 maxBufferSize
          )
       {
-         this._encoding = ArgumentValidator.ValidateNotNull( nameof(encoding), encoding);
+         this._encoding = ArgumentValidator.ValidateNotNull( nameof( encoding ), encoding );
          this._maxSingleCharSize = encoding.MaxCharByteCount;
          this._auxArray = new Char[2];
          this._maxBufferSize = Math.Max( maxBufferSize, this._maxSingleCharSize );
@@ -91,33 +91,33 @@ namespace UtilPack
                      var c = enumerator.Current;
                      auxArray[0] = c;
                      var charCount = 1;
-                     if ( Char.IsHighSurrogate(c) && enumerator.MoveNext() )
+                     if ( Char.IsHighSurrogate( c ) && enumerator.MoveNext() )
                      {
                         // Must read next char
                         auxArray[1] = enumerator.Current;
                         ++charCount;
                      }
                      var count = this._maxSingleCharSize * charCount;
-                     if (sink.ReservedBufferCount + count > this._maxBufferSize)
+                     if ( sink.ReservedBufferCount + count > this._maxBufferSize )
                      {
                         await sink.FlushAsync();
                      }
                      Int32 offset;
-                     (offset, count) = sink.ReserveBufferSegment(count);
+                     (offset, count) = sink.ReserveBufferSegment( count );
                      if ( count > 0 )
                      {
-                        var actualCount = encoding.GetBytes(auxArray, 0, charCount, sink.Buffer, offset);
+                        var actualCount = encoding.GetBytes( auxArray, 0, charCount, sink.Buffer, offset );
                         total += actualCount;
                         sink.UnreserveBufferSegment( count - actualCount );
                      }
                   }
                }
-               
+
                if ( total > 0 )
                {
                   await sink.FlushAsync();
                }
-               
+
                return total;
             }
             finally
@@ -130,20 +130,20 @@ namespace UtilPack
             throw BusyException();
          }
       }
-      
+
       private static InvalidOperationException BusyException()
       {
          return new InvalidOperationException( "This reader is not useable right now." );
       }
    }
-   
+
    /// <summary>
    /// This interface binds together <see cref="PotentiallyAsyncWriterLogic{TValue, TSource}"/> and some sink, without exposing the sink, and allows <c>in</c> contravariance specification for <typeparamref name="TValue"/>.
    /// </summary>
    /// <typeparam name="TValue">The type of values that this writer can write.</typeparam>
    /// <seealso cref="PotentiallyAsyncWriterObservable{TValue}"/>
    /// <seealso cref="PotentiallyAsyncWriterAndObservable{TValue}"/>
-   public interface PotentiallyAsyncWriter<in TValue> 
+   public interface PotentiallyAsyncWriter<in TValue>
    {
       /// <summary>
       /// This method will try to write given value to the sink bound to this <see cref="PotentiallyAsyncWriter{TValue}"/>.
@@ -152,7 +152,7 @@ namespace UtilPack
       /// <returns>Task which will return amount of units written to sink.</returns>
       ValueTask<Int32> TryWriteAsync( TValue value );
    }
-   
+
    /// <summary>
    /// This interface exposes event which is raised after each call to <see cref="PotentiallyAsyncWriter{TValue}.TryWriteAsync"/>, and allows <c>out</c> covariance specification for <typeparamref name="TValue"/>.
    /// </summary>
@@ -166,7 +166,7 @@ namespace UtilPack
       /// </summary>
       event GenericEventHandler<WriteCompletedEventArgs<TValue>> WriteCompleted;
    }
-   
+
    /// <summary>
    /// This interface binds together <see cref="PotentiallyAsyncWriter{TValue}"/> and <see cref="PotentiallyAsyncWriterObservable{TValue}"/>, but loses any variance specifications to <typeparamref name="TValue"/> in doing so.
    /// </summary>
@@ -174,7 +174,7 @@ namespace UtilPack
    public interface PotentiallyAsyncWriterAndObservable<TValue> : PotentiallyAsyncWriter<TValue>, PotentiallyAsyncWriterObservable<TValue>
    {
    }
-   
+
    /// <summary>
    /// This is base interface for <see cref="PotentiallyAsyncWriterObservable{TValue}.WriteCompleted"/> containing information that does not require any type parameters.
    /// </summary>
@@ -186,7 +186,7 @@ namespace UtilPack
       /// <value>The amount of units written to sink.</value>
       Int32 UnitsWritten { get; }
    }
-   
+
    /// <summary>
    /// This interface augments <see cref="WriteCompletedEventArgs"/> with value type parameter.
    /// </summary>
@@ -199,7 +199,7 @@ namespace UtilPack
       /// <value>The value that was written to sink.</value>
       TValue Value { get; }
    }
-   
+
    /// <summary>
    /// This class provides default implementation for <see cref="WriteCompletedEventArgs{TValue}"/>.
    /// </summary>
@@ -219,20 +219,20 @@ namespace UtilPack
          this.UnitsWritten = unitsWritten;
          this.Value = value;
       }
-      
+
       /// <summary>
       /// Gets the amount of units written to sink.
       /// </summary>
       /// <value>The amount of units written to sink.</value>
       public Int32 UnitsWritten { get; }
-      
+
       /// <summary>
       /// Gets the value that was written to sink.
       /// </summary>
       /// <value>The value that was written to sink.</value>
       public TValue Value { get; }
    }
-   
+
    /// <summary>
    /// This class implements <see cref="PotentiallyAsyncWriterAndObservable{TValue}"/> with callback which transforms values to be serialized into values understood by underlying <see cref="PotentiallyAsyncWriterLogic{TValue, TSink}"/>.
    /// </summary>
@@ -244,18 +244,18 @@ namespace UtilPack
       private readonly PotentiallyAsyncWriterLogic<TTransformed, TSink> _writer;
       private readonly TSink _sink;
       private readonly Func<TValue, TTransformed> _transformer;
-      
+
       internal TransformablePotentiallyAsyncWriter(
          PotentiallyAsyncWriterLogic<TTransformed, TSink> writer,
          TSink sink,
          Func<TValue, TTransformed> transformer
          )
       {
-         this._writer = ArgumentValidator.ValidateNotNull( nameof(writer), writer );
+         this._writer = ArgumentValidator.ValidateNotNull( nameof( writer ), writer );
          this._sink = sink;
-         this._transformer = ArgumentValidator.ValidateNotNull( nameof(transformer), transformer );
+         this._transformer = ArgumentValidator.ValidateNotNull( nameof( transformer ), transformer );
       }
-      
+
       /// <inheritdoc />
       public async ValueTask<Int32> TryWriteAsync( TValue value )
       {
@@ -263,11 +263,11 @@ namespace UtilPack
          this.WriteCompleted?.Invoke( new WriteCompletedEventArgsImpl<TValue>( retVal, value ) );
          return retVal;
       }
-      
+
       /// <inheritdoc />
       public event GenericEventHandler<WriteCompletedEventArgs<TValue>> WriteCompleted;
    }
-   
+
    /// <summary>
    /// This class provides methods to create instances of various <see cref="PotentiallyAsyncWriterAndObservable{TValue}"/>.
    /// </summary>

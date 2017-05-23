@@ -24,300 +24,330 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
+using UtilPack.JSON;
 
+namespace UtilPack.JSON
+{
+   internal static class Consts
+   {
+     public const Char STR_START = '"';
+     public const Char STR_END = '"';
+     public const Char STR_ESCAPE_PREFIX = '\\';
+     public const Char STR_FORWARD_SLASH = '/';
+
+     public const Char ARRAY_START = '[';
+     public const Char ARRAY_VALUE_DELIM = ',';
+     public const Char ARRAY_END = ']';
+
+     public const Char OBJ_START = '{';
+     public const Char OBJ_VALUE_DELIM = ',';
+     public const Char OBJ_END = '}';
+     public const Char OBJ_KEY_VALUE_DELIM = ':';
+
+     public const Byte NUMBER_DECIMAL = (Byte) '.';
+     public const Byte NUMBER_EXP_LOW = (Byte) 'e';
+     public const Byte NUMBER_EXP_UPPER = (Byte) 'E';
+   }
+   
+   /// <summary>
+   /// This clas implements <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/> so that it can construct <see cref="JToken"/> objects from a reader which returns characters.
+   /// </summary>
+   public class JTokenStreamReader : PotentiallyAsyncReaderLogic<JToken, MemorizingPotentiallyAsyncReader<Char?, Char>>
+   {
+      // TODO make it customizable whether numbers are Doubles or Decimals...
+      // TODO add support for DateTime & other stuff that is in Newtonsoft.JSON ?
+      
+      /// <summary>
+      /// Gets the default, stateless instance.
+      /// </summary>
+      public static readonly JTokenStreamReader Instance = new JTokenStreamReader();
+      
+      private JTokenStreamReader()
+      {
+      }
+      
+     /// <summary>
+     /// Asynchronously reads the JSON value (array, object, or primitive value) from given <see cref="MemorizingPotentiallyAsyncReader{TValue, TBufferItem}"/>.
+     /// Tries to keep the buffer of this stream as little as possible, and allocating as little as possible any other extra objects than created JSON objects (currently parsing a <see cref="Double"/> needs to allocate string).
+     /// </summary>
+     /// <param name="source">The <see cref="MemorizingPotentiallyAsyncReader{TValue, TBufferItem}"/>.</param>
+     /// <returns>A task which will contain deserialized <see cref="JToken"/> on its completion.</returns>
+     /// <exception cref="ArgumentNullException">If <paramref name="source"/> is <c>null</c>.</exception>
+      public ValueTask<JToken> TryReadNextAsync( MemorizingPotentiallyAsyncReader<Char?, Char> source )
+      {
+         return PerformReadJSONTTokenAsync( ArgumentValidator.ValidateNotNull( nameof( source ), source ) );
+      }
+      
+      /// <summary>
+      /// Checks whether read result is successful, that is, the given <see cref="JToken"/> is not <c>null</c>.
+      /// </summary>
+      /// <param name="readResult">The <see cref="JToken"/> read by <see cref="TryReadNextAsync"/>.</param>
+      /// <returns><c>true</c> if <paramref name="readResult"/> is not <c>null</c>; <c>false</c> otherwise.</returns>
+      public Boolean IsReadSuccessful( JToken readResult )
+      {
+         return readResult != null;
+      }
+      
+      private static async ValueTask<JToken> PerformReadJSONTTokenAsync(
+        MemorizingPotentiallyAsyncReader<Char?, Char> reader
+        )
+     {
+        reader.ClearBuffer();
+        // Read first non-whitespace character
+        var charRead = await reader.PeekUntilAsync( c => !Char.IsWhiteSpace( c ) );
+        var prevIdx = reader.BufferCount;
+
+        // We know what kind of JToken we will have based on a single character
+        JToken retVal;
+        Boolean encounteredContainerEnd;
+        switch ( charRead )
+        {
+           case Consts.ARRAY_END:
+           case Consts.OBJ_END:
+              // This happens only when reading empty array/object, and this is called recursively.
+              await reader.TryReadNextAsync(); // Consume peeked character
+              retVal = null;
+              break;
+           case Consts.ARRAY_START:
+              await reader.TryReadNextAsync(); // Consume peeked character
+              var array = new JArray();
+              encounteredContainerEnd = false;
+              // Reuse 'retVal' variable since we really need it only at the end of this case block.
+              while ( !encounteredContainerEnd && ( retVal = await PerformReadJSONTTokenAsync( reader ) ) != null )
+              {
+                 array.Add( retVal );
+                 // Read next non-whitespace character - it will be either array value delimiter (',') or array end (']')
+                 charRead = await reader.ReadUntilAsync( c => !Char.IsWhiteSpace( c ) );
+                 encounteredContainerEnd = charRead == Consts.ARRAY_END;
+              }
+              retVal = array;
+              break;
+           case Consts.OBJ_START:
+              await reader.TryReadNextAsync(); // Consume peeked character
+              var obj = new JObject();
+              encounteredContainerEnd = false;
+              String keyStr;
+              // Reuse 'retVal' variable since we really need it only at the end of this case block.
+              while ( !encounteredContainerEnd && ( keyStr = await ReadJSONStringAsync( reader, false ) ) != null )
+              {
+                 // First JToken should be string being the key
+                 // Skip whitespace and ':'
+                 charRead = await reader.PeekUntilAsync( c => !Char.IsWhiteSpace( c ) && c != Consts.OBJ_KEY_VALUE_DELIM );
+                 // Read another JToken, this one will be our value
+                 retVal = await PerformReadJSONTTokenAsync( reader );
+                 obj.Add( keyStr, retVal );
+                 // Read next non-whitespace character - it will be either object value delimiter (','), or object end ('}')
+                 charRead = await reader.ReadUntilAsync( c => !Char.IsWhiteSpace( c ) );
+                 encounteredContainerEnd = charRead == Consts.OBJ_END;
+              }
+              retVal = obj;
+              break;
+           case Consts.STR_START:
+              await reader.TryReadNextAsync(); // Consume peeked character
+              retVal = new JValue( await ReadJSONStringAsync( reader, true ) );
+              break;
+           case 't':
+              await reader.TryReadNextAsync(); // Consume peeked character
+              // Boolean true
+              // read 'r'
+              Validate( await reader.ReadNextAsync(), 'r' );
+              // read 'u'
+              Validate( await reader.ReadNextAsync(), 'u' );
+              // read 'e'
+              Validate( await reader.ReadNextAsync(), 'e' );
+              retVal = new JValue( true );
+              break;
+           case 'f':
+              await reader.TryReadNextAsync(); // Consume peeked character
+              //Boolean false
+              // read 'a'
+              Validate( await reader.ReadNextAsync(), 'a' );
+              // read 'l'
+              Validate( await reader.ReadNextAsync(), 'l' );
+              // read 's'
+              Validate( await reader.ReadNextAsync(), 's' );
+              // read 'e'
+              Validate( await reader.ReadNextAsync(), 'e' );
+              retVal = new JValue( false );
+              break;
+           case 'n':
+              await reader.TryReadNextAsync(); // Consume peeked character
+              // null
+              // read 'u'
+              Validate( await reader.ReadNextAsync(), 'u' );
+              // read 'l'
+              Validate( await reader.ReadNextAsync(), 'l' );
+              // read 'l'
+              Validate( await reader.ReadNextAsync(), 'l' );
+              retVal = JValue.CreateNull();
+              break;
+           default:
+              // The only possibility is number - or malformed JSON string
+              var possibleInteger = await reader.TryParseInt64TextualGenericAsync();
+              if ( possibleInteger.HasValue )
+              {
+                 // Check if next character is '.' or 'e' or 'E'
+                 var nextChar = await reader.TryPeekAsync();
+                 if ( nextChar.HasValue && ( nextChar == Consts.NUMBER_DECIMAL || nextChar == Consts.NUMBER_EXP_LOW || nextChar == Consts.NUMBER_EXP_UPPER ) )
+                 {
+                    // This is not a integer, but is a number -> read until first non-number-character
+                    await reader.ReadNextAsync();
+                    await reader.PeekUntilAsync( c => !( (c >= '0' && c <= '9') || c == Consts.NUMBER_EXP_LOW || c == Consts.NUMBER_EXP_UPPER || c == '-' || c == '+' ) );
+                    // TODO maybe use Decimal always for non-integers?
+                    retVal = new JValue( Double.Parse( new String( reader.Buffer, prevIdx, reader.BufferCount - prevIdx ), System.Globalization.CultureInfo.InvariantCulture.NumberFormat ) );
+                 }
+                 else
+                 {
+                    // This is integer
+                    retVal = new JValue( possibleInteger.Value );
+                 }
+              }
+              else
+              {
+                 // Not a number at all
+                 retVal = null;
+              }
+              break;
+        }
+
+        return retVal;
+     }
+
+     private static async ValueTask<String> ReadJSONStringAsync(
+        MemorizingPotentiallyAsyncReader<Char?, Char> reader,
+        Boolean startQuoteRead
+        )
+     {
+        Char charRead;
+        var proceed = startQuoteRead;
+        if ( !proceed )
+        {
+           charRead = await reader.ReadUntilAsync( c => !Char.IsWhiteSpace( c ) );
+           proceed = charRead == Consts.STR_START;
+        }
+
+        String str;
+        if ( proceed )
+        {
+           reader.ClearBuffer();
+           // At this point, we have read the starting quote, now read the contents.
+
+           async ValueTask<Char> DecodeUnicodeEscape()
+           {
+              Char decoded;
+              var decodeStartIdx = reader.BufferCount;
+              if ( await reader.TryReadMore( 4 ) == 4 )
+              {
+                 var array = reader.Buffer;
+                 decoded = (Char)((array[decodeStartIdx].GetHexadecimalValue().GetValueOrDefault() << 12) | (array[decodeStartIdx + 1].GetHexadecimalValue().GetValueOrDefault() << 8) | (array[decodeStartIdx + 2].GetHexadecimalValue().GetValueOrDefault() << 4) | array[decodeStartIdx + 3].GetHexadecimalValue().GetValueOrDefault());
+              }
+              else
+              {
+                 decoded = '\0';
+              }
+              return decoded;
+           }
+
+           // Read string, but mind the escapes
+           // TODO maybe do reader.PeekUntilAsync( c => c == STR_END && reader.Buffer[reader.BufferCount - 2] != STR_ESCAPE ); 
+           // And then do escaping in-place...?
+           Int32 curIdx;
+           do
+           {
+              curIdx = reader.BufferCount;
+              charRead = (await reader.TryReadNextAsync()) ?? Consts.STR_END;
+              if ( charRead == Consts.STR_ESCAPE_PREFIX )
+              {
+                 // Escape handling - next character decides what we will do
+                 charRead = (await reader.TryReadNextAsync()) ?? Consts.STR_END;
+                 Char replacementByte = '\0';
+                 switch ( charRead )
+                 {
+                    case Consts.STR_END:
+                    case Consts.STR_ESCAPE_PREFIX:
+                    case '/':
+                       // Actual value is just just read char minus the '\'
+                       replacementByte = charRead;
+                       break;
+                    case 'b':
+                       // Backspace
+                       replacementByte = '\b';
+                       break;
+                    case 'f':
+                       // Form feed
+                       replacementByte = '\f';
+                       break;
+                    case 'n':
+                       // New line
+                       replacementByte = '\n';
+                       break;
+                    case 'r':
+                       // Carriage return
+                       replacementByte = '\r';
+                       break;
+                    case 't':
+                       // Horizontal tab
+                       replacementByte = '\t';
+                       break;
+                    case 'u':
+                       // Unicode sequence - followed by four hexadecimal digits
+                       var decoded = await DecodeUnicodeEscape();
+                       reader.Buffer[curIdx++] = decoded;
+                       break;
+                    default:
+                       // Just let it slide
+                       curIdx = reader.BufferCount;
+                       break;
+                 }
+
+                 if ( replacementByte > 0 )
+                 {
+                    // We just read ASCII char, which should be now replaced
+                    reader.Buffer[curIdx++] = replacementByte;
+                 }
+
+                 // Erase anything extra
+                 reader.EraseBufferSegment( curIdx, reader.BufferCount - curIdx );
+
+                 // Always read next char
+                 charRead = (Char) 0;
+              }
+           } while ( charRead != Consts.STR_END );
+
+           var strCharCount = reader.BufferCount - 1;
+           if ( strCharCount <= 0 )
+           {
+              str = "";
+           }
+           else
+           {
+              str = new String( reader.Buffer, 0, strCharCount );
+           }
+        }
+        else
+        {
+           str = null;
+        }
+
+        return str;
+     }
+
+     private static void Validate( Char readResult, Char expectedChar )
+     {
+        if ( readResult != expectedChar )
+        {
+           throw new FormatException( $"Error in JSON deserialization: expected '{expectedChar}', but got '{readResult}'." );
+        }
+     }
+
+
+   }
+}
 /// <summary>
 /// This class contains extension methods for types in UtilPack.
 /// </summary>
 public static partial class E_UtilPack
 {
-   // TODO make it customizable whether numbers are Doubles or Decimals...
-   // TODO add support for DateTime & other stuff that is in Newtonsoft.JSON ?
-
-   private const Char STR_START = '"';
-   private const Char STR_END = '"';
-   private const Char STR_ESCAPE_PREFIX = '\\';
-   private const Char STR_FORWARD_SLASH = '/';
-
-   private const Char ARRAY_START = '[';
-   private const Char ARRAY_VALUE_DELIM = ',';
-   private const Char ARRAY_END = ']';
-
-   private const Char OBJ_START = '{';
-   private const Char OBJ_VALUE_DELIM = ',';
-   private const Char OBJ_END = '}';
-   private const Char OBJ_KEY_VALUE_DELIM = ':';
-
-   private const Byte NUMBER_DECIMAL = (Byte) '.';
-   private const Byte NUMBER_EXP_LOW = (Byte) 'e';
-   private const Byte NUMBER_EXP_UPPER = (Byte) 'E';
-
-   /// <summary>
-   /// Asynchronously reads the JSON value (array, object, or primitive value) from this <see cref="MemorizingPotentiallyAsyncReader{TValue, TBufferItem}"/>.
-   /// Tries to keep the buffer of this stream as little as possible, and allocating as little as possible any other extra objects than created JSON objects (currently parsing a <see cref="Double"/> needs to allocate string).
-   /// </summary>
-   /// <param name="reader">This <see cref="MemorizingPotentiallyAsyncReader{TValue, TBufferItem}"/>.</param>
-   /// <returns>A task which will contain deserialized <see cref="JToken"/> on its completion.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="StreamReaderWithResizableBuffer"/> is <c>null</c>.</exception>
-   public static ValueTask<JToken> ReadJSONTTokenAsync(
-      this MemorizingPotentiallyAsyncReader<Char?, Char> reader
-      )
-   {
-      return PerformReadJSONTTokenAsync(
-         ArgumentValidator.ValidateNotNullReference( reader )
-         );
-   }
-
-   private static async ValueTask<JToken> PerformReadJSONTTokenAsync(
-      MemorizingPotentiallyAsyncReader<Char?, Char> reader
-      )
-   {
-      reader.ClearBuffer();
-      // Read first non-whitespace character
-      var charRead = await reader.PeekUntilAsync( c => !Char.IsWhiteSpace( c ) );
-      var prevIdx = reader.BufferCount;
-
-      // We know what kind of JToken we will have based on a single character
-      JToken retVal;
-      Boolean encounteredContainerEnd;
-      switch ( charRead )
-      {
-         case ARRAY_END:
-         case OBJ_END:
-            // This happens only when reading empty array/object, and this is called recursively.
-            await reader.TryReadNextAsync(); // Consume peeked character
-            retVal = null;
-            break;
-         case ARRAY_START:
-            await reader.TryReadNextAsync(); // Consume peeked character
-            var array = new JArray();
-            encounteredContainerEnd = false;
-            // Reuse 'retVal' variable since we really need it only at the end of this case block.
-            while ( !encounteredContainerEnd && ( retVal = await PerformReadJSONTTokenAsync( reader ) ) != null )
-            {
-               array.Add( retVal );
-               // Read next non-whitespace character - it will be either array value delimiter (',') or array end (']')
-               charRead = await reader.ReadUntilAsync( c => !Char.IsWhiteSpace( c ) );
-               encounteredContainerEnd = charRead == ARRAY_END;
-            }
-            retVal = array;
-            break;
-         case OBJ_START:
-            await reader.TryReadNextAsync(); // Consume peeked character
-            var obj = new JObject();
-            encounteredContainerEnd = false;
-            String keyStr;
-            // Reuse 'retVal' variable since we really need it only at the end of this case block.
-            while ( !encounteredContainerEnd && ( keyStr = await ReadJSONStringAsync( reader, false ) ) != null )
-            {
-               // First JToken should be string being the key
-               // Skip whitespace and ':'
-               charRead = await reader.PeekUntilAsync( c => !Char.IsWhiteSpace( c ) && c != OBJ_KEY_VALUE_DELIM );
-               // Read another JToken, this one will be our value
-               retVal = await PerformReadJSONTTokenAsync( reader );
-               obj.Add( keyStr, retVal );
-               // Read next non-whitespace character - it will be either object value delimiter (','), or object end ('}')
-               charRead = await reader.ReadUntilAsync( c => !Char.IsWhiteSpace( c ) );
-               encounteredContainerEnd = charRead == OBJ_END;
-            }
-            retVal = obj;
-            break;
-         case STR_START:
-            await reader.TryReadNextAsync(); // Consume peeked character
-            retVal = new JValue( await ReadJSONStringAsync( reader, true ) );
-            break;
-         case 't':
-            await reader.TryReadNextAsync(); // Consume peeked character
-            // Boolean true
-            // read 'r'
-            Validate( await reader.ReadNextAsync(), 'r' );
-            // read 'u'
-            Validate( await reader.ReadNextAsync(), 'u' );
-            // read 'e'
-            Validate( await reader.ReadNextAsync(), 'e' );
-            retVal = new JValue( true );
-            break;
-         case 'f':
-            await reader.TryReadNextAsync(); // Consume peeked character
-            //Boolean false
-            // read 'a'
-            Validate( await reader.ReadNextAsync(), 'a' );
-            // read 'l'
-            Validate( await reader.ReadNextAsync(), 'l' );
-            // read 's'
-            Validate( await reader.ReadNextAsync(), 's' );
-            // read 'e'
-            Validate( await reader.ReadNextAsync(), 'e' );
-            retVal = new JValue( false );
-            break;
-         case 'n':
-            await reader.TryReadNextAsync(); // Consume peeked character
-            // null
-            // read 'u'
-            Validate( await reader.ReadNextAsync(), 'u' );
-            // read 'l'
-            Validate( await reader.ReadNextAsync(), 'l' );
-            // read 'l'
-            Validate( await reader.ReadNextAsync(), 'l' );
-            retVal = JValue.CreateNull();
-            break;
-         default:
-            // The only possibility is number - or malformed JSON string
-            var possibleInteger = await reader.TryParseInt64TextualGenericAsync();
-            if ( possibleInteger.HasValue )
-            {
-               // Check if next character is '.' or 'e' or 'E'
-               var nextChar = await reader.TryPeekAsync();
-               if ( nextChar.HasValue && ( nextChar == NUMBER_DECIMAL || nextChar == NUMBER_EXP_LOW || nextChar == NUMBER_EXP_UPPER ) )
-               {
-                  // This is not a integer, but is a number -> read until first non-number-character
-                  await reader.ReadNextAsync();
-                  await reader.PeekUntilAsync( c => !( (c >= '0' && c <= '9') || c == NUMBER_EXP_LOW || c == NUMBER_EXP_UPPER || c == '-' || c == '+' ) );
-                  // TODO maybe use Decimal always for non-integers?
-                  retVal = new JValue( Double.Parse( new String( reader.Buffer, prevIdx, reader.BufferCount - prevIdx ), System.Globalization.CultureInfo.InvariantCulture.NumberFormat ) );
-               }
-               else
-               {
-                  // This is integer
-                  retVal = new JValue( possibleInteger.Value );
-               }
-            }
-            else
-            {
-               // Not a number at all
-               retVal = null;
-            }
-            break;
-      }
-
-      return retVal;
-   }
-
-   private static async ValueTask<String> ReadJSONStringAsync(
-      MemorizingPotentiallyAsyncReader<Char?, Char> reader,
-      Boolean startQuoteRead
-      )
-   {
-      Char charRead;
-      var proceed = startQuoteRead;
-      if ( !proceed )
-      {
-         charRead = await reader.ReadUntilAsync( c => !Char.IsWhiteSpace( c ) );
-         proceed = charRead == STR_START;
-      }
-
-      String str;
-      if ( proceed )
-      {
-         reader.ClearBuffer();
-         // At this point, we have read the starting quote, now read the contents.
-
-         async ValueTask<Char> DecodeUnicodeEscape()
-         {
-            Char decoded;
-            var decodeStartIdx = reader.BufferCount;
-            if ( await reader.TryReadMore( 4 ) == 4 )
-            {
-               var array = reader.Buffer;
-               decoded = (Char)((array[decodeStartIdx].GetHexadecimalValue().GetValueOrDefault() << 12) | (array[decodeStartIdx + 1].GetHexadecimalValue().GetValueOrDefault() << 8) | (array[decodeStartIdx + 2].GetHexadecimalValue().GetValueOrDefault() << 4) | array[decodeStartIdx + 3].GetHexadecimalValue().GetValueOrDefault());
-            }
-            else
-            {
-               decoded = '\0';
-            }
-            return decoded;
-         }
-
-         // Read string, but mind the escapes
-         // TODO maybe do reader.PeekUntilAsync( c => c == STR_END && reader.Buffer[reader.BufferCount - 2] != STR_ESCAPE ); 
-         // And then do escaping in-place...?
-         Int32 curIdx;
-         do
-         {
-            curIdx = reader.BufferCount;
-            charRead = (await reader.TryReadNextAsync()) ?? STR_END;
-            if ( charRead == STR_ESCAPE_PREFIX )
-            {
-               // Escape handling - next character decides what we will do
-               charRead = (await reader.TryReadNextAsync()) ?? STR_END;
-               Char replacementByte = '\0';
-               switch ( charRead )
-               {
-                  case STR_END:
-                  case STR_ESCAPE_PREFIX:
-                  case '/':
-                     // Actual value is just just read char minus the '\'
-                     replacementByte = charRead;
-                     break;
-                  case 'b':
-                     // Backspace
-                     replacementByte = '\b';
-                     break;
-                  case 'f':
-                     // Form feed
-                     replacementByte = '\f';
-                     break;
-                  case 'n':
-                     // New line
-                     replacementByte = '\n';
-                     break;
-                  case 'r':
-                     // Carriage return
-                     replacementByte = '\r';
-                     break;
-                  case 't':
-                     // Horizontal tab
-                     replacementByte = '\t';
-                     break;
-                  case 'u':
-                     // Unicode sequence - followed by four hexadecimal digits
-                     var decoded = await DecodeUnicodeEscape();
-                     reader.Buffer[curIdx++] = decoded;
-                     break;
-                  default:
-                     // Just let it slide
-                     curIdx = reader.BufferCount;
-                     break;
-               }
-
-               if ( replacementByte > 0 )
-               {
-                  // We just read ASCII char, which should be now replaced
-                  reader.Buffer[curIdx++] = replacementByte;
-               }
-
-               // Erase anything extra
-               reader.EraseBufferSegment( curIdx, reader.BufferCount - curIdx );
-
-               // Always read next char
-               charRead = (Char) 0;
-            }
-         } while ( charRead != STR_END );
-
-         var strCharCount = reader.BufferCount - 1;
-         if ( strCharCount <= 0 )
-         {
-            str = "";
-         }
-         else
-         {
-            str = new String( reader.Buffer, 0, strCharCount );
-         }
-      }
-      else
-      {
-         str = null;
-      }
-
-      return str;
-   }
-
-   private static void Validate( Char readResult, Char expectedChar )
-   {
-      if ( readResult != expectedChar )
-      {
-         throw new FormatException( $"Error in JSON deserialization: expected '{expectedChar}', but got '{readResult}'." );
-      }
-   }
 
    /// <summary>
    /// Helper method to calculate how many bytes the given <see cref="JToken"/> will take using this encoding.
@@ -410,8 +440,8 @@ public static partial class E_UtilPack
    {
       switch ( c )
       {
-         case STR_END:
-         case STR_ESCAPE_PREFIX:
+         case Consts.STR_END:
+         case Consts.STR_ESCAPE_PREFIX:
          case '/':
          case '\b':
          case '\f':
@@ -423,232 +453,174 @@ public static partial class E_UtilPack
             return false;
       }
    }
-
+   
    /// <summary>
-   /// Asynchronously writes JSON value (array, object, or primitive value) to this <see cref="StreamWriterWithResizableBuffer"/> using given <see cref="IEncodingInfo"/>.
-   /// Tries to keep the buffer of this stream as little as possible, and allocating as little as possible any other extra objects than created JSON objects (currently parsing a <see cref="Double"/> needs to allocate string).
+   /// Creates <see cref="PotentiallyAsyncWriterAndObservable{TValue}"/> which will write <see cref="JToken"/>s as character enumerables to given sink.
    /// </summary>
-   /// <param name="stream">This <see cref="StreamWriterWithResizableBuffer"/>.</param>
-   /// <param name="encoding">The <see cref="IEncodingInfo"/> to use.</param>
-   /// <param name="jsonValue">The JSON value.</param>
-   /// <returns>A task which when completed will contain the amount of bytes written to this stream.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="StreamWriterWithResizableBuffer"/> is <c>null</c>.</exception>
-   /// <exception cref="ArgumentNullException">If <paramref name="encoding"/> is <c>null</c>; or if <paramref name="jsonValue"/> or any of the JSON values it contains is <c>null</c>.</exception>
-   /// <exception cref="NotSupportedException">When a <see cref="JToken"/> is encountered which is not <see cref="JArray"/>, <see cref="JObject"/> or <see cref="JValue"/>; or when the value of <see cref="JValue"/> is not recognized.</exception>
-   public static ValueTask<Int32> WriteJSONTTokenAsync(
-      this StreamWriterWithResizableBuffer stream,
-      IEncodingInfo encoding,
-      JToken jsonValue
+   /// <param name="logic">This <see cref="PotentiallyAsyncWriterLogic{TValue, TSink}"/>.</param>
+   /// <param name="sink">The sink to which perform writing.</param>
+   /// <returns>An instance of <see cref="PotentiallyAsyncWriterAndObservable{TValue}"/> to be used to serialize <see cref="JToken"/>s to <paramref name="sink"/>.</returns>
+   public static PotentiallyAsyncWriterAndObservable<JToken> CreateJTokenWriter<TSink>(
+      this PotentiallyAsyncWriterLogic<IEnumerable<Char>, TSink> logic,
+      TSink sink
       )
    {
-      return PerformWriteJSONTTokenAsync(
-         ArgumentValidator.ValidateNotNullReference( stream ),
-         ArgumentValidator.ValidateNotNull( nameof( encoding ), encoding ),
-         jsonValue
+      return WriterFactory.CreateTransformableWriter<JToken, TSink, IEnumerable<Char>>( 
+         ArgumentValidator.ValidateNotNullReference( logic ),
+         sink,
+         TransformJToken
          );
    }
-
-   private static async ValueTask<Int32> PerformWriteJSONTTokenAsync(
-      StreamWriterWithResizableBuffer stream,
-      IEncodingInfo encoding,
-      JToken jsonValue
-      )
+   
+   private static IEnumerable<Char> TransformJToken( JToken token )
    {
-      ArgumentValidator.ValidateNotNull( nameof( jsonValue ), jsonValue );
-      Int32 bytesWritten;
-      var asciiSize = encoding.BytesPerASCIICharacter;
       Int32 max;
-      (Int32 Offset, Int32 Count) range;
-      switch ( jsonValue )
+      switch( token )
       {
          case JArray array:
-            range = stream.ReserveBufferSegment( asciiSize );
-            encoding.WriteASCIIByte( stream.Buffer, ref range.Offset, (Byte) ARRAY_START );
-            bytesWritten = range.Count;
+            yield return Consts.ARRAY_START;
             max = array.Count;
-            if ( max > 0 )
+            for ( var i = 0; i < max; ++i )
             {
-               for ( var i = 0; i < max; ++i )
+               foreach( var c in TransformJToken( array[i] ) )
                {
-                  bytesWritten += await PerformWriteJSONTTokenAsync( stream, encoding, array[i] );
-                  if ( i < max - 1 )
-                  {
-                     range = stream.ReserveBufferSegment( asciiSize );
-                     encoding.WriteASCIIByte( stream.Buffer, ref range.Offset, (Byte) ARRAY_VALUE_DELIM );
-                     bytesWritten += range.Count;
-                  }
+                  yield return c;
+               }
+               if ( i < max - 1 )
+               {
+                  yield return Consts.ARRAY_VALUE_DELIM;
                }
             }
-            range = stream.ReserveBufferSegment( asciiSize );
-            encoding.WriteASCIIByte( stream.Buffer, ref range.Offset, (Byte) ARRAY_END );
-            bytesWritten += await stream.FlushAsync();
+            yield return Consts.ARRAY_END;
             break;
          case JObject obj:
-            range = stream.ReserveBufferSegment( asciiSize );
-            encoding.WriteASCIIByte( stream.Buffer, ref range.Offset, (Byte) OBJ_START );
-            bytesWritten = range.Count;
+            yield return Consts.OBJ_START;
             max = obj.Count;
             if ( max > 0 )
             {
                var j = 0;
                foreach ( var kvp in obj )
                {
-                  bytesWritten += WriteJSONString( stream, encoding, kvp.Key );
-                  range = stream.ReserveBufferSegment( asciiSize );
-                  encoding.WriteASCIIByte( stream.Buffer, ref range.Offset, (Byte) OBJ_KEY_VALUE_DELIM );
-                  bytesWritten += range.Count;
-                  await stream.FlushAsync();
-                  bytesWritten += await PerformWriteJSONTTokenAsync( stream, encoding, kvp.Value );
+                  foreach( var c in TransformJString( kvp.Key ) )
+                  {
+                     yield return c;
+                  }
+                  
+                  yield return Consts.OBJ_KEY_VALUE_DELIM;
+                  
+                  foreach( var c in TransformJToken( kvp.Value ) )
+                  {
+                     yield return c;
+                  }
+                  
                   if ( ++j < max )
                   {
-                     range = stream.ReserveBufferSegment( asciiSize );
-                     encoding.WriteASCIIByte( stream.Buffer, ref range.Offset, (Byte) OBJ_VALUE_DELIM );
-                     bytesWritten += range.Count;
+                     yield return Consts.OBJ_VALUE_DELIM;
                   }
                }
             }
-            range = stream.ReserveBufferSegment( asciiSize );
-            encoding.WriteASCIIByte( stream.Buffer, ref range.Offset, (Byte) OBJ_END );
-            bytesWritten += await stream.FlushAsync();
+            yield return Consts.OBJ_END;
             break;
          case JValue value:
             var val = value.Value;
-            switch ( val )
+            IEnumerable<Char> valueEnumerable;
+            switch( val )
             {
                case String str:
-                  bytesWritten = WriteJSONString( stream, encoding, str );
+                  valueEnumerable = TransformJString( str );
                   break;
                case Boolean boolean:
                   // Write 'true' or 'false'
-                  range = stream.ReserveBufferSegment( boolean ? 4 : 5 );
-                  encoding.WriteString( stream.Buffer, ref range.Offset, boolean ? "true" : "false" );
-                  bytesWritten = range.Count;
+                  if ( boolean )
+                  {
+                     yield return 't'; yield return 'r'; yield return 'u'; yield return 'e';
+                  }
+                  else
+                  {
+                     yield return 'f'; yield return 'a'; yield return 'l'; yield return 's'; yield return 'e';
+                  }
+                  valueEnumerable = null;
                   break;
                case Int64 i64:
-                  range = stream.ReserveBufferSegment( encoding.GetTextualIntegerRepresentationSize( i64 ) );
-                  encoding.WriteIntegerTextual( stream.Buffer, ref range.Offset, i64 );
-                  bytesWritten = range.Count;
+                  valueEnumerable = i64.AsCharEnumerable();
                   break;
                case Double dbl:
                   // Have to allocate string :/
-                  var dblStr = dbl.ToString( System.Globalization.CultureInfo.InvariantCulture );
-                  range = stream.ReserveBufferSegment( encoding.Encoding.GetByteCount( dblStr ) );
-                  encoding.WriteString( stream.Buffer, ref range.Offset, dblStr );
-                  bytesWritten = range.Count;
+                  valueEnumerable = dbl.ToString( System.Globalization.CultureInfo.InvariantCulture ).AsCharEnumerable();
                   break;
                case null:
                   // Write 'null'
-                  range = stream.ReserveBufferSegment( asciiSize * 4 );
-                  encoding.WriteString( stream.Buffer, ref range.Offset, "null" );
-                  bytesWritten = range.Count;
+                  yield return 'n'; yield return 'u'; yield return 'l'; yield return 'l';
+                  valueEnumerable = null;
                   break;
                default:
                   throw new NotSupportedException( $"Unsupported primitive value {val}." );
             }
-            // Remember to flush stream
-            await stream.FlushAsync();
+            if ( valueEnumerable != null )
+            {
+               foreach( var c in valueEnumerable )
+               {
+                  yield return c;
+               }
+            }
             break;
          default:
-            throw new NotSupportedException( $"Unrecognized JToken type: {jsonValue?.GetType()}." );
+            throw new NotSupportedException( $"Unrecognized JToken type: {token?.GetType()}." );
       }
-
-      return bytesWritten;
    }
-
-   private static Int32 WriteJSONString(
-      StreamWriterWithResizableBuffer stream,
-      IEncodingInfo encoding,
-      String str
-   )
+   
+   private static IEnumerable<Char> TransformJString( String str )
    {
-      // Write starting quote
-      var asciiSize = encoding.BytesPerASCIICharacter;
-      var eencoding = encoding.Encoding;
-      // Allocate enough bytes for whole string and 2 quotes, we will allocate more as we encounter escapable characters
-      var range = stream.ReserveBufferSegment( eencoding.GetByteCount( str ) + 2 * asciiSize );
-      var array = stream.Buffer;
-      var start = range.Offset;
-      var idx = start;
-      encoding.WriteASCIIByte( array, ref idx, (Byte) STR_START );
-
-      // Write contents in chunks
-      var prevStrIdx = 0;
-      for ( var i = 0; i < str.Length; ++i )
+      yield return Consts.STR_START;
+      
+      var max = str.Length;
+      for ( var i = 0; i < max; ++i )
       {
          var c = str[i];
          if ( NeedsEscaping( c ) )
          {
-            // Append previous chunk
-            idx += eencoding.GetBytes( str, prevStrIdx, i - prevStrIdx, array, idx );
-            // Make sure we have room for escape character
-            stream.ReserveBufferSegment( asciiSize );
-            array = stream.Buffer;
-            // Append escape character
-            encoding.WriteASCIIByte( array, ref idx, (Byte) STR_ESCAPE_PREFIX );
-            // Append escape sequence latter character
-            TransformToEscape( encoding, array, ref idx, c );
-            // Update index
-            prevStrIdx = i + 1;
+            yield return Consts.STR_ESCAPE_PREFIX;
+            yield return TransformToEscape( c );
+         }
+         else 
+         {
+            yield return c;
          }
       }
-
-      // Append final chunk
-      var finalChunkSize = str.Length - prevStrIdx;
-      if ( finalChunkSize > 0 )
-      {
-         idx += eencoding.GetBytes( str, prevStrIdx, finalChunkSize, array, idx );
-      }
-
-      // Append closing quote
-      encoding.WriteASCIIByte( array, ref idx, (Byte) STR_END );
-
-      return idx - start;
+      
+      yield return Consts.STR_END;
    }
-
-   private static void TransformToEscape(
-      IEncodingInfo encoding,
-      Byte[] array,
-      ref Int32 idx,
+   
+   private static Char TransformToEscape(
       Char charRead
       )
    {
-      Byte replacementByte = 0;
       switch ( charRead )
       {
-         case STR_END:
-         case STR_ESCAPE_PREFIX:
+         case Consts.STR_END:
+         case Consts.STR_ESCAPE_PREFIX:
          case '/':
             // Actual value is just just read char minus the '\'
-            replacementByte = (Byte) charRead;
-            break;
+            return charRead;
          case '\b':
             // Backspace
-            replacementByte = (Byte) 'b';
-            break;
+            return 'b';
          case '\f':
             // Form feed
-            replacementByte = (Byte) 'f';
-            break;
+            return 'f';
          case '\n':
             // New line
-            replacementByte = (Byte) 'n';
-            break;
+            return 'n';
          case '\r':
             // Carriage return
-            replacementByte = (Byte) 'r';
-            break;
+            return 'r';
          case '\t':
             // Horizontal tab
-            replacementByte = (Byte) 't';
-            break;
+            return 't';
          // \u escape is not needed - it is provided mainly for humans.
          default:
             throw new NotSupportedException( $"Unsupported escape sequence: '{charRead}'." );
       }
-
-      if ( replacementByte != 0 )
-      {
-         encoding.WriteASCIIByte( array, ref idx, replacementByte );
-      }
    }
+
 }

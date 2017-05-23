@@ -67,7 +67,7 @@ namespace UtilPack
       /// </summary>
       /// <value>The minimum amount of bytes that is required for any character.</value>
       Int32 MinCharByteCount { get; }
-      
+
       /// <summary>
       /// Gets the maximum amount of bytes that is required for any character.
       /// </summary>
@@ -135,7 +135,7 @@ namespace UtilPack
             return 1;
          }
       }
-      
+
       /// <summary>
       /// Returns <c>4</c>.
       /// </summary>
@@ -600,8 +600,8 @@ public static partial class E_UtilPack
    /// <exception cref="ArgumentNullException">If <paramref name="array"/> is <c>null</c>.</exception>
    public static Byte ReadHexDecimal( this IEncodingInfo encoding, Byte[] array, ref Int32 idx )
    {
-      return(Byte)( (((Char)encoding.ReadASCIIByte( array, ref idx )).GetHexadecimalValue().GetValueOrDefault() << 4)
-      | (((Char)encoding.ReadASCIIByte( array, ref idx )).GetHexadecimalValue().GetValueOrDefault()));
+      return (Byte) ( ( ( (Char) encoding.ReadASCIIByte( array, ref idx ) ).GetHexadecimalValue().GetValueOrDefault() << 4 )
+      | ( ( (Char) encoding.ReadASCIIByte( array, ref idx ) ).GetHexadecimalValue().GetValueOrDefault() ) );
    }
 
 
@@ -623,8 +623,8 @@ public static partial class E_UtilPack
          await reader.TryReadNextAsync();
          readValue = await reader.TryPeekAsync();
       }
-      
-      Int64? result; 
+
+      Int64? result;
       if ( readValue.HasValue && readValue >= '0' && readValue <= '9' )
       {
          result = 0;
@@ -637,7 +637,7 @@ public static partial class E_UtilPack
             // Peek next character
             readValue = await reader.TryPeekAsync();
          } while ( readValue.HasValue && readValue >= '0' && readValue <= '9' );
-         
+
          if ( isNegative )
          {
             result = -result;
@@ -647,9 +647,9 @@ public static partial class E_UtilPack
       {
          result = null;
       }
-      
+
       return result;
    }
-   
+
 #endif
 }

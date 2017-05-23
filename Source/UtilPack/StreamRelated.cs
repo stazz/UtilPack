@@ -151,7 +151,7 @@ namespace UtilPack
    public interface StreamReaderWithResizableBufferAndLimitedSize : StreamReaderWithResizableBuffer, LimitedSizeInfo
    {
    }
-   
+
    /// <summary>
    /// This interface augments <see cref="StreamReaderWithResizableBufferAndLimitedSize"/> interface with <see cref="IDisposable.Dispose"/> method from <see cref="IDisposable"/>.
    /// By calling the <see cref="IDisposable.Dispose"/> method, the <see cref="StreamReaderWithResizableBuffer"/> which created this <see cref="InnerStreamReaderWithResizableBufferAndLimitedSize"/> will become useable again.
@@ -175,14 +175,14 @@ namespace UtilPack
       /// <param name="count">The amount of bytes to reserve.</param>
       /// <returns>The range information about actually reserved segment.</returns>
       /// <exception cref="InvalidOperationException">If this stream writer is currently unusable (concurrent write or usage of nested buffer created by <see cref="CreateWithLimitedSizeAndSharedBuffer"/>).</exception>
-      (Int32 Offset, Int32 Count) ReserveBufferSegment(Int32 count);
-      
+      (Int32 Offset, Int32 Count) ReserveBufferSegment( Int32 count );
+
       /// <summary>
       /// This method marks the given amount of bytes as free at the end of the buffer.
       /// </summary>
       /// <param name="count">The amount of bytes to free up. Negative values are treated as freeing up all of the buffer.</param>
       /// <exception cref="InvalidOperationException">If this stream writer is currently unusable (concurrent write or usage of nested buffer created by <see cref="CreateWithLimitedSizeAndSharedBuffer"/>).</exception>
-      void UnreserveBufferSegment(Int32 count);
+      void UnreserveBufferSegment( Int32 count );
 
       /// <summary>
       /// This method asynchronously flushes the buffer contents to underlying <see cref="Stream"/>.
@@ -190,7 +190,7 @@ namespace UtilPack
       /// <returns>The task which returns amount of bytes actually written to underlying <see cref="Stream"/>.</returns>
       /// <exception cref="InvalidOperationException">If this stream writer is currently unusable (concurrent write or usage of nested buffer created by <see cref="CreateWithLimitedSizeAndSharedBuffer"/>).</exception>
       ValueTask<Int32> FlushAsync();
-      
+
       /// <summary>
       /// Returns the current amount of reserved bytes in this <see cref="StreamWriterWithResizableBuffer"/>.
       /// </summary>
@@ -217,7 +217,7 @@ namespace UtilPack
    public interface StreamWriterWithResizableBufferAndLimitedSize : StreamWriterWithResizableBuffer, LimitedSizeInfo
    {
    }
-   
+
    /// <summary>
    /// This interface augments <see cref="StreamWriterWithResizableBufferAndLimitedSize"/> interface with <see cref="IDisposable.Dispose"/> method from <see cref="IDisposable"/>.
    /// By calling the <see cref="IDisposable.Dispose"/> method, the <see cref="StreamWriterWithResizableBuffer"/> which created this <see cref="InnerStreamWriterWithResizableBufferAndLimitedSize"/> will become useable again.
@@ -722,7 +722,7 @@ namespace UtilPack
          ) : this( stream, token, buffer, chunkSize, byteCount, 0, true )
       {
       }
-      
+
       protected StreamReaderWithResizableBufferAndLimitedSizeImpl(
          Stream stream,
          CancellationToken token,
@@ -760,11 +760,11 @@ namespace UtilPack
 
 
    }
-   
+
    internal sealed class InnerStreamReaderWithResizableBufferAndLimitedSizeImpl : StreamReaderWithResizableBufferAndLimitedSizeImpl, InnerStreamReaderWithResizableBufferAndLimitedSize
    {
       private readonly Action<Int64, Int64, Int64, Int64, Int32, Int32> _onDispose;
-      
+
       public InnerStreamReaderWithResizableBufferAndLimitedSizeImpl(
          Stream stream,
          CancellationToken token,
@@ -773,11 +773,11 @@ namespace UtilPack
          Int64 byteCount,
          Int32 bytesInBuffer,
          Action<Int64, Int64, Int64, Int64, Int32, Int32> onDispose
-         ) : base( stream, token, buffer, chunkSize, byteCount, bytesInBuffer, false  )
+         ) : base( stream, token, buffer, chunkSize, byteCount, bytesInBuffer, false )
       {
-        this._onDispose = onDispose;
+         this._onDispose = onDispose;
       }
-      
+
       public void Dispose()
       {
          this._onDispose?.Invoke( this.TotalByteCount, this._bytesLeft, this._initialStreamBytesLeftToRead, this._streamBytesLeftToRead, this._bytesInBufferUsedUp, this._bytesInBuffer );
@@ -863,12 +863,12 @@ namespace UtilPack
       }
 
       public Byte[] Buffer => this._buffer.Array;
-      
+
       public Int32 ReservedBufferCount => this._appendedByteCount;
 
       public CancellationToken CancellationToken { get; }
-      
-      public (Int32 Offset, Int32 Count) ReserveBufferSegment(Int32 count)
+
+      public (Int32 Offset, Int32 Count) ReserveBufferSegment( Int32 count )
       {
          Int32 offset;
          if ( Interlocked.CompareExchange( ref this._state, OPERATING_STREAM, IDLE ) == IDLE )
@@ -897,11 +897,11 @@ namespace UtilPack
          {
             throw BusyException();
          }
-         
+
          return (offset, count);
       }
-      
-      public void UnreserveBufferSegment(Int32 count)
+
+      public void UnreserveBufferSegment( Int32 count )
       {
          if ( count != 0 )
          {
@@ -909,7 +909,7 @@ namespace UtilPack
             {
                try
                {
-                  if (count < 0 || count > this._appendedByteCount )
+                  if ( count < 0 || count > this._appendedByteCount )
                   {
                      count = this._appendedByteCount;
                   }
@@ -1037,7 +1037,7 @@ namespace UtilPack
       {
          return count;
       }
-      
+
       protected virtual void AfterUnreserve( Int32 unreserveCount )
       {
       }
@@ -1055,7 +1055,7 @@ namespace UtilPack
             await stream.FlushAsync( token );
          }
       }
-      
+
       private static InvalidOperationException BusyException()
       {
          return new InvalidOperationException( "This writer is not useable right now." );
@@ -1094,7 +1094,7 @@ namespace UtilPack
          }
          return count;
       }
-      
+
       protected override void AfterUnreserve( Int32 unreserveCount )
       {
          Interlocked.Exchange( ref this._bytesLeft, this._bytesLeft + unreserveCount );
@@ -1129,22 +1129,22 @@ namespace UtilPack
 
 
    }
-   
+
    internal sealed class InnerStreamWriterWithResizableBufferAndLimitedSizeImpl : StreamWriterWithResizableBufferAndLimitedSizeImpl, InnerStreamWriterWithResizableBufferAndLimitedSize
    {
       private readonly Action<Int32, Int64> _onDispose;
-      
+
       public InnerStreamWriterWithResizableBufferAndLimitedSizeImpl(
          Stream stream,
          CancellationToken token,
          ResizableArray<Byte> buffer,
          Int64 byteCount,
          Action<Int32, Int64> onDispose
-      ) : base ( stream, token, buffer, byteCount )
+      ) : base( stream, token, buffer, byteCount )
       {
          this._onDispose = onDispose;
       }
-      
+
       public void Dispose()
       {
          try
@@ -1168,7 +1168,7 @@ namespace UtilPack
       }
 
       public Byte[] Buffer => Empty<Byte>.Array;
-      
+
       public Int32 ReservedBufferCount => 0;
 
       public CancellationToken CancellationToken { get; }
@@ -1177,9 +1177,9 @@ namespace UtilPack
 
       public Int64 BytesLeft => 0;
 
-      public (Int32 Offset, Int32 Count) ReserveBufferSegment(Int32 count) => (0,0);
-      
-      public void UnreserveBufferSegment(Int32 count) {}
+      public (Int32 Offset, Int32 Count) ReserveBufferSegment( Int32 count ) => (0, 0);
+
+      public void UnreserveBufferSegment( Int32 count ) { }
 
       public ValueTask<InnerStreamWriterWithResizableBufferAndLimitedSize> CreateWithLimitedSizeAndSharedBuffer( Int64 byteLimit ) => new ValueTask<InnerStreamWriterWithResizableBufferAndLimitedSize>( byteLimit <= 0 ? this : null );
 
@@ -1398,7 +1398,7 @@ public static partial class E_UtilPack
       }
       return true;
    }
-   
+
    /// <summary>
    /// This method tries to grow the <see cref="AbstractStreamWithResizableBuffer.Buffer"/> by given <paramref name="count"/>, and then invokes lambda to append to bytes.
    /// </summary>
@@ -1411,12 +1411,12 @@ public static partial class E_UtilPack
    public static Int32 AppendToBytes( this StreamWriterWithResizableBuffer writer, Int32 count, Action<Byte[], Int32, Int32> appender )
    {
       Int32 offset;
-      (offset, count) = ArgumentValidator.ValidateNotNullReference(writer).ReserveBufferSegment( count );
+      (offset, count) = ArgumentValidator.ValidateNotNullReference( writer ).ReserveBufferSegment( count );
       if ( count > 0 )
       {
          appender( writer.Buffer, offset, count );
       }
-      
+
       return count;
    }
 

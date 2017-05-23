@@ -871,13 +871,12 @@ namespace UtilPack
       }
    }
 
-#endif
 
 }
 
 public static partial class E_UtilPack
 {
-#if NETSTANDARD1_0
+
 
    /// <summary>
    /// Helper method to try to read next character from <typeparamref name="TSource"/>, or throw if no more characters can be read.
@@ -1123,6 +1122,6 @@ public static partial class E_UtilPack
       } );
    }
 
-#endif
-
 }
+
+#endif

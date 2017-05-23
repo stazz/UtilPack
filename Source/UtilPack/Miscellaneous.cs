@@ -353,7 +353,7 @@ namespace UtilPack
       }
    }
 
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
    /// <summary>
    /// This class extends <see cref="EventArgs"/> to provide a list of awaitable objects which will be awaited after event invokation is done.
    /// </summary>
@@ -770,7 +770,7 @@ public static partial class E_UtilPack
    private const Int32 NO_TIMEOUT = -1;
    private const Int32 DEFAULT_TICK = 50;
 
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
 
    /// <summary>
    /// Helper method to call <see cref="IAsyncDisposable.DisposeAsync(CancellationToken)"/> method and ignore any exception thrown.
@@ -1153,7 +1153,7 @@ public static partial class E_UtilPack
    public static Boolean IsNullable( this Type type, out Type paramType )
    {
       paramType = IsNullable( type ) ? type.
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
          GetTypeInfo()
          .GenericTypeParameters
 #else
@@ -1172,7 +1172,7 @@ public static partial class E_UtilPack
    public static Boolean IsLazy( this Type type )
    {
       return ( type?.
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
          GetTypeInfo()?.
 #endif
          IsGenericType ?? false ) && Equals( type.GetGenericTypeDefinition(), typeof( Lazy<> ) );
@@ -1189,7 +1189,7 @@ public static partial class E_UtilPack
    {
 
       paramType = IsLazy( type ) ? type.
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
          GetTypeInfo()
          .GenericTypeParameters
 #else
@@ -1208,13 +1208,13 @@ public static partial class E_UtilPack
    public static Boolean IsNullable( this Type type )
    {
       return ( type?.
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
          GetTypeInfo()?.
 #endif
          IsGenericType ?? false ) && Equals( type.GetGenericTypeDefinition(), typeof( Nullable<> ) );
    }
 
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
 
    /// <summary>
    /// Helper method to invoke the event and then wait for any awaitables stored to the list of <see cref="EventArgsWithAsyncContext"/>.

@@ -1,17 +1,25 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.0;net40</TargetFrameworks>
+    <TargetFrameworks>netstandard1.5;netstandard1.0;net40</TargetFrameworks>
   </PropertyGroup>
 
   <PropertyGroup>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
     <TreatSpecificWarningsAsErrors />
   </PropertyGroup>
+  
+  <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard1.0' or '$(TargetFramework)' == 'netstandard1.5' ">
+    <DefineConstants>$(DefineConstants);IS_NETSTANDARD</DefineConstants>
+  </PropertyGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' != 'net40' ">
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.4.0-preview1-25305-02" />
     <PackageReference Include="System.ValueTuple" Version="4.4.0-preview1-25305-02" />
+  </ItemGroup>
+  
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard1.5' ">
+    <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
   </ItemGroup>
 
   <!-- Assembly information stuff -->

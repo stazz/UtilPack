@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
-#if NETSTANDARD1_0
+#if IS_NETSTANDARD
 using System;
 using System.Collections.Generic;
 using System.IO;

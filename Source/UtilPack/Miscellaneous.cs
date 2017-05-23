@@ -21,6 +21,7 @@ using System.Linq;
 using System.Text;
 using UtilPack;
 using System.Threading;
+using System.Reflection;
 
 namespace UtilPack
 {
@@ -103,8 +104,8 @@ namespace UtilPack
    /// </list>
    /// </summary>
    /// <typeparameter name="TArgs">The type of the arguments this delegate will receive.</typeparameter>
-   public delegate void GenericEventHandler<in TArgs>(TArgs args);
-   
+   public delegate void GenericEventHandler<in TArgs>( TArgs args );
+
    /// <summary>
    /// This class contains extension method which are for types not contained in this library.
    /// </summary>
@@ -128,23 +129,23 @@ namespace UtilPack
                yield return '-';
                i64 = Math.Abs( i64 );
             }
-         
+
             var div = 1;
             var original = i64;
             while ( ( i64 /= 10 ) > 0 )
             {
                div *= 10;
             }
-            
+
             while ( div > 0 )
             {
-               yield return (Char)( original / div + '0');
+               yield return (Char) ( original / div + '0' );
                original %= div;
                div /= 10;
             }
          }
       }
-      
+
       /// <summary>
       /// Helper method to return string as enumerable of characters.
       /// </summary>
@@ -156,12 +157,12 @@ namespace UtilPack
             var max = str.Length;
             for ( var i = 0; i < max; ++i )
             {
-              yield return str[i];
-           }
+               yield return str[i];
+            }
          }
       }
    }
-   
+
    /// <summary>
    /// This class holds reference to <see cref="Func{T, TResult}"/> which directly returns the given argument, i.e. identity function.
    /// </summary>
@@ -982,7 +983,7 @@ public static partial class E_UtilPack
    {
       return obj.HasValue ? obj.Value.GetType() : null;
    }
-   
+
    /// <summary>
    /// Tries to interpret this character as hexadecimal character (0-9, A-F, or a-f), and return the hexadecimal value.
    /// </summary>
@@ -1140,6 +1141,77 @@ public static partial class E_UtilPack
    public static T GetResultOrThrow<T>( this ResultOrNone<T> resultOrNone )
    {
       return resultOrNone.HasResult ? resultOrNone.Result : throw new InvalidOperationException( "Result is not available." );
+   }
+
+   /// <summary>
+   /// Checks whether <paramref name="type"/> is non-<c>null</c> and a nullable type.
+   /// If so, the <paramref name="paramType"/> will contain the underlying value type of the value type.
+   /// </summary>
+   /// <param name="type">The type to check.</param>
+   /// <param name="paramType">This will contain underlying value type if this method returns <c>true</c>; otherwise it will be <paramref name="type"/>.</param>
+   /// <returns>If the <paramref name="type"/> is non-<c>null</c> and nullable type, <c>true</c>; otherwise, <c>false</c>.</returns>
+   public static Boolean IsNullable( this Type type, out Type paramType )
+   {
+      paramType = IsNullable( type ) ? type.
+#if NETSTANDARD1_0
+         GetTypeInfo()
+         .GenericTypeParameters
+#else
+
+         GetGenericArguments()
+#endif
+         [0] : type;
+      return !ReferenceEquals( paramType, type );
+   }
+
+   /// <summary>
+   /// Checks whether <paramref name="type"/> is non-<c>null</c> and lazy type (instance of <see cref="Lazy{T}"/>).
+   /// </summary>
+   /// <param name="type">Type to check.</param>
+   /// <returns><c>true</c> if <paramref name="type"/> is non-<c>null</c> and lazy type; <c>false</c> otherwise.</returns>
+   public static Boolean IsLazy( this Type type )
+   {
+      return ( type?.
+#if NETSTANDARD1_0
+         GetTypeInfo()?.
+#endif
+         IsGenericType ?? false ) && Equals( type.GetGenericTypeDefinition(), typeof( Lazy<> ) );
+   }
+
+   /// <summary>
+   /// Checks whether <paramref name="type"/> is non-<c>null</c> and lazy type (instance of <see cref="Lazy{T}"/>).
+   /// If so, the <paramref name="paramType"/> will contain the underlying type of the lazy type.
+   /// </summary>
+   /// <param name="type">The type to check.</param>
+   /// <param name="paramType">This will contain underlying type of lazy type if this method returns <c>true</c>; otherwise it will be <paramref name="type"/>.</param>
+   /// <returns><c>true</c> if <paramref name="type"/> is non-<c>null</c> and lazy type; <c>false</c> otherwise.</returns>
+   public static Boolean IsLazy( this Type type, out Type paramType )
+   {
+
+      paramType = IsLazy( type ) ? type.
+#if NETSTANDARD1_0
+         GetTypeInfo()
+         .GenericTypeParameters
+#else
+
+         GetGenericArguments()
+#endif
+         [0] : type;
+      return !ReferenceEquals( paramType, type );
+   }
+
+   /// <summary>
+   /// Checks whether <paramref name="type"/> is non-<c>null</c> and a nullable type.
+   /// </summary>
+   /// <param name="type">Type to check.</param>
+   /// <returns><c>true</c> if <paramref name="type"/> is non-<c>null</c> and nullable type; <c>false</c> otherwise.</returns>
+   public static Boolean IsNullable( this Type type )
+   {
+      return ( type?.
+#if NETSTANDARD1_0
+         GetTypeInfo()?.
+#endif
+         IsGenericType ?? false ) && Equals( type.GetGenericTypeDefinition(), typeof( Nullable<> ) );
    }
 
 #if NETSTANDARD1_0

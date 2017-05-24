@@ -556,15 +556,19 @@ namespace UtilPack
                            }
 
                            count = Math.Min( count, this._bytesInBuffer - this._bytesInBufferUsedUp );
-                           Interlocked.Exchange( ref this._bytesInBufferUsedUp, this._bytesInBufferUsedUp + count );
+                           retVal = count > 0;
+                           if ( retVal )
+                           {
+                              Interlocked.Exchange( ref this._bytesInBufferUsedUp, this._bytesInBufferUsedUp + count );
 
-                           if ( amountToReadFromStream > 0 )
-                           {
-                              this.ReadCompletedAsynchronously( count, amountToReadFromStream );
-                           }
-                           else
-                           {
-                              this.ReadCompletedSynchronously( count );
+                              if ( amountToReadFromStream > 0 )
+                              {
+                                 this.ReadCompletedAsynchronously( count, amountToReadFromStream );
+                              }
+                              else
+                              {
+                                 this.ReadCompletedSynchronously( count );
+                              }
                            }
                         }
                      }

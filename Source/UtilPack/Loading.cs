@@ -85,22 +85,28 @@ namespace UtilPack
       /// Loads the assembly from given location, if it is not already loaded.
       /// </summary>
       /// <param name="location">The location to load assembly from. Is case-sensitive.</param>
+      /// <returns>Loaded or cached assembly. If assembly was loaded, the second tuple item will be non-<c>null</c> containing recursive dependency load information.</returns>
       /// <remarks>
-      /// This method recursively loads all dependencies of the assembly, if actua load is performed.
+      /// This method recursively loads all dependencies of the assembly, if actual load is performed.
       /// </remarks>
-      public Assembly LoadAssemblyFrom( String location )
+      public (Assembly LoadedAssembly, IDictionary<AssemblyName, Assembly> LoadedDependencies) LoadAssemblyFrom( String location )
       {
          var assemblyPath = System.IO.Path.GetFullPath( location );
 
          var assembly = this.LoadLibraryAssembly( assemblyPath, out Boolean actuallyLoaded );
 
+         IDictionary<AssemblyName, Assembly> loadedDeps;
          if ( actuallyLoaded )
          {
             // Load recursively all dependant assemblies right here, since the loader is lazy, and if the dependant assembly load happens later, our callback will be gone.
-            this.LoadDependenciesRecursively( assembly );
+            loadedDeps = this.LoadDependenciesRecursively( assembly );
+         }
+         else
+         {
+            loadedDeps = null;
          }
 
-         return assembly.Assembly;
+         return (assembly.Assembly, loadedDeps);
       }
 
       /// <summary>
@@ -113,7 +119,7 @@ namespace UtilPack
          return this._assembliesByOriginalPath.ContainsKey( location );
       }
 
-      private void LoadDependenciesRecursively(
+      private IDictionary<AssemblyName, Assembly> LoadDependenciesRecursively(
          LoadedAssemblyInfo loadedAssembly
          )
       {
@@ -124,6 +130,12 @@ namespace UtilPack
             loadedAssembly
          };
          var addedThisRound = new List<LoadedAssemblyInfo>();
+         var loadedDeps = new Dictionary<AssemblyName, Assembly>(
+            ComparerFromFunctions.NewEqualityComparer<AssemblyName>(
+               ( a1, a2 ) => ReferenceEquals( a1, a2 ) || ( a1 != null && a2 != null && String.Equals( a1.Name, a2.Name ) && String.Equals( a1.CultureName, a2.CultureName ) && a1.Version.Equals( a2.Version ) && ArrayEqualityComparer<Byte>.ArrayEquality( a1.GetPublicKey(), a2.GetPublicKey() ) ),
+               a => a.Name.GetHashCodeSafe()
+               )
+            );
          do
          {
             addedThisRound.Clear();
@@ -150,6 +162,7 @@ namespace UtilPack
                   catch
                   {
                      // Ignore
+                     loadedDeps.Add( aRef, null );
                   }
 
                   if ( curAssembly != null && System.IO.File.Exists( assemblyPath ) )
@@ -159,6 +172,7 @@ namespace UtilPack
                      if ( newCount > oldCount )
                      {
                         addedThisRound.Add( this._assembliesByOriginalPath[assemblyPath] );
+                        loadedDeps.Add( aRef, curAssembly );
                      }
                   }
 
@@ -169,6 +183,7 @@ namespace UtilPack
             assembliesToProcess.AddRange( addedThisRound );
          } while ( addedThisRound.Count > 0 );
 
+         return loadedDeps;
       }
 
       private LoadedAssemblyInfo LoadLibraryAssembly(

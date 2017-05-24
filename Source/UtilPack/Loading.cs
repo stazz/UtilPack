@@ -20,6 +20,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Loader;
 using System.Text;
 
 namespace UtilPack
@@ -30,9 +31,8 @@ namespace UtilPack
    /// </summary>
    /// <remarks>
    /// This class is not safe to be used concurrently.
-   /// The <see cref="IDisposable.Dispose"/> method will unregister the callback from <see cref="System.Runtime.Loader.AssemblyLoadContext.Resolving"/>.
    /// </remarks>
-   public class ExplicitAssemblyLoader : AbstractDisposable
+   public class ExplicitAssemblyLoader
    {
       private sealed class LoadedAssemblyInfo
       {
@@ -54,13 +54,8 @@ namespace UtilPack
          public Assembly Assembly { get; }
       }
 
-      private readonly System.Runtime.Loader.AssemblyLoadContext _assemblyLoader;
-
+      private readonly AssemblyLoadContext _assemblyLoader;
       private readonly IDictionary<String, LoadedAssemblyInfo> _assembliesByOriginalPath;
-      private readonly ISet<String> _allDiscoveredDependencies;
-
-      private String _currentAssemblyPath;
-
       private readonly Func<String, String> _assemblyPathProcessor;
       private readonly Func<String, AssemblyName, IEnumerable<String>> _candidatePathGetter;
 
@@ -69,9 +64,9 @@ namespace UtilPack
       /// </summary>
       /// <param name="assemblyPathProcessor">The callback to process the assembly path from which to actually load assembly. Only invoked when the file exists. Receives original assembly path as argument.</param>
       /// <param name="candidatePathGetter">The callback to scan through potential assembly locations. Receives referencing assembly path and assembly name reference as arguments. By default, only the <c>assembly_name.dll</c> is scanned.</param>
-      /// <param name="assemblyLoadContext">The actual <see cref="System.Runtime.Loader.AssemblyLoadContext"/> to use. By default the <see cref="System.Runtime.Loader.AssemblyLoadContext.Default"/> is used.</param>
+      /// <param name="assemblyLoadContext">The actual <see cref="AssemblyLoadContext"/> to use. By default the <see cref="AssemblyLoadContext.Default"/> is used.</param>
       /// <remarks>
-      /// The <see cref="System.Runtime.Loader.AssemblyLoadContext.Resolving"/> event is registered right away in this constructor.
+      /// The <see cref="AssemblyLoadContext.Resolving"/> event is registered right away in this constructor.
       /// The <paramref name="assemblyPathProcessor"/> may e.g. copy the assembly file from original location to some other location and return the copied path, thus behaving somewhat like shadow copying.
       /// </remarks>
       public ExplicitAssemblyLoader(
@@ -83,28 +78,7 @@ namespace UtilPack
          this._assemblyPathProcessor = assemblyPathProcessor;
          this._candidatePathGetter = candidatePathGetter ?? DefaultGetAssemblyCandidatePaths;
          this._assembliesByOriginalPath = new Dictionary<String, LoadedAssemblyInfo>();
-         this._allDiscoveredDependencies = new HashSet<String>();
-         this._assemblyLoader = assemblyLoadContext ?? System.Runtime.Loader.AssemblyLoadContext.Default;
-         this._assemblyLoader.Resolving += _assemblyLoader_Resolving;
-      }
-
-      private Assembly _assemblyLoader_Resolving(
-         System.Runtime.Loader.AssemblyLoadContext context,
-         AssemblyName assemblyName
-         )
-      {
-         Assembly retVal = null;
-         if ( !String.IsNullOrEmpty( this._currentAssemblyPath ) )
-         {
-            var assemblyPath = this.GetFirstExistingAssemblyPath( this._currentAssemblyPath, assemblyName );
-
-            if ( !String.IsNullOrEmpty( assemblyPath ) )
-            {
-               retVal = this.LoadLibraryAssembly( assemblyPath, out Boolean actuallyLoaded ).Assembly;
-            }
-         }
-
-         return retVal;
+         this._assemblyLoader = assemblyLoadContext ?? AssemblyLoadContext.Default;
       }
 
       /// <summary>
@@ -139,18 +113,6 @@ namespace UtilPack
          return this._assembliesByOriginalPath.ContainsKey( location );
       }
 
-      /// <summary>
-      /// Unloads the handler, which was registered by constructor, from <see cref="System.Runtime.Loader.AssemblyLoadContext.Resolving"/> event.
-      /// </summary>
-      /// <param name="disposing">Whether the managed disposing is going on.</param>
-      protected override void Dispose( Boolean disposing )
-      {
-         if ( disposing )
-         {
-            this._assemblyLoader.Resolving -= this._assemblyLoader_Resolving;
-         }
-      }
-
       private void LoadDependenciesRecursively(
          LoadedAssemblyInfo loadedAssembly
          )
@@ -168,7 +130,6 @@ namespace UtilPack
 
             foreach ( var loadedInfo in assembliesToProcess )
             {
-               this._allDiscoveredDependencies.Add( loadedInfo.OriginalPath );
 
                foreach ( var aRef in loadedInfo.Assembly.GetReferencedAssemblies() )
                {
@@ -193,15 +154,12 @@ namespace UtilPack
 
                   if ( curAssembly != null && System.IO.File.Exists( assemblyPath ) )
                   {
-
                      var newCount = assemblies.Count;
 
                      if ( newCount > oldCount )
                      {
                         addedThisRound.Add( this._assembliesByOriginalPath[assemblyPath] );
                      }
-
-                     this._allDiscoveredDependencies.Add( assemblyPath );
                   }
 
                }
@@ -244,15 +202,26 @@ namespace UtilPack
          EitherOr<String, AssemblyName> assemblyRef
          )
       {
-         var oldVal = this._currentAssemblyPath;
-         this._currentAssemblyPath = referencingAssemblyOriginalPath;
+         Func<AssemblyLoadContext, AssemblyName, Assembly> eventHandler = ( ctx, aName ) =>
+         {
+            var assemblyPath = this.GetFirstExistingAssemblyPath( referencingAssemblyOriginalPath, aName );
+
+            return String.IsNullOrEmpty( assemblyPath ) ?
+               null :
+               this.LoadLibraryAssembly( assemblyPath, out Boolean actuallyLoaded ).Assembly;
+         };
+
+         var loader = this._assemblyLoader;
+         loader.Resolving += eventHandler;
          try
          {
-            return assemblyRef.IsFirst ? this._assemblyLoader.LoadFromAssemblyPath( assemblyRef.First ) : this._assemblyLoader.LoadFromAssemblyName( assemblyRef.Second );
+            return assemblyRef.IsFirst ?
+               loader.LoadFromAssemblyPath( assemblyRef.First ) :
+               loader.LoadFromAssemblyName( assemblyRef.Second );
          }
          finally
          {
-            this._currentAssemblyPath = oldVal;
+            loader.Resolving -= eventHandler;
          }
       }
 

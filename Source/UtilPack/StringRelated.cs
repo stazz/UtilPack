@@ -94,7 +94,10 @@ namespace UtilPack
          this.Encoding = encoding ?? new UTF8Encoding( false, false );
       }
 
-      /// <inheritdoc />
+      /// <summary>
+      /// Gets the <see cref="UTF8Encoding"/> object.
+      /// </summary>
+      /// <value>The <see cref="UTF8Encoding"/> object.</value>
       public Encoding Encoding { get; }
 
       /// <summary>
@@ -145,6 +148,268 @@ namespace UtilPack
          get
          {
             return 4;
+         }
+      }
+   }
+
+   /// <summary>
+   /// This is abstract class for information about little-endian and big-endian UTF-16 encodings represented by <see cref="UnicodeEncoding"/> class.
+   /// </summary>
+   public abstract class UTF16EncodingInfo : IEncodingInfo
+   {
+      private const Int32 SIZE = sizeof( Int16 );
+
+      internal UTF16EncodingInfo( UnicodeEncoding encoding )
+      {
+         this.Encoding = ArgumentValidator.ValidateNotNull( nameof( encoding ), encoding );
+      }
+
+      /// <summary>
+      /// Gets the <see cref="UnicodeEncoding"/> object.
+      /// </summary>
+      /// <value>The <see cref="UnicodeEncoding"/> object.</value>
+      public Encoding Encoding { get; }
+
+      /// <summary>
+      /// Returns <c>2</c>.
+      /// </summary>
+      /// <value><c>2</c>.</value>
+      public Int32 BytesPerASCIICharacter => SIZE;
+
+      /// <summary>
+      /// Returns <c>2</c>.
+      /// </summary>
+      /// <value><c>2</c>.</value>
+      public Int32 MinCharByteCount => SIZE;
+
+      /// <summary>
+      /// Returns <c>2</c>.
+      /// </summary>
+      /// <value><c>2</c>.</value>
+      public Int32 MaxCharByteCount => SIZE * 2;
+
+      /// <summary>
+      /// Reads one byte as ASCII byte.
+      /// </summary>
+      /// <param name="array">The byte array.</param>
+      /// <param name="idx">The index in <paramref name="array"/> to read ASCII byte from. This will be advanced by <c>2</c>.</param>
+      /// <returns>The read ASCII byte.</returns>
+      public Byte ReadASCIIByte( Byte[] array, ref Int32 idx )
+      {
+         idx += SIZE;
+         return this.DoReadASCIIByte( array, idx - SIZE );
+      }
+
+      /// <summary>
+      /// Writes one ASCII byte to given array, and clears other byte, depending on endianness.
+      /// </summary>
+      /// <param name="array">The byte array.</param>
+      /// <param name="idx">The index in <paramref name="array"/> to write character data to. This will be advanced by <c>2</c>.</param>
+      /// <param name="asciiByte">The ASCII byte to write.</param>
+      /// <returns>This <see cref="UTF16EncodingInfo"/>.</returns>
+      public IEncodingInfo WriteASCIIByte( Byte[] array, ref Int32 idx, Byte asciiByte )
+      {
+         idx += SIZE;
+         this.DoWriteASCIIByte( array, idx - SIZE, asciiByte );
+         return this;
+      }
+
+      internal abstract Byte DoReadASCIIByte( Byte[] array, Int32 idx );
+      internal abstract void DoWriteASCIIByte( Byte[] array, Int32 idx, Byte asciiByte );
+
+      internal static Boolean IsBigEndian( Encoding encoding )
+      {
+         var bytez = encoding.GetBytes( "a" );
+         return bytez[0] == 0;
+      }
+   }
+
+   /// <summary>
+   /// This class contains information about little-endian UTF-16 encoding.
+   /// </summary>
+   public sealed class UTF16LEEncodingInfo : UTF16EncodingInfo
+   {
+      /// <summary>
+      /// Creates new instance of <see cref="UTF16LEEncodingInfo"/>.
+      /// </summary>
+      /// <param name="encoding">The optional <see cref="UnicodeEncoding"/> to use.</param>
+      /// <exception cref="ArgumentException">If <paramref name="encoding"/> was specified, and it was not little-endian.</exception>
+      public UTF16LEEncodingInfo( UnicodeEncoding encoding )
+         : base( encoding ?? new UnicodeEncoding( false, false, false ) )
+      {
+         if ( encoding != null
+            && !ReferenceEquals( encoding, Encoding.Unicode )
+            && IsBigEndian( encoding )
+            )
+         {
+            throw new ArgumentException( "The given UTF-16 encoding was big-endian, but this class is for little-endian UTF-16." );
+         }
+      }
+
+      internal override Byte DoReadASCIIByte( Byte[] array, Int32 idx )
+      {
+         return array[idx];
+      }
+
+      internal override void DoWriteASCIIByte( Byte[] array, Int32 idx, Byte asciiByte )
+      {
+         array[idx] = asciiByte;
+      }
+   }
+
+   /// <summary>
+   /// This class contains information about big-endian UTF-16 encoding.
+   /// </summary>
+   public sealed class UTF16BEEncodingInfo : UTF16EncodingInfo
+   {
+      /// <summary>
+      /// Creates new instance of <see cref="UTF16BEEncodingInfo"/>.
+      /// </summary>
+      /// <param name="encoding">The optional <see cref="UnicodeEncoding"/> to use.</param>
+      /// <exception cref="ArgumentException">If <paramref name="encoding"/> was specified, and it was not big-endian.</exception>
+      public UTF16BEEncodingInfo( UnicodeEncoding encoding )
+         : base( encoding ?? new UnicodeEncoding( true, false, false ) )
+      {
+         if ( encoding != null
+            && !ReferenceEquals( encoding, Encoding.BigEndianUnicode )
+            && !IsBigEndian( encoding )
+            )
+         {
+            throw new ArgumentException( "The given UTF-16 encoding was little-endian, but this class is for big-endian UTF-16." );
+         }
+      }
+
+      internal override Byte DoReadASCIIByte( Byte[] array, Int32 idx )
+      {
+         return array[idx + 1];
+      }
+
+      internal override void DoWriteASCIIByte( Byte[] array, Int32 idx, Byte asciiByte )
+      {
+         array[idx] = 0;
+         array[idx + 1] = asciiByte;
+      }
+   }
+
+#if NET_40 || NETSTANDARD1_5
+
+   /// <summary>
+   /// This class contains information about UTF-32 encoding.
+   /// </summary>
+   public sealed class UTF32EncodingInfo : IEncodingInfo
+   {
+      private const Int32 SIZE = sizeof( Int32 );
+
+      /// <summary>
+      /// Creates a new instance of <see cref="UTF32EncodingInfo"/>.
+      /// </summary>
+      /// <param name="encoding">The optional <see cref="UTF32Encoding"/> to use.</param>
+      public UTF32EncodingInfo(
+         UTF32Encoding encoding = null
+         )
+      {
+         var isBigEndian = encoding != null && UTF16EncodingInfo.IsBigEndian( encoding );
+         this.IsBigEndian = isBigEndian;
+         this.Encoding = encoding ?? new UTF32Encoding( isBigEndian, false, false );
+      }
+
+      /// <summary>
+      /// Gets the <see cref="UTF32Encoding"/> object.
+      /// </summary>
+      /// <value>The <see cref="UTF32Encoding"/> object.</value>
+      public Encoding Encoding { get; }
+
+      /// <summary>
+      /// Gets the value indicating whether this encoding is big-endian.
+      /// </summary>
+      /// <value>The value indicating whether this encoding is big-endian.</value>
+      public Boolean IsBigEndian { get; }
+
+      /// <summary>
+      /// Returns <c>4</c>.
+      /// </summary>
+      /// <value><c>4</c>.</value>
+      public Int32 BytesPerASCIICharacter => SIZE;
+
+      /// <summary>
+      /// Returns <c>4</c>.
+      /// </summary>
+      /// <value><c>4</c>.</value>
+      public Int32 MinCharByteCount => SIZE;
+
+      /// <summary>
+      /// Returns <c>4</c>.
+      /// </summary>
+      /// <value><c>4</c>.</value>
+      public Int32 MaxCharByteCount => SIZE;
+      /// <summary>
+      /// Reads one byte as ASCII byte.
+      /// </summary>
+      /// <param name="array">The byte array.</param>
+      /// <param name="idx">The index in <paramref name="array"/> to read ASCII byte from. This will be advanced by <c>4</c>.</param>
+      /// <returns>The read ASCII byte.</returns>
+      public Byte ReadASCIIByte( Byte[] array, ref Int32 idx )
+      {
+         var retVal = this.IsBigEndian ? array[idx + 3] : array[idx];
+         idx += SIZE;
+         return retVal;
+      }
+
+      /// <summary>
+      /// Writes one ASCII byte to given array, and clears other bytes, depending on endianness.
+      /// </summary>
+      /// <param name="array">The byte array.</param>
+      /// <param name="idx">The index in <paramref name="array"/> to write character data to. This will be advanced by <c>4</c>.</param>
+      /// <param name="asciiByte">The ASCII byte to write.</param>
+      /// <returns>This <see cref="UTF32EncodingInfo"/>.</returns>
+      public IEncodingInfo WriteASCIIByte( Byte[] array, ref Int32 idx, Byte asciiByte )
+      {
+         var isBE = this.IsBigEndian;
+         array[isBE ? ( idx + 3 ) : idx] = asciiByte;
+         Array.Clear( array, isBE ? idx : idx + 1, 3 );
+         return this;
+      }
+   }
+
+#endif
+
+   public static partial class UtilPackExtensions
+   {
+      /// <summary>
+      /// Creates the default encoding information for given <see cref="Encoding"/>.
+      /// </summary>
+      /// <param name="encoding">This <see cref="Encoding"/>.</param>
+      /// <returns>A new instance of <see cref="IEncodingInfo"/>.</returns>
+      /// <exception cref="InvalidOperationException">If this method could not automatically deduct which <see cref="IEncodingInfo"/> to create.</exception>
+      public static IEncodingInfo CreateDefaultEncodingInfo( this Encoding encoding )
+      {
+         ArgumentValidator.ValidateNotNullReference( encoding );
+
+         switch ( encoding )
+         {
+            case UTF8Encoding utf8:
+               return new UTF8EncodingInfo( utf8 );
+            case UnicodeEncoding utf16:
+               if ( ReferenceEquals( utf16, Encoding.Unicode ) )
+               {
+                  return new UTF16LEEncodingInfo( utf16 );
+               }
+               else if ( ReferenceEquals( utf16, Encoding.BigEndianUnicode ) || UTF16EncodingInfo.IsBigEndian( utf16 ) )
+               {
+                  return new UTF16BEEncodingInfo( utf16 );
+               }
+               else
+               {
+                  return new UTF16LEEncodingInfo( utf16 );
+               }
+#if NET_4_0 || NETSTANDARD1_5
+            case UTF32Encoding utf32:
+               return new UTF32EncodingInfo( utf32 );
+#endif
+            case null:
+               return null;
+            default:
+               throw new InvalidOperationException( $"Could not create default encoding info for {encoding}." );
          }
       }
    }
@@ -603,6 +868,8 @@ public static partial class E_UtilPack
       return (Byte) ( ( ( (Char) encoding.ReadASCIIByte( array, ref idx ) ).GetHexadecimalValue().GetValueOrDefault() << 4 )
       | ( ( (Char) encoding.ReadASCIIByte( array, ref idx ) ).GetHexadecimalValue().GetValueOrDefault() ) );
    }
+
+
 
 
 #if IS_NETSTANDARD

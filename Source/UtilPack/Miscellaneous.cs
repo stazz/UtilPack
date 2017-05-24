@@ -354,44 +354,69 @@ namespace UtilPack
    }
 
 #if IS_NETSTANDARD
+
    /// <summary>
-   /// This class extends <see cref="EventArgs"/> to provide a list of awaitable objects which will be awaited after event invokation is done.
+   /// This interface adds a way to add an awaitable object.
+   /// Once event is invoked, the event caller may wait for all the awaitables.
+   /// This way the <c>async void</c> methods can be avoided.
    /// </summary>
    /// <typeparam name="TAwaitable">The type of the awaitable.</typeparam>
    /// <remarks>
    /// Because of how <c>public async void</c> methods behave, they only make sense when they are run in UI thread or similar (otherwise, they will cause hard crash, <see href="https://msdn.microsoft.com/en-us/magazine/jj991977.aspx"/>).
    /// </remarks>
-   public class EventArgsWithAsyncContext<TAwaitable> : EventArgs
+   public interface EventArgsWithAsyncContext<in TAwaitable>
+   {
+      /// <summary>
+      /// Adds an awaitable object to the current list of awaitables of this <see cref="EventArgsWithAsyncContext{TAwaitable}"/>.
+      /// </summary>
+      /// <param name="awaitable">The awaitable to be added.</param>
+      void AddAwaitable( TAwaitable awaitable );
+   }
+
+   /// <summary>
+   /// This class restricts the type argument of <see cref="EventArgsWithAsyncContext{TAwaitable}"/> to <see cref="System.Threading.Tasks.Task"/>.
+   /// </summary>
+   public interface EventArgsWithAsyncContext : EventArgsWithAsyncContext<System.Threading.Tasks.Task>
+   {
+
+   }
+
+
+   /// <summary>
+   /// This class provides default implementation for <see cref="EventArgsWithAsyncContext{TAwaitable}"/>
+   /// </summary>
+   /// <typeparam name="TAwaitable">The type of the awaitable.</typeparam>
+   /// <remarks>
+   /// Because of how <c>public async void</c> methods behave, they only make sense when they are run in UI thread or similar (otherwise, they will cause hard crash, <see href="https://msdn.microsoft.com/en-us/magazine/jj991977.aspx"/>).
+   /// </remarks>
+   public class EventArgsWithAsyncContextImpl<TAwaitable> : EventArgsWithAsyncContext<TAwaitable>
    {
       private List<TAwaitable> _awaitables;
 
       /// <summary>
       /// Creates a new instance of <see cref="EventArgsWithAsyncContext{TAwaitable}"/>
       /// </summary>
-      public EventArgsWithAsyncContext()
+      public EventArgsWithAsyncContextImpl()
       {
          this._awaitables = null;
       }
 
       /// <summary>
-      /// Gets the mutable list of awaitables.
+      /// Adds the given awaitable to the list of awaitables.
       /// </summary>
-      public List<TAwaitable> Awaitables
+      public void AddAwaitable( TAwaitable awaitable )
       {
-         get
+         if ( this._awaitables == null )
          {
-            if ( this._awaitables == null )
-            {
-               this._awaitables = new List<TAwaitable>();
-            }
-            return this._awaitables;
+            this._awaitables = new List<TAwaitable>();
          }
+         this._awaitables.Add( awaitable );
       }
 
       /// <summary>
-      /// Gets the array of awaitables added to <see cref="Awaitables"/> list, or <c>null</c> if no awaitables have been added.
+      /// Gets the array of awaitables added to the list of awaitables, or <c>null</c> if no awaitables have been added.
       /// </summary>
-      /// <returns>The array of awaitables added to <see cref="Awaitables"/> list, or <c>null</c> if no awaitables have been added.</returns>
+      /// <returns>The array of awaitables added to the list of awaitables, or <c>null</c> if no awaitables have been added.</returns>
       public TAwaitable[] GetAwaitableArray()
       {
          var list = this._awaitables;
@@ -400,9 +425,9 @@ namespace UtilPack
    }
 
    /// <summary>
-   /// This class restricts the type argument of <see cref="EventArgsWithAsyncContext{TAwaitable}"/> to <see cref="System.Threading.Tasks.Task"/>.
+   /// This class restricts the type argument of <see cref="EventArgsWithAsyncContextImpl{TAwaitable}"/> to <see cref="System.Threading.Tasks.Task"/>.
    /// </summary>
-   public class EventArgsWithAsyncContext : EventArgsWithAsyncContext<System.Threading.Tasks.Task>
+   public class EventArgsWithAsyncContextImpl : EventArgsWithAsyncContextImpl<System.Threading.Tasks.Task>
    {
 
    }
@@ -1217,19 +1242,20 @@ public static partial class E_UtilPack
 #if IS_NETSTANDARD
 
    /// <summary>
-   /// Helper method to invoke the event and then wait for any awaitables stored to the list of <see cref="EventArgsWithAsyncContext"/>.
+   /// Helper method to invoke the event and then wait for any awaitables stored to the list of <see cref="EventArgsWithAsyncContextImpl"/>.
    /// </summary>
-   /// <typeparam name="TEventArgs">The actual type of event args, must inherit from <see cref="EventArgsWithAsyncContext"/>.</typeparam>
+   /// <typeparam name="TEventArgs">The declared type of event args, must implement <see cref="EventArgsWithAsyncContext"/>.</typeparam>
+   /// <typeparam name="TActualEventArgs">The actual type of event args, must inherit <see cref="EventArgsWithAsyncContextImpl"/> and <typeparamref name="TEventArgs"/>.</typeparam>
    /// <param name="evt">The event, may be <c>null</c>.</param>
    /// <param name="args">The event arguments to be passed to event.</param>
-   /// <param name="sender">The sender to be passed to event.</param>
    /// <returns>The task to await for.</returns>
-   public static async System.Threading.Tasks.Task InvokeAndWaitForAwaitables<TEventArgs>( this EventHandler<TEventArgs> evt, TEventArgs args, Object sender = null )
+   public static async System.Threading.Tasks.Task InvokeAndWaitForAwaitables<TEventArgs, TActualEventArgs>( this GenericEventHandler<TEventArgs> evt, TActualEventArgs args )
       where TEventArgs : EventArgsWithAsyncContext
+      where TActualEventArgs : EventArgsWithAsyncContextImpl, TEventArgs
    {
       if ( evt != null )
       {
-         evt( sender, args );
+         evt( args );
          System.Threading.Tasks.Task[] awaitables;
          if ( ( awaitables = args?.GetAwaitableArray() ) != null )
          {

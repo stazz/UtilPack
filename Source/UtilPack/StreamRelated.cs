@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
-#if IS_NETSTANDARD
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -1191,9 +1190,47 @@ namespace UtilPack
 
       public void Dispose()
       {
-
       }
    }
+
+#if NET40
+   // Theraot.Core does not provide (yet?) extension methods for async write/read for streams
+
+   public static partial class UtilPackExtensions
+   {
+      /// <todo />
+      public static Task<Int32> ReadAsync( this Stream stream, Byte[] buffer, Int32 offset, Int32 count, CancellationToken token )
+      {
+         token.ThrowIfCancellationRequested();
+         var readArgs = (stream, buffer, offset, count);
+         return Task.Factory.FromAsync(
+           (rArgs, cb, state) => rArgs.Item1.BeginRead( rArgs.Item2, rArgs.Item3, rArgs.Item4, cb, state ),
+           (result) => ((Stream)result.AsyncState).EndRead( result ),
+           readArgs,
+           stream
+           );
+      }
+
+      /// <todo />
+      public static Task WriteAsync( this Stream stream, Byte[] buffer, Int32 offset, Int32 count, CancellationToken token )
+      {
+         token.ThrowIfCancellationRequested();
+         var writeArgs = (stream, buffer, offset, count);
+         return Task.Factory.FromAsync(
+           (wArgs, cb, state) => wArgs.Item1.BeginWrite( wArgs.Item2, wArgs.Item3, wArgs.Item4, cb, state),
+           (result) => ((Stream)result.AsyncState).EndWrite( result ),
+           writeArgs,
+           stream
+           );
+      }
+      
+      /// <todo />
+      public static Task FlushAsync( this Stream stream, CancellationToken token )
+      {
+         return TaskEx.Run(() => stream.Flush(), token);
+      }
+   }
+#endif
 }
 
 
@@ -1425,4 +1462,3 @@ public static partial class E_UtilPack
    }
 
 }
-#endif

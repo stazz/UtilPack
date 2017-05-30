@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.0;net40;net45</TargetFrameworks>
+    <TargetFrameworks>net45;netstandard1.5</TargetFrameworks>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -10,56 +10,88 @@
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="10.0.2" />
+  <PropertyGroup>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <PackageReference>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <ProjectReference>
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net45' ">
+    <PackageReference Include="Microsoft.Build.Framework" Version="14.3" />
+    <PackageReference Include="System.Reflection.Emit" Version="4.3.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\UtilPack\UtilPack.csproj" />
+  <ItemGroup Condition="'$(TargetFramework)' != 'net45'">
+    <PackageReference Include="Microsoft.Build.Framework" Version="15.1.548" />
   </ItemGroup>
   
+  <ItemGroup>
+    <ProjectReference Include="..\UtilPack.NuGet\UtilPack.NuGet.csproj" />
+  </ItemGroup>
+
+  <!-- Collect all dependencies and include them in the package itself, next to the Task assembly. -->
+  <Target Name="CollectRuntimeOutputs" BeforeTargets="_GetPackageFiles">
+    <ItemGroup>
+      <Content Include="$(OutputPath)**\*.dll;$(OutputPath)**\*.dll.config;$(OutputPath)**\*.json">
+        <Pack>true</Pack>
+        <PackagePath>build\</PackagePath>
+      </Content>
+    </ItemGroup>
+  </Target>
+
   <!-- Assembly information stuff -->
   <PropertyGroup>
     <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>RC3</VersionSuffix>
+    <VersionSuffix>RC1</VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
+    <AssemblyTitle>UtilPack.NuGet.MSBuild</AssemblyTitle>
     <Product>UtilPack</Product>
-    <Description>Library containing asynchronous (de)serialization methods for Newtonsoft.JSON JTokens. These methods are extension methods of the StreamReaderWithResizableBuffer, IEncodingInfo, and StreamWriterWithResizableBuffer types located in UtilPack package.</Description>
+    <Description>Provides easy way to execute NuGet-based MSBuild tasks.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>
     <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
   </PropertyGroup>
-  
+
   <!-- Assembly signing stuff -->
   <PropertyGroup Condition="'$(Configuration)' == 'Release' and Exists('$(AssemblyOriginatorKeyFilePath)')">
     <AssemblyOriginatorKeyFile>$(AssemblyOriginatorKeyFilePath)</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
-  
+
   <!-- Disable all debug information in release mode-->
   <PropertyGroup Condition=" '$(Configuration)' == 'Release'">
     <DebugType>none</DebugType>
     <DebugSymbols>False</DebugSymbols>
     <!-- For some reason, both OutputPath and OutDir properties are empty at this point... go figure. Maybe renamed for MSBuild 15.0? -->
-    <DocumentationFile>$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
+    <!--<DocumentationFile>$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>-->
   </PropertyGroup>
-  
+
   <!-- NuGet package stuff -->
   <PropertyGroup>
     <PackageId>$(AssemblyName)</PackageId>
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Updating to latest UtilPack.</PackageReleaseNotes>
-    <PackageTags>json utility binary serialization extensions async asynchronous deserialization</PackageTags>
-    <Title>Asynchronous JSON Serialization</Title>
+    <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
+    <PackageTags>utility nuget extensions msbuild task package resolve</PackageTags>
+    <Title>MSBuild Task Factory for NuGet-Oriented MSBuild Tasks</Title>
     <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>
     <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
     <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
   </PropertyGroup>
-  
+
   <!--
   At least currently (9.5.2017) modifying VersionPrefix/VersionSuffix will cause the assemblyinfo.cs file to regenerate, but with old version strings (??).
   So... manually delete the file first when building in release mode.

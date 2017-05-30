@@ -418,7 +418,6 @@ namespace UtilPack
 
 public static partial class E_UtilPack
 {
-#if IS_NETSTANDARD
 
    /// <summary>
    /// Parses ASCII integer string to 32-bit integer from encoded string without allocating a string.
@@ -497,8 +496,6 @@ public static partial class E_UtilPack
       }
       return retVal;
    }
-
-#endif
 
    /// <summary>
    /// Tries to parse ASCII integer string to 32-bit integer from encoded string without allocating a string.
@@ -872,8 +869,6 @@ public static partial class E_UtilPack
 
 
 
-#if IS_NETSTANDARD
-
    /// <summary>
    /// Tries to parse integer as from a character reader.
    /// </summary>
@@ -917,6 +912,4 @@ public static partial class E_UtilPack
 
       return result;
    }
-
-#endif
 }

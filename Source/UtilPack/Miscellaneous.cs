@@ -22,6 +22,8 @@ using System.Text;
 using UtilPack;
 using System.Threading;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 namespace UtilPack
 {
@@ -353,8 +355,6 @@ namespace UtilPack
       }
    }
 
-#if IS_NETSTANDARD
-
    /// <summary>
    /// This interface adds a way to add an awaitable object.
    /// Once event is invoked, the event caller may wait for all the awaitables.
@@ -479,7 +479,13 @@ namespace UtilPack
       /// </summary>
       /// <param name="factory">The delegate that is invoked on a background thread to produce the value when it is needed.</param>
       public AsyncLazy( Func<T> factory )
-         : this( () => System.Threading.Tasks.Task.Run( factory ) )
+         : this( () => System.Threading.Tasks.
+#if NET40
+         TaskEx
+#else
+         Task
+#endif
+         .Run( factory ) )
       {
       }
 
@@ -489,13 +495,24 @@ namespace UtilPack
       /// <param name="asyncFactory">The asynchronous delegate that is invoked on a background thread to produce the value when it is needed.</param>
       public AsyncLazy( Func<System.Threading.Tasks.Task<T>> asyncFactory )
       {
-         this._instance = new Lazy<System.Threading.Tasks.Task<T>>( () => System.Threading.Tasks.Task.Run( asyncFactory ), LazyThreadSafetyMode.ExecutionAndPublication );
+         this._instance = new Lazy<System.Threading.Tasks.Task<T>>(
+            () => System.Threading.Tasks.
+#if NET40
+            TaskEx
+#else
+            Task
+#endif
+            .Run( asyncFactory )
+            , LazyThreadSafetyMode.ExecutionAndPublication );
       }
 
       /// <summary>
       /// Asynchronous infrastructure support. This method permits instances of <see cref="AsyncLazy{T}"/> to be awaited.
       /// </summary>
-      public System.Runtime.CompilerServices.TaskAwaiter<T> GetAwaiter()
+#if NET40
+      [CLSCompliant(false)]
+#endif
+      public TaskAwaiter<T> GetAwaiter()
       {
          return this._instance.Value.GetAwaiter();
       }
@@ -536,7 +553,13 @@ namespace UtilPack
       /// </summary>
       /// <param name="factory">The delegate that is invoked on a background thread to produce the value when it is needed.</param>
       public ReadOnlyResettableAsyncLazy( Func<T> factory )
-         : this( () => System.Threading.Tasks.Task.Run( factory ) )
+         : this( () => System.Threading.Tasks.Task
+#if NET40
+         .Factory.StartNew(
+#else
+         .Run(
+#endif
+            factory ) )
       {
 
       }
@@ -563,7 +586,10 @@ namespace UtilPack
       /// <summary>
       /// Asynchronous infrastructure support. This method permits instances of <see cref="ReadOnlyResettableAsyncLazy{T}"/> to be awaited.
       /// </summary>
-      public System.Runtime.CompilerServices.TaskAwaiter<T> GetAwaiter()
+#if NET40
+      [CLSCompliant(false)]
+#endif
+      public TaskAwaiter<T> GetAwaiter()
       {
          return this._instance.Value.GetAwaiter();
       }
@@ -786,16 +812,12 @@ namespace UtilPack
       }
    }
 
-#endif
-
 }
 
 public static partial class E_UtilPack
 {
    private const Int32 NO_TIMEOUT = -1;
    private const Int32 DEFAULT_TICK = 50;
-
-#if IS_NETSTANDARD
 
    /// <summary>
    /// Helper method to call <see cref="IAsyncDisposable.DisposeAsync(CancellationToken)"/> method and ignore any exception thrown.
@@ -857,7 +879,6 @@ public static partial class E_UtilPack
       }
    }
 
-#endif
 
    /// <summary>
    /// Disposes the given <paramref name="disposable"/> without leaking any exceptions.
@@ -1239,8 +1260,6 @@ public static partial class E_UtilPack
          IsGenericType ?? false ) && Equals( type.GetGenericTypeDefinition(), typeof( Nullable<> ) );
    }
 
-#if IS_NETSTANDARD
-
    /// <summary>
    /// Helper method to invoke the event and then wait for any awaitables stored to the list of <see cref="EventArgsWithAsyncContextImpl"/>.
    /// </summary>
@@ -1259,10 +1278,15 @@ public static partial class E_UtilPack
          System.Threading.Tasks.Task[] awaitables;
          if ( ( awaitables = args?.GetAwaitableArray() ) != null )
          {
-            await System.Threading.Tasks.Task.WhenAll( awaitables );
+
+            await
+#if NET40
+               TaskEx
+#else
+               Task
+#endif
+               .WhenAll( awaitables );
          }
       }
    }
-
-#endif
 }

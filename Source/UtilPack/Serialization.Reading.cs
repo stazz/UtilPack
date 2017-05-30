@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
-#if IS_NETSTANDARD
 using System;
 using System.IO;
 using System.Text;
@@ -1123,5 +1122,3 @@ public static partial class E_UtilPack
    }
 
 }
-
-#endif

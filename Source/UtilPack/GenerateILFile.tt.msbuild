@@ -40,6 +40,7 @@
       hasAggressiveInlining = true;
       break;
     case "net40":
+    case "net45":
       delegateAssembly = equalityComparerAssembly = objectAssembly = actionAssembly = exceptionAssembly = ienumerableAssembly = aggregateExceptionAssembly = obsoleteAssembly = "mscorlib";
       linkedListAssembly = "System";
       extensionAssembly = enumerableAssembly = "System.Core";

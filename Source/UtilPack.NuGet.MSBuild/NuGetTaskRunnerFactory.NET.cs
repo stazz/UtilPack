@@ -53,6 +53,7 @@ namespace UtilPack.NuGet.MSBuild
          };
          var appDomain = AppDomain.CreateDomain( "Executing task \"" + assemblyPath + "\".", AppDomain.CurrentDomain.Evidence, aSetup );
          var thisAssemblyPath = Path.GetFullPath( new Uri( this.GetType().Assembly.CodeBase ).LocalPath );
+
          var bootstrapper = (AssemblyLoadHelper) appDomain.CreateInstanceFromAndUnwrap(
                thisAssemblyPath,
                typeof( AssemblyLoadHelper ).FullName,
@@ -63,14 +64,19 @@ namespace UtilPack.NuGet.MSBuild
                null,
                null
                );
+
+
          // We can't pass NET45NuGetResolver to AssemblyLoadHelper constructor directly, because that type is in this assembly, which is outside app domains application path.
          // And we can't register to AssemblyResolve because of that reason too.
          // Alternatively we could just make new type which binds AssemblyLoadHelper and NET45NuGetResolver, but let's go with this for now.
-         bootstrapper.Initialize( new NET45NuGetResolver( nugetResolver ), new ResolverLogger( taskFactoryLoggingHost ) );
+         var logger = new ResolverLogger( taskFactoryLoggingHost );
+         bootstrapper.Initialize( new NET45NuGetResolver( nugetResolver ), logger );
+
          return new NET45ExecutionHelper(
             taskName,
             appDomain,
-            bootstrapper
+            bootstrapper,
+            logger
             );
       }
 
@@ -80,21 +86,24 @@ namespace UtilPack.NuGet.MSBuild
          private readonly AssemblyLoadHelper _bootstrapper;
          private readonly TaskReferenceHolder _taskRef;
          private readonly IDictionary<String, (WrappedPropertyKind, WrappedPropertyInfo)> _propertyInfos;
+         private readonly ResolverLogger _logger;
 
          public NET45ExecutionHelper(
             String taskName,
             AppDomain domain,
-            AssemblyLoadHelper bootstrapper
+            AssemblyLoadHelper bootstrapper,
+            ResolverLogger logger
             )
          {
             this._domain = domain;
             this._bootstrapper = bootstrapper;
-            this._taskRef = bootstrapper.CreateTaskReferenceHolder( taskName );
+            this._taskRef = bootstrapper.CreateTaskReferenceHolder( taskName, typeof( Microsoft.Build.Framework.ITask ).Assembly.GetName().FullName );
             if ( this._taskRef == null )
             {
                throw new Exception( $"Failed to load type {taskName}." );
             }
             this._propertyInfos = this._taskRef.GetPropertyInfo().ToDictionary( kvp => kvp.Key, kvp => TaskReferenceHolder.DecodeKindAndInfo( kvp.Value ) );
+            this._logger = logger;
          }
 
          public Type GetTaskType()
@@ -133,19 +142,26 @@ namespace UtilPack.NuGet.MSBuild
             // TODO implement ICancelableTask if target type also implements it
 
             var taskField = tb.DefineField( "_task", typeof( TaskReferenceHolder ), FieldAttributes.Private | FieldAttributes.InitOnly );
+            var loggerField = tb.DefineField( "_logger", typeof( ResolverLogger ), FieldAttributes.Private | FieldAttributes.InitOnly );
 
             // Constructor
             var ctor = tb.DefineConstructor(
                MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName | MethodAttributes.HideBySig,
                CallingConventions.HasThis,
-               new Type[] { typeof( TaskReferenceHolder ) }
+               new Type[] { typeof( TaskReferenceHolder ), typeof( ResolverLogger ) }
                );
             var il = ctor.GetILGenerator();
             il.Emit( OpCodes.Ldarg_0 );
             il.Emit( OpCodes.Call, typeof( Object ).GetConstructor( new Type[] { } ) );
+
             il.Emit( OpCodes.Ldarg_0 );
             il.Emit( OpCodes.Ldarg_1 );
             il.Emit( OpCodes.Stfld, taskField );
+
+            il.Emit( OpCodes.Ldarg_0 );
+            il.Emit( OpCodes.Ldarg_2 );
+            il.Emit( OpCodes.Stfld, loggerField );
+
             il.Emit( OpCodes.Ret );
             // Properties
             var taskRefGetter = typeof( TaskReferenceHolder ).GetMethod( nameof( TaskReferenceHolder.GetProperty ) );
@@ -153,6 +169,8 @@ namespace UtilPack.NuGet.MSBuild
             var toStringCall = typeof( Convert ).GetMethod( nameof( Convert.ToString ), new Type[] { typeof( Object ) } );
             var requiredAttribute = typeof( Microsoft.Build.Framework.RequiredAttribute ).GetConstructor( new Type[] { } );
             var outAttribute = typeof( Microsoft.Build.Framework.OutputAttribute ).GetConstructor( new Type[] { } );
+            var beSetter = typeof( ResolverLogger ).GetMethod( nameof( ResolverLogger.TaskBuildEngineSet ) );
+            var beReady = typeof( ResolverLogger ).GetMethod( nameof( ResolverLogger.TaskBuildEngineIsReady ) );
             if ( taskRefGetter == null )
             {
                throw new Exception( "Internal error: no property getter." );
@@ -173,8 +191,16 @@ namespace UtilPack.NuGet.MSBuild
             {
                throw new Exception( "Internal error: no Out attribute constructor." );
             }
-            var outPropertyInfos = new List<(String, WrappedPropertyKind, Type, FieldBuilder)>();
+            else if ( beSetter == null )
+            {
+               throw new Exception( "Internal error: no log setter." );
+            }
+            else if ( beReady == null )
+            {
+               throw new Exception( "Internal error: no log state updater." );
+            }
 
+            var outPropertyInfos = new List<(String, WrappedPropertyKind, Type, FieldBuilder)>();
             void EmitPropertyConversionCode( ILGenerator curIL, WrappedPropertyKind curKind, Type curPropType )
             {
                if ( curKind != WrappedPropertyKind.StringNoConversion )
@@ -263,6 +289,15 @@ namespace UtilPack.NuGet.MSBuild
                      );
                   setter.SetParameters( new Type[] { propType } );
                   il = setter.GetILGenerator();
+                  if ( kind == WrappedPropertyKind.BuildEngine )
+                  {
+                     // Update the logger
+                     il.Emit( OpCodes.Ldarg_0 );
+                     il.Emit( OpCodes.Ldfld, loggerField );
+                     il.Emit( OpCodes.Ldarg_1 );
+                     il.Emit( OpCodes.Callvirt, beSetter );
+                  }
+
                   il.Emit( OpCodes.Ldarg_0 );
                   il.Emit( OpCodes.Ldfld, taskField );
                   il.Emit( OpCodes.Ldstr, kvp.Key );
@@ -300,6 +335,10 @@ namespace UtilPack.NuGet.MSBuild
                new Type[] { }
                );
             il = execute.GetILGenerator();
+            il.Emit( OpCodes.Ldarg_0 );
+            il.Emit( OpCodes.Ldfld, loggerField );
+            il.Emit( OpCodes.Callvirt, beReady );
+
             if ( outPropertyInfos.Count > 0 )
             {
                // try { return this._task.Execute(); } finally { this.OutProperty = this._task.GetProperty( "Out" ); }
@@ -370,7 +409,7 @@ namespace UtilPack.NuGet.MSBuild
 
          public Object CreateTaskInstance( Type taskType, Microsoft.Build.Framework.IBuildEngine taskFactoryLoggingHost )
          {
-            return taskType.GetConstructor( new Type[] { typeof( TaskReferenceHolder ) } ).Invoke( new Object[] { this._taskRef } );
+            return taskType.GetConstructors()[0].Invoke( new Object[] { this._taskRef, this._logger } );
          }
 
          public void Dispose()
@@ -388,6 +427,7 @@ namespace UtilPack.NuGet.MSBuild
       }
    }
 
+   // Instances of this class reside in target task app domain, so we must be careful not to use any UtilPack stuff here! So no ArgumentValidator. etc.
    internal sealed class AssemblyLoadHelper : MarshalByRefObject, IDisposable
    {
 
@@ -395,9 +435,8 @@ namespace UtilPack.NuGet.MSBuild
       private readonly String _targetAssemblyPath;
       // TODO make key AssemblyName instead of String... But that would require IO-operation for each dependency on start-up, resulting in quite a bit of slowness.
       // Another option would be to make value type into List<Lazy<Assembly>> and find first suitable (matching given assembly name).
-      private readonly IDictionary<String, Lazy<Assembly>> _assemblyPathsBySimpleName; // We will get multiple requests to load same assembly, so cache them
-      private readonly AssemblyName _thisAssemblyName;
-      private readonly Byte[] _thisPK;
+      private readonly IDictionary<String, IDictionary<String, Lazy<Assembly>>> _assemblyPathsBySimpleName; // We will get multiple requests to load same assembly, so cache them
+      private readonly String _thisAssemblyName;
 
       private NET45NuGetResolver _resolver;
       private ResolverLogger _logger;
@@ -412,20 +451,20 @@ namespace UtilPack.NuGet.MSBuild
          this._targetAssemblyPath = targetAssemblyPath;
          this._assemblyPathsBySimpleName = assemblyPathsBySimpleName.ToDictionary(
             kvp => kvp.Key,
-            kvp => new Lazy<Assembly>( () => Assembly.LoadFile( kvp.Value.First() ) )
+            kvp => (IDictionary<String, Lazy<Assembly>>) kvp.Value.ToDictionary( fullPath => fullPath, fullPath => new Lazy<Assembly>( () => Assembly.LoadFile( fullPath ) ) )
          );
-         this._thisAssemblyName = this.GetType().Assembly.GetName();
-         this._thisPK = this._thisAssemblyName.GetPublicKey();
+         this._thisAssemblyName = this.GetType().Assembly.FullName;
          AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
       }
 
       public TaskReferenceHolder CreateTaskReferenceHolder(
-         String taskName
+         String taskName,
+         String msbuildFrameworkAssemblyName
          )
       {
          var taskAssembly = Assembly.Load( AssemblyName.GetAssemblyName( this._targetAssemblyPath ) );
          var taskType = taskAssembly.GetType( taskName, false, false );
-         return taskType == null ? null : new TaskReferenceHolder( this.CreateTaskReferenceHolderInstance( taskType ) );
+         return taskType == null ? null : new TaskReferenceHolder( this.CreateTaskReferenceHolderInstance( taskType ), msbuildFrameworkAssemblyName );
       }
 
       internal void Initialize( NET45NuGetResolver resolver, ResolverLogger logger )
@@ -490,53 +529,57 @@ namespace UtilPack.NuGet.MSBuild
          AppDomain.CurrentDomain.AssemblyResolve -= CurrentDomain_AssemblyResolve;
       }
 
-      private Assembly LoadCustomAssemblyByName( AssemblyName assemblyName )
-      {
-         Assembly retVal;
-         if ( this._assemblyPathsBySimpleName.TryGetValue( assemblyName.Name, out var assemblyLazy ) )
-         {
-            this._logger.Log( $"Found by simple name \"{assemblyName.Name}\"." );
-            retVal = assemblyLazy.Value;
-         }
-         else
-         {
-            this._logger.Log( $"Failed to find by simple name \"{assemblyName.Name}\"." );
-            retVal = null;
-         }
-
-         return retVal;
-      }
-
       private Assembly CurrentDomain_AssemblyResolve( Object sender, ResolveEventArgs args )
       {
          var assemblyName = new AssemblyName( args.Name );
-         var thisAssemblyName = this._thisAssemblyName;
          Assembly retVal;
-         if ( String.Equals( assemblyName.Name, this._thisAssemblyName.Name )
-            && String.Equals( assemblyName.CultureName, this._thisAssemblyName.CultureName )
-            && assemblyName.Version.Equals( this._thisAssemblyName.Version )
-            && PublicKeysEqual( assemblyName.GetPublicKey(), this._thisPK )
-            )
+         if ( String.Equals( this._thisAssemblyName, args.Name ) )
          {
-            // Happens when setting NET45NuGetResolver
+            // Happens when calling Initialize method (because the original appdomain has this assembly loaded "normally", but this app-domain has this assembly loaded via file path because of CreateInstanceFrom method.)
             retVal = this.GetType().Assembly;
+         }
+         else if ( this._assemblyPathsBySimpleName.TryGetValue( assemblyName.Name, out var assemblyLazies ) )
+         {
+            retVal = assemblyLazies.FirstOrDefault( kvp =>
+            {
+               var defName = kvp.Value.IsValueCreated ? kvp.Value.Value.GetName() : AssemblyName.GetAssemblyName( kvp.Key );
+
+               return AssemblyNamesMatch( assemblyName, defName );
+            } ).Value?.Value;
+
+            this._logger.Log( retVal == null ?
+               $"Assembly reference did not match definition for \"{args.Name}\", considered \"{String.Join( ";", assemblyLazies.Keys )}\"." :
+               $"Found \"{args.Name}\" by simple name \"{assemblyName.Name}\" in \"{retVal.CodeBase}\"." );
          }
          else
          {
-            this._logger.Log( $"Resolving {args.Name} from \"{args.RequestingAssembly?.CodeBase}\"." );
-            retVal = this.LoadCustomAssemblyByName( assemblyName );
+            this._logger.Log( $"Failed to find \"{args.Name}\" by simple name \"{assemblyName.Name}\"." );
+            retVal = null;
          }
          return retVal;
       }
 
-      private static Boolean PublicKeysEqual(
-         Byte[] pk1,
-         Byte[] pk2
+      private static Boolean AssemblyNamesMatch(
+         AssemblyName reference,
+         AssemblyName definition
          )
       {
-         return ( ( pk1 == null || pk1.Length == 0 ) && ( pk2 == null || pk2.Length == 0 ) ) || ( pk1 != null && pk2 != null && pk1.SequenceEqual( pk2 ) );
+         String refStr; String defStr;
+         if ( reference.Flags.HasFlag( AssemblyNameFlags.Retargetable ) )
+         {
+            refStr = reference.Name;
+            defStr = definition.Name;
+         }
+         else
+         {
+            refStr = reference.FullName;
+            defStr = reference.FullName;
+         }
+
+         return String.Equals( refStr, defStr );
       }
 
+      // This method can get called by target task to dynamically load nuget assemblies.
       private Assembly LoadNuGetAssembly(
          String packageID,
          String packageVersion,
@@ -555,11 +598,9 @@ namespace UtilPack.NuGet.MSBuild
                foreach ( var nugetAssemblyPath in kvp.Value )
                {
                   var curPath = nugetAssemblyPath;
-                  var simpleName = Path.GetFileNameWithoutExtension( curPath );
-                  if ( !assembliesBySimpleName.ContainsKey( simpleName ) )
-                  {
-                     assembliesBySimpleName.Add( simpleName, new Lazy<Assembly>( () => Assembly.LoadFile( curPath ) ) );
-                  }
+                  assembliesBySimpleName
+                     .GetOrAdd_NotThreadSafe( Path.GetFileNameWithoutExtension( curPath ), sn => new Dictionary<String, Lazy<Assembly>>() )
+                     .GetOrAdd_NotThreadSafe( curPath, cp => new Lazy<Assembly>( () => Assembly.LoadFile( cp ) ) );
                }
             }
 
@@ -567,13 +608,17 @@ namespace UtilPack.NuGet.MSBuild
             assemblyPath = NuGetBoundResolver.GetAssemblyPathFromNuGetAssemblies( possibleAssemblyPaths, packagePath, assemblyPath );
             if ( !String.IsNullOrEmpty( assemblyPath ) )
             {
-               retVal = assembliesBySimpleName[Path.GetFileNameWithoutExtension( assemblyPath )].Value;
+               retVal = assembliesBySimpleName
+                  [Path.GetFileNameWithoutExtension( assemblyPath )]
+                  [assemblyPath]
+                  .Value;
             }
          }
 
          return retVal;
       }
 
+      // This method can get called by target task to dynamically load assemblies by path.
       private Assembly LoadOtherAssembly(
          String assemblyPath
          )
@@ -583,23 +628,35 @@ namespace UtilPack.NuGet.MSBuild
          if ( File.Exists( assemblyPath ) )
          {
             retVal = this._assemblyPathsBySimpleName
-               .GetOrAdd_NotThreadSafe( Path.GetFileNameWithoutExtension( assemblyPath ), ap => new Lazy<Assembly>( () => Assembly.LoadFile( ap ) ) )
+               .GetOrAdd_NotThreadSafe( Path.GetFileNameWithoutExtension( assemblyPath ), ap => new Dictionary<String, Lazy<Assembly>>() )
+               .GetOrAdd_NotThreadSafe( assemblyPath, ap => new Lazy<Assembly>( () => Assembly.LoadFile( ap ) ) )
                .Value;
          }
          return retVal;
       }
    }
 
+   // Instances of this class reside in target task app domain, so we must be careful not to use any UtilPack stuff here! So no ArgumentValidator. etc.
    public sealed class TaskReferenceHolder : MarshalByRefObject
    {
+      private const String MBF = "Microsoft.Build.Framework.";
+
       private readonly Object _task;
+      private readonly MethodInfo _executeMethod;
       private readonly IDictionary<String, TPropertyInfo> _propertyInfos;
 
-      public TaskReferenceHolder( Object task )
+      public TaskReferenceHolder( Object task, String msbuildFrameworkAssemblyName )
       {
          this._task = task ?? throw new Exception( "Failed to create the task object." );
+         this._executeMethod = this._task.GetType().GetInterfaces()
+            .Where( iFace => iFace.Assembly.GetName().FullName.Equals( msbuildFrameworkAssemblyName ) && iFace.FullName.Equals( MBF + nameof( Microsoft.Build.Framework.ITask ) ) )
+            .First().GetMethods().First( m => m.Name.Equals( nameof( Microsoft.Build.Framework.ITask.Execute ) ) && m.GetParameters().Length == 0 && m.ReturnType.FullName.Equals( "System.Boolean" ) );
+
          // the name of the microsoft.build.framework assembly in this app domain.
-         var msbuildTaskAssemblyName = typeof( Microsoft.Build.Framework.ITask ).Assembly.GetName().FullName;
+         // Actually, we can't do this. Doing typeof( Microsoft.Build.Framework.ITask ).Assembly.GetName().FullName; will cause MSBuild 14.0 assembly to be loaded, if target assembly is .netstandard assembly.
+         // This most likely due the fact that this is net45 build, and net45 only supports msbuild 14.X (msbuild 15.X requires net46).
+         // So, just get the msbuildTaskAssemblyName from original appdomain
+         // That is why MBF string consts & other helper constructs exist, and why we can't cast stuff directly to Microsoft.Build.Framework types.
 
          var propInfo = new Dictionary<String, TPropertyInfo>();
          // Iterate all public properties of the type
@@ -617,21 +674,21 @@ namespace UtilPack.NuGet.MSBuild
             switch ( Type.GetTypeCode( actualType ) )
             {
                case TypeCode.Object:
-                  if ( actualType.Assembly.GetName().FullName.Equals( msbuildTaskAssemblyName ) )
+                  if ( actualType.Assembly.GetName().FullName.Equals( msbuildFrameworkAssemblyName ) )
                   {
-                     if ( Equals( actualType, typeof( Microsoft.Build.Framework.IBuildEngine ) ) )
+                     if ( Equals( actualType.FullName, MBF + nameof( Microsoft.Build.Framework.IBuildEngine ) ) )
                      {
                         kind = WrappedPropertyKind.BuildEngine;
                      }
-                     else if ( Equals( actualType, typeof( Microsoft.Build.Framework.ITaskHost ) ) )
+                     else if ( Equals( actualType.FullName, MBF + nameof( Microsoft.Build.Framework.ITaskHost ) ) )
                      {
                         kind = WrappedPropertyKind.TaskHost;
                      }
-                     else if ( Equals( actualType, typeof( Microsoft.Build.Framework.ITaskItem ) ) )
+                     else if ( Equals( actualType.FullName, MBF + nameof( Microsoft.Build.Framework.ITaskItem ) ) )
                      {
                         kind = WrappedPropertyKind.TaskItem;
                      }
-                     else if ( Equals( actualType, typeof( Microsoft.Build.Framework.ITaskItem2 ) ) )
+                     else if ( Equals( actualType.FullName, MBF + nameof( Microsoft.Build.Framework.ITaskItem2 ) ) )
                      {
                         kind = WrappedPropertyKind.TaskItem2;
                      }
@@ -664,11 +721,14 @@ namespace UtilPack.NuGet.MSBuild
             if ( kind.HasValue )
             {
                WrappedPropertyInfo info;
-               if ( curProperty.GetCustomAttributes<Microsoft.Build.Framework.RequiredAttribute>().Any() )
+               var customMBFAttrs = curProperty.GetCustomAttributes( true )
+                  .Where( ca => ca.GetType().Assembly.GetName().FullName.Equals( msbuildFrameworkAssemblyName ) )
+                  .ToArray();
+               if ( customMBFAttrs.Any( ca => Equals( ca.GetType().FullName, MBF + nameof( Microsoft.Build.Framework.RequiredAttribute ) ) ) )
                {
                   info = WrappedPropertyInfo.Required;
                }
-               else if ( curProperty.GetCustomAttributes<Microsoft.Build.Framework.OutputAttribute>().Any() )
+               else if ( customMBFAttrs.Any( ca => Equals( ca.GetType().FullName, MBF + nameof( Microsoft.Build.Framework.OutputAttribute ) ) ) )
                {
                   info = WrappedPropertyInfo.Out;
                }
@@ -720,7 +780,11 @@ namespace UtilPack.NuGet.MSBuild
 
       public Boolean Execute()
       {
-         return ( (Microsoft.Build.Framework.ITask) this._task ).Execute();
+         // We can't cast to Microsoft.Build.Framework.ITask, since the 14.0 version will be loaded (from GAC), if target task assembly is netstandard assembly.
+         // This is because this project depends on msbuild 14.3 in net45 build.
+
+         // So... just invoke dynamically.
+         return (Boolean) this._executeMethod.Invoke( this._task, null );
       }
 
       internal static Int32 EncodeKindAndInfo( WrappedPropertyKind kind, WrappedPropertyInfo info )
@@ -753,6 +817,7 @@ namespace UtilPack.NuGet.MSBuild
       Out
    }
 
+   // Instances of this class reside in task factory app domain.
    internal sealed class NET45NuGetResolver : MarshalByRefObject
    {
       private readonly NuGetBoundResolver _resolver;
@@ -778,28 +843,71 @@ namespace UtilPack.NuGet.MSBuild
       }
    }
 
-   internal sealed class ResolverLogger : MarshalByRefObject
+   // Instances of this class reside in task factory app domain.
+   // Has to be public, since it is used by dynamically generated task type.
+   public sealed class ResolverLogger : MarshalByRefObject
    {
-      //private readonly Microsoft.Build.Framework.IBuildEngine _be;
+      private const Int32 USING_TASK_FACTORY_BE = 0;
+      private const Int32 TASK_BE_INITIALIZING = 1;
+      private const Int32 TASK_BE_READY = 2;
+
+      private Microsoft.Build.Framework.IBuildEngine _be;
+      private Int32 _state;
+      private readonly List<String> _queuedMessages;
 
       public ResolverLogger( Microsoft.Build.Framework.IBuildEngine be )
       {
-         //this._be = be;
+         this._be = be;
+         this._queuedMessages = new List<String>();
+      }
+
+      // This is called by generated task type in its IBuildEngine setter
+      public void TaskBuildEngineSet( Microsoft.Build.Framework.IBuildEngine be )
+      {
+         if ( be != null && Interlocked.CompareExchange( ref this._state, TASK_BE_INITIALIZING, USING_TASK_FACTORY_BE ) == USING_TASK_FACTORY_BE )
+         {
+            Interlocked.Exchange( ref this._be, be );
+         }
+      }
+
+      // This is called by generated task type in its Execute method start
+      public void TaskBuildEngineIsReady()
+      {
+         if ( Interlocked.CompareExchange( ref this._state, TASK_BE_READY, TASK_BE_INITIALIZING ) == TASK_BE_INITIALIZING )
+         {
+            // process all queued messages
+            foreach ( var msg in this._queuedMessages )
+            {
+               this.Log( msg );
+            }
+            this._queuedMessages.Clear();
+         }
       }
 
       public void Log( String message )
       {
-         // We can't use the IBuildEngine given to task factory to log, as it becomes inactive once task factory has instantiated task.
-         // TODO Make the IBuildEngine setter for generated task type also call some method of this class to update the IBuildEngine reference.
+         switch ( this._state )
+         {
+            case USING_TASK_FACTORY_BE:
+            case TASK_BE_READY:
+               this._be.LogMessageEvent( new Microsoft.Build.Framework.BuildMessageEventArgs(
+                  message,
+                  null,
+                  "NuGetPackageAssemblyResolver",
+                  Microsoft.Build.Framework.MessageImportance.Low,
+                  DateTime.UtcNow,
+                  null
+               ) );
+               break;
+            case TASK_BE_INITIALIZING:
+               // When assembly resolve happens during task initialization (setting BuildEngine etc properties).
+               // Using BuildEngine then will cause NullReferenceException as its LoggingContext property is not yet set.
+               // And task factory logging context has already been marked inactive, so this is when we can't immediately log.
+               // In this case, just queue message, and log them once task's Execute method has been invoked.
+               this._queuedMessages.Add( message );
+               break;
+         }
 
-         //this._be.LogMessageEvent( new Microsoft.Build.Framework.BuildMessageEventArgs(
-         //   message, 
-         //   null, 
-         //   "NuGetPackageAssemblyResolver",
-         //   Microsoft.Build.Framework.MessageImportance.Low,
-         //   DateTime.UtcNow,
-         //   null
-         //) );
       }
    }
 

@@ -40,6 +40,13 @@
     <ProjectReference Include="..\UtilPack.NuGet\UtilPack.NuGet.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="build\**">
+      <Pack>true</Pack>
+      <PackagePath>build\%(RecursiveDir)%(FileName)%(Extension)</PackagePath>
+    </None>
+  </ItemGroup>
+
   <!-- Collect all dependencies and include them in the package itself, next to the Task assembly. -->
   <Target Name="CollectRuntimeOutputs" BeforeTargets="_GetPackageFiles">
     <ItemGroup>
@@ -80,7 +87,8 @@
 
   <!-- NuGet package stuff -->
   <PropertyGroup>
-    <PackageId>$(AssemblyName)</PackageId>
+    <NuspecFile>PackageInfo.nuspec</NuspecFile>
+    <!--<PackageId>$(AssemblyName)</PackageId>
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
@@ -89,7 +97,7 @@
     <Title>MSBuild Task Factory for NuGet-Oriented MSBuild Tasks</Title>
     <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>
     <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
-    <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
+    <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>-->
   </PropertyGroup>
 
   <!--

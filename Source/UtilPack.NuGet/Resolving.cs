@@ -30,13 +30,16 @@ using UtilPack;
 
 namespace UtilPack.NuGet
 {
-   public class NuGetLibraryPathResolver
+   /// <summary>
+   /// This class provides methods to resolve assembly file paths from <see cref="LocalPackageInfo"/>s, and to recursively resolve dependencies as well.
+   /// </summary>
+   public class NuGetPathResolver
    {
       private static readonly IEqualityComparer<LocalPackageInfo> _PackageIDEqualityComparer;
 
       private static readonly IEqualityComparer<LocalPackageInfo> _PackageIDAndVersionEqualityComparer;
 
-      static NuGetLibraryPathResolver()
+      static NuGetPathResolver()
       {
          _PackageIDEqualityComparer = ComparerFromFunctions.NewEqualityComparer<LocalPackageInfo>(
          ( x, y ) => ReferenceEquals( x, y ) || ( x != null && y != null && String.Equals( x?.Id, y?.Id, StringComparison.OrdinalIgnoreCase ) ),
@@ -49,6 +52,10 @@ namespace UtilPack.NuGet
          );
       }
 
+      /// <summary>
+      /// Gets the <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which only uses <see cref="LocalPackageInfo.Id"/> property to determine equality between two <see cref="LocalPackageInfo"/>s.
+      /// </summary>
+      /// <value>The <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which only uses <see cref="LocalPackageInfo.Id"/> property to determine equality between two <see cref="LocalPackageInfo"/>s.</value>
       public static IEqualityComparer<LocalPackageInfo> PackageIDEqualityComparer
       {
          get
@@ -57,6 +64,10 @@ namespace UtilPack.NuGet
          }
       }
 
+      /// <summary>
+      /// Gets the <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which uses <see cref="LocalPackageInfo.Id"/> and <see cref="LocalPackageInfo.Version"/> properties to determine equality between two <see cref="LocalPackageInfo"/>s.
+      /// </summary>
+      /// <value>The <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which uses <see cref="LocalPackageInfo.Id"/> and <see cref="LocalPackageInfo.Version"/> properties to determine equality between two <see cref="LocalPackageInfo"/>s.</value>
       public static IEqualityComparer<LocalPackageInfo> PackageIDAndVersionEqualityComparer
       {
          get
@@ -66,60 +77,20 @@ namespace UtilPack.NuGet
       }
 
       private readonly IDictionary<String, FrameworkSpecificGroup[]> _readerCache;
+      private readonly Func<PackageFolderReader, IEnumerable<FrameworkSpecificGroup>> _readerItemProducer;
 
-      public NuGetLibraryPathResolver()
+      /// <summary>
+      /// Creates a new instance of <see cref="NuGetPathResolver"/>.
+      /// </summary>
+      /// <param name="readerItemProducer">The optional callback to get enumerable of <see cref="FrameworkSpecificGroup"/> from <see cref="PackageFolderReader"/>. By default, <see cref="IPackageContentReader.GetLibItems"/> is used.</param>
+      public NuGetPathResolver(
+         Func<PackageFolderReader, IEnumerable<FrameworkSpecificGroup>> readerItemProducer = null
+         )
       {
          this._readerCache = new Dictionary<String, FrameworkSpecificGroup[]>();
+         this._readerItemProducer = readerItemProducer ?? ( r => r.GetLibItems() );
       }
 
-      public String[] GetSingleNuGetPackageAssemblies(
-         LocalPackageInfo package,
-         NuGetFramework thisFramework = null
-         )
-      {
-         ArgumentValidator.ValidateNotNull( nameof( package ), package );
-
-         if ( thisFramework == null )
-         {
-            // Try auto-detect (No Assembly.GetEntryAssembly() for .NET Standard 1.3, only appears in 1.5 )
-            thisFramework = typeof( UtilPackExtensions ).GetTypeInfo().Assembly.GetNuGetFrameworkFromAssembly();
-         }
-
-         var suitableLibraryItem = package.GetAssembliesForSinglePackage( thisFramework, this._readerCache );
-
-         return suitableLibraryItem == null ?
-            null :
-            package.GetAssemblyPaths( suitableLibraryItem ).ToArray();
-      }
-
-      public IDictionary<LocalPackageInfo, String[]> GetNuGetPackageAssembliesAndDependencies(
-         LocalPackageInfo package,
-         NuGetFramework thisFramework = null,
-         IEnumerable<NuGetv3LocalRepository> repositories = null
-         )
-      {
-         ArgumentValidator.ValidateNotNull( nameof( package ), package );
-         return package.GetNuGetPackageAssembliesAndDependencies( this._readerCache, thisFramework, repositories );
-      }
-
-      public void ClearCache( String packagePath = null )
-      {
-         if ( String.IsNullOrEmpty( packagePath ) )
-         {
-            this._readerCache.Clear();
-         }
-         else
-         {
-            this._readerCache.Remove( packagePath );
-         }
-      }
-   }
-
-   /// <summary>
-   /// This class contains extension method which are for types not contained in this library.
-   /// </summary>
-   public static partial class UtilPackExtensions
-   {
       /// <summary>
       /// Gets the assembly paths for a single local NuGet package most suitable for given NuGet framework.
       /// </summary>
@@ -127,15 +98,14 @@ namespace UtilPack.NuGet
       /// <param name="thisFramework">Optional framework against which to match assemblies. By default, the framework of this assembly will be used.</param>
       /// <returns>An array of paths of suitable assemblies for a given NuGet framework. Will return <c>null</c> if no suitable framework is found for this package.</returns>
       /// <remarks>This method does not restore packages - it only sees those packages, which are currently locally installed.</remarks>
-      /// <exception cref="NullReferenceException">If this <see cref="LocalPackageInfo"/> is <c>null</c>.</exception>
-      public static String[] GetSingleNuGetPackageAssemblies(
-         this LocalPackageInfo package,
+      /// <exception cref="ArgumentNullException">If this <see cref="LocalPackageInfo"/> is <c>null</c>.</exception>
+      public String[] GetSingleNuGetPackageAssemblies(
+         LocalPackageInfo package,
          NuGetFramework thisFramework = null
          )
       {
-         ArgumentValidator.ValidateNotNullReference( package );
-
-         var suitableLibraryItem = GetAssembliesForSinglePackage( package, ref thisFramework );
+         ArgumentValidator.ValidateNotNull( nameof( package ), package );
+         var suitableLibraryItem = this.GetAssembliesForSinglePackage( package, ref thisFramework );
 
          return suitableLibraryItem == null ?
             null :
@@ -146,61 +116,19 @@ namespace UtilPack.NuGet
       /// Gets the paths of given local NuGet package and all of its transitive dependencies.
       /// </summary>
       /// <param name="package">This NuGet package.</param>
-      /// <param name="repositories">The repositories to use when searching for dependencies. If none specified, a default repository (folder of <see cref="NuGetFolderPath.NuGetHome"/> combined with <c>"packages"</c>) will be used.</param>
-      /// <returns>A dictionary, where each local package (including this) has assembly paths.Will return <c>null</c> if no suitable framework is found for this package.</returns>
-      /// <remarks>This method does not restore packages - it only sees those packages, which are currently locally installed.</remarks>
-      /// <exception cref="NullReferenceException">If this <see cref="LocalPackageInfo"/> is <c>null</c>.</exception>
-      public static IDictionary<LocalPackageInfo, String[]> GetNuGetPackageAssembliesAndDependencies(
-         this LocalPackageInfo package,
-         params NuGetv3LocalRepository[] repositories
-         )
-      {
-         return GetNuGetPackageAssembliesAndDependencies( package, null, repositories );
-      }
-
-      /// <summary>
-      /// Gets the paths of given local NuGet package and all of its transitive dependencies.
-      /// </summary>
-      /// <param name="package">This NuGet package.</param>
       /// <param name="thisFramework">The framework for this package or process.</param>
       /// <param name="repositories">The repositories to use when searching for dependencies. If none specified or is <c>null</c>, a default repository (folder of <see cref="NuGetFolderPath.NuGetHome"/> combined with <c>"packages"</c>) will be used.</param>
       /// <returns>A dictionary, where each local package (including this) has assembly paths.Will return <c>null</c> if no suitable framework is found for this package.</returns>
-      /// <exception cref="NullReferenceException">If this <see cref="LocalPackageInfo"/> is <c>null</c>.</exception>
-      public static IDictionary<LocalPackageInfo, String[]> GetNuGetPackageAssembliesAndDependencies(
-         this LocalPackageInfo package,
+      /// <exception cref="ArgumentNullException">If this <see cref="LocalPackageInfo"/> is <c>null</c>.</exception>
+      public IDictionary<LocalPackageInfo, String[]> GetNuGetPackageAssembliesAndDependencies(
+         LocalPackageInfo package,
          NuGetFramework thisFramework = null,
          IEnumerable<NuGetv3LocalRepository> repositories = null
          )
       {
-         ArgumentValidator.ValidateNotNullReference( package );
+         ArgumentValidator.ValidateNotNull( nameof( package ), package );
 
-         return GetNuGetPackageAssembliesAndDependencies( package, null, thisFramework, repositories );
-      }
-
-      /// <summary>
-      /// Tries to parse the <see cref="System.Runtime.Versioning.TargetFrameworkAttribute"/> applied to this assembly into <see cref="NuGetFramework"/>.
-      /// </summary>
-      /// <param name="assembly">This <see cref="Assembly"/>.</param>
-      /// <returns>A <see cref="NuGetFramework"/> parsed from <see cref="System.Runtime.Versioning.TargetFrameworkAttribute.FrameworkName"/>, or <see cref="NuGetFramework.AnyFramework"/> if no such attribute is applied to this assembly.</returns>
-      /// <exception cref="NullReferenceException">If this <see cref="Assembly"/> is <c>null</c>.</exception>
-      public static NuGetFramework GetNuGetFrameworkFromAssembly( this Assembly assembly )
-      {
-         var thisFrameworkString = ArgumentValidator.ValidateNotNullReference( assembly ).GetCustomAttributes<System.Runtime.Versioning.TargetFrameworkAttribute>()
-            .Select( x => x.FrameworkName )
-            .FirstOrDefault();
-         return thisFrameworkString == null
-              ? NuGetFramework.AnyFramework
-              : NuGetFramework.ParseFrameworkName( thisFrameworkString, new DefaultFrameworkNameProvider() );
-      }
-
-      internal static IDictionary<LocalPackageInfo, String[]> GetNuGetPackageAssembliesAndDependencies(
-         this LocalPackageInfo package,
-         IDictionary<String, FrameworkSpecificGroup[]> readerCache,
-         NuGetFramework thisFramework,
-         IEnumerable<NuGetv3LocalRepository> repositories
-         )
-      {
-         var suitableLibraryItem = GetAssembliesForSinglePackage( package, ref thisFramework );
+         var suitableLibraryItem = this.GetAssembliesForSinglePackage( package, ref thisFramework );
          IDictionary<LocalPackageInfo, String[]> retVal;
 
          if ( suitableLibraryItem != null )
@@ -214,21 +142,17 @@ namespace UtilPack.NuGet
             }
 
             // We consider dependency chain item visited when there are two same packages (same id + same version) - the local assembly info is actually ignored in such equality comparison
-            if ( readerCache == null )
-            {
-               readerCache = new Dictionary<String, FrameworkSpecificGroup[]>();
-            }
             var allLoadableInfo = (package, suitableLibraryItem.TargetFramework, suitableLibraryItem).AsDepthFirstEnumerableWithLoopDetection(
-             curTuple => GetSinglePackageDependencies( thisFramework, repositories, curTuple, readerCache ),
+             curTuple => this.GetSinglePackageDependencies( thisFramework, repositories, curTuple ),
              returnHead: true,
              equalityComparer: ComparerFromFunctions.NewEqualityComparer<(LocalPackageInfo, NuGetFramework, FrameworkSpecificGroup)>(
-                ( x, y ) => NuGetLibraryPathResolver.PackageIDAndVersionEqualityComparer.Equals( x.Item1, y.Item1 ),
-                x => NuGetLibraryPathResolver.PackageIDAndVersionEqualityComparer.GetHashCode( x.Item1 )
+                ( x, y ) => PackageIDAndVersionEqualityComparer.Equals( x.Item1, y.Item1 ),
+                x => PackageIDAndVersionEqualityComparer.GetHashCode( x.Item1 )
                 )
              );
 
             // Take only the newest versions of each package id
-            var multiplePackages = new Dictionary<LocalPackageInfo, (NuGetVersion, FrameworkSpecificGroup)>( NuGetLibraryPathResolver.PackageIDEqualityComparer );
+            var multiplePackages = new Dictionary<LocalPackageInfo, (NuGetVersion, FrameworkSpecificGroup)>( PackageIDEqualityComparer );
             foreach ( var info in allLoadableInfo )
             {
                if ( info.Item3 != null )
@@ -248,7 +172,7 @@ namespace UtilPack.NuGet
             retVal = multiplePackages.ToDictionary(
                kvp => kvp.Key,
                kvp => GetAssemblyPaths( kvp.Key, kvp.Value.Item2 ).ToArray(),
-               NuGetLibraryPathResolver.PackageIDEqualityComparer
+               PackageIDEqualityComparer
                );
          }
          else
@@ -258,48 +182,59 @@ namespace UtilPack.NuGet
          return retVal;
       }
 
-      private static FrameworkSpecificGroup GetAssembliesForSinglePackage(
-      LocalPackageInfo package,
-      ref NuGetFramework thisFramework
-      )
+      /// <summary>
+      /// Clears cached data of this <see cref="NuGetPathResolver"/>.
+      /// </summary>
+      /// <param name="packagePath">The specific package path (value of <see cref="LocalPackageInfo.ExpandedPath"/>). If not supplied, cached data of all currently seen package paths is cleared.</param>
+      public void ClearCache( String packagePath = null )
+      {
+         if ( String.IsNullOrEmpty( packagePath ) )
+         {
+            this._readerCache.Clear();
+         }
+         else
+         {
+            this._readerCache.Remove( packagePath );
+         }
+      }
+
+      private FrameworkSpecificGroup GetAssembliesForSinglePackage(
+         LocalPackageInfo package,
+         ref NuGetFramework thisFramework
+         )
       {
          // We need to detect which lib folder is most suitable for current runtime
          // For that, we need to know the NuGetFramework of current runtime
          if ( thisFramework == null )
          {
             // Try auto-detect (No Assembly.GetEntryAssembly() for .NET Standard 1.3, only appears in 1.5 )
-            thisFramework = GetNuGetFrameworkFromAssembly( typeof( UtilPackExtensions ).GetTypeInfo().Assembly );
+            thisFramework = typeof( UtilPackExtensions ).GetTypeInfo().Assembly.GetNuGetFrameworkFromAssembly();
          }
 
-         return GetAssembliesForSinglePackage( package, thisFramework, new Dictionary<String, FrameworkSpecificGroup[]>() );
+         return this.GetAssembliesForSinglePackage( package, thisFramework );
       }
 
-      internal static FrameworkSpecificGroup GetAssembliesForSinglePackage(
-         this LocalPackageInfo package,
-         NuGetFramework thisFramework,
-         IDictionary<String, FrameworkSpecificGroup[]> readerCache
-         )
+      private FrameworkSpecificGroup GetAssembliesForSinglePackage( LocalPackageInfo package, NuGetFramework framework )
       {
-         var libItems = readerCache.GetOrAdd_NotThreadSafe( package.ExpandedPath, path =>
+         var items = this._readerCache.GetOrAdd_NotThreadSafe( package.ExpandedPath, path =>
          {
-            using ( var reader = new PackageFolderReader( package.ExpandedPath ) )
+            using ( var reader = new PackageFolderReader( path ) )
             {
-               return reader.GetLibItems().ToArray();
+               return this._readerItemProducer( reader ).ToArray();
             }
          } );
 
          return NuGetFrameworkUtility.GetNearest(
-            libItems,
-            thisFramework,
+            items,
+            framework,
             li => li.TargetFramework
             );
       }
 
-      private static IEnumerable<(LocalPackageInfo Package, NuGetFramework TargetFW, FrameworkSpecificGroup Assemblies)> GetSinglePackageDependencies(
+      private IEnumerable<(LocalPackageInfo Package, NuGetFramework TargetFW, FrameworkSpecificGroup Assemblies)> GetSinglePackageDependencies(
          NuGetFramework thisRuntimeFW,
          IEnumerable<NuGetv3LocalRepository> repositories,
-         (LocalPackageInfo Package, NuGetFramework TargetFW, FrameworkSpecificGroup Assemblies) package,
-         IDictionary<String, FrameworkSpecificGroup[]> readerCache
+         (LocalPackageInfo Package, NuGetFramework TargetFW, FrameworkSpecificGroup Assemblies) package
       )
       {
          var dependencies = NuGetFrameworkUtility.GetNearest(
@@ -307,7 +242,6 @@ namespace UtilPack.NuGet
             package.TargetFW,
             d => d.TargetFramework
             );
-         var r = repositories.First();
          if ( dependencies != null )
          {
             foreach ( var dependencyPackage in dependencies.Packages )
@@ -319,7 +253,7 @@ namespace UtilPack.NuGet
                   .FindBestMatch( currentDependency.VersionRange, l => l?.Version );
                if ( suitableLocalPackage != null )
                {
-                  var suitableLibraryFolder = GetAssembliesForSinglePackage( suitableLocalPackage, thisRuntimeFW, readerCache );
+                  var suitableLibraryFolder = this.GetAssembliesForSinglePackage( suitableLocalPackage, thisRuntimeFW );
                   yield return (suitableLocalPackage, suitableLibraryFolder?.TargetFramework ?? package.TargetFW, suitableLibraryFolder);
                }
             }
@@ -327,8 +261,8 @@ namespace UtilPack.NuGet
 
       }
 
-      internal static IEnumerable<String> GetAssemblyPaths(
-         this LocalPackageInfo package,
+      private static IEnumerable<String> GetAssemblyPaths(
+         LocalPackageInfo package,
          FrameworkSpecificGroup group
          )
       {
@@ -337,15 +271,50 @@ namespace UtilPack.NuGet
             .Select( relPath => Path.GetFullPath( Path.Combine( package.ExpandedPath, relPath ) ) );
       }
    }
+
+   /// <summary>
+   /// This class contains extension method which are for types not contained in this library.
+   /// </summary>
+   public static partial class UtilPackExtensions
+   {
+      /// <summary>
+      /// Tries to parse the <see cref="System.Runtime.Versioning.TargetFrameworkAttribute"/> applied to this assembly into <see cref="NuGetFramework"/>.
+      /// </summary>
+      /// <param name="assembly">This <see cref="Assembly"/>.</param>
+      /// <returns>A <see cref="NuGetFramework"/> parsed from <see cref="System.Runtime.Versioning.TargetFrameworkAttribute.FrameworkName"/>, or <see cref="NuGetFramework.AnyFramework"/> if no such attribute is applied to this assembly.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="Assembly"/> is <c>null</c>.</exception>
+      public static NuGetFramework GetNuGetFrameworkFromAssembly( this Assembly assembly )
+      {
+         var thisFrameworkString = ArgumentValidator.ValidateNotNullReference( assembly ).GetCustomAttributes<System.Runtime.Versioning.TargetFrameworkAttribute>()
+            .Select( x => x.FrameworkName )
+            .FirstOrDefault();
+         return thisFrameworkString == null
+              ? NuGetFramework.AnyFramework
+              : NuGetFramework.ParseFrameworkName( thisFrameworkString, new DefaultFrameworkNameProvider() );
+      }
+   }
 }
 
+/// <summary>
+/// This class contains extension methods defined in UtilPack product family.
+/// </summary>
 public static partial class E_UtilPack
 {
+   /// <summary>
+   /// Gets the paths of given local NuGet package and all of its transitive dependencies.
+   /// </summary>
+   /// <param name="resolver">This <see cref="NuGetPathResolver"/>.</param>
+   /// <param name="package">This NuGet package.</param>
+   /// <param name="repositories">The repositories to use when searching for dependencies. If none specified, a default repository (folder of <see cref="NuGetFolderPath.NuGetHome"/> combined with <c>"packages"</c>) will be used.</param>
+   /// <returns>A dictionary, where each local package (including this) has assembly paths.Will return <c>null</c> if no suitable framework is found for this package.</returns>
+   /// <remarks>This method does not restore packages - it only sees those packages, which are currently locally installed.</remarks>
+   /// <exception cref="NullReferenceException">If this <see cref="NuGetPathResolver"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="package"/> is <c>null</c>.</exception>
    public static IDictionary<LocalPackageInfo, String[]> GetNuGetPackageAssembliesAndDependencies(
-      this NuGetLibraryPathResolver resolver,
+      this NuGetPathResolver resolver,
       LocalPackageInfo package,
       params NuGetv3LocalRepository[] repositories
-   )
+      )
    {
       return ArgumentValidator.ValidateNotNullReference( resolver )
          .GetNuGetPackageAssembliesAndDependencies( package, null, repositories );

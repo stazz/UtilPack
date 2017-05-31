@@ -35,7 +35,7 @@ namespace UtilPack.Tests.NuGet
       {
          var repo = CreateDefaultLocalRepo();
          var nugetClientPackage = repo.FindPackagesById( "NuGet.Client" ).First();
-         var assemblies = nugetClientPackage.GetSingleNuGetPackageAssemblies();
+         var assemblies = new NuGetPathResolver().GetSingleNuGetPackageAssemblies( nugetClientPackage );
          Assert.AreEqual( 1, assemblies.Length );
       }
 
@@ -44,7 +44,7 @@ namespace UtilPack.Tests.NuGet
       {
          var repo = CreateDefaultLocalRepo();
          var nugetClientPackage = repo.FindPackagesById( "NuGet.Client" ).First();
-         var assemblies = nugetClientPackage.GetNuGetPackageAssembliesAndDependencies( repo );
+         var assemblies = new NuGetPathResolver().GetNuGetPackageAssembliesAndDependencies( nugetClientPackage, repo );
       }
 
       private static NuGetv3LocalRepository CreateDefaultLocalRepo()

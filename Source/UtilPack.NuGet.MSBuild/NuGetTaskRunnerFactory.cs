@@ -147,199 +147,8 @@ namespace UtilPack.NuGet.MSBuild
                )
             );
          }
-
-
-         //(var allRepos, var repo, var package) = this.TryLoadEntryPointPackage( taskBodyElement, taskFactoryLoggingHost );
-         //var retVal = allRepos != null && repo != null && package != null;
-         //if ( retVal )
-         //{
-         //   (var thisFW, var assemblyPath) = this.ResolveNuGetInformation( taskBodyElement, package, allRepos );
-
-         //   retVal = thisFW != null && !String.IsNullOrEmpty( assemblyPath ) && File.Exists( assemblyPath );
-         //   if ( retVal )
-         //   {
-         //      // Call to method, which implementation varies in .NET 4.5 and .NETStandard 1.5
-         //      var packageDependencyInfo = package.GetNuGetPackageAssembliesAndDependencies(
-         //         thisFW,
-         //         allRepos
-         //         );
-
-         //      // Set up info based on assembly simple name
-         //      var assemblyPathsBySimpleName = new Dictionary<String, ISet<String>>();
-         //      foreach ( var kvp in packageDependencyInfo )
-         //      {
-         //         foreach ( var packageAssemblyPath in kvp.Value )
-         //         {
-         //            var simpleName = System.IO.Path.GetFileNameWithoutExtension( packageAssemblyPath );
-         //            if ( !assemblyPathsBySimpleName.TryGetValue( simpleName, out ISet<String> allPaths ) )
-         //            {
-         //               allPaths = new HashSet<String>();
-         //               assemblyPathsBySimpleName.Add( simpleName, allPaths );
-         //            }
-
-         //            allPaths.Add( packageAssemblyPath );
-         //         }
-         //      }
-         //      this._helper = this.CreateExecutionHelper(
-         //         this.ProcessTaskName( taskBodyElement, taskName ),
-         //         repo,
-         //         package,
-         //         allRepos,
-         //         thisFW,
-         //         assemblyPath,
-         //         packageDependencyInfo,
-         //         assemblyPathsBySimpleName
-         //         );
-         //   }
-         //   else
-         //   {
-         //      taskFactoryLoggingHost.LogErrorEvent(
-         //         new BuildErrorEventArgs(
-         //            "Task factory error",
-         //            "NMSBT003",
-         //            null,
-         //            -1,
-         //            -1,
-         //            -1,
-         //            -1,
-         //            $"Failed to find suitable assembly in {package}.",
-         //            null,
-         //            this.FactoryName
-         //         )
-         //      );
-         //   }
-         //}
-         //else
-         //{
-         //   taskFactoryLoggingHost.LogErrorEvent(
-         //      new BuildErrorEventArgs(
-         //         "Task factory error",
-         //         "NMSBT002",
-         //         null,
-         //         -1,
-         //         -1,
-         //         -1,
-         //         -1,
-         //         $"Failed to find main package.",
-         //         null,
-         //         this.FactoryName
-         //      )
-         //   );
-         //}
          return retVal;
       }
-
-      //private (List<NuGetv3LocalRepository> AllRepositories, NuGetv3LocalRepository EPRepository, LocalPackageInfo EPPackage) TryLoadEntryPointPackage(
-      //   XElement taskBodyElement,
-      //   IBuildEngine taskFactoryLoggingHost
-      //   )
-      //{
-      //   LocalPackageInfo package = null;
-      //   NuGetv3LocalRepository matchingRepo = null;
-      //   List<NuGetv3LocalRepository> repositories = null;
-      //   var packageID = taskBodyElement.Element( PACKAGE_ID )?.Value;
-      //   if ( !String.IsNullOrEmpty( packageID ) )
-      //   {
-      //      var repositoryPathItems = taskBodyElement
-      //         .Elements( "Repositories" )
-      //         .Select( el => el.Value );
-      //      IEnumerable<String> repositoryPaths;
-      //      if ( repositoryPathItems.IsNullOrEmpty() )
-      //      {
-      //         repositoryPaths = GetDefaultNuGetLocalRepositoryPath();
-      //      }
-      //      else
-      //      {
-      //         repositoryPaths = repositoryPathItems
-      //            //.Select( p => p.GetMetadata( "FullPath" ) )
-      //            .Where( p => System.IO.Directory.Exists( p ) )
-      //            .Concat( GetDefaultNuGetLocalRepositoryPath() )
-      //            .Distinct();
-      //      }
-
-      //      repositories = repositoryPaths
-      //         .Select( p => new NuGetv3LocalRepository( p ) )
-      //         .ToList();
-
-      //      // Try to find our package
-
-      //      var version = taskBodyElement.Element( "PackageVersion" )?.Value;
-
-      //      if ( !String.IsNullOrEmpty( version ) && NuGetVersion.TryParse( version, out var nugetVersion ) )
-      //      {
-      //         // Find by package id + version combination
-      //         (matchingRepo, package) = repositories
-      //            .Select( r => (r, r.FindPackage( packageID, nugetVersion )) )
-      //            .FirstOrDefault();
-      //      }
-
-      //      if ( matchingRepo == null || package == null )
-      //      {
-      //         // Find by package id, and use newest
-      //         (matchingRepo, package) = repositories
-      //            .SelectMany( r => r.FindPackagesById( packageID ).Select( p => (r, p) ) )
-      //            .OrderByDescending( l => l.Item2.Version, VersionComparer.Default )
-      //            .FirstOrDefault();
-      //      }
-
-      //      if ( matchingRepo != null && package != null )
-      //      {
-      //         // Set up repositories list
-      //         if ( repositories.Count > 1 )
-      //         {
-      //            repositories.Remove( matchingRepo );
-      //            repositories.Insert( 0, matchingRepo );
-      //         }
-      //      }
-      //   }
-      //   else
-      //   {
-      //      taskFactoryLoggingHost.LogErrorEvent(
-      //         new BuildErrorEventArgs(
-      //            "Task factory error",
-      //            "NMSBT001",
-      //            null,
-      //            -1,
-      //            -1,
-      //            -1,
-      //            -1,
-      //            $"The \"{PACKAGE_ID}\" element is required inside the task body element",
-      //            null,
-      //            this.FactoryName
-      //         )
-      //      );
-      //   }
-
-      //   return (repositories, matchingRepo, package);
-      //}
-
-      //private (NuGetFramework ThisFramework, String EPAssemblyPath) ResolveNuGetInformation(
-      //   XElement taskBodyElement,
-      //   LocalPackageInfo package,
-      //   IEnumerable<NuGetv3LocalRepository> repositories
-      //   )
-      //{
-      //   var thisFW = Assembly.GetEntryAssembly().GetNuGetFrameworkFromAssembly();
-
-
-      //   var possibleAssemblies = package.GetSingleNuGetPackageAssemblies( thisFW );
-      //   String assemblyPath = null;
-      //   if ( possibleAssemblies.Length == 1 || (
-      //         possibleAssemblies.Length > 1 // There is more than 1 possible assembly
-      //         && !String.IsNullOrEmpty( ( assemblyPath = taskBodyElement.Element( "AssemblyPath" )?.Value ) ) // AssemblyPath task property was given
-      //         && ( assemblyPath = Path.GetFullPath( ( Path.Combine( package.ExpandedPath, assemblyPath ) ) ) ).StartsWith( package.ExpandedPath ) // The given assembly path truly resides in the package folder
-
-      //         ) )
-      //   {
-      //      // TODO maybe check that assembly path is in possibleAssemblies array?
-      //      if ( assemblyPath == null )
-      //      {
-      //         assemblyPath = possibleAssemblies[0];
-      //      }
-      //   }
-
-      //   return (thisFW, assemblyPath);
-      //}
 
       private String ProcessTaskName(
          XElement taskBodyElement,
@@ -349,11 +158,6 @@ namespace UtilPack.NuGet.MSBuild
          var overrideTaskName = taskBodyElement.Element( "TaskName" )?.Value;
          return String.IsNullOrEmpty( overrideTaskName ) ? taskName : taskName;
       }
-
-      //protected static IEnumerable<String> GetDefaultNuGetLocalRepositoryPath()
-      //{
-      //   return Path.Combine( NuGetEnvironment.GetFolderPath( NuGetFolderPath.NuGetHome ), "packages" ).Singleton();
-      //}
 
       protected static IDictionary<String, ISet<String>> GroupDependenciesBySimpleAssemblyName(
          IDictionary<LocalPackageInfo, String[]> packageDependencyInfo,
@@ -387,13 +191,22 @@ namespace UtilPack.NuGet.MSBuild
    {
       private readonly NuGetFramework _thisFW;
       private readonly NuGetv3LocalRepository _defaultLocalRepo;
-      private readonly NuGetLibraryPathResolver _resolver;
+      private readonly NuGetPathResolver _resolver;
 
       public NuGetBoundResolver()
       {
          this._thisFW = Assembly.GetEntryAssembly().GetNuGetFrameworkFromAssembly();
          this._defaultLocalRepo = new NuGetv3LocalRepository( GetDefaultNuGetLocalRepositoryPath() );
-         this._resolver = new NuGetLibraryPathResolver();
+         this._resolver = new NuGetPathResolver( reader =>
+         {
+            var libs = reader.GetLibItems().ToArray();
+            if ( libs.Length == 0 )
+            {
+               libs = reader.GetBuildItems().ToArray();
+            }
+            return libs;
+         }
+         );
       }
 
       public IDictionary<LocalPackageInfo, String[]> ResolveNuGetPackages(
@@ -461,7 +274,7 @@ namespace UtilPack.NuGet.MSBuild
                else
                {
                   possibleAssemblies = this._resolver.GetSingleNuGetPackageAssemblies( package, this._thisFW );
-                  retVal = new Dictionary<LocalPackageInfo, String[]>( NuGetLibraryPathResolver.PackageIDEqualityComparer ) { { package, possibleAssemblies } };
+                  retVal = new Dictionary<LocalPackageInfo, String[]>( NuGetPathResolver.PackageIDEqualityComparer ) { { package, possibleAssemblies } };
                }
             }
          }

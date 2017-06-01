@@ -46,7 +46,6 @@ namespace UtilPack.NuGet.MSBuild
       private sealed class NuGetTaskLoadContext : System.Runtime.Loader.AssemblyLoadContext, IDisposable
       {
          private readonly CommonAssemblyRelatedHelper _helper;
-
          private readonly ConcurrentDictionary<AssemblyName, Lazy<Assembly>> _loadedAssemblies;
 
          public NuGetTaskLoadContext( CommonAssemblyRelatedHelper helper )
@@ -71,16 +70,25 @@ namespace UtilPack.NuGet.MSBuild
             return this._loadedAssemblies.GetOrAdd( assemblyName, an => new Lazy<Assembly>( () =>
             {
                Assembly retVal = null;
-               try
+               if (
+               !String.Equals( an.Name, "UtilPack" )
+               && !String.Equals( an.Name, "UtilPack.NuGet" )
+               && !an.Name.StartsWith( "NuGet." )
+               )
                {
-                  retVal = Default.LoadFromAssemblyName( assemblyName );
-               }
-               catch
-               {
-                  // Ignore
+                  // We use default loader only for assemblies which are not part of our used non-system packages.
+                  // Otherwise we will get exceptions in Release build, since e.g. UtilPack will have exactly same full assembly name (since its public key won't be null), and since this assembly was loaded using LoadFromAssemblyPath by MSBuild, it will fail to resolve the dependencies (at least System.Threading.Tasks.Extensions).
+                  try
+                  {
+                     retVal = Default.LoadFromAssemblyName( assemblyName );
+                  }
+                  catch
+                  {
+                     // Ignore
+                  }
                }
                return retVal ?? this._helper.PerformAssemblyResolve( an );
-            } ) ).Value;
+            }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) ).Value;
          }
 
          public void Dispose()
@@ -106,15 +114,17 @@ namespace UtilPack.NuGet.MSBuild
          {
             this._loader = new NuGetTaskLoadContext( this );
             this._be = taskFactoryBE;
-            // Register to default load context resolving event to minimize amount of exceptions thrown.
-            System.Runtime.Loader.AssemblyLoadContext.Default.Resolving += this._loader_Resolving;
-            this._taskType = new Lazy<Type>( () => this.LoadTaskType() );
+            // Register to default load context resolving event to minimize amount of exceptions thrown (we probably don't wanna pollute default loader with all the loaded stuff actually).
+            //System.Runtime.Loader.AssemblyLoadContext.Default.Resolving += this._loader_Resolving;
+            //this._loader.Resolving += this._loader_Resolving;
+            //System.Runtime.Loader.AssemblyLoadContext.GetLoadContext( Assembly.GetEntryAssembly() ).Resolving += this._loader_Resolving;
+            this._taskType = new Lazy<Type>( () => this.LoadTaskType(), System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
          }
 
-         private Assembly _loader_Resolving( System.Runtime.Loader.AssemblyLoadContext loader, AssemblyName name )
-         {
-            return this.PerformAssemblyResolve( name );
-         }
+         //private Assembly _loader_Resolving( System.Runtime.Loader.AssemblyLoadContext loader, AssemblyName name )
+         //{
+         //   return this.PerformAssemblyResolve( name );
+         //}
 
          public Object CreateTaskInstance( Type taskType, Microsoft.Build.Framework.IBuildEngine taskLoggingHost )
          {
@@ -132,7 +142,7 @@ namespace UtilPack.NuGet.MSBuild
             }
             finally
             {
-               System.Runtime.Loader.AssemblyLoadContext.Default.Resolving -= this._loader_Resolving;
+               //System.Runtime.Loader.AssemblyLoadContext.Default.Resolving -= this._loader_Resolving;
                this._loader.DisposeSafely();
             }
          }
@@ -155,7 +165,7 @@ namespace UtilPack.NuGet.MSBuild
 
          protected override void LogResolveMessage( String message )
          {
-            this._be.LogMessageEvent( new Microsoft.Build.Framework.BuildMessageEventArgs( message, null, null, Microsoft.Build.Framework.MessageImportance.High ) );
+            this._be.LogMessageEvent( new Microsoft.Build.Framework.BuildMessageEventArgs( message, null, null, Microsoft.Build.Framework.MessageImportance.Low, DateTime.UtcNow ) );
          }
 
          protected override Assembly LoadAssemblyFromPath( String path )

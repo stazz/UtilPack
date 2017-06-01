@@ -30,6 +30,7 @@ using NuGet.Frameworks;
 using TPropertyInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyInfo, System.Reflection.PropertyInfo>;
 using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String[], System.Boolean, System.String, System.Reflection.Assembly>;
 using TAssemblyByPathResolverCallback = System.Func<System.String, System.Reflection.Assembly>;
+using System.Collections.Concurrent;
 
 namespace UtilPack.NuGet.MSBuild
 {
@@ -459,7 +460,7 @@ namespace UtilPack.NuGet.MSBuild
 
    internal abstract class CommonAssemblyRelatedHelper : IDisposable
    {
-      private readonly IDictionary<String, IDictionary<String, Lazy<Assembly>>> _assemblyPathsBySimpleName; // We will get multiple requests to load same assembly, so cache them
+      private readonly ConcurrentDictionary<String, ConcurrentDictionary<String, Lazy<Assembly>>> _assemblyPathsBySimpleName; // We will get multiple requests to load same assembly, so cache them
       //private readonly String _thisAssemblyName;
       private readonly NuGetResolverWrapper _resolver;
       private readonly String _targetAssemblyPath;
@@ -472,10 +473,12 @@ namespace UtilPack.NuGet.MSBuild
          String taskName
          )
       {
-         this._assemblyPathsBySimpleName = assemblyPathsBySimpleName.ToDictionary(
-            kvp => kvp.Key,
-            kvp => (IDictionary<String, Lazy<Assembly>>) kvp.Value.ToDictionary( fullPath => fullPath, fullPath => new Lazy<Assembly>( () => this.LoadAssemblyFromPath( fullPath ) ) )
-         );
+         this._assemblyPathsBySimpleName = new ConcurrentDictionary<String, ConcurrentDictionary<String, Lazy<Assembly>>>( assemblyPathsBySimpleName.Select(
+            kvp => new KeyValuePair<String, ConcurrentDictionary<String, Lazy<Assembly>>>(
+               kvp.Key,
+               new ConcurrentDictionary<String, Lazy<Assembly>>( kvp.Value.Select( fullPath => new KeyValuePair<String, Lazy<Assembly>>( fullPath, new Lazy<Assembly>( () => this.LoadAssemblyFromPath( fullPath ), System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) ) ) )
+               )
+            ) );
          this._resolver = resolver;
          this._targetAssemblyPath = targetAssemblyPath;
          this._taskName = taskName;
@@ -645,8 +648,8 @@ namespace UtilPack.NuGet.MSBuild
                {
                   var curPath = nugetAssemblyPath;
                   assembliesBySimpleName
-                     .GetOrAdd_NotThreadSafe( Path.GetFileNameWithoutExtension( curPath ), sn => new Dictionary<String, Lazy<Assembly>>() )
-                     .GetOrAdd_NotThreadSafe( curPath, cp => new Lazy<Assembly>( () => this.LoadAssemblyFromPath( cp ) ) );
+                     .GetOrAdd( Path.GetFileNameWithoutExtension( curPath ), sn => new ConcurrentDictionary<String, Lazy<Assembly>>() )
+                     .TryAdd( curPath, new Lazy<Assembly>( () => this.LoadAssemblyFromPath( curPath ), System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) );
                }
             }
 
@@ -674,8 +677,8 @@ namespace UtilPack.NuGet.MSBuild
          if ( File.Exists( assemblyPath ) )
          {
             retVal = this._assemblyPathsBySimpleName
-               .GetOrAdd_NotThreadSafe( Path.GetFileNameWithoutExtension( assemblyPath ), ap => new Dictionary<String, Lazy<Assembly>>() )
-               .GetOrAdd_NotThreadSafe( assemblyPath, ap => new Lazy<Assembly>( () => this.LoadAssemblyFromPath( ap ) ) )
+               .GetOrAdd( Path.GetFileNameWithoutExtension( assemblyPath ), ap => new ConcurrentDictionary<String, Lazy<Assembly>>() )
+               .GetOrAdd( assemblyPath, ap => new Lazy<Assembly>( () => this.LoadAssemblyFromPath( ap ), System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) )
                .Value;
          }
          return retVal;

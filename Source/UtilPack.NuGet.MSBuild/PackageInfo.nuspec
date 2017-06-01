@@ -20,6 +20,7 @@
   <files>
     <file src="bin\Release\net45\*.dll" target="build\net45\" />
     <file src="bin\Release\netstandard1.5\*.dll" target="build\netstandard1.5\" />
+    <file src="bin\Release\netstandard1.5\*.dll.config" target="build\netstandard1.5\" />
     <file src="build\*.*" target="build\" />
   </files>
 </package>

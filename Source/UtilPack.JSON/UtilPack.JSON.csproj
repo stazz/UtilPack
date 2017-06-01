@@ -52,7 +52,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Updating to latest UtilPack.</PackageReleaseNotes>
+    <PackageReleaseNotes>Made JSON-serialization related API a bit more intuitive to use, and also leveraging UtilPack stream API in more natural way.</PackageReleaseNotes>
     <PackageTags>json utility binary serialization extensions async asynchronous deserialization</PackageTags>
     <Title>Asynchronous JSON Serialization</Title>
     <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>

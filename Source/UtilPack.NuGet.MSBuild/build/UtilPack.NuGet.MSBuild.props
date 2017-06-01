@@ -3,6 +3,6 @@
     <UtilPackNuGetMSBuildToolsRootPath Condition=" '$(UtilPackNuGetMSBuildToolsRootPath)' == '' ">$(MSBuildThisFileDirectory)\</UtilPackNuGetMSBuildToolsRootPath>
     <UtilPackNuGetMSBuildToolsSubPath Condition=" '$(MSBuildRuntimeType)' == 'Core' ">netstandard1.5\</UtilPackNuGetMSBuildToolsSubPath>
     <UtilPackNuGetMSBuildToolsSubPath Condition=" '$(MSBuildRuntimeType)' != 'Core' ">net45\</UtilPackNuGetMSBuildToolsSubPath>
-    <UtilPackNuGetMSBuildAssemblyPath Condition=" '$(UtilPackNuGetMSBuildAssemblyPath)' == '' ">$(UtilPackNuGetMSBuildToolsRootPath)$(UtilPackNuGetMSBuildToolsSubPath)UtilPAck.NuGet.MSBuild.dll</UtilPackNuGetMSBuildAssemblyPath>
+    <UtilPackNuGetMSBuildAssemblyPath Condition=" '$(UtilPackNuGetMSBuildAssemblyPath)' == '' ">$(UtilPackNuGetMSBuildToolsRootPath)$(UtilPackNuGetMSBuildToolsSubPath)UtilPack.NuGet.MSBuild.dll</UtilPackNuGetMSBuildAssemblyPath>
   </PropertyGroup>
 </Project>

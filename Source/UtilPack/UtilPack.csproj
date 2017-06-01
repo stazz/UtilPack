@@ -56,7 +56,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Revised stream-related interfaces, and made IDisposable only the ones returned by CreateWithLimitedSizeAndSharedBuffer methods. Also generalized character reading API.</PackageReleaseNotes>
+    <PackageReleaseNotes>Multiple fixes and improvements. UtilPack now compiles to .NET 4.5 and .NETStandard 1.5 as well, in order to behave better when used as dependency.</PackageReleaseNotes>
     <PackageTags>bcl utility binary serialization collection extensions</PackageTags>
     <Title>Utility Package for CLR</Title>
     <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>

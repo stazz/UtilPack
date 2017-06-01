@@ -24,6 +24,7 @@ using System.Linq;
 using System.Text;
 using System.Reflection;
 using System.Collections.Concurrent;
+using UtilPack;
 
 namespace UtilPack.NuGet.MSBuild
 {
@@ -42,7 +43,7 @@ namespace UtilPack.NuGet.MSBuild
       }
 
       // We must subclass System.Runtime.Loader.AssemblyLoadContext, since the default load context does not seem to launch Resolve event for System.* assemblies (and thus we never catch load request for e.g. System.Threading.Tasks.Extensions assembly).
-      private sealed class NuGetTaskLoadContext : System.Runtime.Loader.AssemblyLoadContext
+      private sealed class NuGetTaskLoadContext : System.Runtime.Loader.AssemblyLoadContext, IDisposable
       {
          private readonly CommonAssemblyRelatedHelper _helper;
 
@@ -81,11 +82,16 @@ namespace UtilPack.NuGet.MSBuild
                return retVal ?? this._helper.PerformAssemblyResolve( an );
             } ) ).Value;
          }
+
+         public void Dispose()
+         {
+            this._loadedAssemblies.Clear();
+         }
       }
 
       private sealed class NETStandardExecutionHelper : CommonAssemblyRelatedHelper, NuGetTaskExecutionHelper
       {
-         private readonly System.Runtime.Loader.AssemblyLoadContext _loader;
+         private readonly NuGetTaskLoadContext _loader;
          private readonly Lazy<Type> _taskType;
          private Microsoft.Build.Framework.IBuildEngine _be;
 
@@ -117,10 +123,18 @@ namespace UtilPack.NuGet.MSBuild
             return this.PerformCreateTaskInstance( taskType );
          }
 
-         public void Dispose()
+         public override void Dispose()
          {
             // TODO maybe some day will be possible to say this._loader.UnloadAll()...
-            System.Runtime.Loader.AssemblyLoadContext.Default.Resolving -= this._loader_Resolving;
+            try
+            {
+               base.Dispose();
+            }
+            finally
+            {
+               System.Runtime.Loader.AssemblyLoadContext.Default.Resolving -= this._loader_Resolving;
+               this._loader.DisposeSafely();
+            }
          }
 
          public Microsoft.Build.Framework.TaskPropertyInfo[] GetTaskParameters()

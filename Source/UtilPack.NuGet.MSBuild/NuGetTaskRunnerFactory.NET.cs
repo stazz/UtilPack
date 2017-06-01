@@ -513,6 +513,7 @@ namespace UtilPack.NuGet.MSBuild
 
       public void Dispose()
       {
+         this._helper.DisposeSafely();
          AppDomain.CurrentDomain.AssemblyResolve -= CurrentDomain_AssemblyResolve;
       }
 

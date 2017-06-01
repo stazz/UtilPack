@@ -43,11 +43,6 @@ namespace UtilPack.NuGet.MSBuild
       private NuGetTaskExecutionHelper _helper;
       private Type _taskType;
 
-      public NuGetTaskRunnerFactory()
-      {
-
-      }
-
       public String FactoryName => nameof( NuGetTaskRunnerFactory );
 
       public Type TaskType
@@ -462,7 +457,7 @@ namespace UtilPack.NuGet.MSBuild
       Object CreateTaskInstance( Type taskType, IBuildEngine taskFactoryLoggingHost );
    }
 
-   internal abstract class CommonAssemblyRelatedHelper
+   internal abstract class CommonAssemblyRelatedHelper : IDisposable
    {
       private readonly IDictionary<String, IDictionary<String, Lazy<Assembly>>> _assemblyPathsBySimpleName; // We will get multiple requests to load same assembly, so cache them
       //private readonly String _thisAssemblyName;
@@ -489,6 +484,11 @@ namespace UtilPack.NuGet.MSBuild
          //            .GetTypeInfo()
          //#endif
          //            .Assembly.FullName;
+      }
+
+      public virtual void Dispose()
+      {
+         this._assemblyPathsBySimpleName.Clear();
       }
 
       internal protected Assembly PerformAssemblyResolve( AssemblyName assemblyName )
@@ -631,6 +631,9 @@ namespace UtilPack.NuGet.MSBuild
          String assemblyPath
          )
       {
+         // TODO Path.GetFileNameWithoutExtension( curPath ) should be replaced with AssemblyName.GetAssemblyName( String path ) for kinky situations when assembly name is with different casing than its file name.
+         // Obviously, this slows down things by a lot, and will change data structures a bit, but it should be done at some point.
+
          var assemblyInfos = this._resolver.ResolveNuGetPackageAssemblies( packageID, packageVersion, repositories, loadDependencies, out var packageKey, out var packagePath );
          Assembly retVal = null;
          if ( assemblyInfos != null )

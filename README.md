@@ -24,3 +24,13 @@ The deserialization functionality is available through ```UtilPack.JSON.JTokenSt
 The serialization functionality is available through extension method to ```UtilPack.PotentiallyAsyncWriterLogic<IEnumerable<Char>, TSink>``` class.
 
 The UtilPack.JSON is located at http://www.nuget.org/packages/UtilPack.JSON
+
+# UtilPack.NuGet
+This project uses the ```NuGet.Client``` library to resolve package dependencies and paths to assemblies in those dependencies.
+
+# UtilPack.NuGet.MSBuild
+This project exposes a task factory, which executes MSBuild tasks located in NuGet packages.
+These tasks are allowed to have NuGet dependencies to other packages, and are not required to bundle all of their assembly dependencies in ```build``` folder.
+
+In other words, this project implements assembly loader, which dynamically loads assemblies from NuGet repositories, whenever the task being executed tries to load assembly which is not part of the system assemblies.
+The ```UtilPack.NuGet``` project is used to resolve the paths to dependencies, and two different versions (```net45``` and ```netstandard1.5```) take care of actually using system API to load assemblies (since in .NET the correct tool is ```System.AppDomain```, whereas in .NET Core it is ```System.Runtime.Loader.AssemblyLoadContext```).

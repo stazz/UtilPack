@@ -34,6 +34,7 @@
 
   <ItemGroup Condition="'$(TargetFramework)' != 'net45'">
     <PackageReference Include="Microsoft.Build.Framework" Version="15.1.548" />
+    <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
   </ItemGroup>
   
   <ItemGroup>

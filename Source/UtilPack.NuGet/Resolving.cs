@@ -163,7 +163,10 @@ namespace UtilPack.NuGet
                   }
                   else if ( info.Item1.Version > cur.Item1 )
                   {
-                     multiplePackages[info.Item1] = (info.Item1.Version, info.Item3);
+                     // Remove the item, since it is used as a key
+                     multiplePackages.Remove( info.Item1 );
+                     // Then add
+                     multiplePackages.Add( info.Item1, (info.Item1.Version, info.Item3) );
                   }
                }
             }

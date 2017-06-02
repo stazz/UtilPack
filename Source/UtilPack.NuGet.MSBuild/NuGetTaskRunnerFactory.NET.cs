@@ -580,7 +580,7 @@ namespace UtilPack.NuGet.MSBuild
          return this._propertyInfos.ToDictionary( kvp => kvp.Key, kvp => EncodeKindAndInfo( kvp.Value.Item1.Item1, kvp.Value.Item1.Item2 ) );
       }
 
-      internal Boolean IsCancelable => this._executeMethod != null;
+      internal Boolean IsCancelable => this._cancelMethod != null;
 
       // Called by generated task type
       public void Cancel()

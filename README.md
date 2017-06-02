@@ -28,6 +28,8 @@ The UtilPack.JSON is located at http://www.nuget.org/packages/UtilPack.JSON
 # UtilPack.NuGet
 This project uses the ```NuGet.Client``` library to resolve package dependencies and paths to assemblies in those dependencies.
 
+The UtilPack.NuGet is located at http://www.nuget.org/packages/UtilPack.NuGet
+
 # UtilPack.NuGet.MSBuild
 This project exposes a task factory, which executes MSBuild tasks located in NuGet packages.
 These tasks are allowed to have NuGet dependencies to other packages, and are not required to bundle all of their assembly dependencies in ```build``` folder.
@@ -40,3 +42,5 @@ Currently restoring missing NuGet packages by this task factory is not supported
 The task factory has been tested against MSBuild 15.1 in .NET (Desktop), and against MSBuild 15.3-Preview in .NET Core (since MSBuild 15.1 for .NET Core does not support task factories at all).
 
 TODO this needs further testing on how it behaves when target task is compiled against different MSBuild version.
+
+The UtilPack.NuGet.MSBuild is located at http://www.nuget.org/packages/UtilPack.NuGet.MSBuild

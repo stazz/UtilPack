@@ -86,7 +86,11 @@ namespace UtilPack.NuGet.MSBuild
          )
       {
          var taskBodyElement = XElement.Parse( taskBody );
-         var nugetResolver = new NuGetBoundResolver();
+         var nugetResolver = new NuGetBoundResolver(
+            taskFactoryLoggingHost,
+            this.FactoryName,
+            taskBodyElement
+            );
          var repositoryPaths = taskBodyElement.Elements( "Repositories" ).Select( el => el.Value ).ToArray();
          var resolveInfo = nugetResolver.ResolveNuGetPackages(
             taskBodyElement.Element( PACKAGE_ID )?.Value,
@@ -96,14 +100,14 @@ namespace UtilPack.NuGet.MSBuild
             out var package
             );
          var retVal = false;
-         if ( resolveInfo != null && resolveInfo.TryGetValue( package, out var assemblyPaths ) )
+         if ( resolveInfo != null && package != null && resolveInfo.TryGetValue( package, out var assemblyPaths ) && !assemblyPaths.IsNullOrEmpty() )
          {
             var assemblyPath = CommonHelpers.GetAssemblyPathFromNuGetAssemblies( assemblyPaths, package.ExpandedPath, taskBodyElement.Element( "AssemblyPath" )?.Value );
-
             if ( !String.IsNullOrEmpty( assemblyPath ) )
             {
                this._helper = this.CreateExecutionHelper(
                   taskFactoryLoggingHost,
+                  taskBodyElement,
                   this.ProcessTaskName( taskBodyElement, taskName ),
                   nugetResolver,
                   assemblyPath,
@@ -113,7 +117,8 @@ namespace UtilPack.NuGet.MSBuild
                      repositoryPaths,
                      true,
                      out package )
-                     )
+                     ),
+                  repositoryPaths
                   );
                retVal = true;
             }
@@ -194,13 +199,40 @@ namespace UtilPack.NuGet.MSBuild
 
    internal sealed class NuGetBoundResolver
    {
+
+
+      private const String NUGET_FW = "NuGetFramework";
+      internal const String NUGET_FW_PACKAGE_ID = "NuGetFrameworkPackageID";
+      internal const String NUGET_FW_PACKAGE_VERSION = "NuGetFrameworkPackageVersion";
+
       private readonly NuGetFramework _thisFW;
       private readonly NuGetv3LocalRepository _defaultLocalRepo;
       private readonly NuGetPathResolver _resolver;
 
-      public NuGetBoundResolver()
+
+      public NuGetBoundResolver(
+         IBuildEngine be,
+         String senderName,
+         XElement taskBodyElement
+         )
       {
-         this._thisFW = Assembly.GetEntryAssembly().GetNuGetFrameworkFromAssembly();
+         var nugetFrameworkFromProjectFile = taskBodyElement.Element( NUGET_FW )?.Value;
+
+         this._thisFW = String.IsNullOrEmpty( nugetFrameworkFromProjectFile ) ?
+#if NET45
+            Assembly.GetEntryAssembly().GetNuGetFrameworkFromAssembly()
+#else
+            GetNuGetFrameworkForRuntime( be, senderName )
+#endif
+            : NuGetFramework.ParseFrameworkName( nugetFrameworkFromProjectFile, new DefaultFrameworkNameProvider() )
+            ;
+         be.LogMessageEvent( new BuildMessageEventArgs(
+            $"Using {this._thisFW} as NuGet framework representing this runtime.",
+            null,
+            senderName,
+            MessageImportance.High
+            ) );
+
          this._defaultLocalRepo = new NuGetv3LocalRepository( GetDefaultNuGetLocalRepositoryPath() );
          this._resolver = new NuGetPathResolver( reader =>
          {
@@ -214,33 +246,99 @@ namespace UtilPack.NuGet.MSBuild
          );
       }
 
+#if !NET45
+
+      private static NuGetFramework GetNuGetFrameworkForRuntime(
+         IBuildEngine be,
+         String senderName
+         )
+      {
+         var fwName = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription;
+         NuGetFramework retVal = null;
+         if ( !String.IsNullOrEmpty( fwName ) && fwName.StartsWith( ".NET Core" ) )
+         {
+            if ( Version.TryParse( fwName.Substring( 10 ), out var netCoreVersion ) )
+            {
+               if ( netCoreVersion.Major == 4 )
+               {
+                  if ( netCoreVersion.Minor == 0 )
+                  {
+                     retVal = FrameworkConstants.CommonFrameworks.NetCoreApp10;
+                  }
+                  else if ( netCoreVersion.Minor == 6 )
+                  {
+                     retVal = FrameworkConstants.CommonFrameworks.NetCoreApp11;
+                  }
+               }
+            }
+            else
+            {
+               be.LogWarningEvent( new BuildWarningEventArgs(
+                  "NuGetFrameworkError",
+                  "NMSBT004",
+                  null,
+                  -1,
+                  -1,
+                  -1,
+                  -1,
+                  $"Failed to parse version from .NET Core framework \"{fwName}\".",
+                  null,
+                  senderName
+                  ) );
+            }
+         }
+         else
+         {
+            be.LogWarningEvent( new BuildWarningEventArgs(
+               "NuGetFrameworkError",
+               "NMSBT003",
+               null,
+               -1,
+               -1,
+               -1,
+               -1,
+               $"Unrecognized framework name: \"{fwName}\", try specifying NuGet framework and package strings that describes this process runtime in <Task> element (using \"{NUGET_FW}\", \"{NUGET_FW_PACKAGE_ID}\", and \"{NUGET_FW_PACKAGE_VERSION}\" elements)!",
+               null,
+               senderName
+               ) );
+         }
+
+         if ( retVal == null )
+         {
+            retVal = FrameworkConstants.CommonFrameworks.NetCoreApp11;
+            be.LogWarningEvent( new BuildWarningEventArgs(
+               "NuGetFrameworkError",
+               "NMSBT005",
+               null,
+               -1,
+               -1,
+               -1,
+               -1,
+               $"Failed to automatically deduct NuGet framework of running process, defaulting to \"{retVal}\". Expect possible failures.",
+               null,
+               senderName
+               ) );
+         }
+
+         return retVal;
+      }
+
+#endif
+
       public IDictionary<LocalPackageInfo, String[]> ResolveNuGetPackages(
          String packageID,
          String version,
          String[] repositoryPaths,
          Boolean loadDependencies,
-         out LocalPackageInfo package
+         out LocalPackageInfo package,
+         NuGetPathResolver resolverToUse = null
          )
       {
          IDictionary<LocalPackageInfo, String[]> retVal = null;
          package = null;
          if ( !String.IsNullOrEmpty( packageID ) )
          {
-            List<NuGetv3LocalRepository> repositories;
-            if ( repositoryPaths.IsNullOrEmpty() )
-            {
-               repositories = new List<NuGetv3LocalRepository>() { this._defaultLocalRepo };
-            }
-            else
-            {
-               repositories = repositoryPaths
-                  .Select( p => Path.GetFullPath( p ) )
-                  .Where( p => System.IO.Directory.Exists( p ) && !String.Equals( p, this._defaultLocalRepo.RepositoryRoot ) )
-                  .Distinct()
-                  .Select( p => new NuGetv3LocalRepository( p ) )
-                  .Append( this._defaultLocalRepo )
-                  .ToList();
-            }
+            var repositories = this.GetRepositories( repositoryPaths );
 
             // Try to find our package
             NuGetv3LocalRepository matchingRepo = null;
@@ -263,7 +361,7 @@ namespace UtilPack.NuGet.MSBuild
 
             if ( matchingRepo != null && package != null )
             {
-               String[] possibleAssemblies;
+               var resolver = resolverToUse ?? this._resolver;
                if ( loadDependencies )
                {
                   // Set up repositories list
@@ -273,18 +371,40 @@ namespace UtilPack.NuGet.MSBuild
                      repositories.Insert( 0, matchingRepo );
                   }
 
-                  retVal = this._resolver.GetNuGetPackageAssembliesAndDependencies( package, this._thisFW, repositories );
-                  possibleAssemblies = retVal.GetOrDefault( package );
+                  retVal = resolver.GetNuGetPackageAssembliesAndDependencies( package, this._thisFW, repositories );
                }
                else
                {
-                  possibleAssemblies = this._resolver.GetSingleNuGetPackageAssemblies( package, this._thisFW );
+                  var possibleAssemblies = resolver.GetSingleNuGetPackageAssemblies( package, this._thisFW );
                   retVal = new Dictionary<LocalPackageInfo, String[]>( NuGetPathResolver.PackageIDEqualityComparer ) { { package, possibleAssemblies } };
                }
             }
          }
 
          return retVal;
+      }
+
+      public List<NuGetv3LocalRepository> GetRepositories(
+         String[] repositoryPaths
+         )
+      {
+         List<NuGetv3LocalRepository> repositories;
+         if ( repositoryPaths.IsNullOrEmpty() )
+         {
+            repositories = new List<NuGetv3LocalRepository>() { this._defaultLocalRepo };
+         }
+         else
+         {
+            repositories = repositoryPaths
+               .Select( p => Path.GetFullPath( p ) )
+               .Where( p => System.IO.Directory.Exists( p ) && !String.Equals( p, this._defaultLocalRepo.RepositoryRoot ) )
+               .Distinct()
+               .Select( p => new NuGetv3LocalRepository( p ) )
+               .Append( this._defaultLocalRepo )
+               .ToList();
+         }
+
+         return repositories;
       }
 
       private static String GetDefaultNuGetLocalRepositoryPath()
@@ -377,7 +497,7 @@ namespace UtilPack.NuGet.MSBuild
                      kind = null;
                   }
                   break;
-#if !NETSTANDARD1_5
+#if NET45
                case TypeCode.DBNull:
 #endif
                case TypeCode.Empty:
@@ -420,7 +540,7 @@ namespace UtilPack.NuGet.MSBuild
       private static Boolean ISMFBType( Type type, AssemblyName mfbAssembly )
       {
          var an = type
-#if NETSTANDARD1_5
+#if !NET45
                      .GetTypeInfo()
 #endif
                      .Assembly.GetName();
@@ -512,7 +632,7 @@ namespace UtilPack.NuGet.MSBuild
             retVal = assemblyLazies.FirstOrDefault( kvp =>
             {
                var defName = kvp.Value.IsValueCreated ? kvp.Value.Value.GetName() :
-#if NETSTANDARD1_5
+#if !NET45
                System.Runtime.Loader.AssemblyLoadContext
 #else
                AssemblyName
@@ -557,7 +677,7 @@ namespace UtilPack.NuGet.MSBuild
       internal protected Type LoadTaskType()
       {
          var taskAssembly = this.PerformAssemblyResolve(
-#if NETSTANDARD1_5
+#if !NET45
             System.Runtime.Loader.AssemblyLoadContext.GetAssemblyName
 #else
             AssemblyName.GetAssemblyName
@@ -573,7 +693,7 @@ namespace UtilPack.NuGet.MSBuild
          )
       {
          var ctors = type
-#if NETSTANDARD1_5
+#if !NET45
             .GetTypeInfo()
 #endif
             .GetConstructors();
@@ -691,7 +811,7 @@ namespace UtilPack.NuGet.MSBuild
 
    // Instances of this class reside in task factory app domain.
    internal sealed class NuGetResolverWrapper
-#if !NETSTANDARD1_5
+#if NET45
       : MarshalByRefObject
 #endif
    {

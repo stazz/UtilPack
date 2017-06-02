@@ -12,10 +12,7 @@
   
   <ItemGroup>
     <PackageReference Include="NuGet.Client" Version="4.0.0" />
-  </ItemGroup>
-
-  <ItemGroup Condition=" '$(TargetFramework)' != 'netstandard1.3' ">
-    <PackageReference Include="System.ValueTuple" Version="4.4.0-preview1-25305-02" />
+    <PackageReference Include="System.ValueTuple" Version="4.3.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -31,7 +28,7 @@
     <NeutralLanguage>en-US</NeutralLanguage>
     <AssemblyTitle>UtilPack.NuGet</AssemblyTitle>
     <Product>UtilPack</Product>
-    <Description>Library methods to resolve assembly paths from NuGet packages.</Description>
+    <Description>Library containing NuGetPathResolver class, which can be used to (recursively) resolve assembly paths from NuGet packages.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>
     <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
   </PropertyGroup>
@@ -46,8 +43,7 @@
   <PropertyGroup Condition=" '$(Configuration)' == 'Release'">
     <DebugType>none</DebugType>
     <DebugSymbols>False</DebugSymbols>
-    <!-- For some reason, both OutputPath and OutDir properties are empty at this point... go figure. Maybe renamed for MSBuild 15.0? -->
-    <DocumentationFile>$(MSBuildProjectDirectory)\bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <!-- NuGet package stuff -->

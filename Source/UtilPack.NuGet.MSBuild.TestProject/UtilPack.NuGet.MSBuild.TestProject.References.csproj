@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- This project is solely to ensure that custom MSBuild task NuGet packages and their dependencies will be restored to local repository. -->
+  <PropertyGroup>
+    <!-- Specify target framework which is supported for all referenced packages. -->
+    <TargetFramework>netcoreapp1.1</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Running NuGet manually with Restore command produces <repo_path>\<package_id>.<package_version> folders,
+         instead of <repo_path>\<package_id>\<package_version> folders.
+         So we have to run NuGet restore via this project.
+         -->
+    <!-- Package that contains the task to be executed. -->
+    <PackageReference Include="CBAM.SQL.MSBuild" Version="0.0.2-alpha"/>
+    <!-- Package that will be dynamically loaded by the executed task. -->
+    <PackageReference Include="CBAM.SQL.PostgreSQL.Implementation" Version="0.0.2-alpha"/>
+  </ItemGroup>
+</Project>

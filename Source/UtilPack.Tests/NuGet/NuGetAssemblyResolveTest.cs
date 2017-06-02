@@ -17,11 +17,15 @@
  */
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NuGet.Common;
+using NuGet.Frameworks;
+using NuGet.Packaging;
 using NuGet.Repositories;
+using NuGet.Versioning;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using UtilPack.NuGet;
 
@@ -45,6 +49,55 @@ namespace UtilPack.Tests.NuGet
          var repo = CreateDefaultLocalRepo();
          var nugetClientPackage = repo.FindPackagesById( "NuGet.Client" ).First();
          var assemblies = new NuGetPathResolver().GetNuGetPackageAssembliesAndDependencies( nugetClientPackage, repo );
+      }
+
+      [TestMethod]
+      public void TestNETCoreAppResolve()
+      {
+         var repo = CreateDefaultLocalRepo();
+         var package = repo.FindPackage( "Microsoft.NETCore.App", NuGetVersion.Parse( "1.1.2" ) );
+         var thisAssembly = Assembly.GetEntryAssembly();
+         var thisFW = NuGetFramework.Parse( ".NETCoreApp1.1" ); // thisAssembly.GetNuGetFrameworkFromAssembly(); the test assembly is actually .NET Core App 1.0, even though the version in .csproj is 1.1.
+         var assemblyInfo = new NuGetPathResolver( r =>
+         {
+            return r.GetLibItems( PackagingConstants.Folders.Ref ).Concat( r.GetLibItems() );
+         } ).GetNuGetPackageAssembliesAndDependencies( package, thisFW, repo.Singleton() );
+         var resolvedAssemblies = assemblyInfo.Values
+            .SelectMany( p => p )
+            .Select( p => Path.GetFileName( p ) )
+            .ToArray();
+
+         var allDLLs = Directory.EnumerateFiles( @"C:\Program Files\dotnet\shared\Microsoft.NETCore.App\1.1.2" )
+            .Where( fullFilePath =>
+            {
+               var file = Path.GetFileName( fullFilePath );
+               var retVal = file.EndsWith( ".dll", StringComparison.OrdinalIgnoreCase )
+               && !file.EndsWith( ".ni.dll", StringComparison.OrdinalIgnoreCase )
+               && file.IndexOf( "Private", StringComparison.OrdinalIgnoreCase ) == -1
+               && !String.Equals( "mscorlib.dll", file, StringComparison.OrdinalIgnoreCase )
+               && !String.Equals( "SOS.NETCore.dll", file, StringComparison.Ordinal )
+               ;
+               if ( retVal )
+               {
+                  try
+                  {
+                     System.Runtime.Loader.AssemblyLoadContext.GetAssemblyName( fullFilePath );
+                  }
+                  catch ( BadImageFormatException )
+                  {
+                     retVal = false;
+                  }
+               }
+               return retVal;
+            } )
+            .Select( fullFilePath => Path.GetFileName( fullFilePath ) )
+            .ToArray();
+
+         Assert.AreEqual( allDLLs.Length, resolvedAssemblies.Length );
+
+         var set = new HashSet<String>( allDLLs );
+         set.ExceptWith( resolvedAssemblies );
+         Assert.AreEqual( 0, set.Count );
       }
 
       private static NuGetv3LocalRepository CreateDefaultLocalRepo()

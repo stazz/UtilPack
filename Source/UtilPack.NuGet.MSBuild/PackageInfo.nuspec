@@ -18,9 +18,11 @@
     <dependencies/>
   </metadata>
   <files>
-    <file src="bin\Release\net45\*.dll" target="build\net45\" />
-    <file src="bin\Release\netstandard1.5\*.dll" target="build\netstandard1.5\" />
-    <file src="bin\Release\netstandard1.5\*.dll.config" target="build\netstandard1.5\" />
+    <file src="bin\Release\net45\*.dll" exclude="bin\Release\net45\Microsoft.Build.Framework.dll" target="build\net45\" />
+    <file src="bin\Release\netcoreapp1.1\Newtonsoft.Json.dll" target="build\netcoreapp1.1\" />
+    <file src="bin\Release\netcoreapp1.1\NuGet*.dll" target="build\netcoreapp1.1\" />
+    <file src="bin\Release\netcoreapp1.1\System.ValueTuple.dll" target="build\netcoreapp1.1\" />
+    <file src="bin\Release\netcoreapp1.1\UtilPack*.dll" target="build\netcoreapp1.1\" />
     <file src="build\*.*" target="build\" />
   </files>
 </package>

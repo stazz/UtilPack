@@ -131,57 +131,55 @@ namespace UtilPack.NuGet
          var suitableLibraryItem = this.GetAssembliesForSinglePackage( package, ref thisFramework );
          IDictionary<LocalPackageInfo, String[]> retVal;
 
-         if ( suitableLibraryItem != null )
+         //if ( suitableLibraryItem != null )
+         //{
+         // Check repositories
+         var repos = repositories?.ToArray();
+         if ( repos.IsNullOrEmpty() )
          {
-            // Check repositories
-            var repos = repositories?.ToArray();
-            if ( repos.IsNullOrEmpty() )
+            // Let's not deduce repo path based on package.ExpandedPath, since that logic may change some day.
+            repos = new[] { new NuGetv3LocalRepository( Path.Combine( NuGetEnvironment.GetFolderPath( NuGetFolderPath.NuGetHome ), "packages" ) ) };
+         }
+
+         // We consider dependency chain item visited when there are two same packages (same id + same version) - the local assembly info is actually ignored in such equality comparison
+         var allLoadableInfo = (package, thisFramework, suitableLibraryItem).AsDepthFirstEnumerableWithLoopDetection(
+          curTuple => this.GetSinglePackageDependencies( thisFramework, repositories, curTuple ),
+          returnHead: true,
+          equalityComparer: ComparerFromFunctions.NewEqualityComparer<(LocalPackageInfo, NuGetFramework, FrameworkSpecificGroup)>(
+             ( x, y ) => PackageIDAndVersionEqualityComparer.Equals( x.Item1, y.Item1 ),
+             x => PackageIDAndVersionEqualityComparer.GetHashCode( x.Item1 )
+             )
+          );
+
+         // Take only the newest versions of each package id
+         var multiplePackages = new Dictionary<LocalPackageInfo, (NuGetVersion, FrameworkSpecificGroup)>( PackageIDEqualityComparer );
+         foreach ( var info in allLoadableInfo )
+         {
+            if ( !multiplePackages.TryGetValue( info.Item1, out var cur ) )
             {
-               // Let's not deduce repo path based on package.ExpandedPath, since that logic may change some day.
-               repos = new[] { new NuGetv3LocalRepository( Path.Combine( NuGetEnvironment.GetFolderPath( NuGetFolderPath.NuGetHome ), "packages" ) ) };
+               multiplePackages.Add( info.Item1, (info.Item1.Version, info.Item3) );
+            }
+            else if ( info.Item1.Version > cur.Item1 )
+            {
+               // Remove the item, since it is used as a key
+               multiplePackages.Remove( info.Item1 );
+               // Then add
+               multiplePackages.Add( info.Item1, (info.Item1.Version, info.Item3) );
             }
 
-            // We consider dependency chain item visited when there are two same packages (same id + same version) - the local assembly info is actually ignored in such equality comparison
-            var allLoadableInfo = (package, suitableLibraryItem.TargetFramework, suitableLibraryItem).AsDepthFirstEnumerableWithLoopDetection(
-             curTuple => this.GetSinglePackageDependencies( thisFramework, repositories, curTuple ),
-             returnHead: true,
-             equalityComparer: ComparerFromFunctions.NewEqualityComparer<(LocalPackageInfo, NuGetFramework, FrameworkSpecificGroup)>(
-                ( x, y ) => PackageIDAndVersionEqualityComparer.Equals( x.Item1, y.Item1 ),
-                x => PackageIDAndVersionEqualityComparer.GetHashCode( x.Item1 )
-                )
-             );
-
-            // Take only the newest versions of each package id
-            var multiplePackages = new Dictionary<LocalPackageInfo, (NuGetVersion, FrameworkSpecificGroup)>( PackageIDEqualityComparer );
-            foreach ( var info in allLoadableInfo )
-            {
-               if ( info.Item3 != null )
-               {
-                  if ( !multiplePackages.TryGetValue( info.Item1, out var cur ) )
-                  {
-                     multiplePackages.Add( info.Item1, (info.Item1.Version, info.Item3) );
-                  }
-                  else if ( info.Item1.Version > cur.Item1 )
-                  {
-                     // Remove the item, since it is used as a key
-                     multiplePackages.Remove( info.Item1 );
-                     // Then add
-                     multiplePackages.Add( info.Item1, (info.Item1.Version, info.Item3) );
-                  }
-               }
-            }
-
-            // Now construct the dictionary to return
-            retVal = multiplePackages.ToDictionary(
-               kvp => kvp.Key,
-               kvp => GetAssemblyPaths( kvp.Key, kvp.Value.Item2 ).ToArray(),
-               PackageIDEqualityComparer
-               );
          }
-         else
-         {
-            retVal = null;
-         }
+
+         // Now construct the dictionary to return
+         retVal = multiplePackages.ToDictionary(
+            kvp => kvp.Key,
+            kvp => kvp.Value.Item2 == null ? Empty<String>.Array : GetAssemblyPaths( kvp.Key, kvp.Value.Item2 ).ToArray(),
+            PackageIDEqualityComparer
+            );
+         //}
+         //else
+         //{
+         //   retVal = null;
+         //}
          return retVal;
       }
 
@@ -257,7 +255,7 @@ namespace UtilPack.NuGet
                if ( suitableLocalPackage != null )
                {
                   var suitableLibraryFolder = this.GetAssembliesForSinglePackage( suitableLocalPackage, thisRuntimeFW );
-                  yield return (suitableLocalPackage, suitableLibraryFolder?.TargetFramework ?? package.TargetFW, suitableLibraryFolder);
+                  yield return (suitableLocalPackage, thisRuntimeFW/*suitableLibraryFolder?.TargetFramework ?? package.TargetFW*/, suitableLibraryFolder);
                }
             }
          }

@@ -27,6 +27,7 @@ using System.Text;
 using System.Threading;
 using TPropertyInfo = System.ValueTuple<System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyInfo>, System.Func<System.Object>, System.Action<System.Object>, System.Func<System.String, System.Object>>;
 using System.Reflection.Emit;
+using System.Xml.Linq;
 
 namespace UtilPack.NuGet.MSBuild
 {
@@ -35,13 +36,14 @@ namespace UtilPack.NuGet.MSBuild
 
       private NuGetTaskExecutionHelper CreateExecutionHelper(
          Microsoft.Build.Framework.IBuildEngine taskFactoryLoggingHost,
+         XElement taskBodyElement,
          String taskName,
          NuGetBoundResolver nugetResolver,
          String assemblyPath,
-         IDictionary<String, ISet<String>> assemblyPathsBySimpleName
+         IDictionary<String, ISet<String>> assemblyPathsBySimpleName,
+         String[] repoPaths
          )
       {
-
          var assemblyDir = Path.GetDirectoryName( assemblyPath );
          var aSetup = new AppDomainSetup()
          {
@@ -68,7 +70,6 @@ namespace UtilPack.NuGet.MSBuild
          // Alternatively we could just make new type which binds AssemblyLoadHelper and NET45NuGetResolver, but let's go with this for now.
          var logger = new ResolverLogger( taskFactoryLoggingHost );
          bootstrapper.Initialize( assemblyPathsBySimpleName, new NuGetResolverWrapper( nugetResolver ), assemblyPath, taskName, logger );
-
          return new NET45ExecutionHelper(
             taskName,
             appDomain,

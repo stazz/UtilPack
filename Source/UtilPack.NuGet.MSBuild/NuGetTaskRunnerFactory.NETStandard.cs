@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
-#if NETSTANDARD1_5
+#if !NET45
 using NuGet.Frameworks;
 using NuGet.Repositories;
 using System;
@@ -25,6 +25,9 @@ using System.Text;
 using System.Reflection;
 using System.Collections.Concurrent;
 using UtilPack;
+using NuGet.Packaging;
+using System.Xml.Linq;
+using System.IO;
 
 namespace UtilPack.NuGet.MSBuild
 {
@@ -32,23 +35,39 @@ namespace UtilPack.NuGet.MSBuild
    {
       private NuGetTaskExecutionHelper CreateExecutionHelper(
          Microsoft.Build.Framework.IBuildEngine taskFactoryLoggingHost,
+         XElement taskBodyElement,
          String taskName,
          NuGetBoundResolver nugetResolver,
          String assemblyPath,
-         IDictionary<String, ISet<String>> assemblyPathsBySimpleName
+         IDictionary<String, ISet<String>> assemblyPathsBySimpleName,
+         String[] repoPaths
          )
       {
          // .NETStandard 1.5+ uses System.Runtime.Loader.AssemblyContext instead of app domains.
-         return new NETStandardExecutionHelper( assemblyPathsBySimpleName, new NuGetResolverWrapper( nugetResolver ), assemblyPath, taskName, taskFactoryLoggingHost );
+         return new NETStandardExecutionHelper(
+            taskFactoryLoggingHost,
+            taskBodyElement,
+            taskName,
+            nugetResolver,
+            assemblyPath,
+            assemblyPathsBySimpleName,
+            repoPaths
+            );
       }
 
-      // We must subclass System.Runtime.Loader.AssemblyLoadContext, since the default load context does not seem to launch Resolve event for System.* assemblies (and thus we never catch load request for e.g. System.Threading.Tasks.Extensions assembly).
+      // We must subclass System.Runtime.Loader.AssemblyLoadContext, since the default load context does not seem to launch Resolve event for System.* assemblies (and thus we never catch load request for e.g. System.Threading.Tasks.Extensions assembly, since UtilPack references newer than is in e.g. 1.1.2 app folder).
       private sealed class NuGetTaskLoadContext : System.Runtime.Loader.AssemblyLoadContext, IDisposable
       {
          private readonly CommonAssemblyRelatedHelper _helper;
          private readonly ConcurrentDictionary<AssemblyName, Lazy<Assembly>> _loadedAssemblies;
+         private readonly ISet<String> _frameworkAssemblySimpleNames;
 
-         public NuGetTaskLoadContext( CommonAssemblyRelatedHelper helper )
+         public NuGetTaskLoadContext(
+            CommonAssemblyRelatedHelper helper,
+            NuGetBoundResolver nugetResolver,
+            XElement taskBodyElement,
+            String[] repoPaths
+            )
          {
             this._helper = helper;
             this._loadedAssemblies = new ConcurrentDictionary<AssemblyName, Lazy<Assembly>>(
@@ -56,6 +75,22 @@ namespace UtilPack.NuGet.MSBuild
                   ( x, y ) => String.Equals( x.Name, y.Name ) && String.Equals( x.CultureName, y.CultureName ) && x.Version.Equals( y.Version ) && ArrayEqualityComparer<Byte>.ArrayEquality( x.GetPublicKeyToken(), y.GetPublicKeyToken() ),
                   x => x.Name.GetHashCode()
                   )
+               );
+            var thisFW = this.GetType().GetTypeInfo().Assembly.GetNuGetFrameworkFromAssembly();
+            var frameworkAssemblyInfo = nugetResolver.ResolveNuGetPackages(
+               taskBodyElement.Element( NuGetBoundResolver.NUGET_FW_PACKAGE_ID )?.Value ?? "Microsoft.NETCore.App", // This value is hard-coded in Microsoft.NET.Sdk.Common.targets, and currently no proper API exists to map NuGetFrameworks into package ID (+ version combination).
+               taskBodyElement.Element( NuGetBoundResolver.NUGET_FW_PACKAGE_VERSION )?.Value ?? "1.1.2",
+               repoPaths,
+               true,
+               out var platformPackage,
+               new NuGetPathResolver( r =>
+               {
+                  return r.GetLibItems( PackagingConstants.Folders.Ref ).Concat( r.GetLibItems() );
+               } )
+               );
+            this._frameworkAssemblySimpleNames = new HashSet<String>( frameworkAssemblyInfo.Values
+               .SelectMany( p => p )
+               .Select( p => Path.GetFileNameWithoutExtension( p ) )
                );
          }
 
@@ -69,12 +104,24 @@ namespace UtilPack.NuGet.MSBuild
             // To save amount of catches we do, cache all loaded assembly by their assembly names.
             return this._loadedAssemblies.GetOrAdd( assemblyName, an => new Lazy<Assembly>( () =>
             {
+               Boolean tryDefaultFirst;
+               switch ( an.Name )
+               {
+                  case "Microsoft.Build":
+                  case "Microsoft.Build.Framework":
+                  case "Microsoft.Build.Tasks.Core":
+                  case "Microsoft.Build.Utilities.Core":
+                     // We'll always try load msbuild assemblies with default loader first.
+                     tryDefaultFirst = true;
+                     break;
+                  default:
+                     // Use default loader only if simple name matches a set of framework assemblies.
+                     tryDefaultFirst = this._frameworkAssemblySimpleNames.Contains( an.Name );
+                     break;
+               }
+
                Assembly retVal = null;
-               if (
-               !String.Equals( an.Name, "UtilPack" )
-               && !String.Equals( an.Name, "UtilPack.NuGet" )
-               && !an.Name.StartsWith( "NuGet." )
-               )
+               if ( tryDefaultFirst )
                {
                   // We use default loader only for assemblies which are not part of our used non-system packages.
                   // Otherwise we will get exceptions in Release build, since e.g. UtilPack will have exactly same full assembly name (since its public key won't be null), and since this assembly was loaded using LoadFromAssemblyPath by MSBuild, it will fail to resolve the dependencies (at least System.Threading.Tasks.Extensions).
@@ -104,16 +151,18 @@ namespace UtilPack.NuGet.MSBuild
          private Microsoft.Build.Framework.IBuildEngine _be;
 
          public NETStandardExecutionHelper(
-            IDictionary<String, ISet<String>> assemblyPathsBySimpleName,
-            NuGetResolverWrapper resolver,
-            String targetAssemblyPath,
+            Microsoft.Build.Framework.IBuildEngine taskFactoryLoggingHost,
+            XElement taskBodyElement,
             String taskName,
-            Microsoft.Build.Framework.IBuildEngine taskFactoryBE
+            NuGetBoundResolver nugetResolver,
+            String assemblyPath,
+            IDictionary<String, ISet<String>> assemblyPathsBySimpleName,
+            String[] repoPaths
             )
-            : base( assemblyPathsBySimpleName, resolver, targetAssemblyPath, taskName )
+            : base( assemblyPathsBySimpleName, new NuGetResolverWrapper( nugetResolver ), assemblyPath, taskName )
          {
-            this._loader = new NuGetTaskLoadContext( this );
-            this._be = taskFactoryBE;
+            this._loader = new NuGetTaskLoadContext( this, nugetResolver, taskBodyElement, repoPaths );
+            this._be = taskFactoryLoggingHost;
             // Register to default load context resolving event to minimize amount of exceptions thrown (we probably don't wanna pollute default loader with all the loaded stuff actually).
             //System.Runtime.Loader.AssemblyLoadContext.Default.Resolving += this._loader_Resolving;
             //this._loader.Resolving += this._loader_Resolving;

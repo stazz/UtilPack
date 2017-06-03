@@ -38,7 +38,7 @@ The task factory is used from the project file in the following way:
       <NuGetTaskInfo>
         Task factory parameters...
       </NuGetTaskInfo>
-    </Task
+    </Task>
   </UsingTask>
 ```
 

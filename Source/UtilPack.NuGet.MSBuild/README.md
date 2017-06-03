@@ -84,12 +84,23 @@ This is why the task executed by ```UtilPack.NuGet.MSBuild``` task factory may d
 * ```Func<String, String, String[], Boolean, String, Assembly>```: The callback to load assembly from NuGet package, and
 * ```Func<String, Assembly>```: The callback to load assembly from path.
 
-The NuGet package loader callback has the following parameters:
+The NuGet package loader callback has the following parameters, in the following order:
 * ```String packageID```: The NuGet package ID, required.
 * ```String packageVersion```: The NuGet package version, optional (newest will be used if not specified).
 * ```String[] repositoryPaths```: The paths to NuGet local repositories where to search package and its dependencies. May be ```null``` or empty, in such case, the default repository path will be used.
 * ```Boolean checkDependencies```: Whether to scan and learn about all the dependencies. In most cases (especially if the types of returned assembly will be used to create objects etc) this should be ```true```.
 * ```String assemblyPath```: The path within package home folder where the assembly resides. May be ```null``` or empty if the package only has one assembly.
 
-The path assembly loader callback has the following parameters:
+The path assembly loader callback has the following parameter:
 * ```String path```: The path of the assembly which to load, required. The dependencies will not be resolved.
+
+## Under the hood
+The ```UtilPack.NuGet.MSBuild``` task factory is implemented by multi-targeting .NET 4.5 and .NET Core 1.1.
+The code mostly common for both frameworks is in [NuGetTaskRunnerFactory.cs](NuGetTaskRunnerFactory.cs) file, and the code radically differing for .NET 4.5 and .NET Core 1.1 is in [NuGetTaskRunnerFactory.NET.cs](NuGetTaskRunnerFactory.NET.cs) and [NuGetTaskRunnerFactory.NETCore.cs](NuGetTaskRunnerFactory.NETCore.cs) files, respectively.
+To control the on-demand assembly loading caused by loading and executing the task,
+* the Desktop version uses [AppDomains](https://docs.microsoft.com/en-us/dotnet/api/system.appdomain?view=netframework-4.5) and [code generation](https://docs.microsoft.com/en-us/dotnet/api/system.reflection.emit?view=netframework-4.5), and
+* the Core version uses [AssemblyLoadContexts](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.loader.assemblyloadcontext?view=netcore-1.1) and [NuGet package resolving](../UtilPack.NuGet/).
+The common part of assembly loading logic uses the same [NuGet package resolving code](../UtilPack.NuGet/) to search for the dependencies of the task-to-be-executed package in order to know where to load them.
+
+In order to seamlessly integrate into the build, all required assemblies are placed under ```build/net45``` and ```build/netcoreapp1.1``` folders, so that the package would not have any dependencies.
+Furthermore, the ```build``` folder contains the ```.props``` file, which will setup the property ```UtilPackNuGetMSBuildAssemblyPath``` pointing to correct (Desktop or Core, depending which version of MSBuild is executing the projet file) assembly containing the task factory.

@@ -18,7 +18,7 @@ The ```Restore``` command is required in order to NuGet set up the .g.props and 
 Once the restore is complete, it will be required to run it again only if you update to other version of ```UtilPack.NuGet.MSBuild``` package.
 
 The project contains ```RunExecuteSQLStatements``` target, which will use the ```CBAM.SQL.MSBuild``` package to execute SQL statements.
-The ```ConnectionConfigurationFilePath``` property should point to JSON file, which contains a single JSON object, with ```Host``, ```Port```, ```Database```, ```Username```, and ```Password``` properties.
+The ```ConnectionConfigurationFilePath``` property should point to JSON file, which contains a single JSON object, with ```Host```, ```Port```, ```Database```, ```Username```, and ```Password``` properties.
 The ```SQLStatementsFilePath``` should be a path to a file containing some SQL statements which are desired to be run to database.
 
 Once started, the ```CBAM.SQL.MSBuild``` package will dynamically load ```CBAM.SQL.PostgreSQL.Implementation``` package, and use the supplied information to execute SQL statements from file to the database.

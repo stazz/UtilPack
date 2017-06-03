@@ -64,6 +64,9 @@ The following information is optional:
 * ```NuGetFrameworkPackageID```: This is used __only__ in package-based frameworks, e.g. .NET Core. If automatic detection fails, this element can be used to specify the platform framework package. For .NET Core, it is ```Microsoft.NETCore.App```.
 * ```NuGetFrameworkPackageVersion```: This is used __only__ in package-based frameworks, e.g. .NET Core. If automatic detection fails, this element can be used to specify the version for ```NuGetFrameworkPackageID``` element.
 
+### Example
+There is an example of using ```UtilPack.NuGet.MSBuild``` in [here](../UtilPack.NuGet.MSBuild.TestProject).
+
 # Developing MSBuild Tasks Executable By UtilPack.NuGet.MSBuild Task Factory
 ## Overview
 There are no special constraints when developing the MSBuild task that will be executed by ```UtilPack.NuGet.MSBuild``` package.

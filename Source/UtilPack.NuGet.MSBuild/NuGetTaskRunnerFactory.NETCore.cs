@@ -28,6 +28,7 @@ using UtilPack;
 using NuGet.Packaging;
 using System.Xml.Linq;
 using System.IO;
+using System.Runtime.Loader;
 
 namespace UtilPack.NuGet.MSBuild
 {
@@ -56,11 +57,12 @@ namespace UtilPack.NuGet.MSBuild
       }
 
       // We must subclass System.Runtime.Loader.AssemblyLoadContext, since the default load context does not seem to launch Resolve event for System.* assemblies (and thus we never catch load request for e.g. System.Threading.Tasks.Extensions assembly, since UtilPack references newer than is in e.g. 1.1.2 app folder).
-      private sealed class NuGetTaskLoadContext : System.Runtime.Loader.AssemblyLoadContext, IDisposable
+      private sealed class NuGetTaskLoadContext : AssemblyLoadContext, IDisposable
       {
          private readonly CommonAssemblyRelatedHelper _helper;
          private readonly ConcurrentDictionary<AssemblyName, Lazy<Assembly>> _loadedAssemblies;
          private readonly ISet<String> _frameworkAssemblySimpleNames;
+         private readonly AssemblyLoadContext _defaultLoadContext;
 
          public NuGetTaskLoadContext(
             CommonAssemblyRelatedHelper helper,
@@ -70,6 +72,7 @@ namespace UtilPack.NuGet.MSBuild
             )
          {
             this._helper = helper;
+            this._defaultLoadContext = GetLoadContext( this.GetType().GetTypeInfo().Assembly );
             this._loadedAssemblies = new ConcurrentDictionary<AssemblyName, Lazy<Assembly>>(
                ComparerFromFunctions.NewEqualityComparer<AssemblyName>(
                   ( x, y ) => String.Equals( x.Name, y.Name ) && String.Equals( x.CultureName, y.CultureName ) && x.Version.Equals( y.Version ) && ArrayEqualityComparer<Byte>.ArrayEquality( x.GetPublicKeyToken(), y.GetPublicKeyToken() ),
@@ -127,7 +130,7 @@ namespace UtilPack.NuGet.MSBuild
                   // Otherwise we will get exceptions in Release build, since e.g. UtilPack will have exactly same full assembly name (since its public key won't be null), and since this assembly was loaded using LoadFromAssemblyPath by MSBuild, it will fail to resolve the dependencies (at least System.Threading.Tasks.Extensions).
                   try
                   {
-                     retVal = Default.LoadFromAssemblyName( assemblyName );
+                     retVal = this._defaultLoadContext.LoadFromAssemblyName( assemblyName );
                   }
                   catch
                   {

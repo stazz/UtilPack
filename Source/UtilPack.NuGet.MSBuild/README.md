@@ -94,7 +94,7 @@ The NuGet package loader callback has the following parameters, in the following
 The path assembly loader callback has the following parameter:
 * ```String path```: The path of the assembly which to load, required. The dependencies will not be resolved.
 
-## Under the hood
+# Under the hood
 The ```UtilPack.NuGet.MSBuild``` task factory is implemented by multi-targeting .NET 4.5 and .NET Core 1.1.
 The code mostly common for both frameworks is in [NuGetTaskRunnerFactory.cs](NuGetTaskRunnerFactory.cs) file, and the code radically differing for .NET 4.5 and .NET Core 1.1 is in [NuGetTaskRunnerFactory.NET.cs](NuGetTaskRunnerFactory.NET.cs) and [NuGetTaskRunnerFactory.NETCore.cs](NuGetTaskRunnerFactory.NETCore.cs) files, respectively.
 To control the on-demand assembly loading caused by loading and executing the task,

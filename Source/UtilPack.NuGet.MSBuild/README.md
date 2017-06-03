@@ -100,6 +100,7 @@ The code mostly common for both frameworks is in [NuGetTaskRunnerFactory.cs](NuG
 To control the on-demand assembly loading caused by loading and executing the task,
 * the Desktop version uses [AppDomains](https://docs.microsoft.com/en-us/dotnet/api/system.appdomain?view=netframework-4.5) and [code generation](https://docs.microsoft.com/en-us/dotnet/api/system.reflection.emit?view=netframework-4.5), and
 * the Core version uses [AssemblyLoadContexts](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.loader.assemblyloadcontext?view=netcore-1.1) and [NuGet package resolving](../UtilPack.NuGet/).
+
 The common part of assembly loading logic uses the same [NuGet package resolving code](../UtilPack.NuGet/) to search for the dependencies of the task-to-be-executed package in order to know where to load them.
 
 In order to seamlessly integrate into the build, all required assemblies are placed under ```build/net45``` and ```build/netcoreapp1.1``` folders, so that the package would not have any dependencies.

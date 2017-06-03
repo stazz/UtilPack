@@ -79,7 +79,6 @@ namespace UtilPack.NuGet.MSBuild
                   x => x.Name.GetHashCode()
                   )
                );
-            var thisFW = this.GetType().GetTypeInfo().Assembly.GetNuGetFrameworkFromAssembly();
             var frameworkAssemblyInfo = nugetResolver.ResolveNuGetPackages(
                taskBodyElement.Element( NuGetBoundResolver.NUGET_FW_PACKAGE_ID )?.Value ?? "Microsoft.NETCore.App", // This value is hard-coded in Microsoft.NET.Sdk.Common.targets, and currently no proper API exists to map NuGetFrameworks into package ID (+ version combination).
                taskBodyElement.Element( NuGetBoundResolver.NUGET_FW_PACKAGE_VERSION )?.Value ?? "1.1.2",

@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
     <id>UtilPack.NuGet.MSBuild</id>
-    <version>1.0.0-RC1</version>
+    <version>1.0.0-RC2</version>
     <title>MSBuild Task Factory for NuGet-Oriented MSBuild Tasks</title>
     <authors>Stanislav Muhametsin</authors>
     <owners>Stanislav Muhametsin</owners>

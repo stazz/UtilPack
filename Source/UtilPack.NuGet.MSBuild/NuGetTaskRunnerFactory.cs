@@ -1199,9 +1199,8 @@ namespace UtilPack.NuGet.MSBuild
                var tuple = prevTask.Result;
                setter.SetResult( new MarshaledResolveInfo( tuple.Item1, tuple.Item2, tuple.Item3 ) );
             }
-            catch ( Exception eee )
+            catch
             {
-               Console.WriteLine( "FUUUGG:\n" + eee );
                setter.SetResult( null );
             }
          } );

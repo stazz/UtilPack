@@ -17,6 +17,8 @@
  */
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NuGet.Common;
+using NuGet.Configuration;
+using NuGet.DependencyResolver;
 using NuGet.Frameworks;
 using NuGet.Packaging;
 using NuGet.Repositories;
@@ -28,6 +30,12 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using UtilPack.NuGet;
+using NuGet.Protocol.Core.Types;
+using NuGet.Protocol;
+using NuGet.LibraryModel;
+using System.Threading.Tasks;
+using NuGet.ProjectModel;
+using NuGet.Commands;
 
 namespace UtilPack.Tests.NuGet
 {
@@ -58,10 +66,13 @@ namespace UtilPack.Tests.NuGet
          var package = repo.FindPackage( "Microsoft.NETCore.App", NuGetVersion.Parse( "1.1.2" ) );
          var thisAssembly = Assembly.GetEntryAssembly();
          var thisFW = NuGetFramework.Parse( ".NETCoreApp1.1" ); // thisAssembly.GetNuGetFrameworkFromAssembly(); the test assembly is actually .NET Core App 1.0, even though the version in .csproj is 1.1.
-         var assemblyInfo = new NuGetPathResolver( r =>
+         (var assemblyInfo, var missingDependencies) = new NuGetPathResolver( r =>
          {
             return r.GetLibItems( PackagingConstants.Folders.Ref ).Concat( r.GetLibItems() );
          } ).GetNuGetPackageAssembliesAndDependencies( package, thisFW, repo.Singleton() );
+
+         Assert.AreEqual( 0, missingDependencies.Count );
+
          var resolvedAssemblies = assemblyInfo.Values
             .SelectMany( p => p )
             .Select( p => Path.GetFileName( p ) )
@@ -99,6 +110,7 @@ namespace UtilPack.Tests.NuGet
          set.ExceptWith( resolvedAssemblies );
          Assert.AreEqual( 0, set.Count );
       }
+
 
       private static NuGetv3LocalRepository CreateDefaultLocalRepo()
       {

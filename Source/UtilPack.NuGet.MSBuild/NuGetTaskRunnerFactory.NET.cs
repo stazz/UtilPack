@@ -28,20 +28,20 @@ using System.Threading;
 using TPropertyInfo = System.ValueTuple<System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyInfo>, System.Func<System.Object>, System.Action<System.Object>, System.Func<System.String, System.Object>>;
 using System.Reflection.Emit;
 using System.Xml.Linq;
+using System.Threading.Tasks;
 
 namespace UtilPack.NuGet.MSBuild
 {
    partial class NuGetTaskRunnerFactory
    {
 
-      private NuGetTaskExecutionHelper CreateExecutionHelper(
+      private ValueTask<NuGetTaskExecutionHelper> CreateExecutionHelper(
          Microsoft.Build.Framework.IBuildEngine taskFactoryLoggingHost,
          XElement taskBodyElement,
          String taskName,
-         NuGetBoundResolver nugetResolver,
+         NuGetResolverWrapper nugetResolver,
          String assemblyPath,
-         IDictionary<String, ISet<String>> assemblyPathsBySimpleName,
-         String[] repoPaths
+         IDictionary<String, ISet<String>> assemblyPathsBySimpleName
          )
       {
          var assemblyDir = Path.GetDirectoryName( assemblyPath );
@@ -68,14 +68,14 @@ namespace UtilPack.NuGet.MSBuild
          // We can't pass NET45NuGetResolver to AssemblyLoadHelper constructor directly, because that type is in this assembly, which is outside app domains application path.
          // And we can't register to AssemblyResolve because of that reason too.
          // Alternatively we could just make new type which binds AssemblyLoadHelper and NET45NuGetResolver, but let's go with this for now.
-         var logger = new ResolverLogger( taskFactoryLoggingHost );
-         bootstrapper.Initialize( assemblyPathsBySimpleName, new NuGetResolverWrapper( nugetResolver ), assemblyPath, taskName, logger );
-         return new NET45ExecutionHelper(
+         var logger = new ResolverLogger( taskFactoryLoggingHost, nugetResolver.Resolver.NuGetLogger );
+         bootstrapper.Initialize( assemblyPathsBySimpleName, nugetResolver, assemblyPath, taskName, logger );
+         return new ValueTask<NuGetTaskExecutionHelper>( new NET45ExecutionHelper(
             taskName,
             appDomain,
             bootstrapper,
             logger
-            );
+            ) );
       }
 
       private sealed class NET45ExecutionHelper : NuGetTaskExecutionHelper
@@ -644,11 +644,13 @@ namespace UtilPack.NuGet.MSBuild
       private Microsoft.Build.Framework.IBuildEngine _be;
       private Int32 _state;
       private readonly List<String> _queuedMessages;
+      private readonly NuGetMSBuildLogger _nugetLogger;
 
-      public ResolverLogger( Microsoft.Build.Framework.IBuildEngine be )
+      internal ResolverLogger( Microsoft.Build.Framework.IBuildEngine be, NuGetMSBuildLogger nugetLogger )
       {
          this._be = be;
          this._queuedMessages = new List<String>();
+         this._nugetLogger = nugetLogger;
       }
 
       // This is called by generated task type in its IBuildEngine setter
@@ -657,6 +659,7 @@ namespace UtilPack.NuGet.MSBuild
          if ( be != null && Interlocked.CompareExchange( ref this._state, TASK_BE_INITIALIZING, USING_TASK_FACTORY_BE ) == USING_TASK_FACTORY_BE )
          {
             Interlocked.Exchange( ref this._be, be );
+            this._nugetLogger.SetBuildEngine( null );
          }
       }
 
@@ -665,6 +668,7 @@ namespace UtilPack.NuGet.MSBuild
       {
          if ( Interlocked.CompareExchange( ref this._state, TASK_BE_READY, TASK_BE_INITIALIZING ) == TASK_BE_INITIALIZING )
          {
+            this._nugetLogger.SetBuildEngine( this._be );
             // process all queued messages
             foreach ( var msg in this._queuedMessages )
             {

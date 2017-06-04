@@ -120,7 +120,7 @@ namespace UtilPack.NuGet
       /// <param name="repositories">The repositories to use when searching for dependencies. If none specified or is <c>null</c>, a default repository (folder of <see cref="NuGetFolderPath.NuGetHome"/> combined with <c>"packages"</c>) will be used.</param>
       /// <returns>A dictionary, where each local package (including this) has assembly paths.Will return <c>null</c> if no suitable framework is found for this package.</returns>
       /// <exception cref="ArgumentNullException">If this <see cref="LocalPackageInfo"/> is <c>null</c>.</exception>
-      public IDictionary<LocalPackageInfo, String[]> GetNuGetPackageAssembliesAndDependencies(
+      public (IDictionary<LocalPackageInfo, String[]> DependencyInformation, ISet<String> MissingPackages) GetNuGetPackageAssembliesAndDependencies(
          LocalPackageInfo package,
          NuGetFramework thisFramework = null,
          IEnumerable<NuGetv3LocalRepository> repositories = null
@@ -142,10 +142,11 @@ namespace UtilPack.NuGet
          }
 
          // We consider dependency chain item visited when there are two same packages (same id + same version) - the local assembly info is actually ignored in such equality comparison
-         var allLoadableInfo = (package, thisFramework, suitableLibraryItem).AsDepthFirstEnumerableWithLoopDetection(
-          curTuple => this.GetSinglePackageDependencies( thisFramework, repositories, curTuple ),
+         var missingDependencies = new HashSet<String>();
+         var allLoadableInfo = (package, suitableLibraryItem).AsDepthFirstEnumerableWithLoopDetection(
+          curTuple => this.GetSinglePackageDependencies( thisFramework, repositories, curTuple.Item1, missingDependencies ),
           returnHead: true,
-          equalityComparer: ComparerFromFunctions.NewEqualityComparer<(LocalPackageInfo, NuGetFramework, FrameworkSpecificGroup)>(
+          equalityComparer: ComparerFromFunctions.NewEqualityComparer<(LocalPackageInfo, FrameworkSpecificGroup)>(
              ( x, y ) => PackageIDAndVersionEqualityComparer.Equals( x.Item1, y.Item1 ),
              x => PackageIDAndVersionEqualityComparer.GetHashCode( x.Item1 )
              )
@@ -157,14 +158,14 @@ namespace UtilPack.NuGet
          {
             if ( !multiplePackages.TryGetValue( info.Item1, out var cur ) )
             {
-               multiplePackages.Add( info.Item1, (info.Item1.Version, info.Item3) );
+               multiplePackages.Add( info.Item1, (info.Item1.Version, info.Item2) );
             }
             else if ( info.Item1.Version > cur.Item1 )
             {
                // Remove the item, since it is used as a key
                multiplePackages.Remove( info.Item1 );
                // Then add
-               multiplePackages.Add( info.Item1, (info.Item1.Version, info.Item3) );
+               multiplePackages.Add( info.Item1, (info.Item1.Version, info.Item2) );
             }
 
          }
@@ -180,7 +181,7 @@ namespace UtilPack.NuGet
          //{
          //   retVal = null;
          //}
-         return retVal;
+         return (retVal, missingDependencies);
       }
 
       /// <summary>
@@ -232,15 +233,16 @@ namespace UtilPack.NuGet
             );
       }
 
-      private IEnumerable<(LocalPackageInfo Package, NuGetFramework TargetFW, FrameworkSpecificGroup Assemblies)> GetSinglePackageDependencies(
+      private IEnumerable<(LocalPackageInfo Package, FrameworkSpecificGroup Assemblies)> GetSinglePackageDependencies(
          NuGetFramework thisRuntimeFW,
          IEnumerable<NuGetv3LocalRepository> repositories,
-         (LocalPackageInfo Package, NuGetFramework TargetFW, FrameworkSpecificGroup Assemblies) package
+         LocalPackageInfo package,
+         ISet<String> missingDependencies
       )
       {
          var dependencies = NuGetFrameworkUtility.GetNearest(
-            package.Package.Nuspec.GetDependencyGroups(),
-            package.TargetFW,
+            package.Nuspec.GetDependencyGroups(),
+            thisRuntimeFW,
             d => d.TargetFramework
             );
          if ( dependencies != null )
@@ -252,10 +254,14 @@ namespace UtilPack.NuGet
                var suitableLocalPackage = repositories
                   .SelectMany( repo => repo.FindPackagesById( currentDependency.Id ) )
                   .FindBestMatch( currentDependency.VersionRange, l => l?.Version );
-               if ( suitableLocalPackage != null )
+               if ( suitableLocalPackage == null )
+               {
+                  missingDependencies.Add( currentDependency.Id );
+               }
+               else
                {
                   var suitableLibraryFolder = this.GetAssembliesForSinglePackage( suitableLocalPackage, thisRuntimeFW );
-                  yield return (suitableLocalPackage, thisRuntimeFW/*suitableLibraryFolder?.TargetFramework ?? package.TargetFW*/, suitableLibraryFolder);
+                  yield return (suitableLocalPackage, suitableLibraryFolder);
                }
             }
          }
@@ -311,7 +317,7 @@ public static partial class E_UtilPack
    /// <remarks>This method does not restore packages - it only sees those packages, which are currently locally installed.</remarks>
    /// <exception cref="NullReferenceException">If this <see cref="NuGetPathResolver"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="package"/> is <c>null</c>.</exception>
-   public static IDictionary<LocalPackageInfo, String[]> GetNuGetPackageAssembliesAndDependencies(
+   public static (IDictionary<LocalPackageInfo, String[]> DependencyInformation, ISet<String> MissingPackages) GetNuGetPackageAssembliesAndDependencies(
       this NuGetPathResolver resolver,
       LocalPackageInfo package,
       params NuGetv3LocalRepository[] repositories

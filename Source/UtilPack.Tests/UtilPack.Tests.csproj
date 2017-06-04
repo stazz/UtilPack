@@ -21,8 +21,12 @@
     <PackageReference Include="NUnit" Version="3.6.1" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.0.0-ci-00405-issue-297" />
     -->
-    <PackageReference Include="MSTest.TestAdapter" Version="1.1.17" />
-    <PackageReference Include="MSTest.TestFramework" Version="1.1.17" />
+    <PackageReference Include="MSTest.TestAdapter" Version="1.1.18" />
+    <PackageReference Include="MSTest.TestFramework" Version="1.1.18" />
+    <PackageReference Include="NuGet.Commands" Version="4.0.0" />
+    <PackageReference Include="NuGet.Configuration" Version="4.0.0" />
+    <PackageReference Include="NuGet.DependencyResolver.Core" Version="4.0.0" />
+    <PackageReference Include="NuGet.ProjectModel" Version="4.0.0" />
   </ItemGroup>
 
   <ItemGroup>

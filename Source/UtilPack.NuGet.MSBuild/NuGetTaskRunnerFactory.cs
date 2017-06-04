@@ -28,9 +28,17 @@ using System.Reflection;
 using NuGet.Frameworks;
 
 using TPropertyInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyInfo, System.Reflection.PropertyInfo>;
-using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String[], System.Boolean, System.String, System.Reflection.Assembly>;
+using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
 using TAssemblyByPathResolverCallback = System.Func<System.String, System.Reflection.Assembly>;
 using System.Collections.Concurrent;
+using NuGet.Configuration;
+using NuGet.ProjectModel;
+using NuGet.Commands;
+using NuGet.Protocol.Core.Types;
+using NuGet.Packaging;
+using NuGet.LibraryModel;
+
+using TResolveResult = System.ValueTuple<System.Collections.Generic.IDictionary<System.String, System.String[]>, System.String, System.String>;
 
 namespace UtilPack.NuGet.MSBuild
 {
@@ -91,35 +99,31 @@ namespace UtilPack.NuGet.MSBuild
             this.FactoryName,
             taskBodyElement
             );
-         var repositoryPaths = taskBodyElement.Elements( "Repositories" ).Select( el => el.Value ).ToArray();
+         String packageID;
          var resolveInfo = nugetResolver.ResolveNuGetPackages(
-            taskBodyElement.Element( PACKAGE_ID )?.Value,
-            taskBodyElement.Element( "PackageVersion" )?.Value,
-            repositoryPaths,
-            false,
-            out var package
-            );
+            ( packageID = taskBodyElement.Element( PACKAGE_ID )?.Value ),
+            taskBodyElement.Element( "PackageVersion" )?.Value
+            ).GetAwaiter().GetResult();
+         NuGetPathResolverV2 pathResolver;
+         String[] assemblyPaths;
          var retVal = false;
-         if ( resolveInfo != null && package != null && resolveInfo.TryGetValue( package, out var assemblyPaths ) && !assemblyPaths.IsNullOrEmpty() )
+         if ( resolveInfo != null
+            && resolveInfo.TryGetValue( packageID, out var package )
+            && !( assemblyPaths = ( pathResolver = new NuGetPathResolverV2( r => r.GetLibItems().Concat( r.GetLibItems( PackagingConstants.Folders.Build ) ) ) ).GetAssemblies( package.ExpandedPath, nugetResolver.ThisFramework ) ).IsNullOrEmpty()
+            )
          {
             var assemblyPath = CommonHelpers.GetAssemblyPathFromNuGetAssemblies( assemblyPaths, package.ExpandedPath, taskBodyElement.Element( "AssemblyPath" )?.Value );
             if ( !String.IsNullOrEmpty( assemblyPath ) )
             {
+               var wrapper = new NuGetResolverWrapper( nugetResolver, pathResolver );
                this._helper = this.CreateExecutionHelper(
                   taskFactoryLoggingHost,
                   taskBodyElement,
                   this.ProcessTaskName( taskBodyElement, taskName ),
-                  nugetResolver,
+                  wrapper,
                   assemblyPath,
-                  GroupDependenciesBySimpleAssemblyName( nugetResolver.ResolveNuGetPackages(
-                     package.Id,
-                     package.Version.ToNormalizedString(),
-                     repositoryPaths,
-                     true,
-                     out package )
-                     ),
-                  repositoryPaths
-                  );
+                  GroupDependenciesBySimpleAssemblyName( wrapper.TransformToAssemblyPathDictionary( resolveInfo ) )
+                  ).GetAwaiter().GetResult();
                retVal = true;
             }
             else
@@ -170,7 +174,7 @@ namespace UtilPack.NuGet.MSBuild
       }
 
       protected static IDictionary<String, ISet<String>> GroupDependenciesBySimpleAssemblyName(
-         IDictionary<LocalPackageInfo, String[]> packageDependencyInfo,
+         IDictionary<String, String[]> packageDependencyInfo,
          IDictionary<String, ISet<String>> existing = null
          )
       {
@@ -197,6 +201,280 @@ namespace UtilPack.NuGet.MSBuild
       }
    }
 
+   internal sealed class NuGetMSBuildLogger : global::NuGet.Common.ILogger
+   {
+      private const String CAT = "NuGetRestore";
+
+      private IBuildEngine _be;
+#if NET45
+      private readonly List<BuildEventArgs> _queue;
+#endif
+
+      public NuGetMSBuildLogger( IBuildEngine be )
+      {
+         this._be = be;
+#if NET45
+         this._queue = new List<BuildEventArgs>();
+#endif
+      }
+
+      public void LogDebug( String data )
+      {
+         var args = new BuildMessageEventArgs( data, null, CAT, MessageImportance.Low );
+#if NET45
+         if ( this._be == null )
+         {
+            this._queue.Add( args );
+         }
+         else
+         {
+#endif
+            this._be.LogMessageEvent( args );
+#if NET45
+         }
+#endif
+      }
+
+      public void LogError( String data )
+      {
+         var args = new BuildErrorEventArgs( CAT, "NR0001", null, -1, -1, -1, -1, data, null, CAT );
+#if NET45
+         if ( this._be == null )
+         {
+            this._queue.Add( args );
+         }
+         else
+         {
+#endif
+            this._be.LogErrorEvent( args );
+#if NET45
+         }
+#endif
+      }
+
+      public void LogErrorSummary( String data )
+      {
+         var args = new BuildErrorEventArgs( CAT, "NR0002", null, -1, -1, -1, -1, data, null, CAT );
+#if NET45
+         if ( this._be == null )
+         {
+            this._queue.Add( args );
+         }
+         else
+         {
+#endif
+            this._be.LogErrorEvent( args );
+#if NET45
+         }
+#endif
+      }
+
+      public void LogInformation( String data )
+      {
+         var args = new BuildMessageEventArgs( data, null, CAT, MessageImportance.High );
+#if NET45
+         if ( this._be == null )
+         {
+            this._queue.Add( args );
+         }
+         else
+         {
+#endif
+            this._be.LogMessageEvent( args );
+#if NET45
+         }
+#endif
+      }
+
+      public void LogInformationSummary( String data )
+      {
+         var args = new BuildMessageEventArgs( data, null, CAT, MessageImportance.High );
+#if NET45
+         if ( this._be == null )
+         {
+            this._queue.Add( args );
+         }
+         else
+         {
+#endif
+            this._be.LogMessageEvent( args );
+#if NET45
+         }
+#endif
+      }
+
+      public void LogMinimal( String data )
+      {
+         var args = new BuildMessageEventArgs( data, null, CAT, MessageImportance.Low );
+#if NET45
+         if ( this._be == null )
+         {
+            this._queue.Add( args );
+         }
+         else
+         {
+#endif
+            this._be.LogMessageEvent( args );
+#if NET45
+         }
+#endif
+      }
+
+      public void LogVerbose( String data )
+      {
+         var args = new BuildMessageEventArgs( data, null, CAT, MessageImportance.Normal );
+#if NET45
+         if ( this._be == null )
+         {
+            this._queue.Add( args );
+         }
+         else
+         {
+#endif
+            this._be.LogMessageEvent( args );
+#if NET45
+         }
+#endif
+      }
+
+      public void LogWarning( String data )
+      {
+         var args = new BuildWarningEventArgs( CAT, "NR0003", null, -1, -1, -1, -1, data, null, CAT );
+#if NET45
+         if ( this._be == null )
+         {
+            this._queue.Add( args );
+         }
+         else
+         {
+#endif
+            this._be.LogWarningEvent( args );
+#if NET45
+         }
+#endif
+      }
+
+      public void SetBuildEngine( IBuildEngine be )
+      {
+         System.Threading.Interlocked.Exchange( ref this._be, be );
+#if NET45
+         if ( be != null )
+         {
+            foreach ( var args in this._queue )
+            {
+               switch ( args )
+               {
+                  case BuildErrorEventArgs error:
+                     be.LogErrorEvent( error );
+                     break;
+                  case BuildWarningEventArgs warning:
+                     be.LogWarningEvent( warning );
+                     break;
+                  case BuildMessageEventArgs msg:
+                     be.LogMessageEvent( msg );
+                     break;
+               }
+            }
+            this._queue.Clear();
+         }
+#endif
+      }
+   }
+
+   internal sealed class NuGetPathResolverV2
+   {
+
+      private static readonly IEqualityComparer<LocalPackageInfo> _PackageIDEqualityComparer;
+
+      private static readonly IEqualityComparer<LocalPackageInfo> _PackageIDAndVersionEqualityComparer;
+
+      static NuGetPathResolverV2()
+      {
+         _PackageIDEqualityComparer = ComparerFromFunctions.NewEqualityComparer<LocalPackageInfo>(
+         ( x, y ) => ReferenceEquals( x, y ) || ( x != null && y != null && String.Equals( x?.Id, y?.Id, StringComparison.OrdinalIgnoreCase ) ),
+         x => x?.Id?.ToUpperInvariant()?.GetHashCode() ?? 0
+         );
+
+         _PackageIDAndVersionEqualityComparer = ComparerFromFunctions.NewEqualityComparer<LocalPackageInfo>(
+         ( x, y ) => ReferenceEquals( x, y ) || ( x != null && y != null && _PackageIDEqualityComparer.Equals( x, y ) && x.Version.Equals( y.Version ) ),
+         x => x?.Id?.ToUpperInvariant()?.GetHashCode() ?? 0
+         );
+      }
+
+      /// <summary>
+      /// Gets the <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which only uses <see cref="LocalPackageInfo.Id"/> property to determine equality between two <see cref="LocalPackageInfo"/>s.
+      /// </summary>
+      /// <value>The <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which only uses <see cref="LocalPackageInfo.Id"/> property to determine equality between two <see cref="LocalPackageInfo"/>s.</value>
+      public static IEqualityComparer<LocalPackageInfo> PackageIDEqualityComparer
+      {
+         get
+         {
+            return _PackageIDEqualityComparer;
+         }
+      }
+
+      /// <summary>
+      /// Gets the <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which uses <see cref="LocalPackageInfo.Id"/> and <see cref="LocalPackageInfo.Version"/> properties to determine equality between two <see cref="LocalPackageInfo"/>s.
+      /// </summary>
+      /// <value>The <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which uses <see cref="LocalPackageInfo.Id"/> and <see cref="LocalPackageInfo.Version"/> properties to determine equality between two <see cref="LocalPackageInfo"/>s.</value>
+      public static IEqualityComparer<LocalPackageInfo> PackageIDAndVersionEqualityComparer
+      {
+         get
+         {
+            return _PackageIDAndVersionEqualityComparer;
+         }
+      }
+
+      private readonly ConcurrentDictionary<String, FrameworkSpecificGroup[]> _readerCache;
+      private readonly ConcurrentDictionary<FrameworkSpecificGroup, String[]> _pathCache;
+      private readonly Func<PackageFolderReader, IEnumerable<FrameworkSpecificGroup>> _readerItemProducer;
+
+
+      public NuGetPathResolverV2(
+         Func<PackageFolderReader, IEnumerable<FrameworkSpecificGroup>> readerItemProducer = null
+         )
+      {
+         this._readerCache = new ConcurrentDictionary<String, FrameworkSpecificGroup[]>();
+         this._pathCache = new ConcurrentDictionary<FrameworkSpecificGroup, String[]>( ReferenceEqualityComparer<FrameworkSpecificGroup>.ReferenceBasedComparer );
+         this._readerItemProducer = readerItemProducer ?? ( r => r.GetLibItems() );
+      }
+
+      public String[] GetAssemblies( String folder, NuGetFramework thisFramework )
+      {
+         var frameworkSpecificGroups = this._readerCache.GetOrAdd( folder, p =>
+         {
+            using ( var reader = new PackageFolderReader( p ) )
+            {
+               return this._readerItemProducer( reader ).ToArray();
+            }
+         } );
+
+         var nearest = NuGetFrameworkUtility.GetNearest(
+            frameworkSpecificGroups,
+            thisFramework,
+            li => li.TargetFramework
+            );
+
+         String[] retVal;
+         if ( nearest != null )
+         {
+            retVal = this._pathCache.GetOrAdd( nearest, group =>
+            {
+               return group.Items
+                  .Where( li => PackageHelper.IsAssembly( li ) )
+                  .Select( relPath => Path.GetFullPath( Path.Combine( folder, relPath ) ) )
+                  .ToArray();
+            } );
+         }
+         else
+         {
+            retVal = null;
+         }
+
+         return retVal;
+      }
+   }
+
    internal sealed class NuGetBoundResolver
    {
 
@@ -205,10 +483,12 @@ namespace UtilPack.NuGet.MSBuild
       internal const String NUGET_FW_PACKAGE_ID = "NuGetFrameworkPackageID";
       internal const String NUGET_FW_PACKAGE_VERSION = "NuGetFrameworkPackageVersion";
 
-      private readonly NuGetFramework _thisFW;
-      private readonly NuGetv3LocalRepository _defaultLocalRepo;
-      private readonly NuGetPathResolver _resolver;
 
+      //private readonly ISettings _nugetSettings;
+      private readonly SourceCacheContext _cacheContext;
+      private readonly RestoreCommandProviders _restoreCommandProvider;
+      private readonly String _nugetRestoreRootDir; // NuGet restore command never writes anything to disk (apart from packages themselves), but if certain file paths are omitted, it simply fails with argumentnullexception when invoking Path.Combine or Path.GetFullName. So this can be anything, really, as long as it's understandable by Path class.
+      private readonly TargetFrameworkInformation _restoreTargetFW;
 
       public NuGetBoundResolver(
          IBuildEngine be,
@@ -218,7 +498,7 @@ namespace UtilPack.NuGet.MSBuild
       {
          var nugetFrameworkFromProjectFile = taskBodyElement.Element( NUGET_FW )?.Value;
 
-         this._thisFW = String.IsNullOrEmpty( nugetFrameworkFromProjectFile ) ?
+         this.ThisFramework = String.IsNullOrEmpty( nugetFrameworkFromProjectFile ) ?
 #if NET45
             Assembly.GetEntryAssembly().GetNuGetFrameworkFromAssembly()
 #else
@@ -227,24 +507,49 @@ namespace UtilPack.NuGet.MSBuild
             : NuGetFramework.ParseFrameworkName( nugetFrameworkFromProjectFile, new DefaultFrameworkNameProvider() )
             ;
          be.LogMessageEvent( new BuildMessageEventArgs(
-            $"Using {this._thisFW} as NuGet framework representing this runtime.",
+            $"Using {this.ThisFramework} as NuGet framework representing this runtime.",
             null,
             senderName,
             MessageImportance.High
             ) );
 
-         this._defaultLocalRepo = new NuGetv3LocalRepository( GetDefaultNuGetLocalRepositoryPath() );
-         this._resolver = new NuGetPathResolver( reader =>
+         String nugetConfig;
+         ISettings nugetSettings;
+         if ( String.IsNullOrEmpty( ( nugetConfig = taskBodyElement.Element( "NuGetConfigurationFile" )?.Value ) ) )
          {
-            var libs = reader.GetLibItems().ToArray();
-            if ( libs.Length == 0 )
-            {
-               libs = reader.GetBuildItems().ToArray();
-            }
-            return libs;
+            nugetSettings = Settings.LoadDefaultSettings( Path.GetDirectoryName( be.ProjectFileOfTaskNode ), null, new XPlatMachineWideSetting() );
          }
-         );
+         else
+         {
+            var fp = Path.GetFullPath( nugetConfig );
+            nugetSettings = Settings.LoadSpecificSettings( Path.GetDirectoryName( fp ), Path.GetFileName( fp ) );
+         }
+
+         var global = SettingsUtility.GetGlobalPackagesFolder( nugetSettings );
+         var fallbacks = SettingsUtility.GetFallbackPackageFolders( nugetSettings );
+         var ctx = new SourceCacheContext();
+         var nugetLogger = new NuGetMSBuildLogger( be );
+         var psp = new PackageSourceProvider( nugetSettings );
+         var csp = new global::NuGet.Protocol.CachingSourceProvider( psp );
+         this._cacheContext = ctx;
+         this.NuGetLogger = nugetLogger;
+         this._restoreCommandProvider = RestoreCommandProviders.Create(
+            global,
+            fallbacks,
+            new PackageSourceProvider( nugetSettings ).LoadPackageSources().Where( s => s.IsEnabled ).Select( s => csp.CreateRepository( s ) ),
+            ctx,
+            nugetLogger
+            );
+         this._nugetRestoreRootDir = Path.Combine( Path.GetTempPath(), Path.GetRandomFileName() );
+         this._restoreTargetFW = new TargetFrameworkInformation()
+         {
+            FrameworkName = this.ThisFramework
+         };
       }
+
+      public NuGetFramework ThisFramework { get; }
+
+      public NuGetMSBuildLogger NuGetLogger { get; }
 
 #if !NET45
 
@@ -324,93 +629,94 @@ namespace UtilPack.NuGet.MSBuild
       }
 
 #endif
-
-      public IDictionary<LocalPackageInfo, String[]> ResolveNuGetPackages(
+      public async System.Threading.Tasks.Task<IDictionary<String, LocalPackageInfo>> ResolveNuGetPackages(
          String packageID,
-         String version,
-         String[] repositoryPaths,
-         Boolean loadDependencies,
-         out LocalPackageInfo package,
-         NuGetPathResolver resolverToUse = null
+         String version
          )
       {
-         IDictionary<LocalPackageInfo, String[]> retVal = null;
-         package = null;
+         // Prepare for invoking restore command
+         IDictionary<String, LocalPackageInfo> retVal;
          if ( !String.IsNullOrEmpty( packageID ) )
          {
-            var repositories = this.GetRepositories( repositoryPaths );
-
-            // Try to find our package
-            NuGetv3LocalRepository matchingRepo = null;
-            if ( !String.IsNullOrEmpty( version ) && NuGetVersion.TryParse( version, out var nugetVersion ) )
+            var spec = new PackageSpec()
             {
-               // Find by package id + version combination
-               (matchingRepo, package) = repositories
-                  .Select( r => (r, r.FindPackage( packageID, nugetVersion )) )
-                  .FirstOrDefault();
+               Name = $"Restoring {packageID}",
+               FilePath = Path.Combine( this._nugetRestoreRootDir, "dummy" )
+            };
+            spec.TargetFrameworks.Add( this._restoreTargetFW );
+
+            VersionRange versionRange;
+            if ( String.IsNullOrEmpty( version ) )
+            {
+               // Accept all versions, and pick the newest
+               versionRange = VersionRange.AllFloating;
+            }
+            else
+            {
+               // Accept specific min version
+               versionRange = new VersionRange( new NuGetVersion( version ) );
             }
 
-            if ( matchingRepo == null || package == null )
+            spec.Dependencies.Add( new LibraryDependency()
             {
-               // Find by package id, and use newest
-               (matchingRepo, package) = repositories
-                  .SelectMany( r => r.FindPackagesById( packageID ).Select( p => (r, p) ) )
-                  .OrderByDescending( l => l.Item2.Version, VersionComparer.Default )
-                  .FirstOrDefault();
-            }
+               LibraryRange = new LibraryRange( packageID, versionRange, LibraryDependencyTarget.Package )
+            } );
 
-            if ( matchingRepo != null && package != null )
+            var request = new RestoreRequest(
+               spec,
+               this._restoreCommandProvider,
+               this._cacheContext,
+               this.NuGetLogger )
             {
-               var resolver = resolverToUse ?? this._resolver;
-               if ( loadDependencies )
-               {
-                  // Set up repositories list
-                  if ( repositories.Count > 1 )
-                  {
-                     repositories.Remove( matchingRepo );
-                     repositories.Insert( 0, matchingRepo );
-                  }
+               ProjectStyle = ProjectStyle.Standalone,
+               RestoreOutputPath = this._nugetRestoreRootDir
+            };
+            var result = await ( new RestoreCommand( request ) ).ExecuteAsync();
 
-                  retVal = resolver.GetNuGetPackageAssembliesAndDependencies( package, this._thisFW, repositories );
-               }
-               else
-               {
-                  var possibleAssemblies = resolver.GetSingleNuGetPackageAssemblies( package, this._thisFW );
-                  retVal = new Dictionary<LocalPackageInfo, String[]>( NuGetPathResolver.PackageIDEqualityComparer ) { { package, possibleAssemblies } };
-               }
-            }
+            var lockFile = result.LockFile;
+            retVal = lockFile.Libraries
+               .Select( l => (l, lockFile.PackageFolders.FirstOrDefault( p => Directory.Exists( Path.Combine( p.Path, l.Path ) ) )?.Path) )
+               .Where( tuple => tuple.Item2 != null )
+               .ToDictionary(
+                  tuple => tuple.Item1.Name,
+                  tuple => new LocalPackageInfo( tuple.Item1.Name, tuple.Item1.Version, Path.Combine( tuple.Item2, tuple.Item1.Path ), tuple.Item1.Files.FirstOrDefault( f => PackageHelper.IsManifest( Path.Combine( tuple.Item2, f ) ) ), null )
+               );
+         }
+         else
+         {
+            retVal = null;
          }
 
          return retVal;
       }
 
-      public List<NuGetv3LocalRepository> GetRepositories(
-         String[] repositoryPaths
-         )
-      {
-         List<NuGetv3LocalRepository> repositories;
-         if ( repositoryPaths.IsNullOrEmpty() )
-         {
-            repositories = new List<NuGetv3LocalRepository>() { this._defaultLocalRepo };
-         }
-         else
-         {
-            repositories = repositoryPaths
-               .Select( p => Path.GetFullPath( p ) )
-               .Where( p => System.IO.Directory.Exists( p ) && !String.Equals( p, this._defaultLocalRepo.RepositoryRoot ) )
-               .Distinct()
-               .Select( p => new NuGetv3LocalRepository( p ) )
-               .Append( this._defaultLocalRepo )
-               .ToList();
-         }
+      //public List<NuGetv3LocalRepository> GetRepositories(
+      //   String[] repositoryPaths
+      //   )
+      //{
+      //   List<NuGetv3LocalRepository> repositories;
+      //   if ( repositoryPaths.IsNullOrEmpty() )
+      //   {
+      //      repositories = new List<NuGetv3LocalRepository>() { this._defaultLocalRepo };
+      //   }
+      //   else
+      //   {
+      //      repositories = repositoryPaths
+      //         .Select( p => Path.GetFullPath( p ) )
+      //         .Where( p => System.IO.Directory.Exists( p ) && !String.Equals( p, this._defaultLocalRepo.RepositoryRoot ) )
+      //         .Distinct()
+      //         .Select( p => new NuGetv3LocalRepository( p ) )
+      //         .Append( this._defaultLocalRepo )
+      //         .ToList();
+      //   }
 
-         return repositories;
-      }
+      //   return repositories;
+      //}
 
-      private static String GetDefaultNuGetLocalRepositoryPath()
-      {
-         return Path.Combine( NuGetEnvironment.GetFolderPath( NuGetFolderPath.NuGetHome ), "packages" );
-      }
+      //private static String GetDefaultNuGetLocalRepositoryPath()
+      //{
+      //   return Path.Combine( NuGetEnvironment.GetFolderPath( NuGetFolderPath.NuGetHome ), "packages" );
+      //}
 
 
    }
@@ -582,7 +888,7 @@ namespace UtilPack.NuGet.MSBuild
    {
       private readonly ConcurrentDictionary<String, ConcurrentDictionary<String, Lazy<Assembly>>> _assemblyPathsBySimpleName; // We will get multiple requests to load same assembly, so cache them
       //private readonly String _thisAssemblyName;
-      private readonly NuGetResolverWrapper _resolver;
+      protected readonly NuGetResolverWrapper _resolver;
       private readonly String _targetAssemblyPath;
       private readonly String _taskName;
 
@@ -602,11 +908,6 @@ namespace UtilPack.NuGet.MSBuild
          this._resolver = resolver;
          this._targetAssemblyPath = targetAssemblyPath;
          this._taskName = taskName;
-         //         this._thisAssemblyName = this.GetType()
-         //#if NETSTANDARD1_5
-         //            .GetTypeInfo()
-         //#endif
-         //            .Assembly.FullName;
       }
 
       public virtual void Dispose()
@@ -617,16 +918,6 @@ namespace UtilPack.NuGet.MSBuild
       internal protected Assembly PerformAssemblyResolve( AssemblyName assemblyName )
       {
          Assembly retVal;
-         //         if ( String.Equals( this._thisAssemblyName, assemblyName.FullName ) )
-         //         {
-         //            // Happens when calling Initialize method (because the original appdomain has this assembly loaded "normally", but this app-domain has this assembly loaded via file path because of CreateInstanceFrom method.)
-         //            retVal = this.GetType()
-         //#if NETSTANDARD1_5
-         //            .GetTypeInfo()
-         //#endif
-         //               .Assembly;
-         //         }
-         //         else 
          if ( this._assemblyPathsBySimpleName.TryGetValue( assemblyName.Name, out var assemblyLazies ) )
          {
             retVal = assemblyLazies.FirstOrDefault( kvp =>
@@ -746,18 +1037,26 @@ namespace UtilPack.NuGet.MSBuild
       }
 
       // This method can get called by target task to dynamically load nuget assemblies.
-      private Assembly LoadNuGetAssembly(
+      private async System.Threading.Tasks.Task<Assembly> LoadNuGetAssembly(
          String packageID,
          String packageVersion,
-         String[] repositories,
-         Boolean loadDependencies,
          String assemblyPath
          )
       {
          // TODO Path.GetFileNameWithoutExtension( curPath ) should be replaced with AssemblyName.GetAssemblyName( String path ) for kinky situations when assembly name is with different casing than its file name.
          // Obviously, this slows down things by a lot, and will change data structures a bit, but it should be done at some point.
+#if NET45
+         var marshaledResult = await this.UseResolver( packageID, packageVersion );
+#endif
+         (var assemblyInfos, var packageKey, var packagePath) =
+#if NET45
+            (marshaledResult?.Packages, marshaledResult?.ThisPackage, marshaledResult?.ThisPackagePath)
+#else
+            
+            await this._resolver.ResolveNuGetPackageAssemblies( packageID, packageVersion )
+#endif
+            ;
 
-         var assemblyInfos = this._resolver.ResolveNuGetPackageAssemblies( packageID, packageVersion, repositories, loadDependencies, out var packageKey, out var packagePath );
          Assembly retVal = null;
          if ( assemblyInfos != null )
          {
@@ -807,7 +1106,58 @@ namespace UtilPack.NuGet.MSBuild
       protected abstract void LogResolveMessage( String message );
 
       protected abstract Assembly LoadAssemblyFromPath( String path );
+
+
+#if NET45
+
+      private System.Threading.Tasks.Task<MarshaledResolveInfo> UseResolver(
+         String packageID,
+         String packageVersion
+         )
+      {
+         var setter = new MarshaledResultSetter<MarshaledResolveInfo>();
+         this._resolver.ResolveNuGetPackageAssemblies( packageID, packageVersion, setter );
+         return setter.Task;
+      }
+#endif
+
    }
+
+#if NET45
+
+   internal sealed class MarshaledResultSetter<T> : MarshalByRefObject
+   {
+      private readonly System.Threading.Tasks.TaskCompletionSource<T> _tcs;
+
+      public MarshaledResultSetter()
+      {
+         this._tcs = new System.Threading.Tasks.TaskCompletionSource<T>();
+      }
+
+      public void SetResult( T result ) => this._tcs.SetResult( result );
+      public System.Threading.Tasks.Task<T> Task => this._tcs.Task;
+   }
+
+   internal sealed class MarshaledResolveInfo : MarshalByRefObject
+   {
+      public MarshaledResolveInfo(
+         IDictionary<String, String[]> packages,
+         String thisPackage,
+         String thisPackagePath
+         )
+      {
+         this.Packages = packages;
+         this.ThisPackage = thisPackage;
+         this.ThisPackagePath = thisPackagePath;
+      }
+
+      public IDictionary<String, String[]> Packages { get; }
+      public String ThisPackage { get; }
+      public String ThisPackagePath { get; }
+   }
+
+#endif
+
 
    // Instances of this class reside in task factory app domain.
    internal sealed class NuGetResolverWrapper
@@ -815,26 +1165,70 @@ namespace UtilPack.NuGet.MSBuild
       : MarshalByRefObject
 #endif
    {
-      private readonly NuGetBoundResolver _resolver;
+      private readonly NuGetPathResolverV2 _pathResolver;
 
-      public NuGetResolverWrapper( NuGetBoundResolver resolver )
-      {
-         this._resolver = resolver;
-      }
-
-      public IDictionary<String, String[]> ResolveNuGetPackageAssemblies(
-         String packageID,
-         String packageVersion,
-         String[] repositoryPaths,
-         Boolean loadDependencies,
-         out String givenPackageString,
-         out String packageExpandedPath
+      public NuGetResolverWrapper(
+         NuGetBoundResolver resolver,
+         NuGetPathResolverV2 pathResolver
          )
       {
-         var retVal = this._resolver.ResolveNuGetPackages( packageID, packageVersion, repositoryPaths, loadDependencies, out var package );
-         givenPackageString = package?.ToString();
-         packageExpandedPath = package?.ExpandedPath;
-         return retVal.ToDictionary( kvp => kvp.Key.ToString(), kvp => kvp.Value );
+         this.Resolver = resolver;
+         this._pathResolver = pathResolver;
+      }
+
+      public
+#if NET45
+         void
+#else
+         System.Threading.Tasks.Task<TResolveResult>
+#endif
+         ResolveNuGetPackageAssemblies(
+         String packageID,
+         String packageVersion
+#if NET45
+         , MarshaledResultSetter<MarshaledResolveInfo> setter
+#endif
+         )
+      {
+#if NET45
+         var task = this.PerformResolve( packageID, packageVersion );
+         task.ContinueWith( prevTask =>
+         {
+            try
+            {
+               var tuple = prevTask.Result;
+               setter.SetResult( new MarshaledResolveInfo( tuple.Item1, tuple.Item2, tuple.Item3 ) );
+            }
+            catch ( Exception eee )
+            {
+               Console.WriteLine( "FUUUGG:\n" + eee );
+               setter.SetResult( null );
+            }
+         } );
+
+#else
+         return this.PerformResolve( packageID, packageVersion );
+#endif
+      }
+
+      private async System.Threading.Tasks.Task<TResolveResult> PerformResolve( String packageID, String packageVersion )
+      {
+         var packageInfo = await this.Resolver.ResolveNuGetPackages( packageID, packageVersion );
+         var package = packageInfo?[packageID];
+         return (this.TransformToAssemblyPathDictionary( packageInfo ), package?.ToString(), package?.ExpandedPath);
+      }
+
+      public NuGetBoundResolver Resolver { get; }
+
+      public IDictionary<String, String[]> TransformToAssemblyPathDictionary( IDictionary<String, LocalPackageInfo> resolveResult, NuGetPathResolverV2 pathResolver = null )
+      {
+         return resolveResult?.Values
+            ?.Select( p => (p, ( pathResolver ?? this._pathResolver ).GetAssemblies( p.ExpandedPath, this.Resolver.ThisFramework )) )
+            ?.Where( t => t.Item2 != null )
+            ?.ToDictionary(
+            t => t.Item1.ToString(),
+            t => t.Item2
+            );
       }
    }
 }

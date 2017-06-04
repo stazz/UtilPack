@@ -385,6 +385,7 @@ namespace UtilPack.NuGet.MSBuild
                // Call cancel to TaskReferenceHolder which will forward it to actual task
                il.Emit( OpCodes.Ldarg_0 );
                il.Emit( OpCodes.Ldfld, taskField );
+               il.Emit( OpCodes.Tailcall );
                il.Emit( OpCodes.Callvirt, cancelMethod );
                il.Emit( OpCodes.Ret );
             }

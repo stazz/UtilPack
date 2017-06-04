@@ -19,7 +19,7 @@ The task factory is used from the project file in the following way:
     This reference is needed in order to use the task factory.
     The UtilPack.NuGet.MSBuild has no dependencies and no lib folder, so it should be very transparent.
     -->
-    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="1.0.0-RC2"/>
+    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="1.0.0-RC3"/>
   </ItemGroup>
 
   <!-- 
@@ -104,4 +104,4 @@ To control the on-demand assembly loading caused by loading and executing the ta
 The common part of assembly loading logic uses the same [NuGet package resolving code](../UtilPack.NuGet/) to search for the dependencies of the task-to-be-executed package in order to know where to load them.
 
 In order to seamlessly integrate into the build, all required assemblies are placed under ```build/net45``` and ```build/netcoreapp1.1``` folders, so that the package would not have any dependencies.
-Furthermore, the ```build``` folder contains the ```.props``` file, which will setup the property ```UtilPackNuGetMSBuildAssemblyPath``` pointing to correct (Desktop or Core, depending which version of MSBuild is executing the projet file) assembly containing the task factory.
+Furthermore, the ```build``` folder contains the ```.props``` file, which will setup the property ```UtilPackNuGetMSBuildAssemblyPath``` pointing to correct (Desktop or Core, depending which version of MSBuild is executing the project file) assembly containing the task factory.

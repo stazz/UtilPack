@@ -220,28 +220,20 @@ namespace UtilPack.NuGet.MSBuild
             foreach ( var kvp in this._propertyInfos )
             {
                (var kind, var info) = kvp.Value;
-               Type propType;
-               switch ( kind )
+               var propType = GetPropertyType( kind );
+               if ( propType == null )
                {
-                  case WrappedPropertyKind.String:
-                  case WrappedPropertyKind.StringNoConversion:
-                     propType = typeof( String );
-                     break;
-                  case WrappedPropertyKind.TaskItem:
-                     propType = typeof( Microsoft.Build.Framework.ITaskItem );
-                     break;
-                  case WrappedPropertyKind.TaskItem2:
-                     propType = typeof( Microsoft.Build.Framework.ITaskItem2 );
-                     break;
-                  case WrappedPropertyKind.BuildEngine:
-                     propType = typeof( Microsoft.Build.Framework.IBuildEngine );
-                     break;
-                  case WrappedPropertyKind.TaskHost:
-                     propType = typeof( Microsoft.Build.Framework.ITaskHost );
-                     break;
-                  default:
-                     throw new Exception( $"Property handling code has changed, unknown wrapped property kind: {kind}." );
-
+                  switch ( kind )
+                  {
+                     case WrappedPropertyKind.BuildEngine:
+                        propType = typeof( Microsoft.Build.Framework.IBuildEngine );
+                        break;
+                     case WrappedPropertyKind.TaskHost:
+                        propType = typeof( Microsoft.Build.Framework.ITaskHost );
+                        break;
+                     default:
+                        throw new Exception( $"Property handling code has changed, unknown wrapped property kind: {kind}." );
+                  }
                }
 
                var methodAttributes = MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.RTSpecialName | MethodAttributes.HideBySig;
@@ -347,7 +339,7 @@ namespace UtilPack.NuGet.MSBuild
                il.BeginExceptionBlock();
                il.Emit( OpCodes.Ldarg_0 );
                il.Emit( OpCodes.Ldfld, taskField );
-               il.Emit( OpCodes.Call, typeof( TaskReferenceHolder ).GetMethod( nameof( TaskReferenceHolder.Execute ) ) );
+               il.Emit( OpCodes.Callvirt, typeof( TaskReferenceHolder ).GetMethod( nameof( TaskReferenceHolder.Execute ) ) );
                il.Emit( OpCodes.Stloc, retValLocal );
                il.BeginFinallyBlock();
                foreach ( var outSetter in outPropertyInfos )
@@ -360,17 +352,19 @@ namespace UtilPack.NuGet.MSBuild
                   EmitPropertyConversionCode( il, outSetter.Item2, outSetter.Item3 );
                   il.Emit( OpCodes.Stfld, outSetter.Item4 );
                }
+               il.EndExceptionBlock();
+
                il.Emit( OpCodes.Ldloc, retValLocal );
             }
             else
             {
                // return this._task.Execute();
-               // TODO out parameters
                il.Emit( OpCodes.Ldarg_0 );
                il.Emit( OpCodes.Ldfld, taskField );
-               il.Emit( OpCodes.Call, typeof( TaskReferenceHolder ).GetMethod( nameof( TaskReferenceHolder.Execute ) ) );
-               il.Emit( OpCodes.Ret );
+               il.Emit( OpCodes.Tailcall );
+               il.Emit( OpCodes.Callvirt, typeof( TaskReferenceHolder ).GetMethod( nameof( TaskReferenceHolder.Execute ) ) );
             }
+            il.Emit( OpCodes.Ret );
 
             // Canceability
             if ( this._taskRef.IsCancelable )
@@ -399,28 +393,28 @@ namespace UtilPack.NuGet.MSBuild
             return tb.CreateType();
          }
 
+         private static Type GetPropertyType( WrappedPropertyKind kind )
+         {
+            switch ( kind )
+            {
+               case WrappedPropertyKind.String:
+               case WrappedPropertyKind.StringNoConversion:
+                  return typeof( String );
+               case WrappedPropertyKind.TaskItem:
+                  return typeof( Microsoft.Build.Framework.ITaskItem[] );
+               case WrappedPropertyKind.TaskItem2:
+                  return typeof( Microsoft.Build.Framework.ITaskItem2[] );
+               default:
+                  return null;
+            }
+         }
+
          public Microsoft.Build.Framework.TaskPropertyInfo[] GetTaskParameters()
          {
             return this._propertyInfos
                .Select( kvp =>
                {
-                  Type propType;
-                  switch ( kvp.Value.Item1 )
-                  {
-                     case WrappedPropertyKind.String:
-                     case WrappedPropertyKind.StringNoConversion:
-                        propType = typeof( String );
-                        break;
-                     case WrappedPropertyKind.TaskItem:
-                        propType = typeof( Microsoft.Build.Framework.ITaskItem );
-                        break;
-                     case WrappedPropertyKind.TaskItem2:
-                        propType = typeof( Microsoft.Build.Framework.ITaskItem2 );
-                        break;
-                     default:
-                        propType = null;
-                        break;
-                  }
+                  var propType = GetPropertyType( kvp.Value.Item1 );
                   var info = kvp.Value.Item2;
                   return propType == null ?
                      null :

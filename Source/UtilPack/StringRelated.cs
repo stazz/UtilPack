@@ -291,7 +291,7 @@ namespace UtilPack
       }
    }
 
-#if NET_40 || NETSTANDARD1_5
+#if NET_40 || NETSTANDARD1_5 || NET_45
 
    /// <summary>
    /// This class contains information about UTF-32 encoding.
@@ -402,7 +402,7 @@ namespace UtilPack
                {
                   return new UTF16LEEncodingInfo( utf16 );
                }
-#if NET_4_0 || NETSTANDARD1_5
+#if NET_40 || NETSTANDARD1_5 || NET_45
             case UTF32Encoding utf32:
                return new UTF32EncodingInfo( utf32 );
 #endif

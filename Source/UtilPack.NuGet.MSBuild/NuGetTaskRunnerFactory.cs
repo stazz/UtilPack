@@ -97,7 +97,17 @@ namespace UtilPack.NuGet.MSBuild
          var nugetResolver = new NuGetBoundResolver(
             taskFactoryLoggingHost,
             this.FactoryName,
-            taskBodyElement
+            taskBodyElement,
+            ( lib, libs ) =>
+            {
+               var runtime = lib.RuntimeAssemblies;
+               return runtime.Count > 0 ?
+                  runtime.Select( i => i.Path ) :
+                  libs.Value.GetOrDefault( lib.Name )?.Files?.Where( f => f.StartsWith(
+                     PackagingConstants.Folders.Build, StringComparison.OrdinalIgnoreCase ) &&
+                     PackageHelper.IsAssembly( f )
+                     );
+            }
             );
          String packageID;
          var resolveInfo = nugetResolver.ResolveNuGetPackages(
@@ -114,12 +124,11 @@ namespace UtilPack.NuGet.MSBuild
                assemblyPaths.Assemblies, assemblyPaths.PackageDirectory, taskBodyElement.Element( "AssemblyPath" )?.Value );
             if ( !String.IsNullOrEmpty( assemblyPath ) )
             {
-               var wrapper = new NuGetResolverWrapper( nugetResolver );
                this._helper = this.CreateExecutionHelper(
                   taskFactoryLoggingHost,
                   taskBodyElement,
                   this.ProcessTaskName( taskBodyElement, taskName ),
-                  wrapper,
+                  new NuGetResolverWrapper( nugetResolver ),
                   assemblyPath,
                   GroupDependenciesBySimpleAssemblyName( resolveInfo )
                   ).GetAwaiter().GetResult();
@@ -261,6 +270,8 @@ namespace UtilPack.NuGet.MSBuild
       }
    }
 
+   internal delegate IEnumerable<String> GetFileItemsDelegate( LockFileTargetLibrary targetLibrary, Lazy<IDictionary<String, LockFileLibrary>> libraries );
+
    internal sealed class NuGetBoundResolver : IDisposable
    {
 
@@ -277,11 +288,13 @@ namespace UtilPack.NuGet.MSBuild
       private readonly TargetFrameworkInformation _restoreTargetFW;
       private LockFile _previousLockFile;
       private readonly IDictionary<String, NuGetv3LocalRepository> _localRepos;
+      private readonly GetFileItemsDelegate _defaultFileGetter;
 
       public NuGetBoundResolver(
          IBuildEngine be,
          String senderName,
-         XElement taskBodyElement
+         XElement taskBodyElement,
+         GetFileItemsDelegate defaultFileGetter = null
          )
       {
          var nugetFrameworkFromProjectFile = taskBodyElement.Element( NUGET_FW )?.Value;
@@ -334,6 +347,7 @@ namespace UtilPack.NuGet.MSBuild
             FrameworkName = this.ThisFramework
          };
          this._localRepos = this._restoreCommandProvider.GlobalPackages.Singleton().Concat( this._restoreCommandProvider.FallbackPackageFolders ).ToDictionary( r => r.RepositoryRoot, r => r );
+         this._defaultFileGetter = defaultFileGetter ?? ( ( lib, libs ) => lib.RuntimeAssemblies.Select( i => i.Path ) );
       }
 
       public NuGetFramework ThisFramework { get; }
@@ -421,7 +435,7 @@ namespace UtilPack.NuGet.MSBuild
       public async System.Threading.Tasks.Task<TResolveResult> ResolveNuGetPackages(
          String packageID,
          String version,
-         Func<LockFileTargetLibrary, IEnumerable<LockFileItem>> fileGetter = null
+         GetFileItemsDelegate fileGetter = null
          )
       {
          // Prepare for invoking restore command
@@ -467,8 +481,12 @@ namespace UtilPack.NuGet.MSBuild
             retVal = new Dictionary<String, ResolvedPackageInfo>();
             if ( fileGetter == null )
             {
-               fileGetter = lib => lib.RuntimeAssemblies;
+               fileGetter = this._defaultFileGetter;
             }
+            var libDic = new Lazy<IDictionary<String, LockFileLibrary>>( () =>
+            {
+               return lockFile.Libraries.ToDictionary( lib => lib.Name, lib => lib );
+            }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
             foreach ( var targetLib in lockFile.Targets[0].Libraries )
             {
                var curLib = targetLib;
@@ -482,7 +500,12 @@ namespace UtilPack.NuGet.MSBuild
                   .FirstOrDefault( fp => !String.IsNullOrEmpty( fp ) && Directory.Exists( fp ) );
                if ( !String.IsNullOrEmpty( targetLibFullPath ) )
                {
-                  retVal.Add( curLib.Name, new ResolvedPackageInfo( targetLibFullPath, fileGetter( curLib ).Select( i => Path.Combine( targetLibFullPath, i.Path ) ).ToArray() ) );
+                  retVal.Add( curLib.Name, new ResolvedPackageInfo(
+                     targetLibFullPath,
+                     fileGetter( curLib, libDic )
+                        ?.Select( p => Path.Combine( targetLibFullPath, p ) )
+                        ?.ToArray() ?? Empty<String>.Array
+                     ) );
                }
             }
 

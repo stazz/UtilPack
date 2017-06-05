@@ -10,7 +10,7 @@
     This reference is needed for UtilPackNuGetMSBuildAssemblyPath property.
     The UtilPack.NuGet.MSBuild has no dependencies and no lib folder, so it should be very transparent.
     -->
-    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="1.0.0-RC3"/>
+    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="1.0.0-RC4"/>
   </ItemGroup>
   
   <!-- 
@@ -29,7 +29,7 @@
         <!-- This element is mandatory, and should be the package ID of the package containing MSBuild task to be executed. -->
         <PackageID>CBAM.SQL.MSBuild</PackageID>
         <!-- Optionally specify the version. By default, newest will be used. -->
-        <PackageVersion>0.0.2-alpha</PackageVersion>
+        <PackageVersion>0.0.3-alpha</PackageVersion>
         <!-- Optionally specify the assembly path of the task DLL -->
         <!--<AssemblyPath>lib/netstandard1.3/X.Y.dll</AssemblyPath>-->
         <!-- Optionally specify the path to local NuGet repository. The default will be used otherwise. -->
@@ -52,6 +52,7 @@
     <!-- Call the task. -->
     <CBAM.SQL.MSBuild.ExecuteSQLStatementsTask
       ConnectionPoolProviderPackageID="CBAM.SQL.PostgreSQL.Implementation"
+      ConnectionPoolProviderVersion="0.0.2-alpha"
       ConnectionConfigurationFilePath="$(ConnectionConfigurationFilePath)"
       SQLStatementsFilePath="$(SQLStatementsFilePath)"
     />

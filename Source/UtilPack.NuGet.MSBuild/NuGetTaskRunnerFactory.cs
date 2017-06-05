@@ -223,7 +223,6 @@ namespace UtilPack.NuGet.MSBuild
       {
          var args = new BuildErrorEventArgs( CAT, "NR0002", null, -1, -1, -1, -1, "[NuGet ErrorSummary]: " + data, null, CAT );
          this._be.LogErrorEvent( args );
-
       }
 
       public void LogInformation( String data )
@@ -262,101 +261,7 @@ namespace UtilPack.NuGet.MSBuild
       }
    }
 
-   //internal sealed class NuGetPathResolverV2
-   //{
-
-   //   private static readonly IEqualityComparer<LocalPackageInfo> _PackageIDEqualityComparer;
-
-   //   private static readonly IEqualityComparer<LocalPackageInfo> _PackageIDAndVersionEqualityComparer;
-
-   //   static NuGetPathResolverV2()
-   //   {
-   //      _PackageIDEqualityComparer = ComparerFromFunctions.NewEqualityComparer<LocalPackageInfo>(
-   //      ( x, y ) => ReferenceEquals( x, y ) || ( x != null && y != null && String.Equals( x?.Id, y?.Id, StringComparison.OrdinalIgnoreCase ) ),
-   //      x => x?.Id?.ToUpperInvariant()?.GetHashCode() ?? 0
-   //      );
-
-   //      _PackageIDAndVersionEqualityComparer = ComparerFromFunctions.NewEqualityComparer<LocalPackageInfo>(
-   //      ( x, y ) => ReferenceEquals( x, y ) || ( x != null && y != null && _PackageIDEqualityComparer.Equals( x, y ) && x.Version.Equals( y.Version ) ),
-   //      x => x?.Id?.ToUpperInvariant()?.GetHashCode() ?? 0
-   //      );
-   //   }
-
-   //   /// <summary>
-   //   /// Gets the <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which only uses <see cref="LocalPackageInfo.Id"/> property to determine equality between two <see cref="LocalPackageInfo"/>s.
-   //   /// </summary>
-   //   /// <value>The <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which only uses <see cref="LocalPackageInfo.Id"/> property to determine equality between two <see cref="LocalPackageInfo"/>s.</value>
-   //   public static IEqualityComparer<LocalPackageInfo> PackageIDEqualityComparer
-   //   {
-   //      get
-   //      {
-   //         return _PackageIDEqualityComparer;
-   //      }
-   //   }
-
-   //   /// <summary>
-   //   /// Gets the <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which uses <see cref="LocalPackageInfo.Id"/> and <see cref="LocalPackageInfo.Version"/> properties to determine equality between two <see cref="LocalPackageInfo"/>s.
-   //   /// </summary>
-   //   /// <value>The <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which uses <see cref="LocalPackageInfo.Id"/> and <see cref="LocalPackageInfo.Version"/> properties to determine equality between two <see cref="LocalPackageInfo"/>s.</value>
-   //   public static IEqualityComparer<LocalPackageInfo> PackageIDAndVersionEqualityComparer
-   //   {
-   //      get
-   //      {
-   //         return _PackageIDAndVersionEqualityComparer;
-   //      }
-   //   }
-
-   //   private readonly ConcurrentDictionary<String, FrameworkSpecificGroup[]> _readerCache;
-   //   private readonly ConcurrentDictionary<FrameworkSpecificGroup, String[]> _pathCache;
-   //   private readonly Func<PackageFolderReader, IEnumerable<FrameworkSpecificGroup>> _readerItemProducer;
-
-
-   //   public NuGetPathResolverV2(
-   //      Func<PackageFolderReader, IEnumerable<FrameworkSpecificGroup>> readerItemProducer = null
-   //      )
-   //   {
-   //      this._readerCache = new ConcurrentDictionary<String, FrameworkSpecificGroup[]>();
-   //      this._pathCache = new ConcurrentDictionary<FrameworkSpecificGroup, String[]>( ReferenceEqualityComparer<FrameworkSpecificGroup>.ReferenceBasedComparer );
-   //      this._readerItemProducer = readerItemProducer ?? ( r => r.GetLibItems() );
-   //   }
-
-   //   public String[] GetAssemblies( String folder, NuGetFramework thisFramework )
-   //   {
-   //      var frameworkSpecificGroups = this._readerCache.GetOrAdd( folder, p =>
-   //      {
-   //         using ( var reader = new PackageFolderReader( p ) )
-   //         {
-   //            return this._readerItemProducer( reader ).ToArray();
-   //         }
-   //      } );
-
-   //      var nearest = NuGetFrameworkUtility.GetNearest(
-   //         frameworkSpecificGroups,
-   //         thisFramework,
-   //         li => li.TargetFramework
-   //         );
-
-   //      String[] retVal;
-   //      if ( nearest != null )
-   //      {
-   //         retVal = this._pathCache.GetOrAdd( nearest, group =>
-   //         {
-   //            return group.Items
-   //               .Where( li => PackageHelper.IsAssembly( li ) )
-   //               .Select( relPath => Path.GetFullPath( Path.Combine( folder, relPath ) ) )
-   //               .ToArray();
-   //         } );
-   //      }
-   //      else
-   //      {
-   //         retVal = null;
-   //      }
-
-   //      return retVal;
-   //   }
-   //}
-
-   internal sealed class NuGetBoundResolver
+   internal sealed class NuGetBoundResolver : IDisposable
    {
 
 
@@ -538,8 +443,8 @@ namespace UtilPack.NuGet.MSBuild
             }
             else
             {
-               // Accept specific min version
-               versionRange = new VersionRange( new NuGetVersion( version ) );
+               // Accept specific version range
+               versionRange = VersionRange.Parse( version );
             }
 
             spec.Dependencies.Add( new LibraryDependency()
@@ -592,6 +497,11 @@ namespace UtilPack.NuGet.MSBuild
          }
 
          return retVal;
+      }
+
+      public void Dispose()
+      {
+         this._cacheContext.DisposeSafely();
       }
    }
 
@@ -802,6 +712,7 @@ namespace UtilPack.NuGet.MSBuild
       public virtual void Dispose()
       {
          this._assemblyPathsBySimpleName.Clear();
+         this._resolver.Resolver.DisposeSafely();
       }
 
       internal protected Assembly PerformAssemblyResolve( AssemblyName assemblyName )

@@ -17,7 +17,7 @@ The task factory is used from the project file in the following way:
     This reference is needed in order to use the task factory.
     The UtilPack.NuGet.MSBuild has no dependencies and no lib folder, so it should be very transparent.
     -->
-    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="1.0.0-RC3"/>
+    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="1.0.0-RC4"/>
   </ItemGroup>
 
   <!-- 
@@ -79,7 +79,7 @@ Since code related to both usecases is already implemented in ```UtilPack.NuGet.
 Furthermore, assembly loading is radically different .NET Desktop and .NET Core.
 
 This is why the task executed by ```UtilPack.NuGet.MSBuild``` task factory may declare a constructor which takes one or both of the following arguments, in no specific order:
-* ```Func<String, String, String, Task<Assembly>>```: The callback to load assembly from NuGet package, and
+* ```Func<String, String, String, Task<Assembly>>```: The callback to asynchronously load assembly from NuGet package, and
 * ```Func<String, Assembly>```: The callback to load assembly from path.
 
 The NuGet package loader callback has the following parameters, in the following order:

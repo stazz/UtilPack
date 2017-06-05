@@ -31,6 +31,8 @@ using System.IO;
 using System.Runtime.Loader;
 using System.Threading.Tasks;
 
+using TResolveResult = System.Collections.Generic.IDictionary<System.String, UtilPack.NuGet.MSBuild.ResolvedPackageInfo>;
+
 namespace UtilPack.NuGet.MSBuild
 {
    partial class NuGetTaskRunnerFactory
@@ -64,7 +66,7 @@ namespace UtilPack.NuGet.MSBuild
 
          private NuGetTaskLoadContext(
             CommonAssemblyRelatedHelper helper,
-            IDictionary<String, String[]> frameworkAssemblyInfo
+            TResolveResult frameworkAssemblyInfo
             )
          {
             this._helper = helper;
@@ -76,7 +78,7 @@ namespace UtilPack.NuGet.MSBuild
                   )
                );
             this._frameworkAssemblySimpleNames = new HashSet<String>( frameworkAssemblyInfo.Values
-               .SelectMany( p => p )
+               .SelectMany( p => p.Assemblies )
                .Select( p => Path.GetFileNameWithoutExtension( p ) )
                );
          }
@@ -136,16 +138,12 @@ namespace UtilPack.NuGet.MSBuild
             XElement taskBodyElement
             )
          {
-            var platformFrameworkPaths = nugetResolver.TransformToAssemblyPathDictionary(
-                  await nugetResolver.Resolver.ResolveNuGetPackages(
+            var platformFrameworkPaths = await nugetResolver.Resolver.ResolveNuGetPackages(
                      taskBodyElement.Element( NuGetBoundResolver.NUGET_FW_PACKAGE_ID )?.Value ?? "Microsoft.NETCore.App", // This value is hard-coded in Microsoft.NET.Sdk.Common.targets, and currently no proper API exists to map NuGetFrameworks into package ID (+ version combination).
-                     taskBodyElement.Element( NuGetBoundResolver.NUGET_FW_PACKAGE_VERSION )?.Value ?? "1.1.2"
-                  ),
-                  new NuGetPathResolverV2( r =>
-                  {
-                     return r.GetLibItems( PackagingConstants.Folders.Ref ).Concat( r.GetLibItems() );
-                  } )
-                  );
+                     taskBodyElement.Element( NuGetBoundResolver.NUGET_FW_PACKAGE_VERSION )?.Value ?? "1.1.2",
+                     lib => lib.CompileTimeAssemblies
+               );
+
             return new NuGetTaskLoadContext( helper, platformFrameworkPaths );
          }
       }

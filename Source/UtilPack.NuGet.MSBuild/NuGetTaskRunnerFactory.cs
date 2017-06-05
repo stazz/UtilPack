@@ -47,7 +47,7 @@ namespace UtilPack.NuGet.MSBuild
       private const String PACKAGE_ID = "PackageID";
       private const String PACKAGE_VERSION = "PackageVersion";
       private const String ASSEMBLY_PATH = "AssemblyPath";
-      private const String REPOSITORY_PATH = "RepositoryPath";
+      private const String NUGET_FW = "NuGetFramework";
 
       private NuGetTaskExecutionHelper _helper;
       private Type _taskType;
@@ -94,20 +94,23 @@ namespace UtilPack.NuGet.MSBuild
          )
       {
          var taskBodyElement = XElement.Parse( taskBody );
+
+         var nugetFrameworkFromProjectFile = taskBodyElement.Element( NUGET_FW )?.Value;
+         var thisFW = String.IsNullOrEmpty( nugetFrameworkFromProjectFile ) ?
+#if NET45
+            Assembly.GetEntryAssembly().GetNuGetFrameworkFromAssembly()
+#else
+            this.GetNuGetFrameworkForRuntime( taskFactoryLoggingHost )
+#endif
+            : NuGetFramework.ParseFrameworkName( nugetFrameworkFromProjectFile, new DefaultFrameworkNameProvider() )
+   ;
+
          var nugetResolver = new NuGetBoundResolver(
             taskFactoryLoggingHost,
             this.FactoryName,
             taskBodyElement,
-            ( lib, libs ) =>
-            {
-               var runtime = lib.RuntimeAssemblies;
-               return runtime.Count > 0 ?
-                  runtime.Select( i => i.Path ) :
-                  libs.Value.GetOrDefault( lib.Name )?.Files?.Where( f => f.StartsWith(
-                     PackagingConstants.Folders.Build, StringComparison.OrdinalIgnoreCase ) &&
-                     PackageHelper.IsAssembly( f )
-                     );
-            }
+            thisFW,
+            ( lib, libs ) => GetSuitableFiles( thisFW, lib, libs )
             );
          String packageID;
          var resolveInfo = nugetResolver.ResolveNuGetPackages(
@@ -172,6 +175,55 @@ namespace UtilPack.NuGet.MSBuild
          return retVal;
       }
 
+      private static IEnumerable<String> GetSuitableFiles(
+         NuGetFramework thisFramework,
+         LockFileTargetLibrary targetLibrary,
+         Lazy<IDictionary<String, LockFileLibrary>> libraries
+         )
+      {
+         var runtime = targetLibrary.RuntimeAssemblies;
+         IEnumerable<String> retVal;
+         if ( runtime.Count > 0 )
+         {
+            retVal = runtime.Select( i => i.Path );
+         }
+         else if ( libraries.Value.TryGetValue( targetLibrary.Name, out var lib ) )
+         {
+            // targetLibrary does not list stuff like build/net45/someassembly.dll
+            // So let's do manual matching
+            var fwGroups = lib.Files.Where( f =>
+            {
+               return f.StartsWith( PackagingConstants.Folders.Build, StringComparison.OrdinalIgnoreCase )
+                      && PackageHelper.IsAssembly( f )
+                      && Path.GetDirectoryName( f ).Length > PackagingConstants.Folders.Build.Length + 1;
+            } ).GroupBy( f =>
+            {
+               try
+               {
+                  return NuGetFramework.ParseFolder( f.Split( '/' )[1] );
+               }
+               catch
+               {
+                  return null;
+               }
+            } )
+           .Where( g => g.Key != null )
+           .Select( g => new FrameworkSpecificGroup( g.Key, g ) );
+
+            var matchingGroup = NuGetFrameworkUtility.GetNearest(
+               fwGroups,
+               thisFramework,
+               g => g.TargetFramework );
+            retVal = matchingGroup?.Items;
+         }
+         else
+         {
+            retVal = null;
+         }
+
+         return retVal;
+      }
+
       private String ProcessTaskName(
          XElement taskBodyElement,
          String taskName
@@ -203,6 +255,83 @@ namespace UtilPack.NuGet.MSBuild
          }
          return retVal;
       }
+
+#if !NET45
+      private NuGetFramework GetNuGetFrameworkForRuntime(
+         IBuildEngine be
+         )
+      {
+         var fwName = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription;
+         NuGetFramework retVal = null;
+         var senderName = this.FactoryName;
+         if ( !String.IsNullOrEmpty( fwName ) && fwName.StartsWith( ".NET Core" ) )
+         {
+            if ( Version.TryParse( fwName.Substring( 10 ), out var netCoreVersion ) )
+            {
+               if ( netCoreVersion.Major == 4 )
+               {
+                  if ( netCoreVersion.Minor == 0 )
+                  {
+                     retVal = FrameworkConstants.CommonFrameworks.NetCoreApp10;
+                  }
+                  else if ( netCoreVersion.Minor == 6 )
+                  {
+                     retVal = FrameworkConstants.CommonFrameworks.NetCoreApp11;
+                  }
+               }
+            }
+            else
+            {
+               be.LogWarningEvent( new BuildWarningEventArgs(
+                  "NuGetFrameworkError",
+                  "NMSBT004",
+                  null,
+                  -1,
+                  -1,
+                  -1,
+                  -1,
+                  $"Failed to parse version from .NET Core framework \"{fwName}\".",
+                  null,
+                  senderName
+                  ) );
+            }
+         }
+         else
+         {
+            be.LogWarningEvent( new BuildWarningEventArgs(
+               "NuGetFrameworkError",
+               "NMSBT003",
+               null,
+               -1,
+               -1,
+               -1,
+               -1,
+               $"Unrecognized framework name: \"{fwName}\", try specifying NuGet framework and package strings that describes this process runtime in <Task> element (using \"{NUGET_FW}\", \"{NuGetBoundResolver.NUGET_FW_PACKAGE_ID}\", and \"{NuGetBoundResolver.NUGET_FW_PACKAGE_VERSION}\" elements)!",
+               null,
+               senderName
+               ) );
+         }
+
+         if ( retVal == null )
+         {
+            retVal = FrameworkConstants.CommonFrameworks.NetCoreApp11;
+            be.LogWarningEvent( new BuildWarningEventArgs(
+               "NuGetFrameworkError",
+               "NMSBT005",
+               null,
+               -1,
+               -1,
+               -1,
+               -1,
+               $"Failed to automatically deduct NuGet framework of running process, defaulting to \"{retVal}\". Expect possible failures.",
+               null,
+               senderName
+               ) );
+         }
+
+         return retVal;
+      }
+#endif
    }
 
    internal sealed class NuGetMSBuildLogger : global::NuGet.Common.ILogger
@@ -294,19 +423,11 @@ namespace UtilPack.NuGet.MSBuild
          IBuildEngine be,
          String senderName,
          XElement taskBodyElement,
+         NuGetFramework thisFramework,
          GetFileItemsDelegate defaultFileGetter = null
          )
       {
-         var nugetFrameworkFromProjectFile = taskBodyElement.Element( NUGET_FW )?.Value;
-
-         this.ThisFramework = String.IsNullOrEmpty( nugetFrameworkFromProjectFile ) ?
-#if NET45
-            Assembly.GetEntryAssembly().GetNuGetFrameworkFromAssembly()
-#else
-            GetNuGetFrameworkForRuntime( be, senderName )
-#endif
-            : NuGetFramework.ParseFrameworkName( nugetFrameworkFromProjectFile, new DefaultFrameworkNameProvider() )
-            ;
+         this.ThisFramework = thisFramework;
          be.LogMessageEvent( new BuildMessageEventArgs(
             $"Using {this.ThisFramework} as NuGet framework representing this runtime.",
             null,
@@ -354,84 +475,6 @@ namespace UtilPack.NuGet.MSBuild
 
       public NuGetMSBuildLogger NuGetLogger { get; }
 
-#if !NET45
-
-      private static NuGetFramework GetNuGetFrameworkForRuntime(
-         IBuildEngine be,
-         String senderName
-         )
-      {
-         var fwName = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription;
-         NuGetFramework retVal = null;
-         if ( !String.IsNullOrEmpty( fwName ) && fwName.StartsWith( ".NET Core" ) )
-         {
-            if ( Version.TryParse( fwName.Substring( 10 ), out var netCoreVersion ) )
-            {
-               if ( netCoreVersion.Major == 4 )
-               {
-                  if ( netCoreVersion.Minor == 0 )
-                  {
-                     retVal = FrameworkConstants.CommonFrameworks.NetCoreApp10;
-                  }
-                  else if ( netCoreVersion.Minor == 6 )
-                  {
-                     retVal = FrameworkConstants.CommonFrameworks.NetCoreApp11;
-                  }
-               }
-            }
-            else
-            {
-               be.LogWarningEvent( new BuildWarningEventArgs(
-                  "NuGetFrameworkError",
-                  "NMSBT004",
-                  null,
-                  -1,
-                  -1,
-                  -1,
-                  -1,
-                  $"Failed to parse version from .NET Core framework \"{fwName}\".",
-                  null,
-                  senderName
-                  ) );
-            }
-         }
-         else
-         {
-            be.LogWarningEvent( new BuildWarningEventArgs(
-               "NuGetFrameworkError",
-               "NMSBT003",
-               null,
-               -1,
-               -1,
-               -1,
-               -1,
-               $"Unrecognized framework name: \"{fwName}\", try specifying NuGet framework and package strings that describes this process runtime in <Task> element (using \"{NUGET_FW}\", \"{NUGET_FW_PACKAGE_ID}\", and \"{NUGET_FW_PACKAGE_VERSION}\" elements)!",
-               null,
-               senderName
-               ) );
-         }
-
-         if ( retVal == null )
-         {
-            retVal = FrameworkConstants.CommonFrameworks.NetCoreApp11;
-            be.LogWarningEvent( new BuildWarningEventArgs(
-               "NuGetFrameworkError",
-               "NMSBT005",
-               null,
-               -1,
-               -1,
-               -1,
-               -1,
-               $"Failed to automatically deduct NuGet framework of running process, defaulting to \"{retVal}\". Expect possible failures.",
-               null,
-               senderName
-               ) );
-         }
-
-         return retVal;
-      }
-
-#endif
       public async System.Threading.Tasks.Task<TResolveResult> ResolveNuGetPackages(
          String packageID,
          String version,

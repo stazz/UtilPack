@@ -1,6 +1,6 @@
 # Test project folder for UtilPack.NuGet.MSBuild task factory
 
-This folder contains two .csproj project files, which aim to demonstrate on how to use the UtilPack.NuGet.MSBuild task factory.
+This folder contains one .csproj project file, which aims to demonstrate on how to use the UtilPack.NuGet.MSBuild task factory.
 
 ## Quick guide
 First, run ```Restore``` target as its own separate command.

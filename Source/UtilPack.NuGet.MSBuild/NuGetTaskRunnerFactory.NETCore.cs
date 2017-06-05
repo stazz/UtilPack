@@ -141,7 +141,7 @@ namespace UtilPack.NuGet.MSBuild
             var platformFrameworkPaths = await nugetResolver.Resolver.ResolveNuGetPackages(
                      taskBodyElement.Element( NuGetBoundResolver.NUGET_FW_PACKAGE_ID )?.Value ?? "Microsoft.NETCore.App", // This value is hard-coded in Microsoft.NET.Sdk.Common.targets, and currently no proper API exists to map NuGetFrameworks into package ID (+ version combination).
                      taskBodyElement.Element( NuGetBoundResolver.NUGET_FW_PACKAGE_VERSION )?.Value ?? "1.1.2",
-                     lib => lib.CompileTimeAssemblies
+                     ( lib, libs ) => lib.CompileTimeAssemblies.Select( i => i.Path )
                );
 
             return new NuGetTaskLoadContext( helper, platformFrameworkPaths );

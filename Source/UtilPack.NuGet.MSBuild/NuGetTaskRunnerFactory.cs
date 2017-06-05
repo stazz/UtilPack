@@ -38,7 +38,7 @@ using NuGet.Protocol.Core.Types;
 using NuGet.Packaging;
 using NuGet.LibraryModel;
 
-using TResolveResult = System.ValueTuple<System.Collections.Generic.IDictionary<System.String, System.String[]>, System.String, System.String>;
+using TResolveResult = System.Collections.Generic.IDictionary<System.String, UtilPack.NuGet.MSBuild.ResolvedPackageInfo>;
 
 namespace UtilPack.NuGet.MSBuild
 {
@@ -104,25 +104,24 @@ namespace UtilPack.NuGet.MSBuild
             ( packageID = taskBodyElement.Element( PACKAGE_ID )?.Value ),
             taskBodyElement.Element( "PackageVersion" )?.Value
             ).GetAwaiter().GetResult();
-         NuGetPathResolverV2 pathResolver;
-         String[] assemblyPaths;
+
          var retVal = false;
          if ( resolveInfo != null
-            && resolveInfo.TryGetValue( packageID, out var package )
-            && !( assemblyPaths = ( pathResolver = new NuGetPathResolverV2( r => r.GetLibItems().Concat( r.GetLibItems( PackagingConstants.Folders.Build ) ) ) ).GetAssemblies( package.ExpandedPath, nugetResolver.ThisFramework ) ).IsNullOrEmpty()
+            && resolveInfo.TryGetValue( packageID, out var assemblyPaths )
             )
          {
-            var assemblyPath = CommonHelpers.GetAssemblyPathFromNuGetAssemblies( assemblyPaths, package.ExpandedPath, taskBodyElement.Element( "AssemblyPath" )?.Value );
+            var assemblyPath = CommonHelpers.GetAssemblyPathFromNuGetAssemblies(
+               assemblyPaths.Assemblies, assemblyPaths.PackageDirectory, taskBodyElement.Element( "AssemblyPath" )?.Value );
             if ( !String.IsNullOrEmpty( assemblyPath ) )
             {
-               var wrapper = new NuGetResolverWrapper( nugetResolver, pathResolver );
+               var wrapper = new NuGetResolverWrapper( nugetResolver );
                this._helper = this.CreateExecutionHelper(
                   taskFactoryLoggingHost,
                   taskBodyElement,
                   this.ProcessTaskName( taskBodyElement, taskName ),
                   wrapper,
                   assemblyPath,
-                  GroupDependenciesBySimpleAssemblyName( wrapper.TransformToAssemblyPathDictionary( resolveInfo ) )
+                  GroupDependenciesBySimpleAssemblyName( resolveInfo )
                   ).GetAwaiter().GetResult();
                retVal = true;
             }
@@ -137,7 +136,7 @@ namespace UtilPack.NuGet.MSBuild
                      -1,
                      -1,
                      -1,
-                     $"Failed to find suitable assembly in {package}.",
+                     $"Failed to find suitable assembly in {packageID}.",
                      null,
                      this.FactoryName
                   )
@@ -173,31 +172,27 @@ namespace UtilPack.NuGet.MSBuild
          return String.IsNullOrEmpty( overrideTaskName ) ? taskName : taskName;
       }
 
-      protected static IDictionary<String, ISet<String>> GroupDependenciesBySimpleAssemblyName(
-         IDictionary<String, String[]> packageDependencyInfo,
-         IDictionary<String, ISet<String>> existing = null
+      internal static IDictionary<String, ISet<String>> GroupDependenciesBySimpleAssemblyName(
+         TResolveResult packageDependencyInfo
          )
       {
-         if ( existing == null )
-         {
-            existing = new Dictionary<String, ISet<String>>();
-         }
+         var retVal = new Dictionary<String, ISet<String>>();
 
          foreach ( var kvp in packageDependencyInfo )
          {
-            foreach ( var packageAssemblyPath in kvp.Value )
+            foreach ( var packageAssemblyPath in kvp.Value.Assemblies )
             {
                var simpleName = System.IO.Path.GetFileNameWithoutExtension( packageAssemblyPath );
-               if ( !existing.TryGetValue( simpleName, out ISet<String> allPaths ) )
+               if ( !retVal.TryGetValue( simpleName, out ISet<String> allPaths ) )
                {
                   allPaths = new HashSet<String>();
-                  existing.Add( simpleName, allPaths );
+                  retVal.Add( simpleName, allPaths );
                }
 
                allPaths.Add( packageAssemblyPath );
             }
          }
-         return existing;
+         return retVal;
       }
    }
 
@@ -206,274 +201,160 @@ namespace UtilPack.NuGet.MSBuild
       private const String CAT = "NuGetRestore";
 
       private IBuildEngine _be;
-#if NET45
-      private readonly List<BuildEventArgs> _queue;
-#endif
 
       public NuGetMSBuildLogger( IBuildEngine be )
       {
          this._be = be;
-#if NET45
-         this._queue = new List<BuildEventArgs>();
-#endif
       }
 
       public void LogDebug( String data )
       {
-         var args = new BuildMessageEventArgs( data, null, CAT, MessageImportance.Low );
-#if NET45
-         if ( this._be == null )
-         {
-            this._queue.Add( args );
-         }
-         else
-         {
-#endif
-            this._be.LogMessageEvent( args );
-#if NET45
-         }
-#endif
+         var args = new BuildMessageEventArgs( "[NuGet Debug]: " + data, null, CAT, MessageImportance.Low );
+         this._be.LogMessageEvent( args );
       }
 
       public void LogError( String data )
       {
-         var args = new BuildErrorEventArgs( CAT, "NR0001", null, -1, -1, -1, -1, data, null, CAT );
-#if NET45
-         if ( this._be == null )
-         {
-            this._queue.Add( args );
-         }
-         else
-         {
-#endif
-            this._be.LogErrorEvent( args );
-#if NET45
-         }
-#endif
+         var args = new BuildErrorEventArgs( CAT, "NR0001", null, -1, -1, -1, -1, "[NuGet Error]: " + data, null, CAT );
+         this._be.LogErrorEvent( args );
       }
 
       public void LogErrorSummary( String data )
       {
-         var args = new BuildErrorEventArgs( CAT, "NR0002", null, -1, -1, -1, -1, data, null, CAT );
-#if NET45
-         if ( this._be == null )
-         {
-            this._queue.Add( args );
-         }
-         else
-         {
-#endif
-            this._be.LogErrorEvent( args );
-#if NET45
-         }
-#endif
+         var args = new BuildErrorEventArgs( CAT, "NR0002", null, -1, -1, -1, -1, "[NuGet ErrorSummary]: " + data, null, CAT );
+         this._be.LogErrorEvent( args );
+
       }
 
       public void LogInformation( String data )
       {
-         var args = new BuildMessageEventArgs( data, null, CAT, MessageImportance.High );
-#if NET45
-         if ( this._be == null )
-         {
-            this._queue.Add( args );
-         }
-         else
-         {
-#endif
-            this._be.LogMessageEvent( args );
-#if NET45
-         }
-#endif
+         var args = new BuildMessageEventArgs( "[NuGet Info]: " + data, null, CAT, MessageImportance.High );
+         this._be.LogMessageEvent( args );
       }
 
       public void LogInformationSummary( String data )
       {
-         var args = new BuildMessageEventArgs( data, null, CAT, MessageImportance.High );
-#if NET45
-         if ( this._be == null )
-         {
-            this._queue.Add( args );
-         }
-         else
-         {
-#endif
-            this._be.LogMessageEvent( args );
-#if NET45
-         }
-#endif
+         var args = new BuildMessageEventArgs( "[NuGet InfoSummary]: " + data, null, CAT, MessageImportance.High );
+         this._be.LogMessageEvent( args );
       }
 
       public void LogMinimal( String data )
       {
-         var args = new BuildMessageEventArgs( data, null, CAT, MessageImportance.Low );
-#if NET45
-         if ( this._be == null )
-         {
-            this._queue.Add( args );
-         }
-         else
-         {
-#endif
-            this._be.LogMessageEvent( args );
-#if NET45
-         }
-#endif
+         var args = new BuildMessageEventArgs( "[NuGet Minimal]: " + data, null, CAT, MessageImportance.Low );
+         this._be.LogMessageEvent( args );
       }
 
       public void LogVerbose( String data )
       {
-         var args = new BuildMessageEventArgs( data, null, CAT, MessageImportance.Normal );
-#if NET45
-         if ( this._be == null )
-         {
-            this._queue.Add( args );
-         }
-         else
-         {
-#endif
-            this._be.LogMessageEvent( args );
-#if NET45
-         }
-#endif
+         var args = new BuildMessageEventArgs( "[NuGet Verbose]: " + data, null, CAT, MessageImportance.Normal );
+         this._be.LogMessageEvent( args );
       }
 
       public void LogWarning( String data )
       {
-         var args = new BuildWarningEventArgs( CAT, "NR0003", null, -1, -1, -1, -1, data, null, CAT );
-#if NET45
-         if ( this._be == null )
-         {
-            this._queue.Add( args );
-         }
-         else
-         {
-#endif
-            this._be.LogWarningEvent( args );
-#if NET45
-         }
-#endif
+         var args = new BuildWarningEventArgs( CAT, "NR0003", null, -1, -1, -1, -1, "[NuGet Warning]: " + data, null, CAT );
+         this._be.LogWarningEvent( args );
       }
 
       public void SetBuildEngine( IBuildEngine be )
       {
          System.Threading.Interlocked.Exchange( ref this._be, be );
-#if NET45
-         if ( be != null )
-         {
-            foreach ( var args in this._queue )
-            {
-               switch ( args )
-               {
-                  case BuildErrorEventArgs error:
-                     be.LogErrorEvent( error );
-                     break;
-                  case BuildWarningEventArgs warning:
-                     be.LogWarningEvent( warning );
-                     break;
-                  case BuildMessageEventArgs msg:
-                     be.LogMessageEvent( msg );
-                     break;
-               }
-            }
-            this._queue.Clear();
-         }
-#endif
       }
    }
 
-   internal sealed class NuGetPathResolverV2
-   {
+   //internal sealed class NuGetPathResolverV2
+   //{
 
-      private static readonly IEqualityComparer<LocalPackageInfo> _PackageIDEqualityComparer;
+   //   private static readonly IEqualityComparer<LocalPackageInfo> _PackageIDEqualityComparer;
 
-      private static readonly IEqualityComparer<LocalPackageInfo> _PackageIDAndVersionEqualityComparer;
+   //   private static readonly IEqualityComparer<LocalPackageInfo> _PackageIDAndVersionEqualityComparer;
 
-      static NuGetPathResolverV2()
-      {
-         _PackageIDEqualityComparer = ComparerFromFunctions.NewEqualityComparer<LocalPackageInfo>(
-         ( x, y ) => ReferenceEquals( x, y ) || ( x != null && y != null && String.Equals( x?.Id, y?.Id, StringComparison.OrdinalIgnoreCase ) ),
-         x => x?.Id?.ToUpperInvariant()?.GetHashCode() ?? 0
-         );
+   //   static NuGetPathResolverV2()
+   //   {
+   //      _PackageIDEqualityComparer = ComparerFromFunctions.NewEqualityComparer<LocalPackageInfo>(
+   //      ( x, y ) => ReferenceEquals( x, y ) || ( x != null && y != null && String.Equals( x?.Id, y?.Id, StringComparison.OrdinalIgnoreCase ) ),
+   //      x => x?.Id?.ToUpperInvariant()?.GetHashCode() ?? 0
+   //      );
 
-         _PackageIDAndVersionEqualityComparer = ComparerFromFunctions.NewEqualityComparer<LocalPackageInfo>(
-         ( x, y ) => ReferenceEquals( x, y ) || ( x != null && y != null && _PackageIDEqualityComparer.Equals( x, y ) && x.Version.Equals( y.Version ) ),
-         x => x?.Id?.ToUpperInvariant()?.GetHashCode() ?? 0
-         );
-      }
+   //      _PackageIDAndVersionEqualityComparer = ComparerFromFunctions.NewEqualityComparer<LocalPackageInfo>(
+   //      ( x, y ) => ReferenceEquals( x, y ) || ( x != null && y != null && _PackageIDEqualityComparer.Equals( x, y ) && x.Version.Equals( y.Version ) ),
+   //      x => x?.Id?.ToUpperInvariant()?.GetHashCode() ?? 0
+   //      );
+   //   }
 
-      /// <summary>
-      /// Gets the <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which only uses <see cref="LocalPackageInfo.Id"/> property to determine equality between two <see cref="LocalPackageInfo"/>s.
-      /// </summary>
-      /// <value>The <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which only uses <see cref="LocalPackageInfo.Id"/> property to determine equality between two <see cref="LocalPackageInfo"/>s.</value>
-      public static IEqualityComparer<LocalPackageInfo> PackageIDEqualityComparer
-      {
-         get
-         {
-            return _PackageIDEqualityComparer;
-         }
-      }
+   //   /// <summary>
+   //   /// Gets the <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which only uses <see cref="LocalPackageInfo.Id"/> property to determine equality between two <see cref="LocalPackageInfo"/>s.
+   //   /// </summary>
+   //   /// <value>The <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which only uses <see cref="LocalPackageInfo.Id"/> property to determine equality between two <see cref="LocalPackageInfo"/>s.</value>
+   //   public static IEqualityComparer<LocalPackageInfo> PackageIDEqualityComparer
+   //   {
+   //      get
+   //      {
+   //         return _PackageIDEqualityComparer;
+   //      }
+   //   }
 
-      /// <summary>
-      /// Gets the <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which uses <see cref="LocalPackageInfo.Id"/> and <see cref="LocalPackageInfo.Version"/> properties to determine equality between two <see cref="LocalPackageInfo"/>s.
-      /// </summary>
-      /// <value>The <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which uses <see cref="LocalPackageInfo.Id"/> and <see cref="LocalPackageInfo.Version"/> properties to determine equality between two <see cref="LocalPackageInfo"/>s.</value>
-      public static IEqualityComparer<LocalPackageInfo> PackageIDAndVersionEqualityComparer
-      {
-         get
-         {
-            return _PackageIDAndVersionEqualityComparer;
-         }
-      }
+   //   /// <summary>
+   //   /// Gets the <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which uses <see cref="LocalPackageInfo.Id"/> and <see cref="LocalPackageInfo.Version"/> properties to determine equality between two <see cref="LocalPackageInfo"/>s.
+   //   /// </summary>
+   //   /// <value>The <see cref="IEqualityComparer{T}"/> for <see cref="LocalPackageInfo"/> which uses <see cref="LocalPackageInfo.Id"/> and <see cref="LocalPackageInfo.Version"/> properties to determine equality between two <see cref="LocalPackageInfo"/>s.</value>
+   //   public static IEqualityComparer<LocalPackageInfo> PackageIDAndVersionEqualityComparer
+   //   {
+   //      get
+   //      {
+   //         return _PackageIDAndVersionEqualityComparer;
+   //      }
+   //   }
 
-      private readonly ConcurrentDictionary<String, FrameworkSpecificGroup[]> _readerCache;
-      private readonly ConcurrentDictionary<FrameworkSpecificGroup, String[]> _pathCache;
-      private readonly Func<PackageFolderReader, IEnumerable<FrameworkSpecificGroup>> _readerItemProducer;
+   //   private readonly ConcurrentDictionary<String, FrameworkSpecificGroup[]> _readerCache;
+   //   private readonly ConcurrentDictionary<FrameworkSpecificGroup, String[]> _pathCache;
+   //   private readonly Func<PackageFolderReader, IEnumerable<FrameworkSpecificGroup>> _readerItemProducer;
 
 
-      public NuGetPathResolverV2(
-         Func<PackageFolderReader, IEnumerable<FrameworkSpecificGroup>> readerItemProducer = null
-         )
-      {
-         this._readerCache = new ConcurrentDictionary<String, FrameworkSpecificGroup[]>();
-         this._pathCache = new ConcurrentDictionary<FrameworkSpecificGroup, String[]>( ReferenceEqualityComparer<FrameworkSpecificGroup>.ReferenceBasedComparer );
-         this._readerItemProducer = readerItemProducer ?? ( r => r.GetLibItems() );
-      }
+   //   public NuGetPathResolverV2(
+   //      Func<PackageFolderReader, IEnumerable<FrameworkSpecificGroup>> readerItemProducer = null
+   //      )
+   //   {
+   //      this._readerCache = new ConcurrentDictionary<String, FrameworkSpecificGroup[]>();
+   //      this._pathCache = new ConcurrentDictionary<FrameworkSpecificGroup, String[]>( ReferenceEqualityComparer<FrameworkSpecificGroup>.ReferenceBasedComparer );
+   //      this._readerItemProducer = readerItemProducer ?? ( r => r.GetLibItems() );
+   //   }
 
-      public String[] GetAssemblies( String folder, NuGetFramework thisFramework )
-      {
-         var frameworkSpecificGroups = this._readerCache.GetOrAdd( folder, p =>
-         {
-            using ( var reader = new PackageFolderReader( p ) )
-            {
-               return this._readerItemProducer( reader ).ToArray();
-            }
-         } );
+   //   public String[] GetAssemblies( String folder, NuGetFramework thisFramework )
+   //   {
+   //      var frameworkSpecificGroups = this._readerCache.GetOrAdd( folder, p =>
+   //      {
+   //         using ( var reader = new PackageFolderReader( p ) )
+   //         {
+   //            return this._readerItemProducer( reader ).ToArray();
+   //         }
+   //      } );
 
-         var nearest = NuGetFrameworkUtility.GetNearest(
-            frameworkSpecificGroups,
-            thisFramework,
-            li => li.TargetFramework
-            );
+   //      var nearest = NuGetFrameworkUtility.GetNearest(
+   //         frameworkSpecificGroups,
+   //         thisFramework,
+   //         li => li.TargetFramework
+   //         );
 
-         String[] retVal;
-         if ( nearest != null )
-         {
-            retVal = this._pathCache.GetOrAdd( nearest, group =>
-            {
-               return group.Items
-                  .Where( li => PackageHelper.IsAssembly( li ) )
-                  .Select( relPath => Path.GetFullPath( Path.Combine( folder, relPath ) ) )
-                  .ToArray();
-            } );
-         }
-         else
-         {
-            retVal = null;
-         }
+   //      String[] retVal;
+   //      if ( nearest != null )
+   //      {
+   //         retVal = this._pathCache.GetOrAdd( nearest, group =>
+   //         {
+   //            return group.Items
+   //               .Where( li => PackageHelper.IsAssembly( li ) )
+   //               .Select( relPath => Path.GetFullPath( Path.Combine( folder, relPath ) ) )
+   //               .ToArray();
+   //         } );
+   //      }
+   //      else
+   //      {
+   //         retVal = null;
+   //      }
 
-         return retVal;
-      }
-   }
+   //      return retVal;
+   //   }
+   //}
 
    internal sealed class NuGetBoundResolver
    {
@@ -489,6 +370,8 @@ namespace UtilPack.NuGet.MSBuild
       private readonly RestoreCommandProviders _restoreCommandProvider;
       private readonly String _nugetRestoreRootDir; // NuGet restore command never writes anything to disk (apart from packages themselves), but if certain file paths are omitted, it simply fails with argumentnullexception when invoking Path.Combine or Path.GetFullName. So this can be anything, really, as long as it's understandable by Path class.
       private readonly TargetFrameworkInformation _restoreTargetFW;
+      private LockFile _previousLockFile;
+      private readonly IDictionary<String, NuGetv3LocalRepository> _localRepos;
 
       public NuGetBoundResolver(
          IBuildEngine be,
@@ -545,6 +428,7 @@ namespace UtilPack.NuGet.MSBuild
          {
             FrameworkName = this.ThisFramework
          };
+         this._localRepos = this._restoreCommandProvider.GlobalPackages.Singleton().Concat( this._restoreCommandProvider.FallbackPackageFolders ).ToDictionary( r => r.RepositoryRoot, r => r );
       }
 
       public NuGetFramework ThisFramework { get; }
@@ -629,13 +513,14 @@ namespace UtilPack.NuGet.MSBuild
       }
 
 #endif
-      public async System.Threading.Tasks.Task<IDictionary<String, LocalPackageInfo>> ResolveNuGetPackages(
+      public async System.Threading.Tasks.Task<TResolveResult> ResolveNuGetPackages(
          String packageID,
-         String version
+         String version,
+         Func<LockFileTargetLibrary, IEnumerable<LockFileItem>> fileGetter = null
          )
       {
          // Prepare for invoking restore command
-         IDictionary<String, LocalPackageInfo> retVal;
+         TResolveResult retVal;
          if ( !String.IsNullOrEmpty( packageID ) )
          {
             var spec = new PackageSpec()
@@ -672,15 +557,34 @@ namespace UtilPack.NuGet.MSBuild
                RestoreOutputPath = this._nugetRestoreRootDir
             };
             var result = await ( new RestoreCommand( request ) ).ExecuteAsync();
-
             var lockFile = result.LockFile;
-            retVal = lockFile.Libraries
-               .Select( l => (l, lockFile.PackageFolders.FirstOrDefault( p => Directory.Exists( Path.Combine( p.Path, l.Path ) ) )?.Path) )
-               .Where( tuple => tuple.Item2 != null )
-               .ToDictionary(
-                  tuple => tuple.Item1.Name,
-                  tuple => new LocalPackageInfo( tuple.Item1.Name, tuple.Item1.Version, Path.Combine( tuple.Item2, tuple.Item1.Path ), tuple.Item1.Files.FirstOrDefault( f => PackageHelper.IsManifest( Path.Combine( tuple.Item2, f ) ) ), null )
-               );
+            // We will always have only one target, since we are running restore always against one target framework
+            retVal = new Dictionary<String, ResolvedPackageInfo>();
+            if ( fileGetter == null )
+            {
+               fileGetter = lib => lib.RuntimeAssemblies;
+            }
+            foreach ( var targetLib in lockFile.Targets[0].Libraries )
+            {
+               var curLib = targetLib;
+               var targetLibFullPath = lockFile.PackageFolders
+                  .Select( f =>
+                  {
+                     return this._localRepos.TryGetValue( f.Path, out var curRepo ) ?
+                        Path.Combine( curRepo.RepositoryRoot, curRepo.PathResolver.GetPackageDirectory( curLib.Name, curLib.Version ) ) :
+                        null;
+                  } )
+                  .FirstOrDefault( fp => !String.IsNullOrEmpty( fp ) && Directory.Exists( fp ) );
+               if ( !String.IsNullOrEmpty( targetLibFullPath ) )
+               {
+                  retVal.Add( curLib.Name, new ResolvedPackageInfo( targetLibFullPath, fileGetter( curLib ).Select( i => Path.Combine( targetLibFullPath, i.Path ) ).ToArray() ) );
+               }
+            }
+
+            // Restore command never modifies existing lock file object, instead it creates new one
+            // Just update to newest (thus the next request will be able to use cached information and be faster)
+            System.Threading.Interlocked.Exchange( ref this._previousLockFile, result.LockFile );
+
          }
          else
          {
@@ -689,36 +593,21 @@ namespace UtilPack.NuGet.MSBuild
 
          return retVal;
       }
+   }
 
-      //public List<NuGetv3LocalRepository> GetRepositories(
-      //   String[] repositoryPaths
-      //   )
-      //{
-      //   List<NuGetv3LocalRepository> repositories;
-      //   if ( repositoryPaths.IsNullOrEmpty() )
-      //   {
-      //      repositories = new List<NuGetv3LocalRepository>() { this._defaultLocalRepo };
-      //   }
-      //   else
-      //   {
-      //      repositories = repositoryPaths
-      //         .Select( p => Path.GetFullPath( p ) )
-      //         .Where( p => System.IO.Directory.Exists( p ) && !String.Equals( p, this._defaultLocalRepo.RepositoryRoot ) )
-      //         .Distinct()
-      //         .Select( p => new NuGetv3LocalRepository( p ) )
-      //         .Append( this._defaultLocalRepo )
-      //         .ToList();
-      //   }
+#if NET45
+   [Serializable] // We want to be serializable instead of MarshalByRef as we want to copy these objects
+#endif
+   internal sealed class ResolvedPackageInfo
+   {
+      public ResolvedPackageInfo( String packageDirectory, String[] assemblies )
+      {
+         this.PackageDirectory = packageDirectory;
+         this.Assemblies = assemblies;
+      }
 
-      //   return repositories;
-      //}
-
-      //private static String GetDefaultNuGetLocalRepositoryPath()
-      //{
-      //   return Path.Combine( NuGetEnvironment.GetFolderPath( NuGetFolderPath.NuGetHome ), "packages" );
-      //}
-
-
+      public String PackageDirectory { get; }
+      public String[] Assemblies { get; }
    }
 
    // These methods are used by both .net45 and .netstandard.
@@ -1045,15 +934,12 @@ namespace UtilPack.NuGet.MSBuild
       {
          // TODO Path.GetFileNameWithoutExtension( curPath ) should be replaced with AssemblyName.GetAssemblyName( String path ) for kinky situations when assembly name is with different casing than its file name.
          // Obviously, this slows down things by a lot, and will change data structures a bit, but it should be done at some point.
+
+         var assemblyInfos = await
 #if NET45
-         var marshaledResult = await this.UseResolver( packageID, packageVersion );
-#endif
-         (var assemblyInfos, var packageKey, var packagePath) =
-#if NET45
-            (marshaledResult?.Packages, marshaledResult?.ThisPackage, marshaledResult?.ThisPackagePath)
+            this.UseResolver( packageID, packageVersion )
 #else
-            
-            await this._resolver.ResolveNuGetPackageAssemblies( packageID, packageVersion )
+            this._resolver.ResolveNuGetPackageAssemblies( packageID, packageVersion )
 #endif
             ;
 
@@ -1063,7 +949,7 @@ namespace UtilPack.NuGet.MSBuild
             var assembliesBySimpleName = this._assemblyPathsBySimpleName;
             foreach ( var kvp in assemblyInfos )
             {
-               foreach ( var nugetAssemblyPath in kvp.Value )
+               foreach ( var nugetAssemblyPath in kvp.Value.Assemblies )
                {
                   var curPath = nugetAssemblyPath;
                   assembliesBySimpleName
@@ -1072,8 +958,8 @@ namespace UtilPack.NuGet.MSBuild
                }
             }
 
-            var possibleAssemblyPaths = assemblyInfos[packageKey];
-            assemblyPath = CommonHelpers.GetAssemblyPathFromNuGetAssemblies( possibleAssemblyPaths, packagePath, assemblyPath );
+            var possibleAssemblyPaths = assemblyInfos[packageID];
+            assemblyPath = CommonHelpers.GetAssemblyPathFromNuGetAssemblies( possibleAssemblyPaths.Assemblies, possibleAssemblyPaths.PackageDirectory, assemblyPath );
             if ( !String.IsNullOrEmpty( assemblyPath ) )
             {
                retVal = assembliesBySimpleName
@@ -1110,12 +996,12 @@ namespace UtilPack.NuGet.MSBuild
 
 #if NET45
 
-      private System.Threading.Tasks.Task<MarshaledResolveInfo> UseResolver(
+      private System.Threading.Tasks.Task<TResolveResult> UseResolver(
          String packageID,
          String packageVersion
          )
       {
-         var setter = new MarshaledResultSetter<MarshaledResolveInfo>();
+         var setter = new MarshaledResultSetter<TResolveResult>();
          this._resolver.ResolveNuGetPackageAssemblies( packageID, packageVersion, setter );
          return setter.Task;
       }
@@ -1138,24 +1024,6 @@ namespace UtilPack.NuGet.MSBuild
       public System.Threading.Tasks.Task<T> Task => this._tcs.Task;
    }
 
-   internal sealed class MarshaledResolveInfo : MarshalByRefObject
-   {
-      public MarshaledResolveInfo(
-         IDictionary<String, String[]> packages,
-         String thisPackage,
-         String thisPackagePath
-         )
-      {
-         this.Packages = packages;
-         this.ThisPackage = thisPackage;
-         this.ThisPackagePath = thisPackagePath;
-      }
-
-      public IDictionary<String, String[]> Packages { get; }
-      public String ThisPackage { get; }
-      public String ThisPackagePath { get; }
-   }
-
 #endif
 
 
@@ -1165,15 +1033,12 @@ namespace UtilPack.NuGet.MSBuild
       : MarshalByRefObject
 #endif
    {
-      private readonly NuGetPathResolverV2 _pathResolver;
 
       public NuGetResolverWrapper(
-         NuGetBoundResolver resolver,
-         NuGetPathResolverV2 pathResolver
+         NuGetBoundResolver resolver
          )
       {
          this.Resolver = resolver;
-         this._pathResolver = pathResolver;
       }
 
       public
@@ -1186,7 +1051,7 @@ namespace UtilPack.NuGet.MSBuild
          String packageID,
          String packageVersion
 #if NET45
-         , MarshaledResultSetter<MarshaledResolveInfo> setter
+         , MarshaledResultSetter<TResolveResult> setter
 #endif
          )
       {
@@ -1196,8 +1061,8 @@ namespace UtilPack.NuGet.MSBuild
          {
             try
             {
-               var tuple = prevTask.Result;
-               setter.SetResult( new MarshaledResolveInfo( tuple.Item1, tuple.Item2, tuple.Item3 ) );
+               var dic = prevTask.Result;
+               setter.SetResult( dic );
             }
             catch
             {
@@ -1210,24 +1075,14 @@ namespace UtilPack.NuGet.MSBuild
 #endif
       }
 
-      private async System.Threading.Tasks.Task<TResolveResult> PerformResolve( String packageID, String packageVersion )
+      private async System.Threading.Tasks.Task<TResolveResult> PerformResolve(
+         String packageID,
+         String packageVersion
+         )
       {
-         var packageInfo = await this.Resolver.ResolveNuGetPackages( packageID, packageVersion );
-         var package = packageInfo?[packageID];
-         return (this.TransformToAssemblyPathDictionary( packageInfo ), package?.ToString(), package?.ExpandedPath);
+         return await this.Resolver.ResolveNuGetPackages( packageID, packageVersion );
       }
 
       public NuGetBoundResolver Resolver { get; }
-
-      public IDictionary<String, String[]> TransformToAssemblyPathDictionary( IDictionary<String, LocalPackageInfo> resolveResult, NuGetPathResolverV2 pathResolver = null )
-      {
-         return resolveResult?.Values
-            ?.Select( p => (p, ( pathResolver ?? this._pathResolver ).GetAssemblies( p.ExpandedPath, this.Resolver.ThisFramework )) )
-            ?.Where( t => t.Item2 != null )
-            ?.ToDictionary(
-            t => t.Item1.ToString(),
-            t => t.Item2
-            );
-      }
    }
 }

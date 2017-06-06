@@ -1,22 +1,32 @@
 # Test project folder for UtilPack.NuGet.MSBuild task factory
 
-This folder contains one .csproj project file, which aims to demonstrate on how to use the UtilPack.NuGet.MSBuild task factory.
+This folder contains one essential project file (```GenerateSQL.build```), which aims to demonstrate on how to use the UtilPack.NuGet.MSBuild task factory.
+The folder also contains other files, which are part of infrastructure of easy setup.
 
 ## Quick guide
-First, run ```Restore``` target as its own separate command.
-Then run ```RunExecuteSQLStatements``` target and specify valid options to ```ConnectionConfigurationFilePath``` and ```SQLStatementsFilePath``` properties.
-Currently, this example requires setting up PostgreSQL database in order to complete without errors, but right now there are no other examples.
+Using MSBuild commandline, run ```RunDemo``` target on ```UtilPack.NuGet.MSBuild.Demo.build``` file.
+You should end up with ```output.sql``` file, which is produced using the code in ```DemoSQLGenerator``` folder.
+For subsequent runs, it is enough to run ```GenerateSQLFile``` target on ```GenerateSQL.build``` file.
 
 ## More detailed information
-The ```UtilPack.NuGet.MSBuild.TestProject.csproj``` project file contains information about the actual task to be executed.
-The ```Restore``` target is required in order to NuGet set up the .g.props and other files, so that ```UtilPackNuGetMSBuildAssemblyPath``` property will become visible.
-Once the restore is complete, it will be required to run it again only if you update to other version of ```UtilPack.NuGet.MSBuild``` package.
-The ```Restore``` target can not be bundled with ```RunExecuteSQLStatements``` by specifying ```Restore;RunExecuteSQLStatements```, as ```UsingTask``` element won't be recalculated.
+The ```UtilPack.NuGet.MSBuild.Demo.build``` file performs three steps, the first two of which are one-time steps for setting up infrastructure.
 
-The ```RunExecuteSQLStatements``` target will use the ```CBAM.SQL.MSBuild``` package to execute SQL statements.
-The ```ConnectionConfigurationFilePath``` property should point to JSON file, which contains a single JSON object, with ```Host```, ```Port```, ```Database```, ```Username```, and ```Password``` properties.
-The ```SQLStatementsFilePath``` should be a path to a file containing some SQL statements which are desired to be run to database.
+1. The ```DemoSQLGenerator/DemoSQLGenerator.csproj``` project gets restored and built.
+This project file contains demonstration code which generates a very simple SQL statements to create one schema and one table.
+This step will restore ```SQLGenerator.Usage``` and ```SQLGenerator``` package in order for compilation to be successful.
 
-Once started, the ```CBAM.SQL.MSBuild``` package will dynamically load ```CBAM.SQL.PostgreSQL.Implementation``` package, and use the supplied information to execute SQL statements from file to the database.
-If any of the required package is missing from local NuGet repository, the task factory will restore it.
-Restoration process can be customized by specifying NuGet configuration file via ```NuGetConfigurationFile``` element in ```NuGetTaskInfo``` element.
+2. The ```GenerateSQL.build``` project gets restored.
+This will restore ```UtilPack.NuGet.MSBuild``` package which will be used in next step.
+
+3. The ```GenerateSQLFile``` target is run on ```GenerateSQL.build``` project.
+This will invoke the ```UtilPack.NuGet.MSBuild``` task factory so that it will use task in ```SQLGenerator.MSBuild``` package.
+This task will then in turn load ```SQLGenerator.PostgreSQL``` package (which contains concrete implementation of ```SQLVendor``` interface used in ```DemoSQLGenerator/DemoSQLGenerator.csproj```) and the DLL of ```DemoSQLGenerator/DemoSQLGenerator.csproj``` created in step 1 in order to generate SQL statements and write them to ```output.sql``` file.
+
+As mentioned, the first two steps are just setting up the infrastructure, and the final step is the one which should be repeated if no other changes in the system happen.
+However, if you modify code in ```DemoSQLGenerator/.cs```, step 1 will need to be repeated.
+Step 2 will only need to be repeated if version to ```UtilPack.NuGet.MSBuild``` is changed or the package is deleted from local repository.
+
+## What Next?
+Feel free to explore advanced features of ```UtilPack.NuGet.MSBuild``` in [here](../UtilPack.NuGet.MSBuild).
+Alternatively, evolve SQL generation task to generate more complex SQL files.
+When those SQL files need to be run to database, you might be interested in [CBAM.SQL.MSBuild](/CometaSolutions/CBAM/tree/develop/Source/CBAM.SQL.MSBuild) MSBuild task, which also is executable by ```UtilPack.NuGet.MSBuild``` task factory.

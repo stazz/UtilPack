@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- This project file will execute whole demo sequence from start to end. -->
+  <PropertyGroup>
+    <!-- This is required for the SDK. -->
+    <TargetFramework>netstandard1.0</TargetFramework>
+  </PropertyGroup>
+  
+  <Target Name="RunDemo">
+    <!-- First, build our custom SQL generator. -->
+    <MSBuild
+      Projects="$(MSBuildThisFileDirectory)\DemoSQLGenerator\DemoSQLGenerator.csproj"
+      Properties="Configuration=Debug"
+      Targets="Restore;Build"
+      />
+      
+    <!-- Then, restore the file that generates SQL (this will restore UtilPack.NuGet.MSBuild package) -->
+    <!-- We must use exec, since the properties provided by UtilPack.NuGet.MSBuild won't be visible otherwise. -->
+    <Exec
+      Command="&quot;$(MSBuildBinPath)\MSBuild.exe&quot; /t:Restore &quot;$(MSBuildThisFileDirectory)\GenerateSQL.build&quot;"
+      />   
+      
+    <!-- Then, generate SQL. This will use UtilPack.NuGet.MSBuild task factory, which will restore the SQLGenerator.PostgreSQL package and pass it on our custom SQL generator. -->
+    <MSBuild
+      Projects="$(MSBuildThisFileDirectory)\GenerateSQL.build"
+      Targets="GenerateSQLFile"
+      />
+  </Target>
+</Project>

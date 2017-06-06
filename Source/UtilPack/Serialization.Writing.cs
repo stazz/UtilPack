@@ -45,7 +45,7 @@ namespace UtilPack
    /// <summary>
    /// This class implements <see cref="PotentiallyAsyncWriterLogic{TValue, TSink}"/> to serialize characters to byte stream with given encoding.
    /// </summary>
-   public class StreamCharacterWriter : PotentiallyAsyncWriterLogic<IEnumerable<Char>, StreamWriterWithResizableBuffer>
+   public class StreamCharacterWriterLogic : PotentiallyAsyncWriterLogic<IEnumerable<Char>, StreamWriterWithResizableBuffer>
    {
       private const Int32 IDLE = 0;
       private const Int32 BUSY = 1;
@@ -58,11 +58,11 @@ namespace UtilPack
       private Int32 _state;
 
       /// <summary>
-      /// Creates new instance of <see cref="StreamCharacterWriter"/> with given parameters.
+      /// Creates new instance of <see cref="StreamCharacterWriterLogic"/> with given parameters.
       /// </summary>
       /// <param name="encoding">The <see cref="IEncodingInfo"/> that will be used to encode characters.</param>
       /// <param name="maxBufferSize">The maximum allowed buffer size that any <see cref="StreamWriterWithResizableBuffer"/> will be allowed to have.</param>
-      public StreamCharacterWriter(
+      public StreamCharacterWriterLogic(
          IEncodingInfo encoding,
          Int32 maxBufferSize
          )

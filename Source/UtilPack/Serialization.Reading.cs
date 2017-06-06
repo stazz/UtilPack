@@ -590,14 +590,14 @@ namespace UtilPack
    /// <summary>
    /// This class implements <see cref="PotentiallyAsyncReaderLogic{TValue, TSource}"/> to provide pseudo-asynchronous character reading over a <see cref="StringIndex"/>.
    /// </summary>
-   public sealed class StringCharacterReader : PotentiallyAsyncReaderLogic<Char?, StringIndex>
+   public sealed class StringCharacterReaderLogic : PotentiallyAsyncReaderLogic<Char?, StringIndex>
    {
       /// <summary>
       /// Gets the default, stateless instance.
       /// </summary>
-      public static readonly StringCharacterReader Instance = new StringCharacterReader();
+      public static readonly StringCharacterReaderLogic Instance = new StringCharacterReaderLogic();
 
-      private StringCharacterReader()
+      private StringCharacterReaderLogic()
       {
       }
 
@@ -673,7 +673,7 @@ namespace UtilPack
    /// <summary>
    /// This class provides functionality to read characters from <see cref="StreamReaderWithResizableBuffer"/>.
    /// </summary>
-   public sealed class StreamCharacterReader : PotentiallyAsyncReaderLogic<Char?, StreamReaderWithResizableBuffer>
+   public sealed class StreamCharacterReaderLogic : PotentiallyAsyncReaderLogic<Char?, StreamReaderWithResizableBuffer>
    {
       private const Int32 IDLE = 0;
       private const Int32 BUSY = 1;
@@ -684,11 +684,11 @@ namespace UtilPack
       private Int32 _lowSurrogate;
 
       /// <summary>
-      /// Creates new instance of <see cref="StreamCharacterReader"/> with given <see cref="IEncodingInfo"/>.
+      /// Creates new instance of <see cref="StreamCharacterReaderLogic"/> with given <see cref="IEncodingInfo"/>.
       /// </summary>
       /// <param name="encodingInfo">The <see cref="IEncodingInfo"/>.</param>
       /// <exception cref="ArgumentNullException">If <paramref name="encodingInfo"/> is <c>null</c>.</exception>
-      public StreamCharacterReader(
+      public StreamCharacterReaderLogic(
          IEncodingInfo encodingInfo
          )
       {
@@ -698,9 +698,9 @@ namespace UtilPack
       }
 
       /// <summary>
-      /// Gets the <see cref="IEncodingInfo"/> of this <see cref="StreamCharacterReader"/>.
+      /// Gets the <see cref="IEncodingInfo"/> of this <see cref="StreamCharacterReaderLogic"/>.
       /// </summary>
-      /// <value>The <see cref="IEncodingInfo"/> of this <see cref="StreamCharacterReader"/>.</value>
+      /// <value>The <see cref="IEncodingInfo"/> of this <see cref="StreamCharacterReaderLogic"/>.</value>
       public IEncodingInfo Encoding { get; }
 
       /// <summary>

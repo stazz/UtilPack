@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
+  <!-- This project file demonstrates how to use UtilPack.NuGet.MSBuild task factory. -->
+  
   <PropertyGroup>
     <!-- This can be anything, really. The most important thing is to have Sdk property in Project element. -->
     <TargetFramework>netstandard1.0</TargetFramework>
@@ -22,18 +23,18 @@
     Condition=" '$(UtilPackNuGetMSBuildAssemblyPath)' != '' "
     TaskFactory="UtilPack.NuGet.MSBuild.NuGetTaskRunnerFactory"
     AssemblyFile="$(UtilPackNuGetMSBuildAssemblyPath)"
-    TaskName="CBAM.SQL.MSBuild.ExecuteSQLStatementsTask"
+    TaskName="SQLGenerator.MSBuild.WriteSQLFileTask"
   >
     <Task>
       <NuGetTaskInfo>
         <!-- This element is mandatory, and should be the package ID of the package containing MSBuild task to be executed. -->
-        <PackageID>CBAM.SQL.MSBuild</PackageID>
-        <!-- Optionally specify the version. By default, newest will be used. -->
-        <PackageVersion>0.0.3-alpha</PackageVersion>
+        <PackageID>SQLGenerator.MSBuild</PackageID>
+        <!-- Optionally specify the version. By default, newest will be used. Note that leaving this out will cause NuGet restore to always scan all sources. -->
+        <PackageVersion>1.0.0-RC1</PackageVersion>
         <!-- Optionally specify the assembly path of the task DLL -->
         <!--<AssemblyPath>lib/netstandard1.3/X.Y.dll</AssemblyPath>-->
-        <!-- Optionally specify the path to local NuGet repository. The default will be used otherwise. -->
-        <!--<RepositoryPath></RepositoryPath>-->
+        <!-- Optionally specify NuGet configuration file -->
+        <!-- <NuGetConfigurationFile>path/to/nuget.config</NuGetConfigurationFile> -->
         <!-- Optionally specify the full type name of the task class. By default, the value of TaskName attribute of UsingTask element will be used. -->
         <!-- <TaskName>Some.Other.Class</TaskName> -->
         <!-- Optionally specify the NuGet framework which will act as framework of current process. The NuGet package matches are done against this framework. -->
@@ -46,15 +47,16 @@
   </UsingTask>
   
   <!-- The target for task. -->
-  <Target Name="RunExecuteSQLStatements">
-    <Error Condition=" '$(ConnectionConfigurationFilePath)' == '' or '$(SQLStatementsFilePath)' == '' " Text="Both ConnectionConfigurationFilePath and SQLStatementsFilePath properties must be specified via commandline." />
+  <Target Name="GenerateSQLFile">
     
     <!-- Call the task. -->
-    <CBAM.SQL.MSBuild.ExecuteSQLStatementsTask
-      ConnectionPoolProviderPackageID="CBAM.SQL.PostgreSQL.Implementation"
-      ConnectionPoolProviderVersion="0.0.2-alpha"
-      ConnectionConfigurationFilePath="$(ConnectionConfigurationFilePath)"
-      SQLStatementsFilePath="$(SQLStatementsFilePath)"
+    <!-- Use SQLGenerator.PostgreSQL package which contains PostgreSQL SQL dialect. -->
+    <!-- Use our generator assembly as loadable assembly since we don't want to publish it to NuGet. -->
+    <SQLGenerator.MSBuild.WriteSQLFileTask
+      VendorPackageID="SQLGenerator.PostgreSQL"
+      VendorPackageVersion="1.0.0-RC1"
+      GeneratorAssemblyPath="$(MSBuildThisFileDirectory)\DemoSQLGenerator\bin\Debug\netstandard1.0\DemoSQLGenerator.dll"
+      OutputFile="$(MSBuildThisFileDirectory)\output.sql"
     />
   </Target>
 </Project>

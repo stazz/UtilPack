@@ -1407,12 +1407,6 @@ namespace UtilPack.NuGet.MSBuild
                return AssemblyNamesMatch( assemblyName, defName );
             } ).Value?.Value;
 
-            // Turn on logging when the problem related to resolving MSBuild.dll is solved
-            // This method is called for "MSBuild" assembly, which is where task factory logging host type resides.
-            // Then this method calls LogResolveMessage, which tries to load "MSBuild" assembly again, since it uses task factory logging host to log
-            // -> Stack overflow
-            // Returning 'null' for "MSBuild" will then cause exception which results in build fail.
-
             this.LogResolveMessage( retVal == null ?
                $"Assembly reference did not match definition for \"{assemblyName}\", considered \"{String.Join( ";", assemblyLazies.Keys )}\"." :
                $"Found \"{assemblyName}\" by simple name \"{assemblyName.Name}\" in \"{retVal.CodeBase}\"." );

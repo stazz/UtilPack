@@ -66,7 +66,7 @@
   <!-- Assembly information stuff -->
   <PropertyGroup>
     <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>RC4</VersionSuffix>
+    <VersionSuffix>RC6</VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>

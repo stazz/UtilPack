@@ -1413,13 +1413,13 @@ namespace UtilPack.NuGet.MSBuild
             // -> Stack overflow
             // Returning 'null' for "MSBuild" will then cause exception which results in build fail.
 
-            //this.LogResolveMessage( retVal == null ?
-            //   $"Assembly reference did not match definition for \"{assemblyName}\", considered \"{String.Join( ";", assemblyLazies.Keys )}\"." :
-            //   $"Found \"{assemblyName}\" by simple name \"{assemblyName.Name}\" in \"{retVal.CodeBase}\"." );
+            this.LogResolveMessage( retVal == null ?
+               $"Assembly reference did not match definition for \"{assemblyName}\", considered \"{String.Join( ";", assemblyLazies.Keys )}\"." :
+               $"Found \"{assemblyName}\" by simple name \"{assemblyName.Name}\" in \"{retVal.CodeBase}\"." );
          }
          else
          {
-            //this.LogResolveMessage( $"Failed to find \"{assemblyName}\" by simple name \"{assemblyName.Name}\"." );
+            this.LogResolveMessage( $"Failed to find \"{assemblyName}\" by simple name \"{assemblyName.Name}\"." );
             retVal = null;
          }
          return retVal;

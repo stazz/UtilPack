@@ -50,6 +50,34 @@ namespace UtilPack.NuGet.MSBuild
 {
    public partial class NuGetTaskRunnerFactory : ITaskFactory
    {
+      private sealed class TaskReferenceHolderInfo : IDisposable
+      {
+         private readonly Lazy<IDictionary<String, (WrappedPropertyKind, WrappedPropertyInfo)>> _propertyInfo;
+         private readonly Action _dispose;
+
+         public TaskReferenceHolderInfo(
+            TaskReferenceHolder taskRef,
+            ResolverLogger resolverLogger,
+            Action dispose
+            )
+         {
+            this.TaskReference = taskRef;
+            this.Logger = resolverLogger;
+            this._dispose = dispose;
+            this._propertyInfo = new Lazy<IDictionary<string, (WrappedPropertyKind, WrappedPropertyInfo)>>( () => taskRef.GetPropertyInfo().ToDictionary( kvp => kvp.Key, kvp => TaskReferenceHolder.DecodeKindAndInfo( kvp.Value ) ) );
+         }
+
+         public TaskReferenceHolder TaskReference { get; }
+
+         public ResolverLogger Logger { get; }
+
+         public IDictionary<String, (WrappedPropertyKind, WrappedPropertyInfo)> PropertyInfo => this._propertyInfo.Value;
+
+         public void Dispose()
+         {
+            this._dispose?.Invoke();
+         }
+      }
 
       private const String PACKAGE_ID = "PackageID";
       private const String PACKAGE_VERSION = "PackageVersion";
@@ -57,7 +85,7 @@ namespace UtilPack.NuGet.MSBuild
       private const String NUGET_FW = "NuGetFramework";
 
       // We will re-create anything that needs re-creating between mutiple task usages from this same lazy.
-      private ReadOnlyResettableLazy<NuGetTaskExecutionHelper> _helper;
+      private ReadOnlyResettableLazy<TaskReferenceHolderInfo> _helper;
 
       // We will generate task type only exactly once, no matter how many times the actual task is created.
       private readonly Lazy<Type> _taskType;
@@ -67,7 +95,7 @@ namespace UtilPack.NuGet.MSBuild
 
       public NuGetTaskRunnerFactory()
       {
-         this._taskType = new Lazy<Type>( () => GenerateTaskType( this._helper.Value.GetTaskTypeGenerationParameters() ) );
+         this._taskType = new Lazy<Type>( () => GenerateTaskType( (this._helper.Value.TaskReference.IsCancelable, this._helper.Value.PropertyInfo) ) );
       }
 
       public String FactoryName => nameof( NuGetTaskRunnerFactory );
@@ -82,7 +110,7 @@ namespace UtilPack.NuGet.MSBuild
 
       public void CleanupTask( ITask task )
       {
-         if ( this._helper.IsValueCreated && this._helper.Value.TaskUsesDynamicLoading )
+         if ( this._helper.IsValueCreated && this._helper.Value.TaskReference.TaskUsesDynamicLoading )
          {
             // In .NET Desktop, task factory logger seems to become invalid almost immediately after initialize method, so...
             // Don't log.
@@ -107,13 +135,22 @@ namespace UtilPack.NuGet.MSBuild
          IBuildEngine taskFactoryLoggingHost
          )
       {
-         (var taskRef, var logger) = this._helper.Value.GetTaskInstanceCreationInfo();
-         return (ITask) this._taskType.Value.GetConstructors()[0].Invoke( new Object[] { taskRef, logger } );
+         return (ITask) this._taskType.Value.GetConstructors()[0].Invoke( new Object[] { this._helper.Value.TaskReference, this._helper.Value.Logger } );
       }
 
       public TaskPropertyInfo[] GetTaskParameters()
       {
-         return this._helper.Value.GetTaskParameters();
+         return this._helper.Value.PropertyInfo
+            .Select( kvp =>
+            {
+               var propType = GetPropertyType( kvp.Value.Item1 );
+               var info = kvp.Value.Item2;
+               return propType == null ?
+                  null :
+                  new Microsoft.Build.Framework.TaskPropertyInfo( kvp.Key, propType, info == WrappedPropertyInfo.Out, info == WrappedPropertyInfo.Required );
+            } )
+            .Where( propInfo => propInfo != null )
+            .ToArray();
       }
 
       public Boolean Initialize(
@@ -169,7 +206,8 @@ namespace UtilPack.NuGet.MSBuild
                    taskName,
                    resolverWrapper,
                    assemblyPath,
-                   deps
+                   deps,
+                   new ResolverLogger( nugetResolver.NuGetLogger )
 #if !NET45
                    , platformFrameworkPaths
 #endif
@@ -708,9 +746,10 @@ namespace UtilPack.NuGet.MSBuild
       private readonly MethodInfo _cancelMethod;
       private readonly IDictionary<String, TTaskPropertyInfo> _propertyInfos;
 
-      public TaskReferenceHolder( Object task, String msbuildFrameworkAssemblyName )
+      public TaskReferenceHolder( Object task, String msbuildFrameworkAssemblyName, Boolean taskUsesDynamicLoading )
       {
          this._task = task ?? throw new Exception( "Failed to create the task object." );
+         this.TaskUsesDynamicLoading = taskUsesDynamicLoading;
          var mbfInterfaces = this._task.GetType().GetInterfaces()
             .Where( iFace => iFace
 #if !NET45
@@ -744,6 +783,7 @@ namespace UtilPack.NuGet.MSBuild
                   new Action<Object>( val => curProperty.SetMethod.Invoke( this._task, new[] { val } ) ),
                   converter);
                } );
+
       }
 
       // Passing value tuples thru appdomain boundaries is errorprone, so just use normal integers here
@@ -753,6 +793,8 @@ namespace UtilPack.NuGet.MSBuild
       }
 
       internal Boolean IsCancelable => this._cancelMethod != null;
+
+      internal Boolean TaskUsesDynamicLoading { get; }
 
       // Called by generated task type
       public void Cancel()
@@ -815,7 +857,7 @@ namespace UtilPack.NuGet.MSBuild
       : MarshalByRefObject
 #endif
    {
-      private const Int32 USING_TASK_FACTORY_BE = 0;
+      private const Int32 INITIAL = 0;
       private const Int32 TASK_BE_INITIALIZING = 1;
       private const Int32 TASK_BE_READY = 2;
 
@@ -824,9 +866,8 @@ namespace UtilPack.NuGet.MSBuild
       private readonly List<String> _queuedMessages;
       private readonly NuGetMSBuildLogger _nugetLogger;
 
-      internal ResolverLogger( IBuildEngine be, NuGetMSBuildLogger nugetLogger )
+      internal ResolverLogger( NuGetMSBuildLogger nugetLogger )
       {
-         this._be = be;
          this._queuedMessages = new List<String>();
          this._nugetLogger = nugetLogger;
       }
@@ -834,14 +875,14 @@ namespace UtilPack.NuGet.MSBuild
       // This is called by generated task type in its IBuildEngine setter
       public void TaskBuildEngineSet( IBuildEngine be )
       {
-         if ( be != null && Interlocked.CompareExchange( ref this._state, TASK_BE_INITIALIZING, USING_TASK_FACTORY_BE ) == USING_TASK_FACTORY_BE )
+         if ( be != null && Interlocked.CompareExchange( ref this._state, TASK_BE_INITIALIZING, INITIAL ) == INITIAL )
          {
             Interlocked.Exchange( ref this._be, be );
             this._nugetLogger.SetBuildEngine( null );
          }
       }
 
-      //// This is called by generated task type in its Execute method start
+      // This is called by generated task type in its Execute method start
       public void TaskBuildEngineIsReady()
       {
          if ( Interlocked.CompareExchange( ref this._state, TASK_BE_READY, TASK_BE_INITIALIZING ) == TASK_BE_INITIALIZING )
@@ -860,16 +901,15 @@ namespace UtilPack.NuGet.MSBuild
       {
          switch ( this._state )
          {
-            case USING_TASK_FACTORY_BE:
             case TASK_BE_READY:
                this._be.LogMessageEvent( new BuildMessageEventArgs(
-            message,
-            null,
-            "NuGetPackageAssemblyResolver",
-            MessageImportance.Low,
-            DateTime.UtcNow,
-            null
-         ) );
+                  message,
+                  null,
+                  "NuGetPackageAssemblyResolver",
+                  MessageImportance.Low,
+                  DateTime.UtcNow,
+                  null
+               ) );
                break;
             case TASK_BE_INITIALIZING:
                // When assembly resolve happens during task initialization (setting BuildEngine etc properties).
@@ -1315,18 +1355,6 @@ namespace UtilPack.NuGet.MSBuild
       None,
       Required,
       Out
-   }
-
-
-   internal interface NuGetTaskExecutionHelper : IDisposable
-   {
-      TTaskTypeGenerationParameters GetTaskTypeGenerationParameters();
-
-      TaskPropertyInfo[] GetTaskParameters();
-
-      TTaskInstanceCreationInfo GetTaskInstanceCreationInfo();
-
-      Boolean TaskUsesDynamicLoading { get; }
    }
 
    internal abstract class CommonAssemblyRelatedHelper : IDisposable

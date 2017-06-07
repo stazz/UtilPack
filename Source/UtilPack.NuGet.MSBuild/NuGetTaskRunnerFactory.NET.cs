@@ -25,8 +25,6 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Threading;
-using TTaskTypeGenerationParameters = System.ValueTuple<System.Boolean, System.Collections.Generic.IDictionary<System.String, System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyInfo>>>;
-using TTaskInstanceCreationInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.TaskReferenceHolder, UtilPack.NuGet.MSBuild.ResolverLogger>;
 using System.Reflection.Emit;
 using System.Xml.Linq;
 using System.Threading.Tasks;
@@ -36,13 +34,14 @@ namespace UtilPack.NuGet.MSBuild
    partial class NuGetTaskRunnerFactory
    {
 
-      private NuGetTaskExecutionHelper CreateExecutionHelper(
+      private TaskReferenceHolderInfo CreateExecutionHelper(
          Microsoft.Build.Framework.IBuildEngine taskFactoryLoggingHost,
          XElement taskBodyElement,
          String taskName,
          NuGetResolverWrapper nugetResolver,
          String assemblyPath,
-         IDictionary<String, ISet<String>> assemblyPathsBySimpleName
+         IDictionary<String, ISet<String>> assemblyPathsBySimpleName,
+         ResolverLogger resolverLogger
          )
       {
          var assemblyDir = Path.GetDirectoryName( assemblyPath );
@@ -67,75 +66,45 @@ namespace UtilPack.NuGet.MSBuild
          // We can't pass NET45NuGetResolver to AssemblyLoadHelper constructor directly, because that type is in this assembly, which is outside app domains application path.
          // And we can't register to AssemblyResolve because of that reason too.
          // Alternatively we could just make new type which binds AssemblyLoadHelper and NET45NuGetResolver, but let's go with this for now.
-         var logger = new ResolverLogger( taskFactoryLoggingHost, nugetResolver.Resolver.NuGetLogger );
-         bootstrapper.Initialize( assemblyPathsBySimpleName, nugetResolver, assemblyPath, taskName, logger );
-         return new NET45ExecutionHelper(
+         bootstrapper.Initialize( assemblyPathsBySimpleName, nugetResolver, assemblyPath, taskName, resolverLogger );
+         var helper = new NET45ExecutionHelper(
             taskName,
             appDomain,
-            bootstrapper,
-            logger
+            bootstrapper
+            );
+         return new TaskReferenceHolderInfo(
+            helper.TaskReference,
+            resolverLogger,
+            () => helper.Dispose()
             );
       }
 
-      private sealed class NET45ExecutionHelper : NuGetTaskExecutionHelper
+      private sealed class NET45ExecutionHelper
       {
          private readonly AppDomain _domain;
          private readonly AssemblyLoadHelper _bootstrapper;
-         private readonly TaskReferenceHolder _taskRef;
-         private readonly IDictionary<String, (WrappedPropertyKind, WrappedPropertyInfo)> _propertyInfos;
-         private readonly ResolverLogger _logger;
 
          public NET45ExecutionHelper(
             String taskName,
             AppDomain domain,
-            AssemblyLoadHelper bootstrapper,
-            ResolverLogger logger
+            AssemblyLoadHelper bootstrapper
             )
          {
             this._domain = domain;
             this._bootstrapper = bootstrapper;
             // Doing typeof( Microsoft.Build.Framework.ITask ) in original MSBuild appdomain will result in correct MSBuild assembly to be used.
             // However, doing so in task's target domain, at least at the moment, will result in 14.0 version to be loaded from GAC, since net45 build depends on 14.0 MSBuild.
-            this._taskRef = bootstrapper.CreateTaskReferenceHolder(
+            this.TaskReference = bootstrapper.CreateTaskReferenceHolder(
                taskName,
-               typeof( Microsoft.Build.Framework.ITask ).Assembly.GetName().FullName,
-               out var taskUsesDynamicLoading
+               typeof( Microsoft.Build.Framework.ITask ).Assembly.GetName().FullName
                );
-            if ( this._taskRef == null )
+            if ( this.TaskReference == null )
             {
                throw new Exception( $"Failed to load type {taskName}." );
             }
-            this.TaskUsesDynamicLoading = taskUsesDynamicLoading;
-            this._propertyInfos = this._taskRef.GetPropertyInfo().ToDictionary( kvp => kvp.Key, kvp => TaskReferenceHolder.DecodeKindAndInfo( kvp.Value ) );
-            this._logger = logger;
          }
 
-         public TTaskTypeGenerationParameters GetTaskTypeGenerationParameters()
-         {
-            return (this._taskRef.IsCancelable, this._propertyInfos);
-         }
-
-         public Microsoft.Build.Framework.TaskPropertyInfo[] GetTaskParameters()
-         {
-            return this._propertyInfos
-               .Select( kvp =>
-               {
-                  var propType = GetPropertyType( kvp.Value.Item1 );
-                  var info = kvp.Value.Item2;
-                  return propType == null ?
-                     null :
-                     new Microsoft.Build.Framework.TaskPropertyInfo( kvp.Key, propType, info == WrappedPropertyInfo.Out, info == WrappedPropertyInfo.Required );
-               } )
-               .Where( propInfo => propInfo != null )
-               .ToArray();
-         }
-
-         public TTaskInstanceCreationInfo GetTaskInstanceCreationInfo()
-         {
-            return (this._taskRef, this._logger);
-         }
-
-         public Boolean TaskUsesDynamicLoading { get; }
+         public TaskReferenceHolder TaskReference { get; }
 
          public void Dispose()
          {
@@ -207,13 +176,11 @@ namespace UtilPack.NuGet.MSBuild
 
       public TaskReferenceHolder CreateTaskReferenceHolder(
          String taskName,
-         String msbuildFrameworkAssemblyName,
-         out Boolean taskUsesDynamicLoading
+         String msbuildFrameworkAssemblyName
          )
       {
-         Type taskType; ConstructorInfo ctor; Object[] ctorParams;
-         (taskType, ctor, ctorParams, taskUsesDynamicLoading) = this._helper.LoadTaskType();
-         return taskType == null ? null : new TaskReferenceHolder( ctor.Invoke( ctorParams ), msbuildFrameworkAssemblyName );
+         (var taskType, var ctor, var ctorParams, var taskUsesDynamicLoading) = this._helper.LoadTaskType();
+         return taskType == null ? null : new TaskReferenceHolder( ctor.Invoke( ctorParams ), msbuildFrameworkAssemblyName, taskUsesDynamicLoading );
       }
 
       public void Dispose()

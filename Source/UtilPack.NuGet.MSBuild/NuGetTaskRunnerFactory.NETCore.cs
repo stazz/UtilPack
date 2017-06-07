@@ -33,32 +33,34 @@ using System.Runtime.Loader;
 using System.Threading.Tasks;
 
 using TResolveResult = System.Collections.Generic.IDictionary<System.String, UtilPack.NuGet.MSBuild.ResolvedPackageInfo>;
-using TTaskInstanceInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.TaskReferenceHolder, System.Collections.Generic.IDictionary<System.String, System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyInfo>>>;
-using TTaskTypeGenerationParameters = System.ValueTuple<System.Boolean, System.Collections.Generic.IDictionary<System.String, System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyInfo>>>;
-using TTaskInstanceCreationInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.TaskReferenceHolder, UtilPack.NuGet.MSBuild.ResolverLogger>;
 
 namespace UtilPack.NuGet.MSBuild
 {
    partial class NuGetTaskRunnerFactory
    {
-      private NuGetTaskExecutionHelper CreateExecutionHelper(
+      private TaskReferenceHolderInfo CreateExecutionHelper(
          IBuildEngine taskFactoryLoggingHost,
          XElement taskBodyElement,
          String taskName,
          NuGetResolverWrapper nugetResolver,
          String assemblyPath,
          IDictionary<String, ISet<String>> assemblyPathsBySimpleName,
+         ResolverLogger resolverLogger,
          TResolveResult platformFrameworkPaths
          )
       {
-
-         return new NETStandardExecutionHelper(
-            taskFactoryLoggingHost,
+         var helper = new NETStandardExecutionHelper(
             taskName,
             nugetResolver,
             assemblyPath,
             assemblyPathsBySimpleName,
+            resolverLogger,
             platformFrameworkPaths
+            );
+         return new TaskReferenceHolderInfo(
+            helper.TaskReference,
+            resolverLogger,
+            () => helper.Dispose()
             );
       }
 
@@ -124,37 +126,32 @@ namespace UtilPack.NuGet.MSBuild
          }
       }
 
-      private sealed class NETStandardExecutionHelper : CommonAssemblyRelatedHelper, NuGetTaskExecutionHelper
+      private sealed class NETStandardExecutionHelper : CommonAssemblyRelatedHelper
       {
          private readonly NuGetTaskLoadContext _loader;
-         private readonly Lazy<(Type, ConstructorInfo, Object[], Boolean)> _taskType;
-         private readonly Lazy<TTaskInstanceInfo> _taskInstance;
          private readonly ResolverLogger _logger;
 
          public NETStandardExecutionHelper(
-            IBuildEngine taskFactoryLoggingHost,
             String taskName,
             NuGetResolverWrapper nugetResolver,
             String assemblyPath,
             IDictionary<String, ISet<String>> assemblyPathsBySimpleName,
+            ResolverLogger logger,
             TResolveResult platformPackages
             )
             : base( assemblyPathsBySimpleName, nugetResolver, assemblyPath, taskName )
          {
-            this._logger = new ResolverLogger( taskFactoryLoggingHost, nugetResolver.Resolver.NuGetLogger );
+            this._logger = logger;
             this._loader = new NuGetTaskLoadContext( this, platformPackages );
-            this._taskType = new Lazy<(Type, ConstructorInfo, Object[], Boolean)>( () => this.LoadTaskType(), System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
-            this._taskInstance = new Lazy<TTaskInstanceInfo>( () =>
-            {
-               var taskRef = new TaskReferenceHolder( this._taskType.Value.Item2.Invoke( this._taskType.Value.Item3 ), typeof( ITask ).GetTypeInfo().Assembly.GetName().FullName );
-               return (taskRef, taskRef.GetPropertyInfo().ToDictionary( kvp => kvp.Key, kvp => TaskReferenceHolder.DecodeKindAndInfo( kvp.Value ) ));
-            }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
+            var taskTypeInfo = this.LoadTaskType();
+            this.TaskReference = new TaskReferenceHolder(
+                  taskTypeInfo.Item2.Invoke( taskTypeInfo.Item3 ),
+                  typeof( ITask ).GetTypeInfo().Assembly.GetName().FullName,
+                  taskTypeInfo.Item4
+                  );
          }
 
-         public TTaskInstanceCreationInfo GetTaskInstanceCreationInfo()
-         {
-            return (this._taskInstance.Value.Item1, this._logger);
-         }
+         public TaskReferenceHolder TaskReference { get; }
 
          public override void Dispose()
          {
@@ -168,28 +165,6 @@ namespace UtilPack.NuGet.MSBuild
                this._loader.DisposeSafely();
             }
          }
-
-         public TaskPropertyInfo[] GetTaskParameters()
-         {
-            return this._taskInstance.Value.Item2
-               .Select( kvp =>
-               {
-                  var propType = GetPropertyType( kvp.Value.Item1 );
-                  var info = kvp.Value.Item2;
-                  return propType == null ?
-                     null :
-                     new TaskPropertyInfo( kvp.Key, propType, info == WrappedPropertyInfo.Out, info == WrappedPropertyInfo.Required );
-               } )
-               .Where( propInfo => propInfo != null )
-               .ToArray();
-         }
-
-         public TTaskTypeGenerationParameters GetTaskTypeGenerationParameters()
-         {
-            return (this._taskInstance.Value.Item1.IsCancelable, this._taskInstance.Value.Item2);
-         }
-
-         public Boolean TaskUsesDynamicLoading => this._taskType.Value.Item4;
 
          protected override void LogResolveMessage( String message )
          {

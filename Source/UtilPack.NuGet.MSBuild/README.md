@@ -70,7 +70,7 @@ There is an example of using ```UtilPack.NuGet.MSBuild``` in [here](../UtilPack.
 There are no special constraints when developing the MSBuild task that will be executed by ```UtilPack.NuGet.MSBuild``` package.
 No certain class is required to be extended, and no dependencies (other than to MSBuild assemblies) are required.
 Developing for .NET 4.5+, .NET Standard 1.3+ and .NET Core 1.0+ is supported - indeed, it is enough to target .NET Standard 1.3, and your task will be executable by both desktop and .NET Core MSBuild.
-Referencing third-party NuGet packages is supported, as long as they are visible in ```.nuspec``` file.
+Referencing third-party NuGet packages is supported, as long as the dependencies are visible in ```.nuspec``` file.
 The assemblies may reside in ```lib``` or ```build``` folders of the package, both are supported.
 
 ## Advanced
@@ -94,11 +94,16 @@ The path assembly loader callback has the following parameter:
 The ```UtilPack.NuGet.MSBuild``` task factory is implemented by multi-targeting .NET 4.5 and .NET Core 1.1.
 The code mostly common for both frameworks is in [NuGetTaskRunnerFactory.cs](NuGetTaskRunnerFactory.cs) file, and the code radically differing for .NET 4.5 and .NET Core 1.1 is in [NuGetTaskRunnerFactory.NET.cs](NuGetTaskRunnerFactory.NET.cs) and [NuGetTaskRunnerFactory.NETCore.cs](NuGetTaskRunnerFactory.NETCore.cs) files, respectively.
 To control the on-demand assembly loading caused by loading and executing the task,
-* the Desktop version uses [AppDomains](https://docs.microsoft.com/en-us/dotnet/api/system.appdomain?view=netframework-4.5) and [code generation](https://docs.microsoft.com/en-us/dotnet/api/system.reflection.emit?view=netframework-4.5), and
+* the Desktop version uses [AppDomains](https://docs.microsoft.com/en-us/dotnet/api/system.appdomain?view=netframework-4.5), and
 * the Core version uses [AssemblyLoadContexts](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.loader.assemblyloadcontext?view=netcore-1.1).
 
-The common part of assembly loading logic uses the [NuGet Restore command](https://github.com/NuGet/NuGet.Client/tree/dev/src/NuGet.Core/NuGet.Commands/RestoreCommand) to search for the dependencies of the task-to-be-executed package in order to know where to load them.
+The common part of assembly loading logic uses [code generation](https://docs.microsoft.com/en-us/dotnet/api/system.reflection.emit?view=netframework-4.5) to create task proxy, and the [NuGet Restore command](https://github.com/NuGet/NuGet.Client/tree/dev/src/NuGet.Core/NuGet.Commands/RestoreCommand) to search for the dependencies of the task-to-be-executed package in order to know where to load them.
 The Restore command also takes care of downloading any missing packages.
 
 In order to seamlessly integrate into the build, all required assemblies are placed under ```build/net45``` and ```build/netcoreapp1.1``` folders, so that the package would not have any dependencies.
 Furthermore, the ```build``` folder contains the ```.props``` file, which will setup the property ```UtilPackNuGetMSBuildAssemblyPath``` pointing to correct (Desktop or Core, depending which version of MSBuild is executing the project file) assembly containing the task factory.
+
+# TODO
+CommonAssemblyHelper should accept IEnumerable<String> as full paths to all "visible" assemblies.
+The .NET core should filter out from here all platform assemblies.
+Then CAH should use ConcurrentDictionary<AssemblyName, ConcurrentDictionary<AssemblyName, Lazy<Assembly>>> as its assembly dictionary.

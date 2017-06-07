@@ -16,6 +16,7 @@
  * limitations under the License. 
  */
 #if !NET45
+using Microsoft.Build.Framework;
 using NuGet.Frameworks;
 using NuGet.Repositories;
 using System;
@@ -32,27 +33,32 @@ using System.Runtime.Loader;
 using System.Threading.Tasks;
 
 using TResolveResult = System.Collections.Generic.IDictionary<System.String, UtilPack.NuGet.MSBuild.ResolvedPackageInfo>;
+using TTaskInstanceInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.TaskReferenceHolder, System.Collections.Generic.IDictionary<System.String, System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyInfo>>>;
+using TTaskTypeGenerationParameters = System.ValueTuple<System.Boolean, System.Collections.Generic.IDictionary<System.String, System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyInfo>>>;
+using TTaskInstanceCreationInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.TaskReferenceHolder, UtilPack.NuGet.MSBuild.ResolverLogger>;
 
 namespace UtilPack.NuGet.MSBuild
 {
    partial class NuGetTaskRunnerFactory
    {
-      private async ValueTask<NuGetTaskExecutionHelper> CreateExecutionHelper(
-         Microsoft.Build.Framework.IBuildEngine taskFactoryLoggingHost,
+      private NuGetTaskExecutionHelper CreateExecutionHelper(
+         IBuildEngine taskFactoryLoggingHost,
          XElement taskBodyElement,
          String taskName,
          NuGetResolverWrapper nugetResolver,
          String assemblyPath,
-         IDictionary<String, ISet<String>> assemblyPathsBySimpleName
+         IDictionary<String, ISet<String>> assemblyPathsBySimpleName,
+         TResolveResult platformFrameworkPaths
          )
       {
-         return await NETStandardExecutionHelper.Create(
+
+         return new NETStandardExecutionHelper(
             taskFactoryLoggingHost,
-            taskBodyElement,
             taskName,
             nugetResolver,
             assemblyPath,
-            assemblyPathsBySimpleName
+            assemblyPathsBySimpleName,
+            platformFrameworkPaths
             );
       }
 
@@ -64,7 +70,7 @@ namespace UtilPack.NuGet.MSBuild
          private readonly ISet<String> _frameworkAssemblySimpleNames;
          private readonly AssemblyLoadContext _defaultLoadContext;
 
-         private NuGetTaskLoadContext(
+         public NuGetTaskLoadContext(
             CommonAssemblyRelatedHelper helper,
             TResolveResult frameworkAssemblyInfo
             )
@@ -93,22 +99,7 @@ namespace UtilPack.NuGet.MSBuild
             // To save amount of catches we do, cache all loaded assembly by their assembly names.
             return this._loadedAssemblies.GetOrAdd( assemblyName, an => new Lazy<Assembly>( () =>
             {
-               Boolean tryDefaultFirst;
-               switch ( an.Name )
-               {
-                  case "Microsoft.Build":
-                  case "Microsoft.Build.Framework":
-                  case "Microsoft.Build.Tasks.Core":
-                  case "Microsoft.Build.Utilities.Core":
-                     // We'll always try load msbuild assemblies with default loader first.
-                     tryDefaultFirst = true;
-                     break;
-                  default:
-                     // Use default loader only if simple name matches a set of framework assemblies.
-                     tryDefaultFirst = this._frameworkAssemblySimpleNames.Contains( an.Name );
-                     break;
-               }
-
+               var tryDefaultFirst = this._helper.IsMBFAssembly( an ) || this._frameworkAssemblySimpleNames.Contains( an.Name );
                Assembly retVal = null;
                if ( tryDefaultFirst )
                {
@@ -131,62 +122,38 @@ namespace UtilPack.NuGet.MSBuild
          {
             this._loadedAssemblies.Clear();
          }
-
-         public static async System.Threading.Tasks.Task<NuGetTaskLoadContext> Create(
-            CommonAssemblyRelatedHelper helper,
-            NuGetResolverWrapper nugetResolver,
-            XElement taskBodyElement
-            )
-         {
-            var platformFrameworkPaths = await nugetResolver.Resolver.ResolveNuGetPackages(
-                     taskBodyElement.Element( NuGetBoundResolver.NUGET_FW_PACKAGE_ID )?.Value ?? "Microsoft.NETCore.App", // This value is hard-coded in Microsoft.NET.Sdk.Common.targets, and currently no proper API exists to map NuGetFrameworks into package ID (+ version combination).
-                     taskBodyElement.Element( NuGetBoundResolver.NUGET_FW_PACKAGE_VERSION )?.Value ?? "1.1.2",
-                     ( lib, libs ) => lib.CompileTimeAssemblies.Select( i => i.Path )
-               );
-
-            return new NuGetTaskLoadContext( helper, platformFrameworkPaths );
-         }
       }
 
       private sealed class NETStandardExecutionHelper : CommonAssemblyRelatedHelper, NuGetTaskExecutionHelper
       {
-         private NuGetTaskLoadContext _loader;
-         private readonly Lazy<Type> _taskType;
-         private Microsoft.Build.Framework.IBuildEngine _be;
+         private readonly NuGetTaskLoadContext _loader;
+         private readonly Lazy<(Type, ConstructorInfo, Object[], Boolean)> _taskType;
+         private readonly Lazy<TTaskInstanceInfo> _taskInstance;
+         private readonly ResolverLogger _logger;
 
-         private NETStandardExecutionHelper(
-            Microsoft.Build.Framework.IBuildEngine taskFactoryLoggingHost,
+         public NETStandardExecutionHelper(
+            IBuildEngine taskFactoryLoggingHost,
             String taskName,
             NuGetResolverWrapper nugetResolver,
             String assemblyPath,
-            IDictionary<String, ISet<String>> assemblyPathsBySimpleName
+            IDictionary<String, ISet<String>> assemblyPathsBySimpleName,
+            TResolveResult platformPackages
             )
             : base( assemblyPathsBySimpleName, nugetResolver, assemblyPath, taskName )
          {
-            this._be = taskFactoryLoggingHost;
-            // Register to default load context resolving event to minimize amount of exceptions thrown (we probably don't wanna pollute default loader with all the loaded stuff actually).
-            //System.Runtime.Loader.AssemblyLoadContext.Default.Resolving += this._loader_Resolving;
-            //this._loader.Resolving += this._loader_Resolving;
-            //System.Runtime.Loader.AssemblyLoadContext.GetLoadContext( Assembly.GetEntryAssembly() ).Resolving += this._loader_Resolving;
-            this._taskType = new Lazy<Type>( () => this.LoadTaskType(), System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
+            this._logger = new ResolverLogger( taskFactoryLoggingHost, nugetResolver.Resolver.NuGetLogger );
+            this._loader = new NuGetTaskLoadContext( this, platformPackages );
+            this._taskType = new Lazy<(Type, ConstructorInfo, Object[], Boolean)>( () => this.LoadTaskType(), System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
+            this._taskInstance = new Lazy<TTaskInstanceInfo>( () =>
+            {
+               var taskRef = new TaskReferenceHolder( this._taskType.Value.Item2.Invoke( this._taskType.Value.Item3 ), typeof( ITask ).GetTypeInfo().Assembly.GetName().FullName );
+               return (taskRef, taskRef.GetPropertyInfo().ToDictionary( kvp => kvp.Key, kvp => TaskReferenceHolder.DecodeKindAndInfo( kvp.Value ) ));
+            }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
          }
 
-         private void SetLoader( NuGetTaskLoadContext loader )
+         public TTaskInstanceCreationInfo GetTaskInstanceCreationInfo()
          {
-            System.Threading.Interlocked.CompareExchange( ref this._loader, loader, null );
-         }
-
-         //private Assembly _loader_Resolving( System.Runtime.Loader.AssemblyLoadContext loader, AssemblyName name )
-         //{
-         //   return this.PerformAssemblyResolve( name );
-         //}
-
-         public Object CreateTaskInstance( Type taskType, Microsoft.Build.Framework.IBuildEngine taskLoggingHost )
-         {
-            // The taskLoggingHost is the BE given to the task.
-            this._be = taskLoggingHost;
-            this._resolver.Resolver.NuGetLogger.SetBuildEngine( taskLoggingHost );
-            return this.PerformCreateTaskInstance( taskType );
+            return (this._taskInstance.Value.Item1, this._logger);
          }
 
          public override void Dispose()
@@ -198,50 +165,40 @@ namespace UtilPack.NuGet.MSBuild
             }
             finally
             {
-               //System.Runtime.Loader.AssemblyLoadContext.Default.Resolving -= this._loader_Resolving;
                this._loader.DisposeSafely();
             }
          }
 
-         public Microsoft.Build.Framework.TaskPropertyInfo[] GetTaskParameters()
+         public TaskPropertyInfo[] GetTaskParameters()
          {
-            return CommonHelpers.GetPropertyInfoFromType(
-               this._taskType.Value,
-               typeof( Microsoft.Build.Framework.ITask ).GetTypeInfo().Assembly.GetName()
-               )
-               .Where( kvp => kvp.Value.Item1 != WrappedPropertyKind.BuildEngine && kvp.Value.Item1 != WrappedPropertyKind.TaskHost )
-               .Select( kvp => new Microsoft.Build.Framework.TaskPropertyInfo( kvp.Key, kvp.Value.Item3.PropertyType, kvp.Value.Item2 == WrappedPropertyInfo.Out, kvp.Value.Item2 == WrappedPropertyInfo.Required ) )
+            return this._taskInstance.Value.Item2
+               .Select( kvp =>
+               {
+                  var propType = GetPropertyType( kvp.Value.Item1 );
+                  var info = kvp.Value.Item2;
+                  return propType == null ?
+                     null :
+                     new TaskPropertyInfo( kvp.Key, propType, info == WrappedPropertyInfo.Out, info == WrappedPropertyInfo.Required );
+               } )
+               .Where( propInfo => propInfo != null )
                .ToArray();
          }
 
-         public Type GetTaskType()
+         public TTaskTypeGenerationParameters GetTaskTypeGenerationParameters()
          {
-            return this._taskType.Value;
+            return (this._taskInstance.Value.Item1.IsCancelable, this._taskInstance.Value.Item2);
          }
+
+         public Boolean TaskUsesDynamicLoading => this._taskType.Value.Item4;
 
          protected override void LogResolveMessage( String message )
          {
-            this._be.LogMessageEvent( new Microsoft.Build.Framework.BuildMessageEventArgs( message, null, null, Microsoft.Build.Framework.MessageImportance.Low, DateTime.UtcNow ) );
+            this._logger.Log( message );
          }
 
          protected override Assembly LoadAssemblyFromPath( String path )
          {
             return this._loader.LoadFromAssemblyPath( path );
-         }
-
-         public static async System.Threading.Tasks.Task<NETStandardExecutionHelper> Create(
-            Microsoft.Build.Framework.IBuildEngine taskFactoryLoggingHost,
-            XElement taskBodyElement,
-            String taskName,
-            NuGetResolverWrapper nugetResolver,
-            String assemblyPath,
-            IDictionary<String, ISet<String>> assemblyPathsBySimpleName
-            )
-         {
-            var retVal = new NETStandardExecutionHelper( taskFactoryLoggingHost, taskName, nugetResolver, assemblyPath, assemblyPathsBySimpleName );
-            var loader = await NuGetTaskLoadContext.Create( retVal, nugetResolver, taskBodyElement );
-            retVal.SetLoader( loader );
-            return retVal;
          }
       }
    }

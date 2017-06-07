@@ -68,7 +68,6 @@ namespace UtilPack.NuGet.MSBuild
          // Alternatively we could just make new type which binds AssemblyLoadHelper and NET45NuGetResolver, but let's go with this for now.
          bootstrapper.Initialize( assemblyPathsBySimpleName, nugetResolver, assemblyPath, taskName, resolverLogger );
          var helper = new NET45ExecutionHelper(
-            taskName,
             appDomain,
             bootstrapper
             );
@@ -85,7 +84,6 @@ namespace UtilPack.NuGet.MSBuild
          private readonly AssemblyLoadHelper _bootstrapper;
 
          public NET45ExecutionHelper(
-            String taskName,
             AppDomain domain,
             AssemblyLoadHelper bootstrapper
             )
@@ -95,13 +93,8 @@ namespace UtilPack.NuGet.MSBuild
             // Doing typeof( Microsoft.Build.Framework.ITask ) in original MSBuild appdomain will result in correct MSBuild assembly to be used.
             // However, doing so in task's target domain, at least at the moment, will result in 14.0 version to be loaded from GAC, since net45 build depends on 14.0 MSBuild.
             this.TaskReference = bootstrapper.CreateTaskReferenceHolder(
-               taskName,
                typeof( Microsoft.Build.Framework.ITask ).Assembly.GetName().FullName
                );
-            if ( this.TaskReference == null )
-            {
-               throw new Exception( $"Failed to load type {taskName}." );
-            }
          }
 
          public TaskReferenceHolder TaskReference { get; }
@@ -175,7 +168,6 @@ namespace UtilPack.NuGet.MSBuild
       }
 
       public TaskReferenceHolder CreateTaskReferenceHolder(
-         String taskName,
          String msbuildFrameworkAssemblyName
          )
       {

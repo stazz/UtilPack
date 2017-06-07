@@ -57,8 +57,14 @@ namespace UtilPack.NuGet.MSBuild
             resolverLogger,
             platformFrameworkPaths
             );
+
+         var taskTypeInfo = helper.LoadTaskType();
          return new TaskReferenceHolderInfo(
-            helper.TaskReference,
+            new TaskReferenceHolder(
+               taskTypeInfo.Item2.Invoke( taskTypeInfo.Item3 ),
+               typeof( ITask ).GetTypeInfo().Assembly.GetName().FullName,
+               taskTypeInfo.Item4
+               ),
             resolverLogger,
             () => helper.Dispose()
             );
@@ -143,15 +149,7 @@ namespace UtilPack.NuGet.MSBuild
          {
             this._logger = logger;
             this._loader = new NuGetTaskLoadContext( this, platformPackages );
-            var taskTypeInfo = this.LoadTaskType();
-            this.TaskReference = new TaskReferenceHolder(
-                  taskTypeInfo.Item2.Invoke( taskTypeInfo.Item3 ),
-                  typeof( ITask ).GetTypeInfo().Assembly.GetName().FullName,
-                  taskTypeInfo.Item4
-                  );
          }
-
-         public TaskReferenceHolder TaskReference { get; }
 
          public override void Dispose()
          {

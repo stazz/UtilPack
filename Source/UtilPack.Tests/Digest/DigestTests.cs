@@ -139,7 +139,7 @@ namespace UtilPack.Tests.Digest
          Byte[] camHash;
          using ( var cam = utilPackFactory() )
          {
-            camHash = cam.ComputeHash( bytez, 0, bytez.Length );
+            camHash = cam.ComputeDigest( bytez, 0, bytez.Length );
          }
 
          Assert.IsTrue(

@@ -20,39 +20,81 @@ using UtilPack.Cryptography;
 
 namespace UtilPack.Cryptography
 {
+   /// <summary>
+   /// This interface provides API for cryptographic random number generators.
+   /// </summary>
    public interface RandomGenerator : IDisposable
    {
+      /// <summary>
+      /// Adds seed material as a number of bytes to the current state of random generator.
+      /// </summary>
+      /// <param name="material">The seed material array.</param>
+      /// <param name="offset">The offset in <paramref name="material"/> where to start to read for bytes.</param>
+      /// <param name="count">How many bytes to read from <paramref name="material"/>.</param>
       void AddSeedMaterial( Byte[] material, Int32 offset, Int32 count );
+
+      /// <summary>
+      /// Adds seed material as 64-bit number to the current state of random generator.
+      /// </summary>
+      /// <param name="materialValue">The randomess to add, as a 64-bit number.</param>
       void AddSeedMaterial( Int64 materialValue );
+
+      /// <summary>
+      /// Generates next random bytes into given array.
+      /// </summary>
+      /// <param name="array">The array to generate random bytes to.</param>
+      /// <param name="offset">The offset where to start generating.</param>
+      /// <param name="count">Amount of bytes to generate.</param>
       void NextBytes( Byte[] array, Int32 offset, Int32 count );
    }
 
+   /// <summary>
+   /// This class provides skeleton implementation for <see cref="RandomGenerator"/> which also makes this class not safe to use concurrently.
+   /// </summary>
    public abstract class NotThreadsafeRandomGenerator : AbstractDisposable, RandomGenerator
    {
-
+      /// <summary>
+      /// Creates new instance of <see cref="NotThreadsafeRandomGenerator"/>.
+      /// </summary>
       protected NotThreadsafeRandomGenerator()
       {
          this.ArrayForLong = new Byte[sizeof( Int64 )];
       }
 
+      /// <inheritdoc />
       public void AddSeedMaterial( Int64 materialValue )
       {
          this.ArrayForLong.WriteInt64LEToBytesNoRef( 0, materialValue );
          this.AddSeedMaterial( this.ArrayForLong, 0, sizeof( Int64 ) );
       }
 
+      /// <inheritdoc />
       public abstract void AddSeedMaterial( Byte[] material, Int32 offset, Int32 count );
+
+      /// <inheritdoc />
       public abstract void NextBytes( Byte[] array, Int32 offset, Int32 count );
 
-      // Do *not* use this inside AddSeedMaterial method!
+      /// <summary>
+      /// Gets temporary array where integers (32-bit and 64-bit ones) can be written during random generation process.
+      /// </summary>
+      /// <value>The temporary array where integers (32-bit and 64-bit ones) can be written during random generation process.</value>
       protected Byte[] ArrayForLong { get; }
    }
 
+   /// <summary>
+   /// This class extends <see cref="Random"/> in order to provide cryptographical random number generation to APIs which accept <see cref="Random"/> class.
+   /// It uses <see cref="RandomGenerator"/> underneath.
+   /// </summary>
    public class SecureRandom : Random, IDisposable
    {
       private readonly RandomGenerator _generator;
       private readonly Byte[] _intBytes;
 
+      /// <summary>
+      /// Creates new instance of <see cref="SecureRandom"/> with given <see cref="RandomGenerator"/>.
+      /// </summary>
+      /// <param name="generator">The <see cref="RandomGenerator"/> to use to generate random numbers.</param>
+      /// <exception cref="ArgumentNullException">If <paramref name="generator"/> is <c>null</c>.</exception>
       public SecureRandom( RandomGenerator generator )
          : base( 0 )
       {
@@ -60,12 +102,14 @@ namespace UtilPack.Cryptography
          this._intBytes = new Byte[sizeof( Int64 )];
       }
 
+      /// <inheritdoc/>
       public override Int32 Next()
       {
          // The spec is to return non-negative integer.
          return this.NextInt32() & Int32.MaxValue;
       }
 
+      /// <inheritdoc/>
       public override Int32 Next( Int32 maxValue )
       {
          // The spec is to return non-negative integer lesser than maxValue
@@ -90,6 +134,7 @@ namespace UtilPack.Cryptography
          return retVal;
       }
 
+      /// <inheritdoc/>
       public override Int32 Next( Int32 minValue, Int32 maxValue )
       {
          // Here both minValue and maxValue can be negative
@@ -118,40 +163,57 @@ namespace UtilPack.Cryptography
          return retVal;
       }
 
+      /// <inheritdoc/>
       public override void NextBytes( Byte[] buffer )
       {
          this.NextBytes( buffer, 0, buffer.Length );
       }
 
+      /// <inheritdoc/>
       public void NextBytes( Byte[] buffer, Int32 offset, Int32 length )
       {
          this._generator.NextBytes( buffer, offset, length );
       }
 
+      /// <inheritdoc/>
       public override Double NextDouble()
       {
          const Double scale = Int64.MaxValue;
          return Convert.ToDouble( (UInt64) this.NextInt64() ) / scale;
       }
 
+      /// <summary>
+      /// Generates new 32-bit integer within whole range of <see cref="Int32"/>, including negative values.
+      /// </summary>
+      /// <returns>New 32-bit integer within whole range of <see cref="Int32"/>, including negative values.</returns>
       public Int32 NextInt32()
       {
          this.NextBytes( this._intBytes, 0, sizeof( Int32 ) );
          return this._intBytes.ReadInt32BEFromBytesNoRef( 0 ); // Endianness shouldn't matter here since bytes are random.
       }
 
+      /// <summary>
+      /// Generates new 64-bit integer within whole range of <see cref="Int64"/>, including negative values.
+      /// </summary>
+      /// <returns>New 642-bit integer within whole range of <see cref="Int64"/>, including negative values.</returns>
       public Int64 NextInt64()
       {
          this.NextBytes( this._intBytes, 0, sizeof( Int64 ) );
          return this._intBytes.ReadInt64BEFromBytesNoRef( 0 );
       }
 
+      /// <summary>
+      /// Disposes the underlying <see cref="RandomGenerator"/> and clears the state of this generator.
+      /// </summary>
       public void Dispose()
       {
          this._generator.DisposeSafely();
          Array.Clear( this._intBytes, 0, this._intBytes.Length );
       }
 
+      /// <summary>
+      /// Clears state of this <see cref="SecureRandom"/> and underlying <see cref="RandomGenerator"/>.
+      /// </summary>
       ~SecureRandom()
       {
          try
@@ -166,13 +228,28 @@ namespace UtilPack.Cryptography
    }
 }
 
+/// <summary>
+/// This class contains extensions methods defined in UtilPack products.
+/// </summary>
 public static partial class E_UtilPack
 {
+   /// <summary>
+   /// Helper method to add whole contents of given byte array as seed material to this <see cref="RandomGenerator"/>.
+   /// </summary>
+   /// <param name="generator">This <see cref="RandomGenerator"/>.</param>
+   /// <param name="array">The seed material.</param>
+   /// <exception cref="NullReferenceException">If this <see cref="RandomGenerator"/> is <c>null</c>.</exception>
    public static void AddSeedMaterial( this RandomGenerator generator, Byte[] array )
    {
       generator.AddSeedMaterial( array, 0, array.Length );
    }
 
+   /// <summary>
+   /// Helper method to populate whole contents of given array with random data.
+   /// </summary>
+   /// <param name="generator">This <see cref="RandomGenerator"/>.</param>
+   /// <param name="array">The array where to write data. All of the contents of the array will be overwritten.</param>
+   /// <exception cref="NullReferenceException">If this <see cref="RandomGenerator"/> is <c>null</c>.</exception>
    public static void NextBytes( this RandomGenerator generator, Byte[] array )
    {
       generator.NextBytes( array, 0, array.Length );

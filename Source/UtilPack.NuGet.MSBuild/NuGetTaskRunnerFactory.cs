@@ -45,11 +45,16 @@ using System.Threading;
 
 using TTaskTypeGenerationParameters = System.ValueTuple<System.Boolean, System.Collections.Generic.IDictionary<System.String, System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyInfo>>>;
 using TTaskInstanceCreationInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.TaskReferenceHolder, UtilPack.NuGet.MSBuild.ResolverLogger>;
+using System.Threading.Tasks;
+using UtilPack.NuGet;
+using UtilPack.NuGet.MSBuild;
+using UtilPack;
 
 namespace UtilPack.NuGet.MSBuild
 {
    public partial class NuGetTaskRunnerFactory : ITaskFactory
    {
+
       private sealed class TaskReferenceHolderInfo : IDisposable
       {
          private readonly Lazy<IDictionary<String, (WrappedPropertyKind, WrappedPropertyInfo)>> _propertyInfo;
@@ -83,6 +88,8 @@ namespace UtilPack.NuGet.MSBuild
       private const String PACKAGE_VERSION = "PackageVersion";
       private const String ASSEMBLY_PATH = "AssemblyPath";
       private const String NUGET_FW = "NuGetFramework";
+      internal const String NUGET_FW_PACKAGE_ID = "NuGetFrameworkPackageID";
+      internal const String NUGET_FW_PACKAGE_VERSION = "NuGetFrameworkPackageVersion";
 
       // We will re-create anything that needs re-creating between mutiple task usages from this same lazy.
       private ReadOnlyResettableLazy<TaskReferenceHolderInfo> _helper;
@@ -164,20 +171,35 @@ namespace UtilPack.NuGet.MSBuild
 
          var taskBodyElement = XElement.Parse( taskBody );
 
+         // Nuget stuff
          var nugetFrameworkFromProjectFile = taskBodyElement.Element( NUGET_FW )?.Value;
          var thisFW = this.GetNuGetFrameworkForRuntime( taskFactoryLoggingHost );
+         String nugetConfig;
+         ISettings nugetSettings;
+         if ( String.IsNullOrEmpty( ( nugetConfig = taskBodyElement.Element( "NuGetConfigurationFile" )?.Value ) ) )
+         {
+            nugetSettings = Settings.LoadDefaultSettings( Path.GetDirectoryName( taskFactoryLoggingHost.ProjectFileOfTaskNode ), null, new XPlatMachineWideSetting() );
+         }
+         else
+         {
+            var fp = Path.GetFullPath( nugetConfig );
+            nugetSettings = Settings.LoadSpecificSettings( Path.GetDirectoryName( fp ), Path.GetFileName( fp ) );
+         }
 
-         var nugetResolver = new NuGetBoundResolver(
-            taskFactoryLoggingHost,
-            this.FactoryName,
-            taskBodyElement,
+         var nugetLogger = new NuGetMSBuildLogger( taskFactoryLoggingHost );
+         var nugetResolver = new BoundRestoreCommandUser(
             thisFW,
-            ( lib, libs ) => GetSuitableFiles( thisFW, lib, libs )
+            nugetSettings,
+            nugetLogger
             );
+         GetFileItemsDelegate getFiles = ( lib, libs ) => GetSuitableFiles( thisFW, lib, libs );
+
+         // Restore task package
          String packageID;
          var resolveInfo = nugetResolver.ResolveNuGetPackages(
             ( packageID = taskBodyElement.Element( PACKAGE_ID )?.Value ),
-            taskBodyElement.Element( "PackageVersion" )?.Value
+            taskBodyElement.Element( "PackageVersion" )?.Value,
+            getFiles
             ).GetAwaiter().GetResult();
 
          var retVal = false;
@@ -189,13 +211,13 @@ namespace UtilPack.NuGet.MSBuild
                assemblyPaths.Assemblies, assemblyPaths.PackageDirectory, taskBodyElement.Element( "AssemblyPath" )?.Value );
             if ( !String.IsNullOrEmpty( assemblyPath ) )
             {
-               var resolverWrapper = new NuGetResolverWrapper( nugetResolver );
+               var resolverWrapper = new NuGetResolverWrapper( nugetResolver, getFiles );
                taskName = this.ProcessTaskName( taskBodyElement, taskName );
                var deps = GroupDependenciesBySimpleAssemblyName( resolveInfo );
 #if !NET45
                var platformFrameworkPaths = nugetResolver.ResolveNuGetPackages(
-                  taskBodyElement.Element( NuGetBoundResolver.NUGET_FW_PACKAGE_ID )?.Value ?? "Microsoft.NETCore.App", // This value is hard-coded in Microsoft.NET.Sdk.Common.targets, and currently no proper API exists to map NuGetFrameworks into package ID (+ version combination).
-                  taskBodyElement.Element( NuGetBoundResolver.NUGET_FW_PACKAGE_VERSION )?.Value ?? "1.1.2",
+                  taskBodyElement.Element( NUGET_FW_PACKAGE_ID )?.Value ?? "Microsoft.NETCore.App", // This value is hard-coded in Microsoft.NET.Sdk.Common.targets, and currently no proper API exists to map NuGetFrameworks into package ID (+ version combination).
+                  taskBodyElement.Element( NUGET_FW_PACKAGE_VERSION )?.Value ?? "1.1.2",
                   ( lib, libs ) => lib.CompileTimeAssemblies.Select( i => i.Path )
                ).GetAwaiter().GetResult();
 #endif
@@ -207,7 +229,7 @@ namespace UtilPack.NuGet.MSBuild
                    resolverWrapper,
                    assemblyPath,
                    deps,
-                   new ResolverLogger( nugetResolver.NuGetLogger )
+                   new ResolverLogger( nugetLogger )
 #if !NET45
                    , platformFrameworkPaths
 #endif
@@ -386,7 +408,7 @@ namespace UtilPack.NuGet.MSBuild
                -1,
                -1,
                -1,
-               $"Unrecognized framework name: \"{fwName}\", try specifying NuGet framework and package strings that describes this process runtime in <Task> element (using \"{NUGET_FW}\", \"{NuGetBoundResolver.NUGET_FW_PACKAGE_ID}\", and \"{NuGetBoundResolver.NUGET_FW_PACKAGE_VERSION}\" elements)!",
+               $"Unrecognized framework name: \"{fwName}\", try specifying NuGet framework and package strings that describes this process runtime in <Task> element (using \"{NUGET_FW}\", \"{NUGET_FW_PACKAGE_ID}\", and \"{NUGET_FW_PACKAGE_VERSION}\" elements)!",
                null,
                senderName
                ) );
@@ -990,204 +1012,7 @@ namespace UtilPack.NuGet.MSBuild
 
    internal delegate IEnumerable<String> GetFileItemsDelegate( LockFileTargetLibrary targetLibrary, Lazy<IDictionary<String, LockFileLibrary>> libraries );
 
-   internal sealed class NuGetBoundResolver : IDisposable
-   {
 
-
-      private const String NUGET_FW = "NuGetFramework";
-      internal const String NUGET_FW_PACKAGE_ID = "NuGetFrameworkPackageID";
-      internal const String NUGET_FW_PACKAGE_VERSION = "NuGetFrameworkPackageVersion";
-
-
-      //private readonly ISettings _nugetSettings;
-      private readonly SourceCacheContext _cacheContext;
-      private readonly RestoreCommandProviders _restoreCommandProvider;
-      private readonly String _nugetRestoreRootDir; // NuGet restore command never writes anything to disk (apart from packages themselves), but if certain file paths are omitted, it simply fails with argumentnullexception when invoking Path.Combine or Path.GetFullName. So this can be anything, really, as long as it's understandable by Path class.
-      private readonly TargetFrameworkInformation _restoreTargetFW;
-      private LockFile _previousLockFile;
-      private readonly IDictionary<String, NuGetv3LocalRepository> _localRepos;
-      private readonly GetFileItemsDelegate _defaultFileGetter;
-      private readonly ConcurrentDictionary<String, ConcurrentDictionary<NuGetVersion, LockFile>> _allLockFiles;
-
-      public NuGetBoundResolver(
-         IBuildEngine be,
-         String senderName,
-         XElement taskBodyElement,
-         NuGetFramework thisFramework,
-         GetFileItemsDelegate defaultFileGetter = null
-         )
-      {
-         this.ThisFramework = thisFramework;
-         //be.LogMessageEvent( new BuildMessageEventArgs(
-         //   $"Using {this.ThisFramework} as NuGet framework representing this runtime.",
-         //   null,
-         //   senderName,
-         //   MessageImportance.High
-         //   ) );
-
-         String nugetConfig;
-         ISettings nugetSettings;
-         if ( String.IsNullOrEmpty( ( nugetConfig = taskBodyElement.Element( "NuGetConfigurationFile" )?.Value ) ) )
-         {
-            nugetSettings = Settings.LoadDefaultSettings( Path.GetDirectoryName( be.ProjectFileOfTaskNode ), null, new XPlatMachineWideSetting() );
-         }
-         else
-         {
-            var fp = Path.GetFullPath( nugetConfig );
-            nugetSettings = Settings.LoadSpecificSettings( Path.GetDirectoryName( fp ), Path.GetFileName( fp ) );
-         }
-
-         var global = SettingsUtility.GetGlobalPackagesFolder( nugetSettings );
-         var fallbacks = SettingsUtility.GetFallbackPackageFolders( nugetSettings );
-         var ctx = new SourceCacheContext();
-         var nugetLogger = new NuGetMSBuildLogger( be );
-         var psp = new PackageSourceProvider( nugetSettings );
-         var csp = new global::NuGet.Protocol.CachingSourceProvider( psp );
-         this._cacheContext = ctx;
-         this.NuGetLogger = nugetLogger;
-         this._restoreCommandProvider = RestoreCommandProviders.Create(
-            global,
-            fallbacks,
-            new PackageSourceProvider( nugetSettings ).LoadPackageSources().Where( s => s.IsEnabled ).Select( s => csp.CreateRepository( s ) ),
-            ctx,
-            nugetLogger
-            );
-         this._nugetRestoreRootDir = Path.Combine( Path.GetTempPath(), Path.GetRandomFileName() );
-         this._restoreTargetFW = new TargetFrameworkInformation()
-         {
-            FrameworkName = this.ThisFramework
-         };
-         this._localRepos = this._restoreCommandProvider.GlobalPackages.Singleton().Concat( this._restoreCommandProvider.FallbackPackageFolders ).ToDictionary( r => r.RepositoryRoot, r => r );
-         this._defaultFileGetter = defaultFileGetter ?? ( ( lib, libs ) => lib.RuntimeAssemblies.Select( i => i.Path ) );
-         this._allLockFiles = new ConcurrentDictionary<String, ConcurrentDictionary<NuGetVersion, LockFile>>();
-      }
-
-      public NuGetFramework ThisFramework { get; }
-
-      public NuGetMSBuildLogger NuGetLogger { get; }
-
-      public async System.Threading.Tasks.Task<TResolveResult> ResolveNuGetPackages(
-         String packageID,
-         String version,
-         GetFileItemsDelegate fileGetter = null
-         )
-      {
-         // Prepare for invoking restore command
-         TResolveResult retVal;
-         if ( !String.IsNullOrEmpty( packageID ) )
-         {
-            VersionRange versionRange;
-            if ( String.IsNullOrEmpty( version ) )
-            {
-               // Accept all versions, and pick the newest
-               versionRange = VersionRange.AllFloating;
-            }
-            else
-            {
-               // Accept specific version range
-               versionRange = VersionRange.Parse( version );
-            }
-
-            // Invoking restore command is quite expensive, so let's try to see if we have cached result
-            LockFile lockFile = null;
-            if ( !versionRange.IsFloating && this._allLockFiles.TryGetValue( packageID, out var thisPackageLockFiles ) )
-            {
-               var matchingActualVersion = versionRange.FindBestMatch( thisPackageLockFiles.Keys.Where( v => versionRange.Satisfies( v ) ) );
-               if ( matchingActualVersion != null )
-               {
-                  lockFile = thisPackageLockFiles[matchingActualVersion];
-               }
-            }
-
-            if ( lockFile == null )
-            {
-               lockFile = await this.PerformRestore( packageID, versionRange );
-               var actualVersion = lockFile.Libraries.First( l => String.Equals( l.Name, packageID ) ).Version;
-               this._allLockFiles
-                  .GetOrAdd( packageID, p => new ConcurrentDictionary<NuGetVersion, LockFile>() )
-                  .TryAdd( actualVersion, lockFile );
-            }
-            // We will always have only one target, since we are running restore always against one target framework
-            retVal = new Dictionary<String, ResolvedPackageInfo>();
-            if ( fileGetter == null )
-            {
-               fileGetter = this._defaultFileGetter;
-            }
-            var libDic = new Lazy<IDictionary<String, LockFileLibrary>>( () =>
-            {
-               return lockFile.Libraries.ToDictionary( lib => lib.Name, lib => lib );
-            }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
-            foreach ( var targetLib in lockFile.Targets[0].Libraries )
-            {
-               var curLib = targetLib;
-               var targetLibFullPath = lockFile.PackageFolders
-                  .Select( f =>
-                  {
-                     return this._localRepos.TryGetValue( f.Path, out var curRepo ) ?
-                        Path.Combine( curRepo.RepositoryRoot, curRepo.PathResolver.GetPackageDirectory( curLib.Name, curLib.Version ) ) :
-                        null;
-                  } )
-                  .FirstOrDefault( fp => !String.IsNullOrEmpty( fp ) && Directory.Exists( fp ) );
-               if ( !String.IsNullOrEmpty( targetLibFullPath ) )
-               {
-                  retVal.Add( curLib.Name, new ResolvedPackageInfo(
-                     targetLibFullPath,
-                     fileGetter( curLib, libDic )
-                        ?.Select( p => Path.Combine( targetLibFullPath, p ) )
-                        ?.ToArray() ?? Empty<String>.Array
-                     ) );
-               }
-            }
-
-
-            // Restore command never modifies existing lock file object, instead it creates new one
-            // Just update to newest (thus the next request will be able to use cached information and be faster)
-            System.Threading.Interlocked.Exchange( ref this._previousLockFile, lockFile );
-
-         }
-         else
-         {
-            retVal = null;
-         }
-
-         return retVal;
-      }
-
-      private async System.Threading.Tasks.Task<LockFile> PerformRestore(
-         String packageID,
-         VersionRange versionRange
-         )
-      {
-         var spec = new PackageSpec()
-         {
-            Name = $"Restoring {packageID}",
-            FilePath = Path.Combine( this._nugetRestoreRootDir, "dummy" )
-         };
-         spec.TargetFrameworks.Add( this._restoreTargetFW );
-
-         spec.Dependencies.Add( new LibraryDependency()
-         {
-            LibraryRange = new LibraryRange( packageID, versionRange, LibraryDependencyTarget.Package )
-         } );
-
-         var request = new RestoreRequest(
-            spec,
-            this._restoreCommandProvider,
-            this._cacheContext,
-            this.NuGetLogger )
-         {
-            ProjectStyle = ProjectStyle.Standalone,
-            RestoreOutputPath = this._nugetRestoreRootDir,
-            ExistingLockFile = this._previousLockFile
-         };
-         return ( await ( new RestoreCommand( request ).ExecuteAsync() ) ).LockFile;
-      }
-
-      public void Dispose()
-      {
-         this._cacheContext.DisposeSafely();
-      }
-   }
 
 #if NET45
    [Serializable] // We want to be serializable instead of MarshalByRef as we want to copy these objects
@@ -1637,11 +1462,15 @@ namespace UtilPack.NuGet.MSBuild
 #endif
    {
 
+      private readonly GetFileItemsDelegate _getFiles;
+
       public NuGetResolverWrapper(
-         NuGetBoundResolver resolver
+         BoundRestoreCommandUser resolver,
+         GetFileItemsDelegate getFiles
          )
       {
          this.Resolver = resolver;
+         this._getFiles = getFiles;
       }
 
       public
@@ -1683,9 +1512,57 @@ namespace UtilPack.NuGet.MSBuild
          String packageVersion
          )
       {
-         return await this.Resolver.ResolveNuGetPackages( packageID, packageVersion );
+         return await this.Resolver.ResolveNuGetPackages( packageID, packageVersion, this._getFiles );
       }
 
-      public NuGetBoundResolver Resolver { get; }
+      public BoundRestoreCommandUser Resolver { get; }
+   }
+}
+
+internal static class E_UtilPack
+{
+   public static async ValueTask<TResolveResult> ResolveNuGetPackages(
+      this BoundRestoreCommandUser restorer,
+      String packageID,
+      String version,
+      GetFileItemsDelegate fileGetter = null
+   )
+   {
+      var lockFile = await restorer.RestoreIfNeeded( packageID, version );
+
+      // We will always have only one target, since we are running restore always against one target framework
+      var retVal = new Dictionary<String, ResolvedPackageInfo>();
+      if ( fileGetter == null )
+      {
+         fileGetter = ( ( lib, libs ) => lib.RuntimeAssemblies.Select( i => i.Path ) );
+      }
+      var libDic = new Lazy<IDictionary<String, LockFileLibrary>>( () =>
+      {
+         return lockFile.Libraries.ToDictionary( lib => lib.Name, lib => lib );
+      }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
+
+      foreach ( var targetLib in lockFile.Targets[0].Libraries )
+      {
+         var curLib = targetLib;
+         var targetLibFullPath = lockFile.PackageFolders
+            .Select( f =>
+            {
+               return restorer.LocalRepositories.TryGetValue( f.Path, out var curRepo ) ?
+                  Path.Combine( curRepo.RepositoryRoot, curRepo.PathResolver.GetPackageDirectory( curLib.Name, curLib.Version ) ) :
+                  null;
+            } )
+            .FirstOrDefault( fp => !String.IsNullOrEmpty( fp ) && Directory.Exists( fp ) );
+         if ( !String.IsNullOrEmpty( targetLibFullPath ) )
+         {
+            retVal.Add( curLib.Name, new ResolvedPackageInfo(
+               targetLibFullPath,
+               fileGetter( curLib, libDic )
+                  ?.Select( p => Path.Combine( targetLibFullPath, p ) )
+                  ?.ToArray() ?? Empty<String>.Array
+               ) );
+         }
+      }
+
+      return retVal;
    }
 }

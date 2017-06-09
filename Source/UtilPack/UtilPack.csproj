@@ -55,7 +55,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Downgraded System.Threading.Tasks.Extensions and System.ValueTuple package versions back to stable ones.</PackageReleaseNotes>
+    <PackageReleaseNotes>Removed lots of obsolete or misunderstood code. Added aggressive inline attributes to most static and small methods.</PackageReleaseNotes>
     <PackageTags>bcl utility binary serialization collection extensions</PackageTags>
     <Title>Utility Package for CLR</Title>
     <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>

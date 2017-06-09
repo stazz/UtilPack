@@ -38,6 +38,9 @@ using UtilPack;
 
 namespace UtilPack.Cryptography.Digest
 {
+   /// <summary>
+   /// This class implements <#= algIDString #> digest algorithm.
+   /// </summary>
    public sealed class <#= algIDString #> : AbstractDisposable, BlockDigestAlgorithm
    {
       private const Int32 BLOCK_SIZE = <#= blockSize #>;
@@ -52,6 +55,9 @@ namespace UtilPack.Cryptography.Digest
       private readonly <#= algNumericType #>[] _state;
       private readonly <#= algNumericType #>[] _expandedState;
 
+      /// <summary>
+      /// Creates a new instance of <see cref="<#= algIDString #>"/>.
+      /// </summary>
       public <#= algIDString #>()
       {
          this._block = new Byte[BLOCK_SIZE];
@@ -81,6 +87,7 @@ namespace UtilPack.Cryptography.Digest
       /// <inheritdoc />
       public Int32 DigestByteCount => DIGEST_BYTE_COUNT;
 
+      /// <inheritdoc />
       public void Reset()
       {
          Array.Clear( this._block, 0, BLOCK_SIZE );

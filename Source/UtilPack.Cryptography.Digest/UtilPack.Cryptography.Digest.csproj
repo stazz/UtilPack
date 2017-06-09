@@ -5,8 +5,10 @@
   </PropertyGroup>
 
   <PropertyGroup>
+    <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
     <TreatSpecificWarningsAsErrors />
+    <!--<AllowUnsafeBlocks>True</AllowUnsafeBlocks>-->
   </PropertyGroup>
 
   <!-- Assembly information stuff -->

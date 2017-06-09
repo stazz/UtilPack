@@ -22,161 +22,34 @@ using System.Text;
 
 namespace UtilPack
 {
-   /// <summary>
-   /// This class provides utility methods related to binary operations, which are not sensible to create as extension methods.
-   /// </summary>
-   public static class BinaryUtils
+   // Having static fields and/or constructors apparently prevents any static method from getting inlined
+   // So let's have this in separate class
+   internal static class LogTableHolder
    {
       // From http://graphics.stanford.edu/~seander/bithacks.html#IntegerLogLookup
 
       // The log base 2 of an integer is the same as the position of the highest bit set (or most significant bit set, MSB).
 
-      private static readonly Int32[] LOG_TABLE_256;
-      private const Int32 LOG_2_OF_0 = -1;
-
-      static BinaryUtils()
+      internal static readonly Int32[] LOG_TABLE_256;
+      static LogTableHolder()
       {
          var arr = new Int32[256];
          for ( var i = 2; i < 256; ++i )
          {
             arr[i] = 1 + arr[i / 2];
          }
-         arr[0] = LOG_2_OF_0;
+         arr[0] = BinaryUtils.LOG_2_OF_0;
          LOG_TABLE_256 = arr;
       }
+   }
+   /// <summary>
+   /// This class provides utility methods related to binary operations, which are not sensible to create as extension methods.
+   /// </summary>
+   public static class BinaryUtils
+   {
+      internal const Int32 LOG_2_OF_0 = -1;
 
-      /// <summary>
-      /// Rotates given <paramref name="value"/> left <paramref name="shift"/> amount of bytes.
-      /// </summary>
-      /// <param name="value">The value to rotate to left.</param>
-      /// <param name="shift">The amount to bits to rotate.</param>
-      /// <returns>The rotated value.</returns>
-#if !NET40
-      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
-#endif
-      public static Int32 RotateLeft( this Int32 value, Int32 shift )
-      {
-         return (Int32) ( (UInt32) value ).RotateLeft( shift );
-      }
 
-      /// <summary>
-      /// Rotates given <paramref name="value"/> left <paramref name="shift"/> amount of bytes.
-      /// </summary>
-      /// <param name="value">The value to rotate to left.</param>
-      /// <param name="shift">The amount to bits to rotate.</param>
-      /// <returns>The rotated value.</returns>
-      [CLSCompliant( false )]
-#if !NET40
-      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
-#endif
-      public static UInt32 RotateLeft( this UInt32 value, Int32 shift )
-      {
-         return ( value << shift ) | ( value >> ( sizeof( UInt32 ) * 8 - shift ) );
-      }
-
-      /// <summary>
-      /// Rotates given <paramref name="value"/> right <paramref name="shift"/> amount of bytes.
-      /// </summary>
-      /// <param name="value">The value to rotate to right.</param>
-      /// <param name="shift">The amount to bits to rotate.</param>
-      /// <returns>The rotated value.</returns>
-#if !NET40
-      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
-#endif
-      public static Int32 RotateRight( this Int32 value, Int32 shift )
-      {
-         return (Int32) ( (UInt32) value ).RotateRight( shift );
-      }
-
-      /// <summary>
-      /// Rotates given <paramref name="value"/> right <paramref name="shift"/> amount of bytes.
-      /// </summary>
-      /// <param name="value">The value to rotate to right.</param>
-      /// <param name="shift">The amount to bits to rotate.</param>
-      /// <returns>The rotated value.</returns>
-      [CLSCompliant( false )]
-#if !NET40
-      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
-#endif
-      public static UInt32 RotateRight( this UInt32 value, Int32 shift )
-      {
-         return ( value >> shift ) | ( value << ( sizeof( UInt32 ) * 8 - shift ) );
-      }
-
-      /// <summary>
-      /// Rotates given <paramref name="value"/> left <paramref name="shift"/> amount of bytes.
-      /// </summary>
-      /// <param name="value">The value to rotate to left.</param>
-      /// <param name="shift">The amount to bits to rotate.</param>
-      /// <returns>The rotated value.</returns>
-#if !NET40
-      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
-#endif
-      public static Int64 RotateLeft( this Int64 value, Int32 shift )
-      {
-         return (Int64) ( (UInt64) value ).RotateLeft( shift );
-      }
-
-      /// <summary>
-      /// Rotates given <paramref name="value"/> left <paramref name="shift"/> amount of bytes.
-      /// </summary>
-      /// <param name="value">The value to rotate to left.</param>
-      /// <param name="shift">The amount to bits to rotate.</param>
-      /// <returns>The rotated value.</returns>
-      [CLSCompliant( false )]
-#if !NET40
-      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
-#endif
-      public static UInt64 RotateLeft( this UInt64 value, Int32 shift )
-      {
-         return ( value << shift ) | ( value >> ( sizeof( UInt64 ) * 8 - shift ) );
-      }
-
-      /// <summary>
-      /// Rotates given <paramref name="value"/> right <paramref name="shift"/> amount of bytes.
-      /// </summary>
-      /// <param name="value">The value to rotate to right.</param>
-      /// <param name="shift">The amount to bits to rotate.</param>
-      /// <returns>The rotated value.</returns>
-#if !NET40
-      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
-#endif
-      public static Int64 RotateRight( this Int64 value, Int32 shift )
-      {
-         return (Int64) ( (UInt64) value ).RotateRight( shift );
-      }
-
-      /// <summary>
-      /// Rotates given <paramref name="value"/> right <paramref name="shift"/> amount of bytes.
-      /// </summary>
-      /// <param name="value">The value to rotate to right.</param>
-      /// <param name="shift">The amount to bits to rotate.</param>
-      /// <returns>The rotated value.</returns>
-      [CLSCompliant( false )]
-#if !NET40
-      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
-#endif
-      public static UInt64 RotateRight( this UInt64 value, Int32 shift )
-      {
-         return ( value >> shift ) | ( value << ( sizeof( UInt64 ) * 8 - shift ) );
-      }
-
-      /// <summary>
-      /// Given amount of data and page size, calculates amount of pages the data will take.
-      /// </summary>
-      /// <param name="totalSize">The total size of the data.</param>
-      /// <param name="pageSize">The size of a single page.</param>
-      /// <returns>The amount of pages the data will take.</returns>
-      /// <remarks>
-      /// More specifically, this method will return <c>( <paramref name="totalSize" /> + <paramref name="pageSize" /> - 1 ) / <paramref name="pageSize" /></c>
-      /// </remarks>
-#if !NET40
-      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
-#endif
-      public static Int32 AmountOfPagesTaken( Int32 totalSize, Int32 pageSize )
-      {
-         return ( totalSize + pageSize - 1 ) / pageSize;
-      }
 
       /// <summary>
       /// Returns the log base 2 of a given <paramref name="value"/>.
@@ -197,21 +70,41 @@ namespace UtilPack
 
          if ( ( tt = value >> 24 ) != 0u )
          {
-            return 24 + LOG_TABLE_256[tt];
+            return 24 + LogTableHolder.LOG_TABLE_256[tt];
          }
          else if ( ( tt = value >> 16 ) != 0u )
          {
-            return 16 + LOG_TABLE_256[tt];
+            return 16 + LogTableHolder.LOG_TABLE_256[tt];
          }
          else if ( ( tt = value >> 8 ) != 0u )
          {
-            return 8 + LOG_TABLE_256[tt];
+            return 8 + LogTableHolder.LOG_TABLE_256[tt];
          }
          else
          {
-            return LOG_TABLE_256[value];
+            return LogTableHolder.LOG_TABLE_256[value];
          }
       }
+
+
+      /// <summary>
+      /// Given amount of data and page size, calculates amount of pages the data will take.
+      /// </summary>
+      /// <param name="totalSize">The total size of the data.</param>
+      /// <param name="pageSize">The size of a single page.</param>
+      /// <returns>The amount of pages the data will take.</returns>
+      /// <remarks>
+      /// More specifically, this method will return <c>( <paramref name="totalSize" /> + <paramref name="pageSize" /> - 1 ) / <paramref name="pageSize" /></c>
+      /// </remarks>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Int32 AmountOfPagesTaken( Int32 totalSize, Int32 pageSize )
+      {
+         return ( totalSize + pageSize - 1 ) / pageSize;
+      }
+
+
 
       /// <summary>
       /// Returns the log base 2 of a given <paramref name="value"/>.
@@ -229,7 +122,7 @@ namespace UtilPack
       public static Int32 Log2( UInt64 value )
       {
          var highest = Log2( (UInt32) ( value >> ( sizeof( UInt32 ) * 8 ) ) );
-         if ( highest == LOG_2_OF_0 )
+         if ( highest == BinaryUtils.LOG_2_OF_0 )
          {
             highest = Log2( (UInt32) value );
          }
@@ -239,6 +132,7 @@ namespace UtilPack
          }
          return highest;
       }
+
 
       /// <summary>
       /// Computes greatest common denominator without recursion.
@@ -369,6 +263,164 @@ namespace UtilPack
       }
 
       /// <summary>
+      /// Calculates the amount of bytes needed when encoding the given integer value using 7-bit encoding.
+      /// </summary>
+      /// <param name="value">The integer value.</param>
+      /// <returns>The amount of bytes needed to encode <paramref name="value"/> using 7-bit encoding.</returns>
+      /// <seealso cref="UtilPackExtensions.WriteInt32LEEncoded7Bit"/>
+      /// <seealso cref="UtilPackExtensions.WriteInt32BEEncoded7Bit"/>
+      /// <seealso cref="UtilPackExtensions.ReadInt32LEEncoded7Bit"/>
+      /// <seealso cref="UtilPackExtensions.ReadInt32BEEncoded7Bit"/>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Int32 Calculate7BitEncodingLength( Int32 value )
+      {
+         return ( Log2( unchecked((UInt32) value) ) / 7 ) + 1;
+      }
+
+      /// <summary>
+      /// Calculates the amount of bytes needed when encoding the given integer value using 7-bit encoding.
+      /// </summary>
+      /// <param name="value">The integer value.</param>
+      /// <returns>The amount of bytes needed to encode <paramref name="value"/> using 7-bit encoding.</returns>
+      /// <seealso cref="UtilPackExtensions.WriteInt64LEEncoded7Bit"/>
+      /// <seealso cref="UtilPackExtensions.WriteInt64BEEncoded7Bit"/>
+      /// <seealso cref="UtilPackExtensions.ReadInt64LEEncoded7Bit"/>
+      /// <seealso cref="UtilPackExtensions.ReadInt64BEEncoded7Bit"/>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Int32 Calculate7BitEncodingLength( Int64 value )
+      {
+         return ( Log2( unchecked((UInt64) value) ) / 7 ) + 1;
+      }
+
+   }
+
+   public static partial class UtilPackExtensions
+   {
+
+      /// <summary>
+      /// Rotates given <paramref name="value"/> left <paramref name="shift"/> amount of bytes.
+      /// </summary>
+      /// <param name="value">The value to rotate to left.</param>
+      /// <param name="shift">The amount to bits to rotate.</param>
+      /// <returns>The rotated value.</returns>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Int32 RotateLeft( this Int32 value, Int32 shift )
+      {
+         return (Int32) ( (UInt32) value ).RotateLeft( shift );
+      }
+
+      /// <summary>
+      /// Rotates given <paramref name="value"/> left <paramref name="shift"/> amount of bytes.
+      /// </summary>
+      /// <param name="value">The value to rotate to left.</param>
+      /// <param name="shift">The amount to bits to rotate.</param>
+      /// <returns>The rotated value.</returns>
+      [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static UInt32 RotateLeft( this UInt32 value, Int32 shift )
+      {
+         return ( value << shift ) | ( value >> ( sizeof( UInt32 ) * 8 - shift ) );
+      }
+
+      /// <summary>
+      /// Rotates given <paramref name="value"/> right <paramref name="shift"/> amount of bytes.
+      /// </summary>
+      /// <param name="value">The value to rotate to right.</param>
+      /// <param name="shift">The amount to bits to rotate.</param>
+      /// <returns>The rotated value.</returns>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Int32 RotateRight( this Int32 value, Int32 shift )
+      {
+         return (Int32) ( (UInt32) value ).RotateRight( shift );
+      }
+
+      /// <summary>
+      /// Rotates given <paramref name="value"/> right <paramref name="shift"/> amount of bytes.
+      /// </summary>
+      /// <param name="value">The value to rotate to right.</param>
+      /// <param name="shift">The amount to bits to rotate.</param>
+      /// <returns>The rotated value.</returns>
+      [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static UInt32 RotateRight( this UInt32 value, Int32 shift )
+      {
+         return ( value >> shift ) | ( value << ( sizeof( UInt32 ) * 8 - shift ) );
+      }
+
+
+      /// <summary>
+      /// Rotates given <paramref name="value"/> left <paramref name="shift"/> amount of bytes.
+      /// </summary>
+      /// <param name="value">The value to rotate to left.</param>
+      /// <param name="shift">The amount to bits to rotate.</param>
+      /// <returns>The rotated value.</returns>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Int64 RotateLeft( this Int64 value, Int32 shift )
+      {
+         return (Int64) ( (UInt64) value ).RotateLeft( shift );
+      }
+
+      /// <summary>
+      /// Rotates given <paramref name="value"/> left <paramref name="shift"/> amount of bytes.
+      /// </summary>
+      /// <param name="value">The value to rotate to left.</param>
+      /// <param name="shift">The amount to bits to rotate.</param>
+      /// <returns>The rotated value.</returns>
+      [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static UInt64 RotateLeft( this UInt64 value, Int32 shift )
+      {
+         return ( value << shift ) | ( value >> ( sizeof( UInt64 ) * 8 - shift ) );
+      }
+
+      /// <summary>
+      /// Rotates given <paramref name="value"/> right <paramref name="shift"/> amount of bytes.
+      /// </summary>
+      /// <param name="value">The value to rotate to right.</param>
+      /// <param name="shift">The amount to bits to rotate.</param>
+      /// <returns>The rotated value.</returns>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Int64 RotateRight( this Int64 value, Int32 shift )
+      {
+         return (Int64) ( (UInt64) value ).RotateRight( shift );
+      }
+
+      /// <summary>
+      /// Rotates given <paramref name="value"/> right <paramref name="shift"/> amount of bytes.
+      /// </summary>
+      /// <param name="value">The value to rotate to right.</param>
+      /// <param name="shift">The amount to bits to rotate.</param>
+      /// <returns>The rotated value.</returns>
+      [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static UInt64 RotateRight( this UInt64 value, Int32 shift )
+      {
+         return ( value >> shift ) | ( value << ( sizeof( UInt64 ) * 8 - shift ) );
+      }
+
+
+
+      /// <summary>
       /// Rounds given value up to next alignment, which should be a power of two.
       /// </summary>
       /// <param name="value">The value.</param>
@@ -449,7 +501,7 @@ namespace UtilPack
 #if !NET40
       [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
 #endif
-      public static Int32 CountBitsSetI32( Int32 value )
+      public static Int32 CountBitsSetI32( this Int32 value )
       {
          return (Int32) CountBitsSetU32( (UInt32) value );
       }
@@ -466,7 +518,7 @@ namespace UtilPack
 #if !NET40
       [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
 #endif
-      public static UInt32 CountBitsSetU32( UInt32 value )
+      public static UInt32 CountBitsSetU32( this UInt32 value )
       {
          unchecked
          {
@@ -487,7 +539,7 @@ namespace UtilPack
 #if !NET40
       [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
 #endif
-      public static Int32 CountBitsSetI64( Int64 value )
+      public static Int32 CountBitsSetI64( this Int64 value )
       {
          return (Int32) CountBitsSetU64( (UInt64) value );
       }
@@ -504,7 +556,7 @@ namespace UtilPack
 #if !NET40
       [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
 #endif
-      public static UInt32 CountBitsSetU64( UInt64 value )
+      public static UInt32 CountBitsSetU64( this UInt64 value )
       {
          unchecked
          {
@@ -514,39 +566,7 @@ namespace UtilPack
          }
       }
 
-      /// <summary>
-      /// Calculates the amount of bytes needed when encoding the given integer value using 7-bit encoding.
-      /// </summary>
-      /// <param name="value">The integer value.</param>
-      /// <returns>The amount of bytes needed to encode <paramref name="value"/> using 7-bit encoding.</returns>
-      /// <seealso cref="E_UtilPack.WriteInt32LEEncoded7Bit"/>
-      /// <seealso cref="E_UtilPack.WriteInt32BEEncoded7Bit"/>
-      /// <seealso cref="E_UtilPack.ReadInt32LEEncoded7Bit"/>
-      /// <seealso cref="E_UtilPack.ReadInt32BEEncoded7Bit"/>
-#if !NET40
-      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
-#endif
-      public static Int32 Calculate7BitEncodingLength( Int32 value )
-      {
-         return ( Log2( unchecked((UInt32) value) ) / 7 ) + 1;
-      }
 
-      /// <summary>
-      /// Calculates the amount of bytes needed when encoding the given integer value using 7-bit encoding.
-      /// </summary>
-      /// <param name="value">The integer value.</param>
-      /// <returns>The amount of bytes needed to encode <paramref name="value"/> using 7-bit encoding.</returns>
-      /// <seealso cref="E_UtilPack.WriteInt64LEEncoded7Bit"/>
-      /// <seealso cref="E_UtilPack.WriteInt64BEEncoded7Bit"/>
-      /// <seealso cref="E_UtilPack.ReadInt64LEEncoded7Bit"/>
-      /// <seealso cref="E_UtilPack.ReadInt64BEEncoded7Bit"/>
-#if !NET40
-      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
-#endif
-      public static Int32 Calculate7BitEncodingLength( Int64 value )
-      {
-         return ( Log2( unchecked((UInt64) value) ) / 7 ) + 1;
-      }
 
       /// <summary>
       /// Checks whether given unsigned integer is power of two.

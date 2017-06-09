@@ -24,7 +24,7 @@ namespace UtilPack
    /// <summary>
    /// Extension method holder to enumerate graphs as depth first IEnumerables and breadth first IEnumerables. Additionally contains method to enumerate single chain as enumerable.
    /// </summary>
-   public static class E_TreeToEnumerable
+   public static partial class UtilPackExtensions
    {
       /// <summary>
       /// Using a starting node and function to get children, returns enumerable which walks transitively through all nodes accessible from the starting node, in depth-first order.

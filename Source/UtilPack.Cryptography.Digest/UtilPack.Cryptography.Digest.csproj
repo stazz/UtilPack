@@ -22,7 +22,7 @@
     <Product>UtilPack</Product>
     <Description>Provides block-based digest-producing cryptographical algorithms. Also provides concrete implementation for RandomGenerator interface of UtilPack.Cryptography package.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>
-    <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(AssemblyName).snk</AssemblyOriginatorKeyFilePath>
+    <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
   </PropertyGroup>
 
   <!-- Assembly signing stuff -->
@@ -44,7 +44,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
+    <PackageReleaseNotes>The assembly is now signed.</PackageReleaseNotes>
     <PackageTags>utility cryptography random block hash digest md5 sha128 sha256 sha384 sha512</PackageTags>
     <Title>Cryptographic Digest Functions</Title>
     <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>

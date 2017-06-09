@@ -32,6 +32,10 @@
    var algNumericType = GetNumericType( algID, out var typeSize );
    var blockSize = GetBlockSize( algID );
    var expandedSize = GetExpandedStateArrayLength( algID );
+
+   // TODO try to use pinned variables in .NET desktop and core app versions?
+   // Or maybe expand the transformation methods more?
+   // Currently these are roughly 2 times slower than the System.Security.Cryptography ones.
 #>
 using System;
 using UtilPack;
@@ -41,6 +45,11 @@ namespace UtilPack.Cryptography.Digest
    /// <summary>
    /// This class implements <#= algIDString #> digest algorithm.
    /// </summary>
+   /// <remarks>
+   /// This implementation is fully managed, and currently does not even use pinned variables, as they are forbidden in some target frameworks.
+   /// Therefore, if your usage of this algorithm is heavily performance-dependant, you might want to use the algorithm implemented by target framework core library, e.g. <see href="https://docs.microsoft.com/dotnet/api/system.security.cryptography.<#= algIDString #>"/>.
+   /// These algorithms are provided mostly for compatibility reasons, for those frameworks which don't have them in System.Security.Cryptography namespace.
+   /// </remarks>
    public sealed class <#= algIDString #> : AbstractDisposable, BlockDigestAlgorithm
    {
       private const Int32 BLOCK_SIZE = <#= blockSize #>;

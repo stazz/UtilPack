@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard1.0;net40;net45</TargetFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <TreatSpecificWarningsAsErrors />
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AlgorithmsDirectory>$(MSBuildProjectDirectory)/Algorithms</AlgorithmsDirectory>
+    <AlgorithmGeneratorFile>$(AlgorithmsDirectory)/GenerateAlgorithms.tt.msbuild</AlgorithmGeneratorFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AlgorithmGeneratorFileItem Include="$(AlgorithmGeneratorFile)" />
+    <GeneratedAlgorithmFiles Include="$(AlgorithmsDirectory)/MD5.cs;$(AlgorithmsDirectory)/SHA128.cs;$(AlgorithmsDirectory)/SHA256.cs;$(AlgorithmsDirectory)/SHA384.cs;$(AlgorithmsDirectory)/SHA512.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UtilPack.Cryptography\UtilPack.Cryptography.csproj" />
+    <ProjectReference Include="..\UtilPack\UtilPack.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <AlgorithmGeneratorFileLastChanged>$([System.IO.File]::GetLastWriteTime($(AlgorithmGeneratorFile)).Ticks)</AlgorithmGeneratorFileLastChanged>
+  </PropertyGroup>
+
+  <Target Name="GenerateAlgorithmSources" BeforeTargets="BeforeBuild" Inputs="$(AlgorithmGeneratorFile)" Outputs="@(GeneratedAlgorithmFiles)">
+    <PropertyGroup>
+      <T4ExecPrefix>$(MSBuildExtensionsPath)\..\Common7\IDE\TextTransform.exe</T4ExecPrefix>
+      <T4ExecSuffix>$(AlgorithmGeneratorFile)</T4ExecSuffix>
+    </PropertyGroup>
+    <Exec Condition="!Exists(%(GeneratedAlgorithmFiles.FullPath)) or $([System.DateTime]::Parse(%(GeneratedAlgorithmFiles.ModifiedTime)).Ticks) &lt; $(AlgorithmGeneratorFileLastChanged)" Command="&quot;$(T4ExecPrefix)&quot; -out &quot;@(GeneratedAlgorithmFiles->'%(FullPath)')&quot; -a &quot;!!Algorithm!@(GeneratedAlgorithmFiles->'%(Filename)')&quot; &quot;$(T4ExecSuffix)&quot;" />
+  </Target>
+
+</Project>

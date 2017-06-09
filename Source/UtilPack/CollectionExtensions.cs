@@ -1064,6 +1064,9 @@ public static partial class E_UtilPack
    /// <typeparam name="T">The type of elements in the array.</typeparam>
    /// <param name="array">The array.</param>
    /// <param name="random">The optional <see cref="Random"/> to use for shuffle.</param>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static void Shuffle<T>( this T[] array, Random random = null )
    {
       if ( random == null )
@@ -1086,6 +1089,9 @@ public static partial class E_UtilPack
    /// <typeparam name="T">The type of elements in the array.</typeparam>
    /// <param name="array">The array.</param>
    /// <returns>The copy of the array, or <c>null</c>, if <paramref name="array"/> is <c>null</c>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static T[] CreateArrayCopy<T>( this T[] array )
    {
       return array == null ? null : array.CreateArrayCopy( 0, array.Length );
@@ -1098,6 +1104,9 @@ public static partial class E_UtilPack
    /// <param name="array">The array.</param>
    /// <param name="count">The amount of elements to copy.</param>
    /// <returns>The newly created array, containing same elements as section of the given array.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static T[] CreateArrayCopy<T>( this T[] array, Int32 count )
    {
       return array.CreateArrayCopy( 0, count );
@@ -1111,6 +1120,9 @@ public static partial class E_UtilPack
    /// <param name="offset">The offset in <paramref name="array" /> where to start copying elements.</param>
    /// <param name="count">The amount of elements to copy.</param>
    /// <returns>The newly created array, containing same elements as section of the given array.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static T[] CreateArrayCopy<T>( this T[] array, Int32 offset, Int32 count )
    {
       array.CheckArrayArguments( offset, count );
@@ -1125,6 +1137,53 @@ public static partial class E_UtilPack
          retVal = Empty<T>.Array;
       }
       return retVal;
+   }
+
+   /// <summary>
+   /// This is helper method to <see cref="Array.Copy(Array, Array, int)"/> call with last parameter being the source array length.
+   /// </summary>
+   /// <typeparam name="T">The type of elements in the array.</typeparam>
+   /// <param name="array">The source array. All elements will be copied.</param>
+   /// <param name="targetArray">The target array. The first element will be copied to index <c>0</c>.</param>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+   public static void CopyTo<T>( this T[] array, T[] targetArray )
+   {
+      Array.Copy( array, targetArray, targetArray.Length );
+   }
+
+   /// <summary>
+   /// This is helper method to <see cref="Array.Copy(Array, int, Array, int, int)"/> call with bound parameters for target array index and element copy count.
+   /// </summary>
+   /// <typeparam name="T">The type of elements in the array.</typeparam>
+   /// <param name="array">The source array. All elements remaining starting from <paramref name="sourceIndex"/> will be copied.</param>
+   /// <param name="targetArray">The target element. The first element will be copied to index <c>0</c>.</param>
+   /// <param name="sourceIndex">The index in source <paramref name="array"/> where to start copying.</param>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+   public static void CopyTo<T>( this T[] array, T[] targetArray, ref Int32 sourceIndex )
+   {
+      array.CopyTo( targetArray, ref sourceIndex, 0, array.Length - sourceIndex );
+   }
+
+   /// <summary>
+   /// This is pass-thru method to <see cref="Array.Copy(Array, int, Array, int, int)"/>, designed to make it easy to invoke it.
+   /// </summary>
+   /// <typeparam name="T">The type of elements in the array.</typeparam>
+   /// <param name="array">The source array.</param>
+   /// <param name="targetArray">The target array.</param>
+   /// <param name="sourceIndex">The index in source <paramref name="array"/> where to start copying.</param>
+   /// <param name="targetIndex">The index in target <paramref name="targetArray"/> where to start copying.</param>
+   /// <param name="count">The amount of elements to copy.</param>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+   public static void CopyTo<T>( this T[] array, T[] targetArray, ref Int32 sourceIndex, Int32 targetIndex, Int32 count )
+   {
+      Array.Copy( array, sourceIndex, targetArray, targetIndex, count );
+      sourceIndex += count;
    }
 
    /// <summary>

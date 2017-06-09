@@ -884,6 +884,9 @@ public static partial class E_UtilPack
    /// Disposes the given <paramref name="disposable"/> without leaking any exceptions.
    /// </summary>
    /// <param name="disposable">The <see cref="IDisposable"/> to call <see cref="IDisposable.Dispose"/> method on. May be <c>null</c>, in which case, nothing is done.</param>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static void DisposeSafely( this IDisposable disposable )
    {
       if ( disposable != null )
@@ -905,6 +908,9 @@ public static partial class E_UtilPack
    /// <param name="disposable">The <see cref="IDisposable"/> to call <see cref="IDisposable.Dispose"/> method on. May be <c>null</c>, in which case, nothing is done.</param>
    /// <param name="exception">Will hold an exception thrown by <see cref="IDisposable.Dispose"/> method, if method is invoked and it throws.</param>
    /// <returns><c>true</c> if NO exception occurred; <c>false</c> otherwise.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static Boolean DisposeSafely( this IDisposable disposable, out Exception exception )
    {
       exception = null;
@@ -928,6 +934,9 @@ public static partial class E_UtilPack
    /// </summary>
    /// <param name="nullable">Nullable boolean.</param>
    /// <returns><c>true</c> if <paramref name="nullable"/> has value and that value is <c>true</c>; <c>false</c> otherwise.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static Boolean IsTrue( this Boolean? nullable )
    {
       return nullable.HasValue && nullable.Value;
@@ -938,6 +947,9 @@ public static partial class E_UtilPack
    /// </summary>
    /// <param name="nullable">Nullable boolean.</param>
    /// <returns><c>true</c> if <paramref name="nullable"/> has value and that value is <c>false</c>; <c>false</c> otherwise.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static Boolean IsFalse( this Boolean? nullable )
    {
       return nullable.HasValue && !nullable.Value;
@@ -951,90 +963,114 @@ public static partial class E_UtilPack
    /// <remarks>
    /// This should be a no-throw method.
    /// </remarks>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static Boolean ParseAsBooleanSafe( this String str )
    {
       return Boolean.TryParse( str, out Boolean parsedBoolean ) && parsedBoolean;
    }
 
-   /// <summary>
-   /// Helper method to return result of <see cref="Object.ToString"/> or other string if object is <c>null</c>.
-   /// </summary>
-   /// <param name="obj">The object.</param>
-   /// <param name="nullString">The string to return if <paramref name="obj"/> is <c>null</c>.</param>
-   /// <returns>The result of <see cref="Object.ToString"/> if <paramref name="obj"/> is not <c>null</c>, <paramref name="nullString"/> otherwise.</returns>
-   public static String ToStringSafe<T>( this T obj, String nullString = "" )
-      where T : class
-   {
-      return obj == null ? nullString : obj.ToString();
-   }
+   //   /// <summary>
+   //   /// Helper method to return result of <see cref="Object.ToString"/> or other string if object is <c>null</c>.
+   //   /// </summary>
+   //   /// <param name="obj">The object.</param>
+   //   /// <param name="nullString">The string to return if <paramref name="obj"/> is <c>null</c>.</param>
+   //   /// <returns>The result of <see cref="Object.ToString"/> if <paramref name="obj"/> is not <c>null</c>, <paramref name="nullString"/> otherwise.</returns>
+   //#if !NET40
+   //   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+   //#endif
+   //   public static String ToStringSafe<T>( this T obj, String nullString = "" )
+   //      where T : class
+   //   {
+   //      return obj == null ? nullString : obj.ToString();
+   //   }
 
-   /// <summary>
-   /// Helper method to return string value of <see cref="Nullable{T}.Value"/> or custom string if the nullable does not have a value.
-   /// </summary>
-   /// <typeparam name="T">The nullable value type.</typeparam>
-   /// <param name="obj">The nullable struct.</param>
-   /// <param name="nullString">The string to return if <paramref name="obj"/> does not have a value.</param>
-   /// <returns>The string of the nullable value or <paramref name="nullString"/> if <paramref name="obj"/> does not have a value.</returns>
-   public static String ToStringSafe<T>( this T? obj, String nullString = "" )
-      where T : struct
-   {
-      return obj.HasValue ? obj.Value.ToString() : nullString;
-   }
+   //   /// <summary>
+   //   /// Helper method to return string value of <see cref="Nullable{T}.Value"/> or custom string if the nullable does not have a value.
+   //   /// </summary>
+   //   /// <typeparam name="T">The nullable value type.</typeparam>
+   //   /// <param name="obj">The nullable struct.</param>
+   //   /// <param name="nullString">The string to return if <paramref name="obj"/> does not have a value.</param>
+   //   /// <returns>The string of the nullable value or <paramref name="nullString"/> if <paramref name="obj"/> does not have a value.</returns>
+   //#if !NET40
+   //   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+   //#endif
+   //   public static String ToStringSafe<T>( this T? obj, String nullString = "" )
+   //      where T : struct
+   //   {
+   //      return obj.HasValue ? obj.Value.ToString() : nullString;
+   //   }
 
-   /// <summary>
-   /// Helper method to return result of <see cref="Object.GetHashCode"/> or custom hash code if object is <c>null</c>.
-   /// </summary>
-   /// <param name="obj">The object.</param>
-   /// <param name="nullHashCode">The hash code to return if <paramref name="obj"/> is <c>null</c>.</param>
-   /// <returns>The result of <see cref="Object.GetHashCode"/> if <paramref name="obj"/> is not <c>null</c>, <paramref name="nullHashCode"/> otherwise.</returns>
-   public static Int32 GetHashCodeSafe<T>( this T obj, Int32 nullHashCode = 0 )
-      where T : class
-   {
-      return obj == null ? nullHashCode : obj.GetHashCode();
-   }
+   //   /// <summary>
+   //   /// Helper method to return result of <see cref="Object.GetHashCode"/> or custom hash code if object is <c>null</c>.
+   //   /// </summary>
+   //   /// <param name="obj">The object.</param>
+   //   /// <param name="nullHashCode">The hash code to return if <paramref name="obj"/> is <c>null</c>.</param>
+   //   /// <returns>The result of <see cref="Object.GetHashCode"/> if <paramref name="obj"/> is not <c>null</c>, <paramref name="nullHashCode"/> otherwise.</returns>
+   //#if !NET40
+   //   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+   //#endif
+   //   public static Int32 GetHashCodeSafe<T>( this T obj, Int32 nullHashCode = 0 )
+   //      where T : class
+   //   {
+   //      return obj == null ? nullHashCode : obj.GetHashCode();
+   //   }
 
-   /// <summary>
-   /// Helper method to return hash code of <see cref="Nullable{T}.Value"/> or custom hash code if the nullable does not have a value.
-   /// </summary>
-   /// <typeparam name="T">The nullable value type.</typeparam>
-   /// <param name="obj">The nullable struct.</param>
-   /// <param name="nullHashCode">The hash code to return if <paramref name="obj"/> does not have a value.</param>
-   /// <returns>The hash code of the nullable value or <paramref name="nullHashCode"/> if <paramref name="obj"/> does not have a value.</returns>
-   public static Int32 GetHashCodeSafe<T>( this T? obj, Int32 nullHashCode = 0 )
-      where T : struct
-   {
-      return obj.HasValue ? obj.Value.GetHashCode() : nullHashCode;
-   }
+   //   /// <summary>
+   //   /// Helper method to return hash code of <see cref="Nullable{T}.Value"/> or custom hash code if the nullable does not have a value.
+   //   /// </summary>
+   //   /// <typeparam name="T">The nullable value type.</typeparam>
+   //   /// <param name="obj">The nullable struct.</param>
+   //   /// <param name="nullHashCode">The hash code to return if <paramref name="obj"/> does not have a value.</param>
+   //   /// <returns>The hash code of the nullable value or <paramref name="nullHashCode"/> if <paramref name="obj"/> does not have a value.</returns>
+   //#if !NET40
+   //   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+   //#endif
+   //   public static Int32 GetHashCodeSafe<T>( this T? obj, Int32 nullHashCode = 0 )
+   //      where T : struct
+   //   {
+   //      return obj.HasValue ? obj.Value.GetHashCode() : nullHashCode;
+   //   }
 
-   /// <summary>
-   /// Helper method to get the type of object or <c>null</c> if object is <c>null</c>.
-   /// </summary>
-   /// <typeparam name="T">The type of object reference.</typeparam>
-   /// <param name="obj">The object.</param>
-   /// <returns>The type of <paramref name="obj"/>, or <c>null</c> if <paramref name="obj"/> is <c>null</c>.</returns>
-   public static Type GetTypeSafe<T>( this T obj )
-      where T : class
-   {
-      return obj?.GetType();
-   }
+   //   /// <summary>
+   //   /// Helper method to get the type of object or <c>null</c> if object is <c>null</c>.
+   //   /// </summary>
+   //   /// <typeparam name="T">The type of object reference.</typeparam>
+   //   /// <param name="obj">The object.</param>
+   //   /// <returns>The type of <paramref name="obj"/>, or <c>null</c> if <paramref name="obj"/> is <c>null</c>.</returns>
+   //#if !NET40
+   //   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+   //#endif
+   //   public static Type GetTypeSafe<T>( this T obj )
+   //      where T : class
+   //   {
+   //      return obj?.GetType();
+   //   }
 
-   /// <summary>
-   /// Helper method to get the type of <see cref="Nullable{T}.Value"/> or <c>null</c> if the nullable does not have a value.
-   /// </summary>
-   /// <typeparam name="T">The nullable value type.</typeparam>
-   /// <param name="obj">The nullable struct.</param>
-   /// <returns>The type of nullable value, or <c>null</c> if <paramref name="obj"/> does not have a value.</returns>
-   public static Type GetTypeSafe<T>( this T? obj )
-      where T : struct
-   {
-      return obj.HasValue ? obj.Value.GetType() : null;
-   }
+   //   /// <summary>
+   //   /// Helper method to get the type of <see cref="Nullable{T}.Value"/> or <c>null</c> if the nullable does not have a value.
+   //   /// </summary>
+   //   /// <typeparam name="T">The nullable value type.</typeparam>
+   //   /// <param name="obj">The nullable struct.</param>
+   //   /// <returns>The type of nullable value, or <c>null</c> if <paramref name="obj"/> does not have a value.</returns>
+   //#if !NET40
+   //   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+   //#endif
+   //   public static Type GetTypeSafe<T>( this T? obj )
+   //      where T : struct
+   //   {
+   //      return obj.HasValue ? obj.Value.GetType() : null;
+   //   }
 
    /// <summary>
    /// Tries to interpret this character as hexadecimal character (0-9, A-F, or a-f), and return the hexadecimal value.
    /// </summary>
    /// <param name="c">This character.</param>
    /// <returns>The hexadecimal value (<c>0 ≤ return_value ≤ 16</c>), or <c>null</c> if this character is not a hexadecimal character.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static Int32? GetHexadecimalValue( this Char c )
    {
       if ( c >= '0' && c <= '9' )
@@ -1071,45 +1107,45 @@ public static partial class E_UtilPack
    //}
 
 
-   /// <summary>
-   /// This is helper method to wait for specific <see cref="WaitHandle"/>, while keeping an eye for cancellation signalled through optional <see cref="CancellationToken"/>.
-   /// </summary>
-   /// <param name="evt">The <see cref="WaitHandle"/> to wait for.</param>
-   /// <param name="token">The optional <see cref="CancellationToken"/> to use when checking for cancellation.</param>
-   /// <param name="timeout">The optional maximum time to wait. By default no timeout.</param>
-   /// <param name="tick">The optional tick, in milliseconds, between checks for <paramref name="evt"/>. By default is 50 milliseconds.</param>
-   /// <returns><c>true</c> if given <paramref name="evt"/> was set during waiting perioud; <c>false</c> otherwise.</returns>
-   public static Boolean WaitWhileKeepingEyeForCancel( this WaitHandle evt, CancellationToken token = default( CancellationToken ), Int32 timeout = NO_TIMEOUT, Int32 tick = DEFAULT_TICK )
-   {
-      Int32 timeWaited = 0;
-      while ( !token.IsCancellationRequested && !evt.WaitOne( tick ) && ( timeout < 0 || timeWaited < timeout ) )
-      {
-         timeWaited += tick;
-      }
-      return !token.IsCancellationRequested && ( timeout < 0 || timeWaited < timeout );
-   }
+   ///// <summary>
+   ///// This is helper method to wait for specific <see cref="WaitHandle"/>, while keeping an eye for cancellation signalled through optional <see cref="CancellationToken"/>.
+   ///// </summary>
+   ///// <param name="evt">The <see cref="WaitHandle"/> to wait for.</param>
+   ///// <param name="token">The optional <see cref="CancellationToken"/> to use when checking for cancellation.</param>
+   ///// <param name="timeout">The optional maximum time to wait. By default no timeout.</param>
+   ///// <param name="tick">The optional tick, in milliseconds, between checks for <paramref name="evt"/>. By default is 50 milliseconds.</param>
+   ///// <returns><c>true</c> if given <paramref name="evt"/> was set during waiting perioud; <c>false</c> otherwise.</returns>
+   //public static Boolean WaitWhileKeepingEyeForCancel( this WaitHandle evt, CancellationToken token = default( CancellationToken ), Int32 timeout = NO_TIMEOUT, Int32 tick = DEFAULT_TICK )
+   //{
+   //   Int32 timeWaited = 0;
+   //   while ( !token.IsCancellationRequested && !evt.WaitOne( tick ) && ( timeout < 0 || timeWaited < timeout ) )
+   //   {
+   //      timeWaited += tick;
+   //   }
+   //   return !token.IsCancellationRequested && ( timeout < 0 || timeWaited < timeout );
+   //}
 #if !SILVERLIGHT
 
-   /// <summary>
-   /// This is helper method to wait for specific <see cref="ManualResetEventSlim"/>, while keeping an eye for cancellation signalled through optional <see cref="CancellationToken"/>.
-   /// </summary>
-   /// <param name="evt">The <see cref="ManualResetEventSlim"/> to wait for.</param>
-   /// <param name="token">The optional <see cref="CancellationToken"/> to use when checking for cancellation.</param>
-   /// <param name="timeout">The optional maximum time to wait. By default no timeout.</param>
-   /// <param name="tick">The optional tick, in milliseconds, between checks for <paramref name="evt"/>. By default is 50 milliseconds.</param>
-   /// <returns><c>true</c> if given <paramref name="evt"/> was set during waiting perioud; <c>false</c> otherwise.</returns>
-   /// <remarks>
-   /// Unlike <see cref="ManualResetEventSlim.Wait(Int32, CancellationToken)"/>, this method will not throw <see cref="OperationCanceledException"/> if cancellation is requested. Instead, this method will return <c>false</c>.
-   /// </remarks>
-   public static Boolean WaitWhileKeepingEyeForCancel( this ManualResetEventSlim evt, CancellationToken token, Int32 timeout = NO_TIMEOUT, Int32 tick = DEFAULT_TICK )
-   {
-      Int32 timeWaited = 0;
-      while ( !token.IsCancellationRequested && !evt.Wait( tick ) && ( timeout < 0 || timeWaited < timeout ) )
-      {
-         timeWaited += tick;
-      }
-      return !token.IsCancellationRequested && ( timeout < 0 || timeWaited < timeout );
-   }
+   ///// <summary>
+   ///// This is helper method to wait for specific <see cref="ManualResetEventSlim"/>, while keeping an eye for cancellation signalled through optional <see cref="CancellationToken"/>.
+   ///// </summary>
+   ///// <param name="evt">The <see cref="ManualResetEventSlim"/> to wait for.</param>
+   ///// <param name="token">The optional <see cref="CancellationToken"/> to use when checking for cancellation.</param>
+   ///// <param name="timeout">The optional maximum time to wait. By default no timeout.</param>
+   ///// <param name="tick">The optional tick, in milliseconds, between checks for <paramref name="evt"/>. By default is 50 milliseconds.</param>
+   ///// <returns><c>true</c> if given <paramref name="evt"/> was set during waiting perioud; <c>false</c> otherwise.</returns>
+   ///// <remarks>
+   ///// Unlike <see cref="ManualResetEventSlim.Wait(Int32, CancellationToken)"/>, this method will not throw <see cref="OperationCanceledException"/> if cancellation is requested. Instead, this method will return <c>false</c>.
+   ///// </remarks>
+   //public static Boolean WaitWhileKeepingEyeForCancel( this ManualResetEventSlim evt, CancellationToken token, Int32 timeout = NO_TIMEOUT, Int32 tick = DEFAULT_TICK )
+   //{
+   //   Int32 timeWaited = 0;
+   //   while ( !token.IsCancellationRequested && !evt.Wait( tick ) && ( timeout < 0 || timeWaited < timeout ) )
+   //   {
+   //      timeWaited += tick;
+   //   }
+   //   return !token.IsCancellationRequested && ( timeout < 0 || timeWaited < timeout );
+   //}
 
 #endif
 
@@ -1122,6 +1158,9 @@ public static partial class E_UtilPack
    /// <remarks>
    /// The code is from <see href="http://stackoverflow.com/questions/1004698/how-to-truncate-milliseconds-off-of-a-net-datetime"/>.
    /// </remarks>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static DateTime Truncate( this DateTime dateTime, TimeSpan timeSpan )
    {
       return TimeSpan.Zero == timeSpan ? dateTime : dateTime.AddTicks( -( dateTime.Ticks % timeSpan.Ticks ) );
@@ -1132,6 +1171,9 @@ public static partial class E_UtilPack
    /// </summary>
    /// <param name="dateTime">The <see cref="DateTime"/> to truncate.</param>
    /// <returns>a <see cref="DateTime"/> truncated to whole milliseconds.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static DateTime TruncateToWholeMilliseconds( this DateTime dateTime )
    {
       return dateTime.Truncate( TimeSpan.FromTicks( TimeSpan.TicksPerMillisecond ) );
@@ -1142,6 +1184,9 @@ public static partial class E_UtilPack
    /// </summary>
    /// <param name="dateTime">The <see cref="DateTime"/> to truncate.</param>
    /// <returns>a <see cref="DateTime"/> truncated to whole seconds.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static DateTime TruncateToWholeSeconds( this DateTime dateTime )
    {
       return dateTime.Truncate( TimeSpan.FromTicks( TimeSpan.TicksPerSecond ) );
@@ -1152,6 +1197,9 @@ public static partial class E_UtilPack
    /// </summary>
    /// <param name="dateTime">The <see cref="DateTime"/> to truncate.</param>
    /// <returns>a <see cref="DateTime"/> truncated to whole minutes.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static DateTime TruncateToWholeMinutes( this DateTime dateTime )
    {
       return dateTime.Truncate( TimeSpan.FromTicks( TimeSpan.TicksPerMinute ) );
@@ -1162,6 +1210,9 @@ public static partial class E_UtilPack
    /// </summary>
    /// <param name="dateTime">The <see cref="DateTime"/> to truncate.</param>
    /// <returns>a <see cref="DateTime"/> truncated to whole hours.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static DateTime TruncateToWholeHours( this DateTime dateTime )
    {
       return dateTime.Truncate( TimeSpan.FromTicks( TimeSpan.TicksPerHour ) );
@@ -1172,6 +1223,9 @@ public static partial class E_UtilPack
    /// </summary>
    /// <param name="dateTime">The <see cref="DateTime"/> to truncate.</param>
    /// <returns>a <see cref="DateTime"/> truncated to whole days.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static DateTime TruncateToWholeDays( this DateTime dateTime )
    {
       return dateTime.Truncate( TimeSpan.FromTicks( TimeSpan.TicksPerDay ) );
@@ -1184,6 +1238,9 @@ public static partial class E_UtilPack
    /// <param name="resultOrNone">The <see cref="ResultOrNone{TResult}"/>.</param>
    /// <returns>The result of this <see cref="ResultOrNone{TResult}"/>, if it has one.</returns>
    /// <exception cref="InvalidOperationException">If this <see cref="ResultOrNone{TResult}"/> does not have a result (its <see cref="ResultOrNone{TResult}.HasResult"/> property is <c>false</c>).</exception>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static T GetResultOrThrow<T>( this ResultOrNone<T> resultOrNone )
    {
       return resultOrNone.HasResult ? resultOrNone.Result : throw new InvalidOperationException( "Result is not available." );
@@ -1196,6 +1253,9 @@ public static partial class E_UtilPack
    /// <param name="type">The type to check.</param>
    /// <param name="paramType">This will contain underlying value type if this method returns <c>true</c>; otherwise it will be <paramref name="type"/>.</param>
    /// <returns>If the <paramref name="type"/> is non-<c>null</c> and nullable type, <c>true</c>; otherwise, <c>false</c>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static Boolean IsNullable( this Type type, out Type paramType )
    {
       paramType = IsNullable( type ) ? type.
@@ -1215,6 +1275,9 @@ public static partial class E_UtilPack
    /// </summary>
    /// <param name="type">Type to check.</param>
    /// <returns><c>true</c> if <paramref name="type"/> is non-<c>null</c> and lazy type; <c>false</c> otherwise.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static Boolean IsLazy( this Type type )
    {
       return ( type?.
@@ -1231,6 +1294,9 @@ public static partial class E_UtilPack
    /// <param name="type">The type to check.</param>
    /// <param name="paramType">This will contain underlying type of lazy type if this method returns <c>true</c>; otherwise it will be <paramref name="type"/>.</param>
    /// <returns><c>true</c> if <paramref name="type"/> is non-<c>null</c> and lazy type; <c>false</c> otherwise.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static Boolean IsLazy( this Type type, out Type paramType )
    {
 
@@ -1251,6 +1317,9 @@ public static partial class E_UtilPack
    /// </summary>
    /// <param name="type">Type to check.</param>
    /// <returns><c>true</c> if <paramref name="type"/> is non-<c>null</c> and nullable type; <c>false</c> otherwise.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static Boolean IsNullable( this Type type )
    {
       return ( type?.
@@ -1268,7 +1337,10 @@ public static partial class E_UtilPack
    /// <param name="evt">The event, may be <c>null</c>.</param>
    /// <param name="args">The event arguments to be passed to event.</param>
    /// <returns>The task to await for.</returns>
-   public static async System.Threading.Tasks.Task InvokeAndWaitForAwaitables<TEventArgs, TActualEventArgs>( this GenericEventHandler<TEventArgs> evt, TActualEventArgs args )
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+   public static async Task InvokeAndWaitForAwaitables<TEventArgs, TActualEventArgs>( this GenericEventHandler<TEventArgs> evt, TActualEventArgs args )
       where TEventArgs : EventArgsWithAsyncContext
       where TActualEventArgs : EventArgsWithAsyncContextImpl, TEventArgs
    {

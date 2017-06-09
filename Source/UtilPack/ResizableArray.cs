@@ -176,6 +176,9 @@ public static partial class E_UtilPack
    /// <param name="currentIndex">The current index of array.</param>
    /// <param name="amountToAdd">The amount of elements to add.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<T> EnsureThatCanAdd<T>( this ResizableArray<T> array, Int32 currentIndex, Int32 amountToAdd )
    {
       array.CurrentMaxCapacity = currentIndex + amountToAdd;
@@ -190,6 +193,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset at which to start copying elements into the <paramref name="array"/>.</param>
    /// <param name="sourceArray">The array to read elements from. May be <c>null</c>.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<T> WriteArray<T>( this ResizableArray<T> array, ref Int32 idx, T[] sourceArray )
    {
       return sourceArray.IsNullOrEmpty() ?
@@ -206,6 +212,9 @@ public static partial class E_UtilPack
    /// <param name="sourceArray">The array to read elements from.</param>
    /// <param name="count">The amount of elements to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<T> WriteArray<T>( this ResizableArray<T> array, ref Int32 idx, T[] sourceArray, Int32 count )
    {
       return array.WriteArray( ref idx, sourceArray, 0, count );
@@ -221,6 +230,9 @@ public static partial class E_UtilPack
    /// <param name="offset">The offset at which to start reading elements from <paramref name="sourceArray"/>.</param>
    /// <param name="count">The amount of elements to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<T> WriteArray<T>( this ResizableArray<T> array, ref Int32 idx, T[] sourceArray, Int32 offset, Int32 count )
    {
       array.EnsureThatCanAdd( idx, count );
@@ -236,6 +248,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to set byte. Will be incremented by 1.</param>
    /// <param name="value">The value to set.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteByteToBytes( this ResizableArray<Byte> array, ref Int32 idx, Byte value )
    {
       array
@@ -252,6 +267,9 @@ public static partial class E_UtilPack
    /// <param name="value">The value to set. Even though it is integer, it is interpreted as signed byte.</param>
    /// <returns>The <paramref name="array"/>.</returns>
    [CLSCompliant( false )]
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteSByteToBytes( this ResizableArray<Byte> array, ref Int32 idx, SByte value )
    {
       array
@@ -269,6 +287,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing. Will be incremented by 2.</param>
    /// <param name="value">The <see cref="Int16"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteInt16LEToBytes( this ResizableArray<Byte> array, ref Int32 idx, Int16 value )
    {
       array
@@ -284,6 +305,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing.</param>
    /// <param name="value">The <see cref="Int16"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteInt16LEToBytesNoRef( this ResizableArray<Byte> array, Int32 idx, Int16 value )
    {
       return array.WriteInt16LEToBytes( ref idx, value );
@@ -297,6 +321,9 @@ public static partial class E_UtilPack
    /// <param name="value">The <see cref="UInt16"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
    [CLSCompliant( false )]
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteUInt16LEToBytes( this ResizableArray<Byte> array, ref Int32 idx, UInt16 value )
    {
       return array.WriteInt16LEToBytes( ref idx, (Int16) value );
@@ -310,6 +337,9 @@ public static partial class E_UtilPack
    /// <param name="value">The <see cref="UInt16"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
    [CLSCompliant( false )]
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteUInt16LEToBytesNoRef( this ResizableArray<Byte> array, Int32 idx, UInt16 value )
    {
       return array.WriteInt16LEToBytes( ref idx, (Int16) value );
@@ -322,6 +352,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing. Will be incremented by 4.</param>
    /// <param name="value">The <see cref="Int32"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteInt32LEToBytes( this ResizableArray<Byte> array, ref Int32 idx, Int32 value )
    {
       array
@@ -337,6 +370,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing.</param>
    /// <param name="value">The <see cref="Int32"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteInt32LEToBytesNoRef( this ResizableArray<Byte> array, Int32 idx, Int32 value )
    {
       return array.WriteInt32LEToBytes( ref idx, value );
@@ -350,6 +386,9 @@ public static partial class E_UtilPack
    /// <param name="value">The <see cref="UInt32"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
    [CLSCompliant( false )]
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteUInt32LEToBytes( this ResizableArray<Byte> array, ref Int32 idx, UInt32 value )
    {
       return array.WriteInt32LEToBytes( ref idx, (Int32) value );
@@ -363,6 +402,9 @@ public static partial class E_UtilPack
    /// <param name="value">The <see cref="UInt32"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
    [CLSCompliant( false )]
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteUInt32LEToBytesNoRef( this ResizableArray<Byte> array, Int32 idx, UInt32 value )
    {
       return array.WriteInt32LEToBytes( ref idx, (Int32) value );
@@ -375,6 +417,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing. Will be incremented by 8.</param>
    /// <param name="value">The <see cref="Int64"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteInt64LEToBytes( this ResizableArray<Byte> array, ref Int32 idx, Int64 value )
    {
       array
@@ -390,6 +435,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing.</param>
    /// <param name="value">The <see cref="Int64"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteInt64LEToBytesNoRef( this ResizableArray<Byte> array, Int32 idx, Int64 value )
    {
       return array.WriteInt64LEToBytes( ref idx, value );
@@ -403,6 +451,9 @@ public static partial class E_UtilPack
    /// <param name="value">The <see cref="UInt64"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
    [CLSCompliant( false )]
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteUInt64LEToBytes( this ResizableArray<Byte> array, ref Int32 idx, UInt64 value )
    {
       return array.WriteInt64LEToBytes( ref idx, (Int64) value );
@@ -416,6 +467,9 @@ public static partial class E_UtilPack
    /// <param name="value">The <see cref="UInt64"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
    [CLSCompliant( false )]
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteUInt64LEToBytesNoRef( this ResizableArray<Byte> array, Int32 idx, UInt64 value )
    {
       return array.WriteInt64LEToBytes( ref idx, (Int64) value );
@@ -428,6 +482,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing. Will be incremented by 4.</param>
    /// <param name="value">The <see cref="Single"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteSingleLEToBytes( this ResizableArray<Byte> array, ref Int32 idx, Single value )
    {
       array
@@ -443,6 +500,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing.</param>
    /// <param name="value">The <see cref="Single"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteSingleLEToBytesNoRef( this ResizableArray<Byte> array, Int32 idx, Single value )
    {
       return array.WriteSingleLEToBytes( ref idx, value );
@@ -468,6 +528,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing. Will be incremented by 8.</param>
    /// <param name="value">The <see cref="Double"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteDoubleLEToBytes( this ResizableArray<Byte> array, ref Int32 idx, Double value )
    {
       return array.WriteInt64LEToBytes( ref idx, BitConverter.DoubleToInt64Bits( value ) );
@@ -480,6 +543,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing.</param>
    /// <param name="value">The <see cref="Double"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteDoubleLEToBytesNoRef( this ResizableArray<Byte> array, Int32 idx, Double value )
    {
       return array.WriteDoubleLEToBytes( ref idx, value );
@@ -498,6 +564,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing. Will be incremented by 2.</param>
    /// <param name="value">The <see cref="Int16"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteInt16BEToBytes( this ResizableArray<Byte> array, ref Int32 idx, Int16 value )
    {
       array
@@ -513,6 +582,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing.</param>
    /// <param name="value">The <see cref="Int16"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteInt16BEToBytesNoRef( this ResizableArray<Byte> array, Int32 idx, Int16 value )
    {
       return array.WriteInt16BEToBytes( ref idx, value );
@@ -526,6 +598,9 @@ public static partial class E_UtilPack
    /// <param name="value">The <see cref="UInt16"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
    [CLSCompliant( false )]
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteUInt16BEToBytes( this ResizableArray<Byte> array, ref Int32 idx, UInt16 value )
    {
       return array.WriteInt16BEToBytes( ref idx, (Int16) value );
@@ -539,6 +614,9 @@ public static partial class E_UtilPack
    /// <param name="value">The <see cref="UInt16"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
    [CLSCompliant( false )]
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteUInt16BEToBytesNoRef( this ResizableArray<Byte> array, Int32 idx, UInt16 value )
    {
       return array.WriteInt16BEToBytes( ref idx, (Int16) value );
@@ -551,6 +629,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing. Will be incremented by 4.</param>
    /// <param name="value">The <see cref="Int32"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteInt32BEToBytes( this ResizableArray<Byte> array, ref Int32 idx, Int32 value )
    {
       array
@@ -566,6 +647,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing.</param>
    /// <param name="value">The <see cref="Int32"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteInt32BEToBytesNoRef( this ResizableArray<Byte> array, Int32 idx, Int32 value )
    {
       return array.WriteInt32BEToBytes( ref idx, value );
@@ -579,6 +663,9 @@ public static partial class E_UtilPack
    /// <param name="value">The <see cref="UInt32"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
    [CLSCompliant( false )]
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteUInt32BEToBytes( this ResizableArray<Byte> array, ref Int32 idx, UInt32 value )
    {
       return array.WriteInt32BEToBytes( ref idx, (Int32) value );
@@ -592,6 +679,9 @@ public static partial class E_UtilPack
    /// <param name="value">The <see cref="UInt32"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
    [CLSCompliant( false )]
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteUInt32BEToBytesNoRef( this ResizableArray<Byte> array, Int32 idx, UInt32 value )
    {
       return array.WriteInt32BEToBytes( ref idx, (Int32) value );
@@ -604,6 +694,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing. Will be incremented by 8.</param>
    /// <param name="value">The <see cref="Int64"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteInt64BEToBytes( this ResizableArray<Byte> array, ref Int32 idx, Int64 value )
    {
       array
@@ -619,6 +712,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing.</param>
    /// <param name="value">The <see cref="Int64"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteInt64BEToBytesNoRef( this ResizableArray<Byte> array, Int32 idx, Int64 value )
    {
       return array.WriteInt64BEToBytes( ref idx, value );
@@ -632,6 +728,9 @@ public static partial class E_UtilPack
    /// <param name="value">The <see cref="UInt64"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
    [CLSCompliant( false )]
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteUInt64BEToBytes( this ResizableArray<Byte> array, ref Int32 idx, UInt64 value )
    {
       return array.WriteInt64BEToBytes( ref idx, (Int64) value );
@@ -645,6 +744,9 @@ public static partial class E_UtilPack
    /// <param name="value">The <see cref="UInt64"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
    [CLSCompliant( false )]
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteUInt64BEToBytesNoRef( this ResizableArray<Byte> array, Int32 idx, UInt64 value )
    {
       return array.WriteInt64BEToBytes( ref idx, (Int64) value );
@@ -657,6 +759,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing. Will be incremented by 4.</param>
    /// <param name="value">The <see cref="Single"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteSingleBEToBytes( this ResizableArray<Byte> array, ref Int32 idx, Single value )
    {
       array
@@ -672,6 +777,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing.</param>
    /// <param name="value">The <see cref="Single"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteSingleBEToBytesNoRef( this ResizableArray<Byte> array, Int32 idx, Single value )
    {
       return array.WriteSingleBEToBytes( ref idx, value );
@@ -684,6 +792,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing. Will be incremented by 8.</param>
    /// <param name="value">The <see cref="Double"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteDoubleBEToBytes( this ResizableArray<Byte> array, ref Int32 idx, Double value )
    {
       return array.WriteInt64BEToBytes( ref idx, BitConverter.DoubleToInt64Bits( value ) );
@@ -696,6 +807,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The offset to start writing.</param>
    /// <param name="value">The <see cref="Double"/> value to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> WriteDoubleBEToBytesNoRef( this ResizableArray<Byte> array, Int32 idx, Double value )
    {
       return array.WriteDoubleBEToBytes( ref idx, value );
@@ -710,6 +824,9 @@ public static partial class E_UtilPack
    /// <param name="idx">The index to start. Will be incremented by <paramref name="count"/> when this method finishes.</param>
    /// <param name="count">The amount of zeroes to write.</param>
    /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<Byte> ZeroOut( this ResizableArray<Byte> array, ref Int32 idx, Int32 count )
    {
       if ( count > 0 )
@@ -729,6 +846,9 @@ public static partial class E_UtilPack
    /// <returns>The <paramref name="destinationArray"/></returns>
    /// <exception cref="ArgumentNullException">If <paramref name="destinationArray"/> or <paramref name="value"/> are null.</exception>
    /// <exception cref="ArgumentException">If <paramref name="destinationArray"/> is not empty, and length of <paramref name="value"/> is greater than length of <paramref name="destinationArray"/>.</exception>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<T> Fill<T>( this ResizableArray<T> destinationArray, params T[] value )
    {
       return destinationArray.FillWithOffsetAndCount( 0, destinationArray.CurrentMaxCapacity, value );
@@ -741,6 +861,9 @@ public static partial class E_UtilPack
    /// <typeparam name="T">The type of array elements.</typeparam>
    /// <param name="destinationArray">The array to be filled with values.</param>
    /// <returns>The <paramref name="destinationArray"/></returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<T> FillWithNulls<T>( this ResizableArray<T> destinationArray )
       where T : class
    {
@@ -757,6 +880,9 @@ public static partial class E_UtilPack
    /// <returns>The <paramref name="destinationArray"/></returns>
    /// <exception cref="ArgumentNullException">If <paramref name="destinationArray"/> or <paramref name="value"/> are null.</exception>
    /// <exception cref="ArgumentException">If <paramref name="destinationArray"/> is not empty, and length of <paramref name="value"/> is greater than length of <paramref name="destinationArray"/>.</exception>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<T> FillWithOffset<T>( this ResizableArray<T> destinationArray, Int32 offset, params T[] value )
    {
       return destinationArray.FillWithOffsetAndCount( offset, destinationArray.CurrentMaxCapacity - offset, value );
@@ -778,6 +904,9 @@ public static partial class E_UtilPack
    /// </remarks>
    /// <exception cref="ArgumentNullException">If <paramref name="destinationArray"/> or <paramref name="value"/> are null.</exception>
    /// <exception cref="ArgumentException">If <paramref name="destinationArray"/> is not empty, and length of <paramref name="value"/> is greater than length of <paramref name="destinationArray"/>.</exception>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static ResizableArray<T> FillWithOffsetAndCount<T>( this ResizableArray<T> destinationArray, Int32 offset, Int32 count, params T[] value )
    {
       ArgumentValidator.ValidateNotNull( "Destination array", destinationArray );
@@ -816,20 +945,20 @@ public static partial class E_UtilPack
       return destinationArray;
    }
 
-   /// <summary>
-   /// Reads specific amount of bytes from <see cref="System.IO.Stream"/> into this resizable array, and returns the actual byte array.
-   /// </summary>
-   /// <param name="array">The <see cref="ResizableArray{T}"/>.</param>
-   /// <param name="stream">The <see cref="System.IO.Stream"/>.</param>
-   /// <param name="count">The amount of bytes to read.</param>
-   /// <returns>The actual byte array containing the bytes read (and possibly any other data following after this, if the <see cref="ResizableArray{T}"/>'s array had that before calling this method).</returns>
-   public static Byte[] ReadIntoResizableArray( this ResizableArray<Byte> array, System.IO.Stream stream, Int32 count )
-   {
-      array.CurrentMaxCapacity = count;
-      var retVal = array.Array;
-      stream.ReadSpecificAmount( retVal, 0, count );
-      return retVal;
-   }
+   ///// <summary>
+   ///// Reads specific amount of bytes from <see cref="System.IO.Stream"/> into this resizable array, and returns the actual byte array.
+   ///// </summary>
+   ///// <param name="array">The <see cref="ResizableArray{T}"/>.</param>
+   ///// <param name="stream">The <see cref="System.IO.Stream"/>.</param>
+   ///// <param name="count">The amount of bytes to read.</param>
+   ///// <returns>The actual byte array containing the bytes read (and possibly any other data following after this, if the <see cref="ResizableArray{T}"/>'s array had that before calling this method).</returns>
+   //public static Byte[] ReadIntoResizableArray( this ResizableArray<Byte> array, System.IO.Stream stream, Int32 count )
+   //{
+   //   array.CurrentMaxCapacity = count;
+   //   var retVal = array.Array;
+   //   stream.ReadSpecificAmount( retVal, 0, count );
+   //   return retVal;
+   //}
 
    /// <summary>
    /// Helper function to set <see cref="ResizableArray{T}.CurrentMaxCapacity"/> and then return the <see cref="ResizableArray{T}.Array"/>.
@@ -839,6 +968,9 @@ public static partial class E_UtilPack
    /// <param name="capacity">The capacity.</param>
    /// <returns>The <see cref="ResizableArray{T}.Array"/>, which will be at least the size of given <paramref name="capacity"/>.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="ResizableArray{T}"/> is <c>null</c>.</exception>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static T[] SetCapacityAndReturnArray<T>( this ResizableArray<T> array, Int32 capacity )
    {
       array.CurrentMaxCapacity = capacity;

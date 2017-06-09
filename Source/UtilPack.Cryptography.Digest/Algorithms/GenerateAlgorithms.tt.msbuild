@@ -36,6 +36,9 @@
    // TODO try to use pinned variables in .NET desktop and core app versions?
    // Or maybe expand the transformation methods more?
    // Currently these are roughly 2 times slower than the System.Security.Cryptography ones.
+
+   var useUnsafe = true;
+   var unsafeString = useUnsafe ? "unsafe" : "";
 #>
 using System;
 using UtilPack;
@@ -46,7 +49,7 @@ namespace UtilPack.Cryptography.Digest
    /// This class implements <#= algIDString #> digest algorithm.
    /// </summary>
    /// <remarks>
-   /// This implementation is fully managed.
+   /// This implementation is fully managed, and uses unsafe code.
    /// </remarks>
    public sealed class <#= algIDString #> : AbstractDisposable, BlockDigestAlgorithm
    {
@@ -112,36 +115,71 @@ namespace UtilPack.Cryptography.Digest
          }
       }
 
-      private void HashBlock( Byte[] data, Int32 offset, Int32 count )
+      private <#= unsafeString #> void HashBlock( Byte[] data, Int32 offset, Int32 count )
       {
          if (count > 0)
          {
+<#
+   if ( useUnsafe )
+   {
+#>
+            fixed ( Byte* block = this._block )
+            {
+               fixed ( <#= algNumericType #>* state = this._state )
+               {
+                  fixed ( <#= algNumericType #>* x = this._expandedState )
+                  {
+<#
+   }
+   else
+   {
+#>
             var block = this._block;
-            var blockOffset = (Int32) ( this._count & ( BLOCK_SIZE - 1 ) );
-            this._count += (UInt32) count;
-                         // 1. Transform the previous data first
-            if ( blockOffset > 0 && blockOffset + count >= BLOCK_SIZE )
-            {
-               var remainder = BLOCK_SIZE - blockOffset;
-               data.CopyTo( block, ref offset, blockOffset, remainder );
-               count -= remainder;
-               blockOffset = 0;
-               this.DoTransform( block );
-            }
+            var state = this._state;
+            var x = this._expandedState;
+<#
+   }
+#>
 
-            // 2. Transform block at a time
-            while ( count >= BLOCK_SIZE )
-            {
-               data.CopyTo( block, ref offset, blockOffset, BLOCK_SIZE );
-               count -= BLOCK_SIZE;
-               this.DoTransform( block );
-            }
+                     var blockOffset = (Int32) ( this._count & ( BLOCK_SIZE - 1 ) );
+                     this._count += (UInt32) count;
+                     
+                     // 1. Transform the previous data first
+                     if ( blockOffset > 0 && blockOffset + count >= BLOCK_SIZE )
+                     {
+                        var remainder = BLOCK_SIZE - blockOffset;
+                        Buffer.BlockCopy( data, offset, this._block, blockOffset, remainder );
+                        offset += remainder;
+                        count -= remainder;
+                        blockOffset = 0;
+                        this.DoTransform( block, state, x );
+                     }
 
-            // 3. Copy in the remaining data
-            if ( count > 0 )
-            {
-               data.CopyTo( block, ref offset, blockOffset, count );
+                     // 2. Transform block at a time
+                     while ( count >= BLOCK_SIZE )
+                     {
+                        Buffer.BlockCopy( data, offset, this._block, 0, BLOCK_SIZE );
+                        offset += BLOCK_SIZE;
+                        count -= BLOCK_SIZE;
+                        this.DoTransform( block, state, x );
+                     }
+
+                     // 3. Copy in the remaining data
+                     if ( count > 0 )
+                     {
+                        Buffer.BlockCopy( data, offset, this._block, 0, count );
+                     }
+<#
+   if ( useUnsafe )
+   {
+#>
+     
+                  }
+               }
             }
+<#
+   }
+#>
          }
       }
 
@@ -201,15 +239,18 @@ namespace UtilPack.Cryptography.Digest
          <# OutputStateResettingCode( algID ); #>
       }
 
-      private void DoTransform( Byte[] block )
+      private <#= unsafeString #> void DoTransform(
+         Byte* block,
+         <#= algNumericType #>* state,
+         <#= algNumericType #>* x
+      )
       {
-         var x = this._expandedState;
          {
             var i = 0;
             // Populate expanded state beginning
             for (var idx = 0; i < BLOCK_SIZE / sizeof( <#= algNumericType #> ); ++i )
             {
-               x[i] = block.<#= GetExpandedStateReadMethodName( algID ) #>(ref idx);
+               x[i] = <#= GetExpandedStateReadMethodName( algID ) #>(block, ref idx);
             }  
 <#
             if ( blockSize / typeSize < expandedSize )
@@ -224,11 +265,16 @@ namespace UtilPack.Cryptography.Digest
             }
 #>
          }
-         var state = this._state;
 <# OutputTransformCode( algID ); #>
       }
 
       <# OutputStaticHelpers( algID ); #>
+      <# 
+      if ( useUnsafe )
+      {
+        OutputExpandedStateReadMethod( algID );
+      }
+      #>
    }
 }
 
@@ -1043,6 +1089,61 @@ namespace UtilPack.Cryptography.Digest
             break;
          default:
             throw new InvalidOperationException( "Unrecognied algorithm kind " + kind + " for transform code." );
+      }
+   }
+
+   private void OutputExpandedStateReadMethod( AlgorithmKind kind )
+   {
+      switch (kind )
+      {
+         case AlgorithmKind.MD5:
+#>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+#endif
+      private static unsafe UInt32 ReadUInt32LEFromBytes( Byte* array, ref Int32 idx )
+      {
+         idx += 4;
+         return unchecked((UInt32)(( array[idx - 1] << 24 ) | ( array[idx - 2] << 16 ) | ( array[idx - 3] << 8 ) | array[idx - 4]));
+      }
+<#+
+            break;
+         case AlgorithmKind.SHA128:
+         case AlgorithmKind.SHA256:
+#>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      private static unsafe UInt32 ReadUInt32BEFromBytes( Byte* array, ref Int32 idx )
+      {
+         idx += 4;
+         return unchecked((UInt32) ( ( array[idx - 4] << 24 ) | ( array[idx - 3] << 16 ) | ( array[idx - 2] << 8 ) | array[idx - 1] ));
+      }
+<#+
+            break;
+         case AlgorithmKind.SHA384:
+         case AlgorithmKind.SHA512:
+#>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+#endif
+      private static unsafe UInt64 ReadUInt64BEFromBytes( Byte* array, ref Int32 idx )
+      {
+         idx += 8;
+         return unchecked((UInt64) ( ( (Int64) ReadInt32BEFromBytesNoRef( array, idx - 8 ) ) << 32 ) | ( ( (UInt32) ReadInt32BEFromBytesNoRef( array, idx - 4 ) ) ) );
+      }
+
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+#endif
+      private static unsafe Int32 ReadInt32BEFromBytesNoRef( Byte* array, Int32 idx )
+      {
+         return ( array[idx] << 24 ) | ( array[idx + 1] << 16 ) | ( array[idx + 2] << 8 ) | array[idx + 3];
+      }
+<#+
+            break;
+         default:
+            throw new InvalidOperationException( "Unrecognied algorithm kind " + kind + " for expanded state read method code." );
       }
    }
 #>

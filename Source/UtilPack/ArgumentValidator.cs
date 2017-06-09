@@ -38,10 +38,13 @@ namespace UtilPack
       /// <param name="value">The given parameter.</param>
       /// <returns>The <paramref name="value"/>.</returns>
       /// <exception cref="ArgumentNullException">If the <paramref name="value"/> is <c>null</c>.</exception>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static T ValidateNotNull<T>( String parameterName, T value )
          where T : class
       {
-         if (value == null )
+         if ( value == null )
          {
             throw new ArgumentNullException( parameterName );
          }
@@ -59,10 +62,13 @@ namespace UtilPack
       /// This method throws <see cref="NullReferenceException"/> instead of <see cref="ArgumentNullException"/> because it is intended to be used solely as validating the <c>this</c> parameter of an extension method.
       /// If the extension method is later added to the interface itself instead of being an extension method, the exception behaviour will not change, and the client code don't need to re-adapt their catch-handlers.
       /// </remarks>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static T ValidateNotNullReference<T>( T value )
          where T : class
       {
-         if (value == null)
+         if ( value == null )
          {
             throw new NullReferenceException( "Extension method 'this' parameter is null." );
          }
@@ -78,6 +84,9 @@ namespace UtilPack
       /// <returns>The <paramref name="value"/>.</returns>
       /// <exception cref="ArgumentNullException">If the <paramref name="value"/> is <c>null</c>.</exception>
       /// <exception cref="ArgumentException">If the <paramref name="value"/> is empty.</exception>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static IEnumerable<T> ValidateNotEmpty<T>( String parameterName, IEnumerable<T> value )
       {
          ValidateNotNull( parameterName, value );
@@ -97,6 +106,9 @@ namespace UtilPack
       /// <returns>The <paramref name="value"/>.</returns>
       /// <exception cref="ArgumentNullException">If the <paramref name="value"/> is <c>null</c>.</exception>
       /// <exception cref="ArgumentException">If the <paramref name="value"/> is empty.</exception>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static T[] ValidateNotEmpty<T>( String parameterName, T[] value )
       {
          ValidateNotNull( parameterName, value );
@@ -115,6 +127,9 @@ namespace UtilPack
       /// <returns>The <paramref name="value"/>.</returns>
       /// <exception cref="ArgumentNullException">If the <paramref name="value"/> is <c>null</c>.</exception>
       /// <exception cref="ArgumentException">If the <paramref name="value"/> is empty.</exception>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static String ValidateNotEmpty( String parameterName, String value )
       {
          ValidateNotNull( parameterName, value );
@@ -134,6 +149,9 @@ namespace UtilPack
       /// <param name="values">The given paramter.</param>
       /// <returns>The <paramref name="values"/>.</returns>
       /// <exception cref="ArgumentNullException">If <paramref name="values"/> is <c>null</c>, or if it contains at least one <c>null</c> item.</exception>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static IEnumerable<T> ValidateAllNotNull<T>( String parameterName, IEnumerable<T> values )
          where T : class
       {

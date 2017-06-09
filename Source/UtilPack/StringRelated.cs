@@ -816,6 +816,9 @@ public static partial class E_UtilPack
    /// <param name="str">The string to write to. If <c>null</c>, nothing will be written.</param>
    /// <returns>This <see cref="IEncodingInfo"/>.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IEncodingInfo"/> is <c>null</c>.</exception>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static IEncodingInfo WriteString( this IEncodingInfo encoding, Byte[] array, ref Int32 offset, String str )
    {
       ArgumentValidator.ValidateNotNullReference( encoding );
@@ -838,6 +841,9 @@ public static partial class E_UtilPack
    /// <returns>This <see cref="IEncodingInfo"/>.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IEncodingInfo"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="array"/> is <c>null</c>.</exception>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static IEncodingInfo WriteHexDecimal( this IEncodingInfo encoding, Byte[] array, ref Int32 idx, Byte value, Boolean upperCase = false )
    {
       Byte ExtractHexChar( Int32 bits, Int32 alphaVal )
@@ -860,13 +866,14 @@ public static partial class E_UtilPack
    /// <returns>The decoded hexadecimal value.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IEncodingInfo"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="array"/> is <c>null</c>.</exception>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
    public static Byte ReadHexDecimal( this IEncodingInfo encoding, Byte[] array, ref Int32 idx )
    {
       return (Byte) ( ( ( (Char) encoding.ReadASCIIByte( array, ref idx ) ).GetHexadecimalValue().GetValueOrDefault() << 4 )
       | ( ( (Char) encoding.ReadASCIIByte( array, ref idx ) ).GetHexadecimalValue().GetValueOrDefault() ) );
    }
-
-
 
 
    /// <summary>

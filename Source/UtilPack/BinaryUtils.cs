@@ -51,6 +51,9 @@ namespace UtilPack
       /// <param name="value">The value to rotate to left.</param>
       /// <param name="shift">The amount to bits to rotate.</param>
       /// <returns>The rotated value.</returns>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int32 RotateLeft( this Int32 value, Int32 shift )
       {
          return (Int32) ( (UInt32) value ).RotateLeft( shift );
@@ -63,6 +66,9 @@ namespace UtilPack
       /// <param name="shift">The amount to bits to rotate.</param>
       /// <returns>The rotated value.</returns>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static UInt32 RotateLeft( this UInt32 value, Int32 shift )
       {
          return ( value << shift ) | ( value >> ( sizeof( UInt32 ) * 8 - shift ) );
@@ -74,6 +80,9 @@ namespace UtilPack
       /// <param name="value">The value to rotate to right.</param>
       /// <param name="shift">The amount to bits to rotate.</param>
       /// <returns>The rotated value.</returns>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int32 RotateRight( this Int32 value, Int32 shift )
       {
          return (Int32) ( (UInt32) value ).RotateRight( shift );
@@ -86,6 +95,9 @@ namespace UtilPack
       /// <param name="shift">The amount to bits to rotate.</param>
       /// <returns>The rotated value.</returns>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static UInt32 RotateRight( this UInt32 value, Int32 shift )
       {
          return ( value >> shift ) | ( value << ( sizeof( UInt32 ) * 8 - shift ) );
@@ -97,6 +109,9 @@ namespace UtilPack
       /// <param name="value">The value to rotate to left.</param>
       /// <param name="shift">The amount to bits to rotate.</param>
       /// <returns>The rotated value.</returns>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int64 RotateLeft( this Int64 value, Int32 shift )
       {
          return (Int64) ( (UInt64) value ).RotateLeft( shift );
@@ -109,6 +124,9 @@ namespace UtilPack
       /// <param name="shift">The amount to bits to rotate.</param>
       /// <returns>The rotated value.</returns>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static UInt64 RotateLeft( this UInt64 value, Int32 shift )
       {
          return ( value << shift ) | ( value >> ( sizeof( UInt64 ) * 8 - shift ) );
@@ -120,6 +138,9 @@ namespace UtilPack
       /// <param name="value">The value to rotate to right.</param>
       /// <param name="shift">The amount to bits to rotate.</param>
       /// <returns>The rotated value.</returns>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int64 RotateRight( this Int64 value, Int32 shift )
       {
          return (Int64) ( (UInt64) value ).RotateRight( shift );
@@ -132,6 +153,9 @@ namespace UtilPack
       /// <param name="shift">The amount to bits to rotate.</param>
       /// <returns>The rotated value.</returns>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static UInt64 RotateRight( this UInt64 value, Int32 shift )
       {
          return ( value >> shift ) | ( value << ( sizeof( UInt64 ) * 8 - shift ) );
@@ -146,6 +170,9 @@ namespace UtilPack
       /// <remarks>
       /// More specifically, this method will return <c>( <paramref name="totalSize" /> + <paramref name="pageSize" /> - 1 ) / <paramref name="pageSize" /></c>
       /// </remarks>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int32 AmountOfPagesTaken( Int32 totalSize, Int32 pageSize )
       {
          return ( totalSize + pageSize - 1 ) / pageSize;
@@ -161,6 +188,9 @@ namespace UtilPack
       /// The algorithm is from <see href="http://graphics.stanford.edu/~seander/bithacks.html#IntegerLogLookup"/> .
       /// </remarks>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int32 Log2( UInt32 value )
       {
          UInt32 tt;
@@ -193,6 +223,9 @@ namespace UtilPack
       /// The algorithm uses <see cref="Log2(UInt32)"/> method to calculate return value.
       /// </remarks>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int32 Log2( UInt64 value )
       {
          var highest = Log2( (UInt32) ( value >> ( sizeof( UInt32 ) * 8 ) ) );
@@ -213,6 +246,9 @@ namespace UtilPack
       /// <param name="x">The first number.</param>
       /// <param name="y">The second number.</param>
       /// <returns>The greatest common denominator of <paramref name="x"/> and <paramref name="y"/>.</returns>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int32 GCD( Int32 x, Int32 y )
       {
          // Unwind recursion
@@ -232,6 +268,9 @@ namespace UtilPack
       /// <param name="x">The first number.</param>
       /// <param name="y">The second number.</param>
       /// <returns>The greatest common denominator of <paramref name="x"/> and <paramref name="y"/>.</returns>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int64 GCD64( Int64 x, Int64 y )
       {
          // Unwind recursion
@@ -251,6 +290,9 @@ namespace UtilPack
       /// <param name="x">The first number.</param>
       /// <param name="y">The second number.</param>
       /// <returns>The least common multiplier of <paramref name="x"/> and <paramref name="y"/>.</returns>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int32 LCM( Int32 x, Int32 y )
       {
          return ( x * y ) / GCD( x, y );
@@ -262,6 +304,9 @@ namespace UtilPack
       /// <param name="x">The first number.</param>
       /// <param name="y">The second number.</param>
       /// <returns>The least common multiplier of <paramref name="x"/> and <paramref name="y"/>.</returns>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int64 LCM64( Int64 x, Int64 y )
       {
          return ( x * y ) / GCD64( x, y );
@@ -273,6 +318,9 @@ namespace UtilPack
       /// <param name="x">The number.</param>
       /// <returns>The greatest power of 2 less than or equal to <paramref name="x"/>.</returns>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static UInt32 FLP2( UInt32 x )
       {
          return ( 1u << Log2( x ) );
@@ -284,6 +332,9 @@ namespace UtilPack
       /// <param name="x">The number.</param>
       /// <returns>The greatest power of 2 less than or equal to <paramref name="x"/>.</returns>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static UInt64 FLP264( UInt64 x )
       {
          return ( 1u << Log2( x ) );
@@ -295,6 +346,9 @@ namespace UtilPack
       /// <param name="x">The number.</param>
       /// <returns>The least power of 2 greater than or equal to <paramref name="x"/>.</returns>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static UInt32 CLP2( UInt32 x )
       {
          return x == 0 ? 0 : ( 1u << ( 1 + Log2( x - 1 ) ) );
@@ -306,6 +360,9 @@ namespace UtilPack
       /// <param name="x">The number.</param>
       /// <returns>The least power of 2 greater than or equal to <paramref name="x"/>.</returns>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static UInt64 CLP264( UInt64 x )
       {
          return x == 0 ? 0 : ( 1ul << ( 1 + Log2( x - 1 ) ) );
@@ -320,6 +377,9 @@ namespace UtilPack
       /// <remarks>
       /// Will return incorrect results if <paramref name="multiple"/> is zero.
       /// </remarks>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int32 RoundUpI32( this Int32 value, Int32 multiple )
       {
          return ( multiple - 1 + value ) & ~( multiple - 1 );
@@ -335,6 +395,9 @@ namespace UtilPack
       /// Will return incorrect results if <paramref name="multiple"/> is zero.
       /// </remarks>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static UInt32 RoundUpU32( this UInt32 value, UInt32 multiple )
       {
          return ( multiple - 1 + value ) & ~( multiple - 1 );
@@ -349,6 +412,9 @@ namespace UtilPack
       /// <remarks>
       /// Will return incorrect results if <paramref name="multiple"/> is zero.
       /// </remarks>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int64 RoundUpI64( this Int64 value, Int64 multiple )
       {
          return ( multiple - 1 + value ) & ~( multiple - 1 );
@@ -364,6 +430,9 @@ namespace UtilPack
       /// Will return incorrect results if <paramref name="multiple"/> is zero.
       /// </remarks>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static UInt64 RoundUpU64( this UInt64 value, UInt64 multiple )
       {
          return ( multiple - 1 + value ) & ~( multiple - 1 );
@@ -377,6 +446,9 @@ namespace UtilPack
       /// <remarks>
       /// This algorithm is from <see href="https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel"/>.
       /// </remarks>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int32 CountBitsSetI32( Int32 value )
       {
          return (Int32) CountBitsSetU32( (UInt32) value );
@@ -391,6 +463,9 @@ namespace UtilPack
       /// This algorithm is from <see href="https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel"/>.
       /// </remarks>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static UInt32 CountBitsSetU32( UInt32 value )
       {
          unchecked
@@ -409,6 +484,9 @@ namespace UtilPack
       /// <remarks>
       /// This algorithm is from <see href="https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel"/>.
       /// </remarks>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int32 CountBitsSetI64( Int64 value )
       {
          return (Int32) CountBitsSetU64( (UInt64) value );
@@ -423,6 +501,9 @@ namespace UtilPack
       /// This algorithm is from <see href="https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel"/>.
       /// </remarks>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static UInt32 CountBitsSetU64( UInt64 value )
       {
          unchecked
@@ -442,6 +523,9 @@ namespace UtilPack
       /// <seealso cref="E_UtilPack.WriteInt32BEEncoded7Bit"/>
       /// <seealso cref="E_UtilPack.ReadInt32LEEncoded7Bit"/>
       /// <seealso cref="E_UtilPack.ReadInt32BEEncoded7Bit"/>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int32 Calculate7BitEncodingLength( Int32 value )
       {
          return ( Log2( unchecked((UInt32) value) ) / 7 ) + 1;
@@ -456,6 +540,9 @@ namespace UtilPack
       /// <seealso cref="E_UtilPack.WriteInt64BEEncoded7Bit"/>
       /// <seealso cref="E_UtilPack.ReadInt64LEEncoded7Bit"/>
       /// <seealso cref="E_UtilPack.ReadInt64BEEncoded7Bit"/>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Int32 Calculate7BitEncodingLength( Int64 value )
       {
          return ( Log2( unchecked((UInt64) value) ) / 7 ) + 1;
@@ -467,6 +554,9 @@ namespace UtilPack
       /// <param name="val">The integer to check.</param>
       /// <returns><c>true</c> if the integer is power of two (and thus greater than zero); <c>false</c> otherwise.</returns>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Boolean IsPowerOfTwo( this UInt32 val )
       {
          return val != 0 && unchecked(( val & ( val - 1 ) )) == 0;
@@ -478,6 +568,9 @@ namespace UtilPack
       /// <param name="val">The integer to check.</param>
       /// <returns><c>true</c> if the integer is power of two (and thus greater than zero); <c>false</c> otherwise.</returns>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Boolean IsPowerOfTwo( this UInt64 val )
       {
          return val != 0 && unchecked(( val & ( val - 1 ) )) == 0;
@@ -490,6 +583,9 @@ namespace UtilPack
       /// <param name="val">The integer to check.</param>
       /// <returns><c>true</c> if the integer is even; <c>false</c> otherwise.</returns>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Boolean IsEven( this UInt32 val )
       {
          return ( val & 1 ) == 0;
@@ -502,6 +598,9 @@ namespace UtilPack
       /// <param name="val">The integer to check.</param>
       /// <returns><c>true</c> if the integer is even; <c>false</c> otherwise.</returns>
       [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
       public static Boolean IsEven( this UInt64 val )
       {
          return ( val & 1 ) == 0;

@@ -310,6 +310,9 @@ namespace UtilPack
    }
 }
 
+/// <summary>
+/// This class contains extension methods for types defined in this assembly.
+/// </summary>
 public static partial class E_UtilPack
 {
    /// <summary>

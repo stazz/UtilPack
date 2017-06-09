@@ -46,9 +46,7 @@ namespace UtilPack.Cryptography.Digest
    /// This class implements <#= algIDString #> digest algorithm.
    /// </summary>
    /// <remarks>
-   /// This implementation is fully managed, and currently does not even use pinned variables, as they are forbidden in some target frameworks.
-   /// Therefore, if your usage of this algorithm is heavily performance-dependant, you might want to use the algorithm implemented by target framework core library, e.g. <see href="https://docs.microsoft.com/dotnet/api/system.security.cryptography.<#= algIDString #>"/>.
-   /// These algorithms are provided mostly for compatibility reasons, for those frameworks which don't have them in System.Security.Cryptography namespace.
+   /// This implementation is fully managed.
    /// </remarks>
    public sealed class <#= algIDString #> : AbstractDisposable, BlockDigestAlgorithm
    {

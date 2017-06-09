@@ -26,30 +26,31 @@ using UtilPack.Cryptography.Digest;
 namespace UtilPack.Cryptography.Digest
 {
    /// <summary>
-   /// 
+   /// This interface provides API for all block-based digest-producing cryptographic algorithms.
+   /// Typical usecase is to scan through data using <see cref="ProcessBlock"/> method, and finally produce a digest by <see cref="WriteDigest"/> method or <see cref="E_UtilPack.CreateDigest"/> extension method.
    /// </summary>
    public interface BlockDigestAlgorithm : IDisposable
    {
       /// <summary>
-      /// 
+      /// Processes given amount of bytes.
       /// </summary>
-      /// <param name="data"></param>
-      /// <param name="offset"></param>
-      /// <param name="count"></param>
+      /// <param name="data">The array from where to read bytes.</param>
+      /// <param name="offset">The offset in <paramref name="data"/> array where to start reading.</param>
+      /// <param name="count">The amount of bytes to read from <paramref name="data"/> array.</param>
       void ProcessBlock( Byte[] data, Int32 offset, Int32 count );
 
       /// <summary>
-      /// 
+      /// Signals that all data has been read and that a digest should be produced to given array.
       /// </summary>
-      /// <param name="array"></param>
-      /// <param name="offset"></param>
-      /// <returns></returns>
+      /// <param name="array">The byte array where to write digest to.</param>
+      /// <param name="offset">The offset in <paramref name="array"/> where to start writing.</param>
+      /// <seealso cref="DigestByteCount"/>
       void WriteDigest( Byte[] array, Int32 offset );
 
       /// <summary>
-      /// 
+      /// Gets the amount of bytes that digests produced by this algorithm take.
       /// </summary>
-      /// <value></value>
+      /// <value>The amount of bytes that digests produced by this algorithm take.</value>
       Int32 DigestByteCount { get; }
 
       /// <summary>
@@ -89,17 +90,43 @@ namespace UtilPack.Cryptography.Digest
    }
 }
 
+/// <summary>
+/// This class contains extensions methods defined in UtilPack products.
+/// </summary>
 public static partial class E_UtilPack
 {
    /// <summary>
-   /// 
+   /// Helper method to compute digest over the whole contents of given byte array.
    /// </summary>
-   /// <param name="transform"></param>
-   /// <param name="array"></param>
-   /// <param name="offset"></param>
-   /// <param name="count"></param>
+   /// <param name="transform">This <see cref="BlockDigestAlgorithm"/>.</param>
+   /// <param name="array">The byte data of which to compute digest from.</param>
+   /// <returns>The digest produced by this <see cref="BlockDigestAlgorithm"/>.</returns>
+   public static Byte[] ComputeDigest( this BlockDigestAlgorithm transform, Byte[] array )
+   {
+      return transform.ComputeDigest( array, 0, array?.Length ?? 0 );
+   }
+
+   /// <summary>
+   /// Helper method to compute digest when all the data has already been read to given array.
+   /// </summary>
+   /// <param name="transform">This <see cref="BlockDigestAlgorithm"/>.</param>
+   /// <param name="array">The data. Reading will start at offset <c>0</c>.</param>
+   /// <param name="count">The amount of bytes to read from <paramref name="array"/>.</param>
    /// <returns></returns>
-   public static Byte[] ComputeHash( this BlockDigestAlgorithm transform, Byte[] array, Int32 offset, Int32 count )
+   public static Byte[] ComputeDigest( this BlockDigestAlgorithm transform, Byte[] array, Int32 count )
+   {
+      return transform.ComputeDigest( array, 0, count );
+   }
+
+   /// <summary>
+   /// Helper method to compute digest when all the data has already been read to given array.
+   /// </summary>
+   /// <param name="transform">This <see cref="BlockDigestAlgorithm"/>.</param>
+   /// <param name="array">The data.</param>
+   /// <param name="offset">The offset in <paramref name="array"/> where to start reading.</param>
+   /// <param name="count">The amount of bytes to read from <paramref name="array"/>.</param>
+   /// <returns>The digest produced by this <see cref="BlockDigestAlgorithm"/>.</returns>
+   public static Byte[] ComputeDigest( this BlockDigestAlgorithm transform, Byte[] array, Int32 offset, Int32 count )
    {
       transform.ProcessBlock( array, offset, count );
       return transform.CreateDigest();
@@ -130,10 +157,10 @@ public static partial class E_UtilPack
    }
 
    /// <summary>
-   /// 
+   /// Helper method to create a new byte array of required size and call <see cref="BlockDigestAlgorithm.WriteDigest"/>.
    /// </summary>
-   /// <param name="algorithm"></param>
-   /// <returns></returns>
+   /// <param name="algorithm">This <see cref="BlockDigestAlgorithm"/>.</param>
+   /// <returns>A digest created by this <see cref="BlockDigestAlgorithm"/>.</returns>
    public static Byte[] CreateDigest( this BlockDigestAlgorithm algorithm )
    {
       var retVal = new Byte[algorithm.DigestByteCount];
@@ -142,20 +169,20 @@ public static partial class E_UtilPack
    }
 
    /// <summary>
-   /// 
+   /// Helper method to process whole contents of given byte array.
    /// </summary>
-   /// <param name="algorithm"></param>
-   /// <param name="block"></param>
+   /// <param name="algorithm">This <see cref="BlockDigestAlgorithm"/>.</param>
+   /// <param name="block">The byte array to process.</param>
    public static void ProcessBlock( this BlockDigestAlgorithm algorithm, Byte[] block )
    {
       algorithm.ProcessBlock( block, 0, block.Length );
    }
 
    /// <summary>
-   /// 
+   /// Helper method to write digest to given array starting at index <c>0.</c>.
    /// </summary>
-   /// <param name="algorithm"></param>
-   /// <param name="array"></param>
+   /// <param name="algorithm">This <see cref="BlockDigestAlgorithm"/>.</param>
+   /// <param name="array">The byte array to write digest to. Writing starts at index <c>0</c>.</param>
    public static void WriteDigest( this BlockDigestAlgorithm algorithm, Byte[] array )
    {
       algorithm.WriteDigest( array, 0 );

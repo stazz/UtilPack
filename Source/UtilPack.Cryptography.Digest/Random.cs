@@ -20,6 +20,10 @@ using System.Threading;
 
 namespace UtilPack.Cryptography.Digest
 {
+   /// <summary>
+   /// This class specializes <see cref="NotThreadsafeRandomGenerator"/> and uses <see cref="BlockDigestAlgorithm"/> to mutate its state when producing random data.
+   /// </summary>
+   /// <seealso cref="CreateAndSeedWithDefaultLogic"/>
    public class DigestBasedRandomGenerator : NotThreadsafeRandomGenerator
    {
       private const Int32 DEFAULT_SEED_CYCLE_COUNT = 10;
@@ -31,6 +35,13 @@ namespace UtilPack.Cryptography.Digest
       private Int64 _stateCounter;
       private Int64 _seedCounter;
 
+      /// <summary>
+      /// Creates a new instance of <see cref="DigestBasedRandomGenerator"/> with given parameters.
+      /// </summary>
+      /// <param name="algorithm">The <see cref="BlockDigestAlgorithm"/> to use when producing random data.</param>
+      /// <param name="seedCycleCount">How often to re-seed the state. Minimum value will be <c>1</c> if if <c>0</c> or less is specified.</param>
+      /// <seealso cref="CreateAndSeedWithDefaultLogic"/>
+      /// <exception cref="ArgumentNullException">If <paramref name="algorithm"/> is <c>null</c>.</exception>
       public DigestBasedRandomGenerator(
          BlockDigestAlgorithm algorithm,
          Int32 seedCycleCount = DEFAULT_SEED_CYCLE_COUNT
@@ -42,9 +53,15 @@ namespace UtilPack.Cryptography.Digest
 
          this._stateCounter = 0; // When state is first time generated, the state counter will be increased to 1
          this._seedCounter = 0;
-         this._seedCycleCount = seedCycleCount;
+         this._seedCycleCount = Math.Max( 1, seedCycleCount );
       }
 
+      /// <summary>
+      /// Uses <see cref="BlockDigestAlgorithm.ProcessBlock"/> and <see cref="BlockDigestAlgorithm.WriteDigest"/> methods to mutate the state of this <see cref="DigestBasedRandomGenerator"/>.
+      /// </summary>
+      /// <param name="material">The random data.</param>
+      /// <param name="offset">The offset in <paramref name="material"/> array where to start reading.</param>
+      /// <param name="count">The amount of bytes to read from <paramref name="material"/> array.</param>
       public override void AddSeedMaterial( Byte[] material, Int32 offset, Int32 count )
       {
          this.Algorithm.ProcessBlock( material, offset, count );
@@ -52,6 +69,12 @@ namespace UtilPack.Cryptography.Digest
          this.Algorithm.WriteDigest( this._seed );
       }
 
+      /// <summary>
+      /// Keeps computing digests using <see cref="BlockDigestAlgorithm.ProcessBlock"/> and <see cref="BlockDigestAlgorithm.WriteDigest"/> methods and writing them to given byte array until specified amount of bytes has been written to the array.
+      /// </summary>
+      /// <param name="array">The array where to write random data to.</param>
+      /// <param name="offset">The offset in <paramref name="array"/> where to start writing.</param>
+      /// <param name="count">The amount of bytes to write to <paramref name="array"/>.</param>
       public override void NextBytes( Byte[] array, Int32 offset, Int32 count )
       {
          var state = this._state;
@@ -63,18 +86,30 @@ namespace UtilPack.Cryptography.Digest
          } while ( count - offset > 0 );
       }
 
+      /// <summary>
+      /// Disposes underlying <see cref="BlockDigestAlgorithm"/> and clears internal state.
+      /// </summary>
+      /// <param name="disposing">Whether disposing from <see cref="IDisposable.Dispose"/> method.</param>
       protected override void Dispose( Boolean disposing )
       {
-         this.Algorithm.Reset();
-         Array.Clear( this._state, 0, this._state.Length );
-         Array.Clear( this._seed, 0, this._seed.Length );
+         if ( disposing )
+         {
+            this.Algorithm.DisposeSafely();
+            Array.Clear( this._state, 0, this._state.Length );
+            Array.Clear( this._seed, 0, this._seed.Length );
+         }
       }
 
+      /// <summary>
+      /// Gets the <see cref="BlockDigestAlgorithm"/> that this <see cref="DigestBasedRandomGenerator"/> uses.
+      /// </summary>
+      /// <value>The <see cref="BlockDigestAlgorithm"/> that this <see cref="DigestBasedRandomGenerator"/> uses.</value>
       protected BlockDigestAlgorithm Algorithm { get; }
 
       private void PopulateState()
       {
-         var newStateCounter = this.AlgorithmProcessInt64( Interlocked.Increment( ref this._stateCounter ) );
+         Int64 newStateCounter;
+         this.AlgorithmProcessInt64( ( newStateCounter = Interlocked.Increment( ref this._stateCounter ) ) );
          this.Algorithm.ProcessBlock( this._state );
          this.Algorithm.ProcessBlock( this._seed );
          this.Algorithm.WriteDigest( this._state );
@@ -92,13 +127,19 @@ namespace UtilPack.Cryptography.Digest
          this.Algorithm.WriteDigest( this._seed );
       }
 
-      private Int64 AlgorithmProcessInt64( Int64 val )
+      private void AlgorithmProcessInt64( Int64 val )
       {
          this.ArrayForLong.WriteInt64LEToBytesNoRef( 0, val );
          this.Algorithm.ProcessBlock( this.ArrayForLong );
-         return val;
       }
 
+      /// <summary>
+      /// This is convenience method to create new <see cref="DigestBasedRandomGenerator"/> and seed it with default, secure logic.
+      /// </summary>
+      /// <param name="algorithm">The algorithm that returned <see cref="DigestBasedRandomGenerator"/> should use.</param>
+      /// <param name="seedCycleCount">How often to re-seed the state of returned <see cref="DigestBasedRandomGenerator"/>.</param>
+      /// <returns>A new instance of <see cref="DigestBasedRandomGenerator"/> with given parameters.</returns>
+      /// <exception cref="ArgumentNullException">If <paramref name="algorithm"/> is <c>null</c>.</exception>
       public static DigestBasedRandomGenerator CreateAndSeedWithDefaultLogic( BlockDigestAlgorithm algorithm, Int32 seedCycleCount = DEFAULT_SEED_CYCLE_COUNT )
       {
 

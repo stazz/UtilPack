@@ -11,7 +11,7 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <PackageReference Include="NuGet.Client" Version="4.0.0" />
+    <PackageReference Include="NuGet.Commands" Version="4.0.0" />
     <PackageReference Include="System.ValueTuple" Version="4.3.1" />
   </ItemGroup>
 
@@ -52,7 +52,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
+    <PackageReleaseNotes>Removed local repository resolver, and replaced it with helper BoundRestoreCommandUser, which caches and makes it easy to invoke restore NuGet commands.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions resolving assembly</PackageTags>
     <Title>NuGet Resolving Helper</Title>
     <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>

@@ -26,7 +26,7 @@ using System.Threading.Tasks;
 using UtilPack.NuGet;
 using UtilPack.NuGet.AssemblyLoading;
 using TResolveResult = System.Collections.Generic.IDictionary<System.String, UtilPack.NuGet.AssemblyLoading.ResolvedPackageInfo>;
-using TNuGetResolver = UtilPack.NuGet.AssemblyLoading.NuGetResolverWrapper;
+using TNuGetResolver = UtilPack.NuGet.AssemblyLoading.NuGetRestorerWrapper;
 using NuGet.ProjectModel;
 using NuGet.Frameworks;
 using NuGet.Packaging;
@@ -37,8 +37,6 @@ namespace UtilPack.NuGet.AssemblyLoading
    // This interface should not expose any UtilPack members in order to avoid app domain to load utilpack assembly
    public interface NuGetAssemblyResolver : IDisposable
    {
-      // TODO maybe expose members which do not use tuples?
-
       Task<Assembly[]> LoadNuGetAssemblies(
          String[] packageIDs,
          String[] packageVersions,
@@ -49,9 +47,48 @@ namespace UtilPack.NuGet.AssemblyLoading
          String assemblyPath
          );
 
-      event Action<String> ResolveLogEvent;
+      event Action<AssemblyLoadEventArgs> OnAssemblyLoadSuccess;
+      event Action<AssemblyResolveFailedEventArgs> OnAssemblyLoadFail;
    }
 
+   public abstract class AbstractAssemblyResolveArgs
+   {
+      public AbstractAssemblyResolveArgs(
+         AssemblyName assemblyName
+         )
+      {
+         this.AssemblyName = assemblyName;
+      }
+
+      public AssemblyName AssemblyName { get; }
+   }
+
+   public class AssemblyLoadEventArgs : AbstractAssemblyResolveArgs
+   {
+      public AssemblyLoadEventArgs(
+         AssemblyName assemblyName,
+         String originalPath,
+         String actualPath
+         ) : base( assemblyName )
+      {
+         this.OriginalPath = originalPath;
+         this.ActualPath = actualPath;
+      }
+
+      public String OriginalPath { get; }
+      public String ActualPath { get; }
+   }
+
+   public class AssemblyResolveFailedEventArgs : AbstractAssemblyResolveArgs
+   {
+      public AssemblyResolveFailedEventArgs(
+         AssemblyName assemblyName
+         ) : base( assemblyName )
+      {
+
+      }
+
+   }
 
 
    public static class NuGetAssemblyResolverFactory
@@ -83,7 +120,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          {
             defaultGetFiles = ( targetLib, libs ) => targetLib.RuntimeAssemblies.Select( i => i.Path );
          }
-         var resolver = new NuGetResolverWrapper( restorer, ( targetLib, libs ) => defaultGetFiles( targetLib, libs ).FilterUnderscores() );
+         var resolver = new NuGetRestorerWrapper( restorer, ( targetLib, libs ) => defaultGetFiles( targetLib, libs ).FilterUnderscores() );
 
          NuGetAssemblyResolver retVal;
 #if NET45
@@ -98,7 +135,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          retVal = appDomainSetup == null ?
             new NuGetAssemblyResolverImpl( resolver, cbWrapper, ppWrapper ) :
             (NuGetAssemblyResolver) createdLoader.CreateInstanceFromAndUnwrap(
-               Path.GetFullPath( new Uri( typeof( NuGetAssemblyResolverFactory ).Assembly.CodeBase ).LocalPath ),
+               Path.GetFullPath( new Uri( typeof( NuGetAssemblyResolverImpl ).Assembly.CodeBase ).LocalPath ),
                typeof( NuGetAssemblyResolverImpl ).FullName,
                false,
                0,
@@ -262,23 +299,63 @@ namespace UtilPack.NuGet.AssemblyLoading
 
       private sealed class AssemblyInformation
       {
+         private const Int32 INITIAL = 0;
+         private const Int32 AFTER_VALUE_CREATION = 1;
+
+         private Int32 _state;
+         private readonly Lazy<Assembly> _assembly;
+         private readonly NuGetAssemblyResolverImpl _resolver;
+         private AssemblyLoadEventArgs _loadArgs;
+
          public AssemblyInformation(
             String path,
-            Func<String, Assembly> fromPathLoader,
-            Func<String, String> pathProcessor
+            NuGetAssemblyResolverImpl resolver,
+            Boolean skipPathProcessor = false
             )
          {
-            this.Path = path;
-            this.Assembly = new Lazy<System.Reflection.Assembly>( () =>
+            this.Path = path = System.IO.Path.GetFullPath( path );
+            this._resolver = resolver;
+            this._assembly = new Lazy<Assembly>( () =>
             {
                String processed;
-               return fromPathLoader( String.IsNullOrEmpty( ( processed = pathProcessor?.Invoke( path ) ) ) ?
+               var actualPath = skipPathProcessor || String.IsNullOrEmpty( ( processed = resolver._pathProcessor?.Invoke( path ) ) ) ?
                   path :
-                  processed );
+                  processed;
+               var retVal = resolver._fromPathLoader( actualPath );
+               Interlocked.Exchange( ref this._loadArgs, new AssemblyLoadEventArgs( retVal.GetName(), path, actualPath ) );
+               return retVal;
             }, LazyThreadSafetyMode.ExecutionAndPublication );
          }
+
          public String Path { get; }
-         public Lazy<Assembly> Assembly { get; }
+
+         public Assembly Assembly
+         {
+            get
+            {
+               Assembly retVal;
+               if ( this._state == INITIAL
+                  && Interlocked.CompareExchange( ref this._state, AFTER_VALUE_CREATION, INITIAL ) == INITIAL
+                  )
+               {
+                  retVal = this._assembly.Value;
+                  // We don't want to invoke that event inside lazy factory, so have to do some tricks in order to invoke it here
+                  try
+                  {
+                     this._resolver.OnAssemblyLoadSuccess?.Invoke( this._loadArgs );
+                  }
+                  catch
+                  {
+                     // Ignore
+                  }
+               }
+               else
+               {
+                  retVal = this._assembly.Value;
+               }
+               return retVal;
+            }
+         }
       }
 
       private readonly ConcurrentDictionary<AssemblyName, AssemblyInformation> _assemblies;
@@ -378,9 +455,9 @@ namespace UtilPack.NuGet.AssemblyLoading
                {
                   retVal = this._assemblies.AddOrUpdate(
                      name,
-                     an => new AssemblyInformation( overrideLocation, this._fromPathLoader, this._pathProcessor ),
-                     ( an, existing ) => new AssemblyInformation( overrideLocation, this._fromPathLoader, this._pathProcessor )
-                     ).Assembly.Value;
+                     an => new AssemblyInformation( overrideLocation, this, true ),
+                     ( an, existing ) => new AssemblyInformation( overrideLocation, this, true )
+                     ).Assembly;
                }
                else
                {
@@ -434,7 +511,6 @@ namespace UtilPack.NuGet.AssemblyLoading
             retVal = new Assembly[packageIDs.Length];
             if ( assemblyInfos != null )
             {
-               var assemblies = this._assemblies;
                // TODO there is some performance optimizing here left to do, as not nearly all assembly names are actually used.
                // .NET Core uses default loader for all system assemblies, and in .NET Desktop system assemblies are loaded from GAC.
                var assemblyNames = assemblyInfos.Values
@@ -454,9 +530,9 @@ namespace UtilPack.NuGet.AssemblyLoading
                foreach ( var kvp in assemblyNames )
                {
                   var curPath = kvp.Key;
-                  assemblies.TryAdd(
+                  this._assemblies.TryAdd(
                      kvp.Value.Value,
-                     new AssemblyInformation( curPath, this._fromPathLoader, this._pathProcessor )
+                     new AssemblyInformation( curPath, this )
                      );
                }
 
@@ -491,7 +567,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          )
       {
          assemblyPath = Path.GetFullPath( assemblyPath );
-         var retVal = this._assemblies.Values.FirstOrDefault( v => String.Equals( v.Path, assemblyPath ) )?.Assembly?.Value;
+         var retVal = this._assemblies.Values.FirstOrDefault( v => String.Equals( v.Path, assemblyPath ) )?.Assembly;
 
          if ( retVal == null && File.Exists( assemblyPath ) )
          {
@@ -504,7 +580,7 @@ namespace UtilPack.NuGet.AssemblyLoading
                .GetAssemblyName( p ), System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) ).Value;
             this._assemblies.GetOrAdd(
                assemblyName,
-               an => new AssemblyInformation( assemblyPath, this._fromPathLoader, this._pathProcessor )
+               an => new AssemblyInformation( assemblyPath, this )
                );
 
             retVal = this._fromNameLoader( assemblyName );
@@ -512,27 +588,39 @@ namespace UtilPack.NuGet.AssemblyLoading
          return retVal;
       }
 
-      public event Action<String> ResolveLogEvent;
+      public event Action<AssemblyLoadEventArgs> OnAssemblyLoadSuccess;
+      public event Action<AssemblyResolveFailedEventArgs> OnAssemblyLoadFail;
 
       internal Assembly PerformAssemblyResolve( AssemblyName assemblyName )
       {
          Assembly retVal;
          if ( this._assemblies.TryGetValue( assemblyName, out var assemblyInfo ) )
          {
-            retVal = assemblyInfo.Assembly.Value;
-            this.LogResolveMessage( $"Found \"{retVal.FullName}\" by name \"{assemblyName.Name}\" in \"{retVal.CodeBase}\"." );
+            try
+            {
+               retVal = assemblyInfo.Assembly;
+            }
+            catch
+            {
+               retVal = null;
+            }
          }
          else
          {
-            this.LogResolveMessage( $"Failed to find \"{assemblyName}\" by simple name \"{assemblyName.Name}\"." );
             retVal = null;
          }
+         if ( retVal == null )
+         {
+            try
+            {
+               this.OnAssemblyLoadFail?.Invoke( new AssemblyResolveFailedEventArgs( assemblyName ) );
+            }
+            catch
+            {
+               // Ignore
+            }
+         }
          return retVal;
-      }
-
-      private void LogResolveMessage( String message )
-      {
-         this.ResolveLogEvent?.Invoke( message );
       }
 
 
@@ -591,14 +679,14 @@ namespace UtilPack.NuGet.AssemblyLoading
 #endif
 
 
-   internal sealed class NuGetResolverWrapper
+   internal sealed class NuGetRestorerWrapper
 #if NET45
       : MarshalByRefObject
 #endif
    {
 
 
-      public NuGetResolverWrapper(
+      public NuGetRestorerWrapper(
          BoundRestoreCommandUser resolver,
          GetFileItemsDelegate getFiles
          )

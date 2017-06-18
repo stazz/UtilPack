@@ -46,7 +46,8 @@ namespace UtilPack.NuGet.MSBuild
          String taskAssemblyPath,
          BoundRestoreCommandUser restorer,
          ResolverLogger resolverLogger,
-         GetFileItemsDelegate getFiles
+         GetFileItemsDelegate getFiles,
+         String assemblyCopyTargetFolder
          )
       {
          var assemblyDir = Path.GetDirectoryName( taskAssemblyPath );
@@ -77,7 +78,8 @@ namespace UtilPack.NuGet.MSBuild
                }
 
                return overrideLocation;
-            }
+            },
+            pathProcessor: CreatePathProcessor( assemblyCopyTargetFolder )
             );
          var thisAssemblyPath = Path.GetFullPath( new Uri( this.GetType().Assembly.CodeBase ).LocalPath );
          var creator = (TaskReferenceCreator) createdDomain.CreateInstanceFromAndUnwrap(
@@ -98,7 +100,8 @@ namespace UtilPack.NuGet.MSBuild
                taskPackageID,
                taskPackageVersion,
                taskAssemblyPath,
-               mbfAssembly.GetName().FullName
+               mbfAssembly.GetName().FullName,
+               resolverLogger
                ),
             resolverLogger,
             () =>
@@ -115,8 +118,6 @@ namespace UtilPack.NuGet.MSBuild
             }
          );
       }
-
-
    }
 
    internal sealed class TaskReferenceCreator : MarshalByRefObject
@@ -127,10 +128,13 @@ namespace UtilPack.NuGet.MSBuild
          String packageID,
          String packageVersion,
          String assemblyPath,
-         String msbuildFrameworkAssemblyName
+         String msbuildFrameworkAssemblyName,
+         ResolverLogger logger
          )
       {
          // This code executes in task app domain.
+         NuGetTaskRunnerFactory.RegisterToResolverEvents( resolver, logger );
+
          (var taskType, var ctor, var ctorParams, var taskUsesDynamicLoading) = NuGetTaskRunnerFactory.LoadTaskType(
             taskTypeName,
             resolver,

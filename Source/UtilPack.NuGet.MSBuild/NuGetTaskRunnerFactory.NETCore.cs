@@ -48,6 +48,7 @@ namespace UtilPack.NuGet.MSBuild
          BoundRestoreCommandUser restorer,
          ResolverLogger resolverLogger,
          GetFileItemsDelegate getFiles,
+         String assemblyCopyTargetFolder,
          global::NuGet.ProjectModel.LockFile thisFrameworkRestoreResult
          )
       {
@@ -57,8 +58,10 @@ namespace UtilPack.NuGet.MSBuild
             thisFrameworkRestoreResult,
             out var assemblyLoader,
             defaultGetFiles: getFiles,
-            additionalCheckForDefaultLoader: IsMBFAssembly // Use default loader for Microsoft.Build assemblies
+            additionalCheckForDefaultLoader: IsMBFAssembly, // Use default loader for Microsoft.Build assemblies
+            pathProcessor: CreatePathProcessor( assemblyCopyTargetFolder )
             );
+         RegisterToResolverEvents( thisLoader, resolverLogger );
 
          var taskTypeInfo = LoadTaskType( taskName, thisLoader, taskPackageID, taskPackageVersion, taskAssemblyPath );
 

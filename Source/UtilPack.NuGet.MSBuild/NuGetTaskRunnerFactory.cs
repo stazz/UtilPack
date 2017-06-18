@@ -223,7 +223,7 @@ namespace UtilPack.NuGet.MSBuild
                );
             if ( !String.IsNullOrEmpty( assemblyPath ) )
             {
-               var resolverWrapper = new NuGetResolverWrapper( nugetResolver, getFiles );
+               var resolverWrapper = new NuGetRestorerWrapper( nugetResolver, getFiles );
                taskName = this.ProcessTaskName( taskBodyElement, taskName );
 #if !NET45
                var platformFrameworkPaths = nugetResolver.RestoreIfNeeded(
@@ -232,19 +232,26 @@ namespace UtilPack.NuGet.MSBuild
                ).GetAwaiter().GetResult();
 #endif
 
-               this._helper = LazyFactory.NewReadOnlyResettableLazy( () => this.CreateExecutionHelper(
-                  taskName,
-                  taskBodyElement,
-                  packageID,
-                  packageVersion,
-                  assemblyPath,
-                  nugetResolver,
-                  new ResolverLogger( nugetLogger ),
-                  getFiles
+               this._helper = LazyFactory.NewReadOnlyResettableLazy( () =>
+               {
+                  var tempFolder = Path.Combine( Path.GetTempPath(), "NuGetAssemblies_" + packageID + "_" + packageVersion + "_" + ( Guid.NewGuid().ToString() ) );
+                  Directory.CreateDirectory( tempFolder );
+
+                  return this.CreateExecutionHelper(
+                     taskName,
+                     taskBodyElement,
+                     packageID,
+                     packageVersion,
+                     assemblyPath,
+                     nugetResolver,
+                     new ResolverLogger( nugetLogger ),
+                     getFiles,
+                     tempFolder
 #if !NET45
-                   , platformFrameworkPaths
+                     , platformFrameworkPaths
 #endif
-                   ), System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
+                   );
+               }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
                retVal = true;
             }
             else
@@ -343,27 +350,23 @@ namespace UtilPack.NuGet.MSBuild
          return String.IsNullOrEmpty( overrideTaskName ) ? taskName : taskName;
       }
 
-      internal static IDictionary<String, ISet<String>> GroupDependenciesBySimpleAssemblyName(
-         TResolveResult packageDependencyInfo
+      internal static void RegisterToResolverEvents(
+         NuGetAssemblyResolver resolver,
+         ResolverLogger logger
          )
       {
-         var retVal = new Dictionary<String, ISet<String>>();
+         resolver.OnAssemblyLoadSuccess += args => logger.Log( $"Resolved {args.AssemblyName} located in {args.OriginalPath} and loaded from {args.ActualPath}." );
+         resolver.OnAssemblyLoadFail += args => logger.Log( $"Failed to resolve {args.AssemblyName}." );
+      }
 
-         foreach ( var kvp in packageDependencyInfo )
+      private static Func<String, String> CreatePathProcessor( String assemblyCopyTargetFolder )
+      {
+         return originalPath =>
          {
-            foreach ( var packageAssemblyPath in kvp.Value.Assemblies )
-            {
-               var simpleName = System.IO.Path.GetFileNameWithoutExtension( packageAssemblyPath );
-               if ( !retVal.TryGetValue( simpleName, out ISet<String> allPaths ) )
-               {
-                  allPaths = new HashSet<String>();
-                  retVal.Add( simpleName, allPaths );
-               }
-
-               allPaths.Add( packageAssemblyPath );
-            }
-         }
-         return retVal;
+            var newPath = Path.Combine( assemblyCopyTargetFolder, Path.GetFileName( originalPath ) );
+            File.Copy( originalPath, newPath, true );
+            return newPath;
+         };
       }
 
       private static Type GenerateTaskType( TTaskTypeGenerationParameters parameters )

@@ -66,7 +66,7 @@ namespace UtilPack
       {
          get
          {
-            return this._disposed == 0;
+            return this._disposed != 0;
          }
       }
 
@@ -81,7 +81,8 @@ namespace UtilPack
          try
          {
             this.Dispose( false );
-         } catch
+         }
+         catch
          {
             // Don't leak exception.
          }

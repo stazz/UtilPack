@@ -63,13 +63,22 @@ namespace UtilPack.NuGet.MSBuild
             );
          RegisterToResolverEvents( thisLoader, resolverLogger );
 
-         var taskTypeInfo = LoadTaskType( taskName, thisLoader, taskPackageID, taskPackageVersion, taskAssemblyPath );
+         LoadTaskType(
+            taskName,
+            thisLoader,
+            taskPackageID,
+            taskPackageVersion,
+            taskAssemblyPath,
+            out var taskCtor,
+            out var taskCtorArgs,
+            out var taskUsesDynamicLoading
+            );
 
          return new TaskReferenceHolderInfo(
             new TaskReferenceHolder(
-               taskTypeInfo.Item2.Invoke( taskTypeInfo.Item3 ),
+               taskCtor?.Invoke( taskCtorArgs ),
                typeof( ITask ).GetTypeInfo().Assembly.GetName().FullName,
-               taskTypeInfo.Item4
+               taskUsesDynamicLoading
                ),
             resolverLogger,
             () => thisLoader.DisposeSafely()

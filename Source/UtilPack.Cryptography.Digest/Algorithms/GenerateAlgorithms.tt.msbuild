@@ -39,6 +39,7 @@
 
    var useUnsafe = true;
    var unsafeString = useUnsafe ? "unsafe" : "";
+   var digestByteCount = GetDigestByteCount( algID );
 #>
 using System;
 using UtilPack;
@@ -54,7 +55,11 @@ namespace UtilPack.Cryptography.Digest
    public sealed class <#= algIDString #> : AbstractDisposable, BlockDigestAlgorithm
    {
       private const Int32 BLOCK_SIZE = <#= blockSize #>;
-      public const Int32 DIGEST_BYTE_COUNT = <#= GetDigestByteCount( algID ) #>;
+      /// <summary>
+      /// This constant contains the value indicating how many bytes is the size of digests produced by this algorithm.
+      /// For <#= algIDString #>, it is <c><#= digestByteCount #></c> bytes.
+      /// </summary>
+      public const Int32 DIGEST_BYTE_COUNT = <#= digestByteCount #>;
       private const Int32 STATE_SIZE = <#= GetStateArrayLength( algID ) #>;
       private const Int32 EXPANDED_STATE_SIZE = <#= expandedSize #>;
 

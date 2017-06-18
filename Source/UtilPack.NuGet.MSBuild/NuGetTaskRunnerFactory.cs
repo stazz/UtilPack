@@ -28,8 +28,8 @@ using System.Reflection;
 using NuGet.Frameworks;
 
 using TPropertyInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyInfo, System.Reflection.PropertyInfo>;
-using TTaskPropertyInfo = System.ValueTuple<System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyInfo>, System.Func<System.Object>, System.Action<System.Object>, System.Func<System.String, System.Object>>;
 using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
+using TNuGetPackagesResolverCallback = System.Func<System.String[], System.String[], System.String[], System.Threading.Tasks.Task<System.Reflection.Assembly[]>>;
 using TAssemblyByPathResolverCallback = System.Func<System.String, System.Reflection.Assembly>;
 using System.Collections.Concurrent;
 using NuGet.Configuration;
@@ -690,27 +690,29 @@ namespace UtilPack.NuGet.MSBuild
          }
       }
 
-      internal static (Type, ConstructorInfo, Object[], Boolean) LoadTaskType(
+      internal static void LoadTaskType(
          String taskTypeName,
          NuGetAssemblyResolver resolver,
          String packageID,
          String packageVersion,
-         String assemblyPath
+         String assemblyPath,
+         out ConstructorInfo taskConstructor,
+         out Object[] constructorArguments,
+         out Boolean usesDynamicLoading
          )
       {
          // This should never cause any actual async waiting, since LockFile for task package has been already cached by restorer
          var taskAssembly = resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath ).GetAwaiter().GetResult();
-
          var taskType = taskAssembly.GetType( taskTypeName, false, false );
-
-         (var taskCtor, var ctorParameters) = GetTaskConstructorInfo( resolver, taskType );
-
-         return (taskType, taskCtor, ctorParameters, ( ctorParameters?.Length ?? 0 ) > 0);
+         GetTaskConstructorInfo( resolver, taskType, out taskConstructor, out constructorArguments );
+         usesDynamicLoading = ( constructorArguments?.Length ?? 0 ) > 0;
       }
 
-      private static (ConstructorInfo, Object[]) GetTaskConstructorInfo(
+      private static void GetTaskConstructorInfo(
          NuGetAssemblyResolver resolver,
-         Type type
+         Type type,
+         out ConstructorInfo matchingCtor,
+         out Object[] ctorParams
          )
       {
          var ctors = type
@@ -718,8 +720,8 @@ namespace UtilPack.NuGet.MSBuild
             .GetTypeInfo()
 #endif
             .GetConstructors();
-         ConstructorInfo matchingCtor = null;
-         Object[] ctorParams = null;
+         matchingCtor = null;
+         ctorParams = null;
          if ( ctors.Length > 0 )
          {
             var ctorInfo = new Dictionary<Int32, IDictionary<ISet<Type>, ConstructorInfo>>();
@@ -732,20 +734,56 @@ namespace UtilPack.NuGet.MSBuild
             }
 
             TNuGetPackageResolverCallback nugetResolveCallback = ( packageID, packageVersion, assemblyPath ) => resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath );
+            TNuGetPackagesResolverCallback nugetsResolveCallback = ( packageIDs, packageVersions, assemblyPaths ) => resolver.LoadNuGetAssemblies( packageIDs, packageVersions, assemblyPaths );
             TAssemblyByPathResolverCallback pathResolveCallback = ( assemblyPath ) => resolver.LoadOtherAssembly( assemblyPath );
 
             if (
-               ctorInfo.TryGetValue( 2, out var curInfo )
-               && curInfo.TryGetValue( new HashSet<Type>() { typeof( TNuGetPackageResolverCallback ), typeof( TAssemblyByPathResolverCallback ) }, out matchingCtor )
+               ctorInfo.TryGetValue( 3, out var curInfo )
+               && curInfo.TryGetValue( new HashSet<Type>() { typeof( TNuGetPackageResolverCallback ), typeof( TNuGetPackagesResolverCallback ), typeof( TAssemblyByPathResolverCallback ) }, out matchingCtor )
                )
             {
-               ctorParams = new Object[2];
+               ctorParams = new Object[3];
                ctorParams[Array.FindIndex( matchingCtor.GetParameters(), p => p.ParameterType.Equals( typeof( TNuGetPackageResolverCallback ) ) )] = nugetResolveCallback;
+               ctorParams[Array.FindIndex( matchingCtor.GetParameters(), p => p.ParameterType.Equals( typeof( TNuGetPackagesResolverCallback ) ) )] = nugetsResolveCallback;
                ctorParams[Array.FindIndex( matchingCtor.GetParameters(), p => p.ParameterType.Equals( typeof( TAssemblyByPathResolverCallback ) ) )] = pathResolveCallback;
             }
-            else if ( ctorInfo.TryGetValue( 1, out curInfo ) )
+
+            if (
+               matchingCtor == null
+               && ctorInfo.TryGetValue( 2, out curInfo )
+               )
             {
-               if ( curInfo.TryGetValue( new HashSet<Type>( typeof( TNuGetPackageResolverCallback ).Singleton() ), out matchingCtor ) )
+               if ( curInfo.TryGetValue( new HashSet<Type>() { typeof( TNuGetPackagesResolverCallback ), typeof( TNuGetPackageResolverCallback ) }, out matchingCtor )
+                  || curInfo.TryGetValue( new HashSet<Type>() { typeof( TNuGetPackagesResolverCallback ), typeof( TAssemblyByPathResolverCallback ) }, out matchingCtor )
+                  || curInfo.TryGetValue( new HashSet<Type>() { typeof( TNuGetPackageResolverCallback ), typeof( TAssemblyByPathResolverCallback ) }, out matchingCtor ) )
+               {
+                  ctorParams = new Object[2];
+                  Int32 idx;
+                  if ( ( idx = Array.FindIndex( matchingCtor.GetParameters(), p => p.ParameterType.Equals( typeof( TNuGetPackagesResolverCallback ) ) ) ) >= 0 )
+                  {
+                     ctorParams[idx] = nugetsResolveCallback;
+                  }
+                  if ( ( idx = Array.FindIndex( matchingCtor.GetParameters(), p => p.ParameterType.Equals( typeof( TNuGetPackageResolverCallback ) ) ) ) >= 0 )
+                  {
+                     ctorParams[idx] = nugetResolveCallback;
+                  }
+                  if ( ( idx = Array.FindIndex( matchingCtor.GetParameters(), p => p.ParameterType.Equals( typeof( TAssemblyByPathResolverCallback ) ) ) ) >= 0 )
+                  {
+                     ctorParams[idx] = pathResolveCallback;
+                  }
+               }
+            }
+
+            if (
+               matchingCtor == null
+               && ctorInfo.TryGetValue( 1, out curInfo )
+               )
+            {
+               if ( curInfo.TryGetValue( new HashSet<Type>( typeof( TNuGetPackagesResolverCallback ).Singleton() ), out matchingCtor ) )
+               {
+                  ctorParams = new Object[] { nugetsResolveCallback };
+               }
+               else if ( curInfo.TryGetValue( new HashSet<Type>( typeof( TNuGetPackageResolverCallback ).Singleton() ), out matchingCtor ) )
                {
                   ctorParams = new Object[] { nugetResolveCallback };
                }
@@ -754,7 +792,11 @@ namespace UtilPack.NuGet.MSBuild
                   ctorParams = new Object[] { pathResolveCallback };
                }
             }
-            else if ( ctorInfo.TryGetValue( 0, out curInfo ) )
+
+            if (
+               matchingCtor == null
+               && ctorInfo.TryGetValue( 0, out curInfo )
+               )
             {
                matchingCtor = curInfo.Values.First();
             }
@@ -765,7 +807,6 @@ namespace UtilPack.NuGet.MSBuild
             throw new Exception( $"No public suitable constructors found for type {type.AssemblyQualifiedName}." );
          }
 
-         return (matchingCtor, ctorParams);
       }
 
       private static Boolean IsMBFAssembly( AssemblyName an )
@@ -789,10 +830,34 @@ namespace UtilPack.NuGet.MSBuild
       : MarshalByRefObject
 #endif
    {
+      private sealed class TaskPropertyInfo
+      {
+         public TaskPropertyInfo(
+            WrappedPropertyKind wrappedPropertyKind,
+            WrappedPropertyInfo wrappedPropertyInfo,
+            Func<Object> getter,
+            Action<Object> setter,
+            Func<String, Object> converter
+            )
+         {
+            this.WrappedPropertyKind = wrappedPropertyKind;
+            this.WrappedPropertyInfo = wrappedPropertyInfo;
+            this.Getter = getter;
+            this.Setter = setter;
+            this.Converter = converter;
+         }
+
+         public WrappedPropertyKind WrappedPropertyKind { get; }
+         public WrappedPropertyInfo WrappedPropertyInfo { get; }
+         public Func<Object> Getter { get; }
+         public Action<Object> Setter { get; }
+         public Func<String, Object> Converter { get; }
+      }
+
       private readonly Object _task;
       private readonly MethodInfo _executeMethod;
       private readonly MethodInfo _cancelMethod;
-      private readonly IDictionary<String, TTaskPropertyInfo> _propertyInfos;
+      private readonly IDictionary<String, TaskPropertyInfo> _propertyInfos;
 
       public TaskReferenceHolder( Object task, String msbuildFrameworkAssemblyName, Boolean taskUsesDynamicLoading )
       {
@@ -825,11 +890,13 @@ namespace UtilPack.NuGet.MSBuild
                   var converter = kvp.Value.Item1 == WrappedPropertyKind.String ?
                      str => Convert.ChangeType( str, propType ) :
                      (Func<String, Object>) null;
-                  return (
-                  (kvp.Value.Item1, kvp.Value.Item2),
-                  new Func<Object>( () => curProperty.GetMethod.Invoke( this._task, null ) ),
-                  new Action<Object>( val => curProperty.SetMethod.Invoke( this._task, new[] { val } ) ),
-                  converter);
+                  return new TaskPropertyInfo(
+                  kvp.Value.Item1,
+                  kvp.Value.Item2,
+                  () => curProperty.GetMethod.Invoke( this._task, null ),
+                  val => curProperty.SetMethod.Invoke( this._task, new[] { val } ),
+                  converter
+                  );
                } );
 
       }
@@ -837,7 +904,7 @@ namespace UtilPack.NuGet.MSBuild
       // Passing value tuples thru appdomain boundaries is errorprone, so just use normal integers here
       internal IDictionary<String, Int32> GetPropertyInfo()
       {
-         return this._propertyInfos.ToDictionary( kvp => kvp.Key, kvp => EncodeKindAndInfo( kvp.Value.Item1.Item1, kvp.Value.Item1.Item2 ) );
+         return this._propertyInfos.ToDictionary( kvp => kvp.Key, kvp => EncodeKindAndInfo( kvp.Value.WrappedPropertyKind, kvp.Value.WrappedPropertyInfo ) );
       }
 
       internal Boolean IsCancelable => this._cancelMethod != null;
@@ -854,7 +921,7 @@ namespace UtilPack.NuGet.MSBuild
       public Object GetProperty( String propertyName )
       {
          return this._propertyInfos.TryGetValue( propertyName, out var info ) ?
-            info.Item2() :
+            info.Getter() :
             throw new InvalidOperationException( $"Property \"{propertyName}\" is not supported for this task." );
       }
 
@@ -863,11 +930,11 @@ namespace UtilPack.NuGet.MSBuild
       {
          if ( this._propertyInfos.TryGetValue( propertyName, out var info ) )
          {
-            if ( info.Item4 != null )
+            if ( info.Converter != null )
             {
-               value = info.Item4( (String) value );
+               value = info.Converter( (String) value );
             }
-            info.Item3( value );
+            info.Setter( value );
          }
          else
          {

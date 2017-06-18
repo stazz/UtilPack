@@ -135,14 +135,17 @@ namespace UtilPack.NuGet.MSBuild
          // This code executes in task app domain.
          NuGetTaskRunnerFactory.RegisterToResolverEvents( resolver, logger );
 
-         (var taskType, var ctor, var ctorParams, var taskUsesDynamicLoading) = NuGetTaskRunnerFactory.LoadTaskType(
+         NuGetTaskRunnerFactory.LoadTaskType(
             taskTypeName,
             resolver,
             packageID,
             packageVersion,
-            assemblyPath
+            assemblyPath,
+            out var ctor,
+            out var ctorParams,
+            out var taskUsesDynamicLoading
             );
-         return taskType == null ? null : new TaskReferenceHolder( ctor.Invoke( ctorParams ), msbuildFrameworkAssemblyName, taskUsesDynamicLoading );
+         return new TaskReferenceHolder( ctor?.Invoke( ctorParams ), msbuildFrameworkAssemblyName, taskUsesDynamicLoading );
       }
    }
 

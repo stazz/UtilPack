@@ -498,6 +498,18 @@ namespace UtilPack
       }
 
       /// <summary>
+      /// Helper method to filter out <c>null</c> values from <see cref="IEnumerable{T}"/>.
+      /// </summary>
+      /// <typeparam name="T">The type of enumerable elements.</typeparam>
+      /// <param name="enumerable">The <see cref="IEnumerable{T}"/>.</param>
+      /// <returns>An enumerable with no <c>null</c> value. Will be empty if this enumerable is <c>null</c>.</returns>
+      public static IEnumerable<T> FilterNulls<T>( this IEnumerable<T> enumerable )
+         where T : class
+      {
+         return enumerable == null ? Empty<T>.Enumerable : enumerable.Where( item => item != null );
+      }
+
+      /// <summary>
       /// Helper method to return empty array in case given array is <c>null</c>.
       /// </summary>
       /// <typeparam name="T">The type of array elements.</typeparam>

@@ -20,6 +20,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using UtilPack.Cryptography.Digest;
+using System.Linq;
 
 namespace UtilPack.Tests.Digest
 {
@@ -117,6 +118,28 @@ namespace UtilPack.Tests.Digest
             1000,
             2000
             );
+      }
+
+      [TestMethod]
+      public void TestMultipleSmallWrites()
+      {
+         var b1 = new Byte[] { 1, 2, 3 };
+         var b2 = new Byte[] { 4, 5, 6 };
+         Byte[] nativeHash;
+         using ( var native = System.Security.Cryptography.SHA512.Create() )
+         {
+            nativeHash = native.ComputeHash( b1.Concat( b2 ).ToArray() );
+         }
+
+         var utilPackHash = new Byte[SHA512.DIGEST_BYTE_COUNT];
+         using ( var utilPack = new SHA512() )
+         {
+            utilPack.ProcessBlock( b1.ToArray() );
+            utilPack.ProcessBlock( b2.ToArray() );
+            utilPack.WriteDigest( utilPackHash );
+         }
+
+         Assert.IsTrue( ArrayEqualityComparer<Byte>.ArrayEquality( nativeHash, utilPackHash ) );
       }
 
       private void VerifyNativeVsUtilPack(

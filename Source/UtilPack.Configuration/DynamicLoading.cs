@@ -24,14 +24,36 @@ using System.Threading.Tasks;
 
 namespace UtilPack.Configuration
 {
+   /// <summary>
+   /// This delegate provides signature for callback used by <see cref="DynamicConfigurableTypeLoader"/> to load a type from <see cref="IConfiguration"/> containing whatever information necessary to load a type dynamically.
+   /// </summary>
+   /// <param name="config">The <see cref="IConfiguration"/> containing information to load type dynamically.</param>
+   /// <param name="targetType">The type which must be parent of the type to be loaded.</param>
+   /// <returns>The potentially asynchronous operation which results in <see cref="TypeInfo"/> of dynamically loaded type.</returns>
    public delegate ValueTask<TypeInfo> TypeLoaderDelegate( IConfiguration config, TypeInfo targetType );
+
+   /// <summary>
+   /// This delegate provides signature for callback used by <see cref="DynamicConfigurableTypeLoader"/> to extract <see cref="IConfigurationSection"/> containing information to pass to constructor of the type that was dynamically loaded by <see cref="DynamicConfigurableTypeLoader"/>.
+   /// </summary>
+   /// <param name="config">The <see cref="IConfiguration"/> containing information to load type dynamically.</param>
+   /// <param name="loadedType">The type that was loaded from information in <paramref name="config"/>.</param>
+   /// <returns>The <see cref="IConfigurationSection"/> containing information for type constructor.</returns>
+   /// <seealso cref="ConfigurationTypeAttribute"/>
    public delegate IConfigurationSection ConstructorConfigurationLoaderDelegate( IConfiguration config, TypeInfo loadedType );
 
+   /// <summary>
+   /// This class uses <see cref="TypeLoaderDelegate"/> and <see cref="ConstructorConfigurationLoaderDelegate"/> callbacks to walk through the <see cref="IConfiguration"/> and potentially recursively dynamically load and instantiate objects.
+   /// </summary>
    public class DynamicConfigurableTypeLoader
    {
       private readonly TypeLoaderDelegate _typeLoader;
       private readonly ConstructorConfigurationLoaderDelegate _constructorArgumentsLoader;
 
+      /// <summary>
+      /// Creates new instance of <see cref="DynamicConfigurableTypeLoader"/> with given callbacks.
+      /// </summary>
+      /// <param name="typeLoader">The type loader callback.</param>
+      /// <param name="constructorConfigLoader">The optional constructor configuration section getter callback. If not supplised, the default behaviour is to get section called "Configuration" from passed <see cref="IConfiguration"/>.</param>
       public DynamicConfigurableTypeLoader(
          TypeLoaderDelegate typeLoader,
          ConstructorConfigurationLoaderDelegate constructorConfigLoader = null
@@ -41,6 +63,16 @@ namespace UtilPack.Configuration
          this._constructorArgumentsLoader = constructorConfigLoader ?? ( ( cfg, type ) => cfg.GetSection( "Configuration" ) );
       }
 
+      /// <summary>
+      /// Potentially asynchronously instantiates an object from type information provided in given <see cref="IConfiguration"/>.
+      /// </summary>
+      /// <param name="config">The configuration containing type information.</param>
+      /// <param name="targetType">The type which should be parent type of the object to be instantiated.</param>
+      /// <returns>The potentially asynchronous operation which results in instantiated object, or <c>null</c>.</returns>
+      /// <remarks>
+      /// This method takes <see cref="ConfigurationTypeAttribute"/> and <see cref="NestedDynamicConfigurationAttribute"/> attributes into account when instantiating and traversing object.
+      /// This method is only asynchronous if <see cref="TypeLoaderDelegate"/> callback provided to this <see cref="DynamicConfigurableTypeLoader"/> is asynchronous.
+      /// </remarks>
       public async ValueTask<Object> InstantiateWithConfiguration(
          IConfiguration config,
          TypeInfo targetType
@@ -322,39 +354,8 @@ namespace UtilPack.Configuration
       }
    }
 
-
-
-
-
-
-
-
-
-
-   ///// <summary>
-   ///// This is base class for configuration expressing loading of object, type of which is specified in configuration.
-   ///// See <see cref="ConfigurationTypeAttribute"/> to learn how to customize what is given for a constructor of that type.
-   ///// </summary>
-   //public class DynamicElementConfiguration
-   //{
-   //   public TypeLoadInformation Type { get; set; }
-
-   //}
-
-   //public class TypeLoadInformation
-   //{
-   //   public String Location { get; set; }
-   //   public String Name { get; set; }
-
-   //   public override String ToString()
-   //   {
-   //      return String.Format( "{0}@{1}", this.Name, this.Location );
-   //   }
-   //}
-
    /// <summary>
-   /// The types that are dynamically loaded by <see cref="E_DynamicTypeSpecification.TryLoadDynamicElement(IConfiguration, DynamicElementConfiguration, Func{string, Type}, TypeInfo, out object, out string, string)"/> method can either have parameterless constructor, or use this attribute to specify the argument for constructor.
-   /// That constructor should take single parameter of type specified in this attribute.
+   /// The types that are dynamically loaded by <see cref="DynamicConfigurableTypeLoader.InstantiateWithConfiguration"/> method can either have parameterless constructor, or use this attribute to specify the arguments for constructor.
    /// </summary>
    [AttributeUsage( AttributeTargets.Class, AllowMultiple = false )]
    public class ConfigurationTypeAttribute : Attribute
@@ -377,21 +378,19 @@ namespace UtilPack.Configuration
    }
 
    /// <summary>
-   /// Sometimes the configuration type specified by <see cref="ConfigurationTypeAttribute"/> contains properties which should be loaded using <see cref="DynamicElementConfiguration"/>.
-   /// In such case, this attribute should be used on those properties, indicating the name of the configuration section bindable to <see cref="DynamicElementConfiguration"/> type (using <see cref="ConfigurationBinder.Get(IConfiguration, Type)"/> method).
+   /// Sometimes the configuration type specified by <see cref="ConfigurationTypeAttribute"/> contains properties which should be loaded using <see cref="DynamicConfigurableTypeLoader"/>.
+   /// In such case, this attribute should be used on those properties, indicating the name of the configuration section which will be passed to <see cref="DynamicConfigurableTypeLoader.InstantiateWithConfiguration"/>.
    /// </summary>
    [AttributeUsage( AttributeTargets.Property, AllowMultiple = false )]
    public class NestedDynamicConfigurationAttribute : Attribute
    {
       /// <summary>
-      /// Creates a new instance of <see cref="NestedDynamicConfigurationAttribute"/> with given section name for configuration of <see cref="DynamicElementConfiguration"/> type.
+      /// Creates a new instance of <see cref="NestedDynamicConfigurationAttribute"/> with given section name to pass to <see cref="DynamicConfigurableTypeLoader.InstantiateWithConfiguration"/>.
       /// </summary>
-      /// <param name="configurationSectionName">The name of the configuration section bindable to see <see cref="DynamicElementConfiguration"/> type.</param>
-      public NestedDynamicConfigurationAttribute( String configurationSectionName, String loadedTypeConfigurationSectionName = null ) //, Type configType = null )
+      /// <param name="configurationSectionName">The name of the configuration section name pass to <see cref="DynamicConfigurableTypeLoader.InstantiateWithConfiguration"/>.</param>
+      public NestedDynamicConfigurationAttribute( String configurationSectionName )
       {
          this.ConfigurationSectionName = configurationSectionName;
-         //this.LoadedTypeConfigurationSectionName = loadedTypeConfigurationSectionName;
-         //this.ConfigurationType = configType;
       }
 
       /// <summary>
@@ -400,392 +399,5 @@ namespace UtilPack.Configuration
       /// <value>The name of configuration section for dynamically loaded type.</value>
       public String ConfigurationSectionName { get; }
 
-
-      ///// <summary>
-      ///// Gets the name of configuration section within the <see cref="ConfigurationSectionName"/> that should hold the configuration for dynamically loaded type. By default, it is <code>Configuration</code>.
-      ///// </summary>
-      ///// <value>The name of configuration section within the <see cref="ConfigurationSectionName"/> that should hold the configuration for dynamically loaded type.</value>
-      //public String LoadedTypeConfigurationSectionName { get; }
-
-      //public Type ConfigurationType { get; }
    }
-
-
 }
-
-//public static partial class E_DynamicTypeSpecification
-//{
-//   public const String SECTION_FOR_TARGET_CONFIGURATION = "Configuration";
-
-//   //private static readonly ISet<Type> _configPrimitiveTypes = new HashSet<Type>()
-//   //{
-//   //   typeof(Object),
-//   //   typeof(String),
-//   //   typeof(SByte),
-//   //   typeof(Byte),
-//   //   typeof(Int16),
-//   //   typeof(UInt16),
-//   //   typeof(Int32),
-//   //   typeof(UInt32),
-//   //   typeof(Int64),
-//   //   typeof(UInt64),
-//   //   typeof(Single),
-//   //   typeof(Double),
-//   //   typeof(Decimal),
-//   //   typeof(DateTime),
-//   //   typeof(TimeSpan),
-//   //};
-
-//   public static IEnumerable<TElement> LoadDynamicElements<TElement>(
-//      this IConfiguration config,
-//      TypeLoader typeLoader,
-//      Func<DynamicElementConfiguration, String> dynamicTargetConfigurationSectionName = null
-//      )
-//      where TElement : class
-//   {
-//      return config.EnumerateDynamicElements<TElement, DynamicElementConfiguration, TElement>( typeLoader, ( el, cfg ) => el, dynamicTargetConfigurationSectionName );
-//   }
-//   public static IEnumerable<Tuple<TElement, TConfig>> LoadDynamicElementsAndConfigurations<TElement, TConfig>(
-//      this IConfiguration config,
-//      TypeLoader typeLoader,
-//      Func<TConfig, String> dynamicTargetConfigurationSectionName = null
-//   )
-//      where TElement : class
-//      where TConfig : DynamicElementConfiguration
-//   {
-//      return config.EnumerateDynamicElements<TElement, TConfig, Tuple<TElement, TConfig>>( typeLoader, ( el, cfg ) => Tuple.Create( el, cfg ), dynamicTargetConfigurationSectionName );
-//   }
-
-//   private static IEnumerable<T> EnumerateDynamicElements<TElement, TConfig, T>(
-//      this IConfiguration config,
-//      TypeLoader typeLoader,
-//      Func<TElement, TConfig, T> transformer,
-//      Func<TConfig, String> dynamicTargetConfigurationSectionName
-//      )
-//      where TElement : class
-//      where TConfig : DynamicElementConfiguration
-//   {
-//      var creatorsConfigObjects = config.Get<IEnumerable<TConfig>>();
-//      var i = 0;
-//      foreach ( var curConfig in creatorsConfigObjects )
-//      {
-//         TElement element;
-//         String errorMsg;
-//         if ( TryLoadDynamicElement(
-//            config.GetSection( i.ToString() ),
-//            curConfig,
-//            typeLoader,
-//            out element,
-//            out errorMsg,
-//            dynamicTargetConfigurationSectionName?.Invoke( curConfig )
-//            ) )
-//         {
-//            yield return transformer( element, curConfig );
-//         }
-//         ++i;
-//      }
-//   }
-
-//   public static TElement LoadDynamicElementOrNull<TElement>(
-//      this IConfiguration config,
-//      DynamicElementConfiguration dynamicConfig,
-//      TypeLoader typeLoader,
-//      String configurationSectionName = SECTION_FOR_TARGET_CONFIGURATION
-//      )
-//      where TElement : class
-//   {
-//      TElement retVal; String errorMsg;
-//      return config.TryLoadDynamicElement( dynamicConfig, typeLoader, out retVal, out errorMsg, configurationSectionName ) ?
-//         retVal :
-//         null;
-//   }
-
-
-//   public static Boolean TryLoadDynamicElement<TElement>(
-//      this IConfiguration config,
-//      DynamicElementConfiguration dynamicConfig,
-//      TypeLoader typeLoader,
-//      out TElement element,
-//      out String errorMessage,
-//      String configurationSectionName = SECTION_FOR_TARGET_CONFIGURATION
-//      )
-//      where TElement : class
-//   {
-//      Object elementObj;
-//      var retVal = config.TryLoadDynamicElement( dynamicConfig, typeLoader, typeof( TElement ).GetTypeInfo(), out elementObj, out errorMessage, configurationSectionName );
-//      // The TryLoadDynamicElement will give an error if it is of wrong type, so it's safe to cast it here directly.
-//      element = (TElement) elementObj;
-//      return retVal;
-//   }
-
-//   public static Boolean TryLoadDynamicElement(
-//      this IConfiguration config,
-//      DynamicElementConfiguration dynamicConfig,
-//      TypeLoader typeLoader,
-//      TypeInfo elementType,
-//      out Object element,
-//      out String errorMessage,
-//      String configurationSectionName = SECTION_FOR_TARGET_CONFIGURATION
-//      )
-//   {
-//      element = null;
-//      if ( config != null && dynamicConfig != null && elementType != null )
-//      {
-//         try
-//         {
-//            var typeName = dynamicConfig.Type;
-//            var type = typeLoader( typeName )?.GetTypeInfo();
-//            if ( type == null )
-//            {
-//               errorMessage = String.Format( "Could not load type: \"{0}\".", typeName );
-//            }
-//            else
-//            {
-//               if ( type.IsAbstract )
-//               {
-//                  errorMessage = String.Format( "The type {0} is marked as abstract.", typeName );
-//               }
-//               else
-//               {
-//                  if ( !elementType.IsAssignableFrom( type ) )
-//                  {
-//                     errorMessage = String.Format( "Given dynamic element type \"{0}\" must be same or subtype of \"{1}\".", typeName, elementType );
-//                  }
-//                  else
-//                  {
-//                     var configType = type.GetCustomAttribute<ConfigurationTypeAttribute>( true )?.ConfigurationType;
-//                     Object configForConstructor = null;
-//                     ConstructorInfo ctor;
-//                     if ( configType == null )
-//                     {
-//                        ctor = type.FindInstanceConstructor( null ) ?? type.FindInstanceConstructor( new TypeInfo[] { null } );
-//                     }
-//                     else if ( configType.IsArray || configType.IsByRef || configType.IsPointer )
-//                     {
-//                        ctor = null;
-//                     }
-//                     else
-//                     {
-//                        ctor = type.FindInstanceConstructor( new[] { configType.GetTypeInfo() } ) ?? type.FindInstanceConstructor( null );
-//                        var configSection = config.GetSection( configurationSectionName ?? SECTION_FOR_TARGET_CONFIGURATION );
-//                        configForConstructor = configSection.Get( configType );
-//                        configSection.ProcessInstancedConfigurationForNestedConfigurations( configForConstructor, typeLoader );
-//                     }
-
-
-
-//                     if ( ctor != null )
-//                     {
-//                        try
-//                        {
-//                           element = ctor.Invoke( ctor.GetParameters().Length == 0 ? null : new[] { configForConstructor } );
-
-//                           errorMessage = null;
-//                        }
-//                        catch ( Exception exc )
-//                        {
-//                           errorMessage = String.Format( "Error when invoking constructor for \"{0}\": {1}", typeName, exc.Message );
-//                        }
-//                     }
-//                     else
-//                     {
-//                        errorMessage = String.Format( "The configuration type \"{0}\" for \"{1}\" is invalid", configType, type );
-//                     }
-//                  }
-//               }
-//            }
-//         }
-//         catch ( Exception exc )
-//         {
-//            errorMessage = String.Format( "Malformed configuration ({0})", exc.Message );
-//         }
-//      }
-//      else
-//      {
-//         errorMessage = "One or more parameters were null";
-//      }
-
-//      return element != null;
-//   }
-
-//   private static void ProcessInstancedConfigurationForNestedConfigurations(
-//      this IConfiguration thisConfig,
-//      Object configurationInstance,
-//      TypeLoader typeLoader
-//      )
-//   {
-//      if ( thisConfig != null && configurationInstance != null )
-//      {
-//         var configType = configurationInstance.GetType();
-//         foreach ( var configProp in configurationInstance.GetType().GetRuntimeProperties() )
-//         {
-//            if ( configProp.GetMethod != null
-//               && configProp.SetMethod != null
-//               && !configProp.GetMethod.IsStatic )
-//            {
-
-//               var nestedConfigAttribute = configProp.GetCustomAttribute<NestedDynamicConfigurationAttribute>( true );
-//               if ( nestedConfigAttribute == null )
-//               {
-//                  // This is normal property - process recursively
-
-//                  var nestedSection = thisConfig.GetSection( configProp.Name );
-
-//                  if ( nestedSection != null )
-//                  {
-
-//                     Object nestedConfigInstance = null;
-//                     try
-//                     {
-//                        nestedConfigInstance = configProp.GetMethod.Invoke( configurationInstance, null );
-//                     }
-//                     catch
-//                     {
-//                        // Ignore..
-//                     }
-
-//                     nestedSection.ForSingleOrArray(
-//                        configProp.PropertyType,
-//                        nestedConfigInstance,
-//                        ( curConfig, curType, curInstance ) =>
-//                        {
-//                           if ( !typeof( IFormattable ).GetTypeInfo().IsAssignableFrom( curType.GetTypeInfo() )
-//                             && !Equals( curType, typeof( String ) )
-//                           )
-//                           {
-//                              curConfig.ProcessInstancedConfigurationForNestedConfigurations( curInstance, typeLoader );
-//                           }
-
-//                           return null;
-//                        }
-//                        );
-//                  }
-
-
-//               }
-//               else
-//               {
-//                  // This is nested dynamic configuration property - try to create from configuration
-//                  var sectionName = nestedConfigAttribute.ConfigurationSectionName;
-//                  if ( !String.IsNullOrEmpty( sectionName ) )
-//                  {
-//                     String nestedErrorMsg;
-//                     Object nestedConfigInstance;
-//                     var nestedConfigSectionName = nestedConfigAttribute.LoadedTypeConfigurationSectionName;
-//                     nestedConfigInstance = thisConfig
-//                        .GetSection( sectionName )
-//                        .ForSingleOrArray(
-//                           configProp.PropertyType,
-//                           null,
-//                           ( curConfig, curType, curObject ) =>
-//                           {
-//                              curConfig.TryLoadDynamicElement(
-//                                 curConfig.Get<DynamicElementConfiguration>(),
-//                                 typeLoader,
-//                                 out nestedConfigInstance,
-//                                 out nestedErrorMsg,
-//                                 nestedConfigSectionName
-//                              );
-//                              return nestedConfigInstance;
-//                           } );
-//                     if ( nestedConfigInstance != null )
-//                     {
-//                        try
-//                        {
-//                           configProp.SetMethod.Invoke( configurationInstance, new[] { nestedConfigInstance } );
-//                        }
-//                        catch
-//                        {
-//                           // Ignore, for now...
-//                        }
-//                     }
-
-//                  }
-//               }
-//            }
-//         }
-//      }
-//   }
-
-//   private static Object ForSingleOrArray(
-//      this IConfiguration config,
-//      Type type,
-//      Object thisObject,
-//      Func<IConfiguration, Type, Object, Object> singleAction
-//      )
-//   {
-//      Object retVal;
-//      if ( config == null )
-//      {
-//         retVal = null;
-//      }
-//      else
-//      {
-//         if ( type.IsArray )
-//         {
-//            var list = new List<Object>();
-//            var elemType = type.GetElementType();
-//            var thisArray = (Array) thisObject;
-//            {
-//               var i = 0;
-//               foreach ( var actualSection in config.GetChildren() )
-//               {
-//                  retVal = actualSection.ForSingleOrArray( elemType, thisArray?.GetValue( i ), singleAction );
-//                  if ( retVal != null )
-//                  {
-//                     list.Add( retVal );
-//                  }
-//                  ++i;
-//               }
-//            }
-
-//            if ( thisObject == null )
-//            {
-//               var array = Array.CreateInstance( elemType, list.Count );
-//               for ( var i = 0; i < list.Count; ++i )
-//               {
-//                  array.SetValue( list[i], i );
-//               }
-//               retVal = array;
-//            }
-//            else
-//            {
-//               retVal = null;
-//            }
-//         }
-//         else
-//         {
-//            retVal = singleAction( config, type, thisObject );
-//         }
-//      }
-
-//      return retVal;
-//   }
-
-//   private static ConstructorInfo FindInstanceConstructor( this TypeInfo type, TypeInfo[] paramTypes )
-//   {
-//      Func<ConstructorInfo, Boolean> checker;
-//      if ( paramTypes == null || paramTypes.Length == 0 || paramTypes.Any( pType => pType == null ) )
-//      {
-//         var len = paramTypes?.Length ?? 0;
-//         checker = ctor => !ctor.IsStatic && ctor.GetParameters().Length == len;
-//      }
-//      else
-//      {
-//         checker = ctor =>
-//         {
-//            ParameterInfo[] paramz = null;
-//            var retVal = !ctor.IsStatic && ( paramz = ctor.GetParameters() ).Length == paramTypes.Length;
-//            if ( retVal )
-//            {
-//               retVal = paramz
-//                  .Where( ( parameter, idx ) => parameter.ParameterType.GetTypeInfo().IsAssignableFrom( paramTypes[idx] ) )
-//                  .Count() == paramTypes.Length;
-//            }
-
-//            return retVal;
-//         };
-//      }
-//      return type.DeclaredConstructors.FirstOrDefault( checker );
-//   }
-//}

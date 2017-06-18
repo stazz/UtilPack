@@ -22,7 +22,7 @@
     <file src="bin\Release\netcoreapp1.1\Newtonsoft.Json.dll" target="build\netcoreapp1.1\" />
     <file src="bin\Release\netcoreapp1.1\NuGet*.dll" target="build\netcoreapp1.1\" />
     <file src="bin\Release\netcoreapp1.1\System.ValueTuple.dll" target="build\netcoreapp1.1\" />
-    <file src="bin\Release\netcoreapp1.1\UtilPack*.dll" target="build\netcoreapp1.1\" />
+    <file src="bin\Release\netcoreapp1.1\UtilPack.NuGet.MSBuild.dll" target="build\netcoreapp1.1\" />
     <file src="build\*.*" target="build\" />
   </files>
 </package>

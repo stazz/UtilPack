@@ -33,32 +33,35 @@ using System.Runtime.Loader;
 using System.Threading.Tasks;
 
 using TResolveResult = System.Collections.Generic.IDictionary<System.String, UtilPack.NuGet.MSBuild.ResolvedPackageInfo>;
+using UtilPack.NuGet.AssemblyLoading;
 
 namespace UtilPack.NuGet.MSBuild
 {
    partial class NuGetTaskRunnerFactory
    {
       private TaskReferenceHolderInfo CreateExecutionHelper(
-         IBuildEngine taskFactoryLoggingHost,
-         XElement taskBodyElement,
          String taskName,
-         NuGetResolverWrapper nugetResolver,
-         String assemblyPath,
-         IDictionary<String, ISet<String>> assemblyPathsBySimpleName,
+         XElement taskBodyElement,
+         String taskPackageID,
+         String taskPackageVersion,
+         String taskAssemblyPath,
+         BoundRestoreCommandUser restorer,
          ResolverLogger resolverLogger,
-         TResolveResult platformFrameworkPaths
+         GetFileItemsDelegate getFiles,
+         global::NuGet.ProjectModel.LockFile thisFrameworkRestoreResult
          )
       {
-         var helper = new NETStandardExecutionHelper(
-            taskName,
-            nugetResolver,
-            assemblyPath,
-            assemblyPathsBySimpleName,
-            resolverLogger,
-            platformFrameworkPaths
+
+         var thisLoader = NuGetAssemblyResolverFactory.NewNuGetAssemblyResolver(
+            restorer,
+            thisFrameworkRestoreResult,
+            out var assemblyLoader,
+            defaultGetFiles: getFiles,
+            additionalCheckForDefaultLoader: IsMBFAssembly // Use default loader for Microsoft.Build assemblies
             );
 
-         var taskTypeInfo = helper.LoadTaskType();
+         var taskTypeInfo = LoadTaskType( taskName, thisLoader, taskPackageID, taskPackageVersion, taskAssemblyPath );
+
          return new TaskReferenceHolderInfo(
             new TaskReferenceHolder(
                taskTypeInfo.Item2.Invoke( taskTypeInfo.Item3 ),
@@ -66,114 +69,10 @@ namespace UtilPack.NuGet.MSBuild
                taskTypeInfo.Item4
                ),
             resolverLogger,
-            () => helper.Dispose()
+            () => thisLoader.DisposeSafely()
             );
       }
 
-      // We must subclass System.Runtime.Loader.AssemblyLoadContext, since the default load context does not seem to launch Resolve event for System.* assemblies (and thus we never catch load request for e.g. System.Threading.Tasks.Extensions assembly, since UtilPack references newer than is in e.g. 1.1.2 app folder).
-      private sealed class NuGetTaskLoadContext : AssemblyLoadContext, IDisposable
-      {
-         private readonly CommonAssemblyRelatedHelper _helper;
-         private readonly ConcurrentDictionary<AssemblyName, Lazy<Assembly>> _loadedAssemblies;
-         private readonly ISet<String> _frameworkAssemblySimpleNames;
-         private readonly AssemblyLoadContext _defaultLoadContext;
-
-         public NuGetTaskLoadContext(
-            CommonAssemblyRelatedHelper helper,
-            TResolveResult frameworkAssemblyInfo
-            )
-         {
-            this._helper = helper;
-            this._defaultLoadContext = GetLoadContext( this.GetType().GetTypeInfo().Assembly );
-            this._loadedAssemblies = new ConcurrentDictionary<AssemblyName, Lazy<Assembly>>(
-               ComparerFromFunctions.NewEqualityComparer<AssemblyName>(
-                  ( x, y ) => String.Equals( x.Name, y.Name ) && String.Equals( x.CultureName, y.CultureName ) && x.Version.Equals( y.Version ) && ArrayEqualityComparer<Byte>.ArrayEquality( x.GetPublicKeyToken(), y.GetPublicKeyToken() ),
-                  x => x.Name.GetHashCode()
-                  )
-               );
-            this._frameworkAssemblySimpleNames = new HashSet<String>( frameworkAssemblyInfo.Values
-               .SelectMany( p => p.Assemblies )
-               .Select( p => Path.GetFileNameWithoutExtension( p ) )
-               );
-         }
-
-         protected override Assembly Load( AssemblyName assemblyName )
-         {
-            // Some System.* packages are provided by .NET Core runtime, and some via NuGet extensions
-            // Unfortunately, the only way to distinguish them (in order to avoid loading assembly duplicates from NuGet packages) is to try using default context *first*, and then use our own custom context in case the default context fails to load the assembly.
-            // There is no other way to see failed assembly load than catching exception ( LoadFromAssemblyName never returns null ).
-            // A pity that API was designed like that.
-
-            // To save amount of catches we do, cache all loaded assembly by their assembly names.
-            return this._loadedAssemblies.GetOrAdd( assemblyName, an => new Lazy<Assembly>( () =>
-            {
-               var tryDefaultFirst = this._helper.IsMBFAssembly( an ) || this._frameworkAssemblySimpleNames.Contains( an.Name );
-               Assembly retVal = null;
-               if ( tryDefaultFirst )
-               {
-                  // We use default loader only for assemblies which are not part of our used non-system packages.
-                  // Otherwise we will get exceptions in Release build, since e.g. UtilPack will have exactly same full assembly name (since its public key won't be null), and since this assembly was loaded using LoadFromAssemblyPath by MSBuild, it will fail to resolve the dependencies (at least System.Threading.Tasks.Extensions).
-                  try
-                  {
-                     retVal = this._defaultLoadContext.LoadFromAssemblyName( assemblyName );
-                  }
-                  catch
-                  {
-                     // Ignore
-                  }
-               }
-               return retVal ?? this._helper.PerformAssemblyResolve( an );
-            }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) ).Value;
-         }
-
-         public void Dispose()
-         {
-            this._loadedAssemblies.Clear();
-         }
-      }
-
-      private sealed class NETStandardExecutionHelper : CommonAssemblyRelatedHelper
-      {
-         private readonly NuGetTaskLoadContext _loader;
-         private readonly ResolverLogger _logger;
-
-         public NETStandardExecutionHelper(
-            String taskName,
-            NuGetResolverWrapper nugetResolver,
-            String assemblyPath,
-            IDictionary<String, ISet<String>> assemblyPathsBySimpleName,
-            ResolverLogger logger,
-            TResolveResult platformPackages
-            )
-            : base( assemblyPathsBySimpleName, nugetResolver, assemblyPath, taskName )
-         {
-            this._logger = logger;
-            this._loader = new NuGetTaskLoadContext( this, platformPackages );
-         }
-
-         public override void Dispose()
-         {
-            // TODO maybe some day will be possible to say this._loader.UnloadAll()...
-            try
-            {
-               base.Dispose();
-            }
-            finally
-            {
-               this._loader.DisposeSafely();
-            }
-         }
-
-         protected override void LogResolveMessage( String message )
-         {
-            this._logger.Log( message );
-         }
-
-         protected override Assembly LoadAssemblyFromPath( String path )
-         {
-            return this._loader.LoadFromAssemblyPath( path );
-         }
-      }
    }
 }
 #endif

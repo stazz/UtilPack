@@ -34,25 +34,66 @@ using System.Threading;
 
 namespace UtilPack.NuGet.AssemblyLoading
 {
-   // This interface should not expose any UtilPack members in order to avoid app domain to load utilpack assembly
+   /// <summary>
+   /// This interface provides uniform way of dynamically load assemblies from NuGet packages and file paths.
+   /// Instances of this interface are creatd by <see cref="NuGetAssemblyResolverFactory"/> class.
+   /// </summary>
    public interface NuGetAssemblyResolver : IDisposable
    {
+      /// <summary>
+      /// Asynchronously loads assemblies from given NuGet packages. 
+      /// The packages are restored first, by using whatever <see cref="global::NuGet.Configuration.ISettings"/> provided to underlying <see cref="NuGet.BoundRestoreCommandUser"/>.
+      /// The assemblies of packages on which <paramref name="packageIDs"/> depend on will be loaded as they are needed.
+      /// </summary>
+      /// <param name="packageIDs">The IDs of the packages to restore and load assembly from.</param>
+      /// <param name="packageVersions">The versions of the packages to restore and load assembly from.</param>
+      /// <param name="assemblyPaths">The assembly paths within the package to load.</param>
+      /// <returns>Task which on completion has array of loaded <see cref="Assembly"/> objects for each given package ID in <paramref name="packageIDs"/>.</returns>
+      /// <remarks>
+      /// All arrays <paramref name="packageIDs"/>, <paramref name="packageVersions"/>, and <paramref name="assemblyPaths"/> must have matching length.
+      /// The elements in <paramref name="packageVersions"/> and <paramref name="assemblyPaths"/> may be <c>null</c> or empty.
+      /// See <see cref="BoundRestoreCommandUser.RestoreIfNeeded"/> documentation on behaviour for situations when package version is left out.
+      /// If assembly path is left out and package only has one assembly, it will be used.
+      /// If package has more than one assembly, then the assembly path must be specified.
+      /// </remarks>
       Task<Assembly[]> LoadNuGetAssemblies(
          String[] packageIDs,
          String[] packageVersions,
          String[] assemblyPaths
          );
 
+      /// <summary>
+      /// Loads assembly from disk given the path.
+      /// Note that dependencies will not be resolved.
+      /// </summary>
+      /// <param name="assemblyPath">The assembly path where to load assembly from.</param>
+      /// <returns>Assembly loaded from disk, or cached assembly if it was previously already loaded by this <see cref="NuGetAssemblyResolver"/>.</returns>
       Assembly LoadOtherAssembly(
          String assemblyPath
          );
 
-      event Action<AssemblyLoadEventArgs> OnAssemblyLoadSuccess;
-      event Action<AssemblyResolveFailedEventArgs> OnAssemblyLoadFail;
+      /// <summary>
+      /// This event occurs whenever assembly has been successfully loaded by this <see cref="NuGetAssemblyResolver"/>.
+      /// </summary>
+      /// <seealso cref="AssemblyLoadSuccessEventArgs"/>
+      event Action<AssemblyLoadSuccessEventArgs> OnAssemblyLoadSuccess;
+
+      /// <summary>
+      /// This event occurs whenever assembly failed to resolve or load by this <see cref="NuGetAssemblyResolver"/>.
+      /// </summary>
+      /// <seealso cref="AssemblyLoadFailedEventArgs"/>
+      event Action<AssemblyLoadFailedEventArgs> OnAssemblyLoadFail;
    }
 
+   /// <summary>
+   /// This is abstract base class for <see cref="AssemblyLoadSuccessEventArgs"/> and <see cref="AssemblyLoadFailedEventArgs"/> types.
+   /// </summary>
    public abstract class AbstractAssemblyResolveArgs
    {
+      /// <summary>
+      /// Initializes new instance of <see cref="AbstractAssemblyResolveArgs"/>.
+      /// </summary>
+      /// <param name="assemblyName">The <see cref="System.Reflection.AssemblyName"/> related to current event.</param>
       public AbstractAssemblyResolveArgs(
          AssemblyName assemblyName
          )
@@ -60,12 +101,25 @@ namespace UtilPack.NuGet.AssemblyLoading
          this.AssemblyName = assemblyName;
       }
 
+      /// <summary>
+      /// Gets the <see cref="System.Reflection.AssemblyName"/> related to current event.
+      /// </summary>
+      /// <value>The <see cref="System.Reflection.AssemblyName"/> related to current event.</value>
       public AssemblyName AssemblyName { get; }
    }
 
-   public class AssemblyLoadEventArgs : AbstractAssemblyResolveArgs
+   /// <summary>
+   /// This class contains information for <see cref="NuGetAssemblyResolver.OnAssemblyLoadSuccess"/> event.
+   /// </summary>
+   public class AssemblyLoadSuccessEventArgs : AbstractAssemblyResolveArgs
    {
-      public AssemblyLoadEventArgs(
+      /// <summary>
+      /// Creates new instance of <see cref="AssemblyLoadSuccessEventArgs"/>
+      /// </summary>
+      /// <param name="assemblyName">The <see cref="System.Reflection.AssemblyName"/> related to current event.</param>
+      /// <param name="originalPath">The original path where assembly resides.</param>
+      /// <param name="actualPath">The path where assembly is loaded from.</param>
+      public AssemblyLoadSuccessEventArgs(
          AssemblyName assemblyName,
          String originalPath,
          String actualPath
@@ -75,13 +129,29 @@ namespace UtilPack.NuGet.AssemblyLoading
          this.ActualPath = actualPath;
       }
 
+      /// <summary>
+      /// Gets the original path where assembly resides.
+      /// </summary>
+      /// <value>The original path where assembly resides.</value>
       public String OriginalPath { get; }
+
+      /// <summary>
+      /// Gets the path where assembly is loaded from.
+      /// </summary>
+      /// <value>The path where assembly is loaded from.</value>
       public String ActualPath { get; }
    }
 
-   public class AssemblyResolveFailedEventArgs : AbstractAssemblyResolveArgs
+   /// <summary>
+   /// This class contains information for <see cref="NuGetAssemblyResolver.OnAssemblyLoadFail"/> event.
+   /// </summary>
+   public class AssemblyLoadFailedEventArgs : AbstractAssemblyResolveArgs
    {
-      public AssemblyResolveFailedEventArgs(
+      /// <summary>
+      /// Creates new instance of <see cref="AssemblyLoadFailedEventArgs"/>
+      /// </summary>
+      /// <param name="assemblyName">The <see cref="System.Reflection.AssemblyName"/> related to current event.</param>
+      public AssemblyLoadFailedEventArgs(
          AssemblyName assemblyName
          ) : base( assemblyName )
       {
@@ -90,14 +160,46 @@ namespace UtilPack.NuGet.AssemblyLoading
 
    }
 
-
+   /// <summary>
+   /// This class provides method to create new instances of <see cref="NuGetAssemblyResolver"/>.
+   /// </summary>
    public static class NuGetAssemblyResolverFactory
    {
+#if NET45
+      /// <summary>
+      /// Creates new instance of <see cref="NuGetAssemblyResolver"/> which will reside in a new <see cref="AppDomain"/> if <paramref name="appDomainSetup"/> is specified.
+      /// </summary>
+      /// <param name="restorer">The <see cref="BoundRestoreCommandUser"/> to use when restoring packages.</param>
+      /// <param name="appDomainSetup">The <see cref="AppDomainSetup"/> to use when creating new <see cref="AppDomain"/>. Specify <c>null</c> if creating <see cref="NuGetAssemblyResolver"/> in this app domain.</param>
+      /// <param name="createdLoader">This parameter will contain the newly created <see cref="AppDomain"/>, or <see cref="AppDomain.CurrentDomain"/> if <paramref name="appDomainSetup"/> is not specified.</param>
+      /// <param name="overrideLocation">The optional callback to override location of assembly to be loaded. If it is called, then <paramref name="pathProcessor"/> will not be used.</param>
+      /// <param name="defaultGetFiles">The optional callback to give to <see cref="M:E_UtilPack.ExtractAssemblyPaths{TResult}(BoundRestoreCommandUser, LockFile, Func{string, IEnumerable{string}, TResult}, GetFileItemsDelegate)"/> method.</param>
+      /// <param name="pathProcessor">The optional callback to process assembly path just before it is loaded. It can e.g. copy assembly to some temp folder in order to avoid locking assembly in package repository.</param>
+      /// <returns>A new instance of <see cref="NuGetAssemblyResolver"/>.</returns>
+      /// <remarks>
+      /// Please be aware that if <paramref name="appDomainSetup"/> is specified, a new app domain will be created!
+      /// This app domain and other resources will be unloaded and cleared on calling <see cref="IDisposable.Dispose"/> method on returned <see cref="NuGetAssemblyResolver"/>.
+      /// </remarks>
+#else
+      /// <summary>
+      /// Creates new instance of <see cref="NuGetAssemblyResolver"/> and <see cref="System.Runtime.Loader.AssemblyLoadContext"/> to be used to load assemblies of NuGet packages.
+      /// </summary>
+      /// <param name="restorer">The <see cref="BoundRestoreCommandUser"/> to use when restoring packages.</param>
+      /// <param name="thisFrameworkRestoreResult">The <see cref="LockFile"/> obtained by restoring the framework package. For .NET Core, this framework package is the one with ID <c>Microsoft.NETCore.App</c>.</param>
+      /// <param name="createdLoader">This parameter will contain the newly created <see cref="System.Runtime.Loader.AssemblyLoadContext"/>.</param>
+      /// <param name="additionalCheckForDefaultLoader">The optional callback to check whether some assembly needs to be loaded using parent loader (the loader which loaded this assembly).</param>
+      /// <param name="defaultGetFiles">The optional callback to give to <see cref="M:E_UtilPack.ExtractAssemblyPaths{TResult}(BoundRestoreCommandUser, LockFile, Func{string, IEnumerable{string}, TResult}, GetFileItemsDelegate)"/> method.</param>
+      /// <param name="pathProcessor">The optional callback to process assembly path just before it is loaded. It can e.g. copy assembly to some temp folder in order to avoid locking assembly in package repository.</param>
+      /// <returns>A new instance of <see cref="NuGetAssemblyResolver"/>.</returns>
+      /// <remarks>
+      /// The created <see cref="System.Runtime.Loader.AssemblyLoadContext"/> and other resources will be cleared on calling <see cref="IDisposable.Dispose"/> method on returned <see cref="NuGetAssemblyResolver"/>.
+      /// </remarks>
+#endif
       public static NuGetAssemblyResolver NewNuGetAssemblyResolver(
          BoundRestoreCommandUser restorer,
 #if NET45
          AppDomainSetup appDomainSetup,
-#else 
+#else
          LockFile thisFrameworkRestoreResult,
 #endif
          out
@@ -155,8 +257,18 @@ namespace UtilPack.NuGet.AssemblyLoading
       }
    }
 
+   /// <summary>
+   /// This class contains utility methods related to resolving assemblies from NuGet packages.
+   /// </summary>
    public static class NuGetAssemblyResolverUtility
    {
+      /// <summary>
+      /// Gets the matching assembly path from set of assembly paths, the expanded home path of the package, and optional assembly path from "outside world", e.g. configuration.
+      /// </summary>
+      /// <param name="assemblyPaths">All assembly paths to be considered from this package.</param>
+      /// <param name="packageExpandedPath">The package home directory path.</param>
+      /// <param name="optionalGivenAssemblyPath">Optional assembly path from "outside world", e.g. configuration.</param>
+      /// <returns>Best matched assembly path, or <c>null</c>.</returns>
       public static String GetAssemblyPathFromNuGetAssemblies(
          String[] assemblyPaths,
          String packageExpandedPath,
@@ -305,7 +417,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          private Int32 _state;
          private readonly Lazy<Assembly> _assembly;
          private readonly NuGetAssemblyResolverImpl _resolver;
-         private AssemblyLoadEventArgs _loadArgs;
+         private AssemblyLoadSuccessEventArgs _loadArgs;
 
          public AssemblyInformation(
             String path,
@@ -322,7 +434,7 @@ namespace UtilPack.NuGet.AssemblyLoading
                   path :
                   processed;
                var retVal = resolver._fromPathLoader( actualPath );
-               Interlocked.Exchange( ref this._loadArgs, new AssemblyLoadEventArgs( retVal.GetName(), path, actualPath ) );
+               Interlocked.Exchange( ref this._loadArgs, new AssemblyLoadSuccessEventArgs( retVal.GetName(), path, actualPath ) );
                return retVal;
             }, LazyThreadSafetyMode.ExecutionAndPublication );
          }
@@ -588,8 +700,8 @@ namespace UtilPack.NuGet.AssemblyLoading
          return retVal;
       }
 
-      public event Action<AssemblyLoadEventArgs> OnAssemblyLoadSuccess;
-      public event Action<AssemblyResolveFailedEventArgs> OnAssemblyLoadFail;
+      public event Action<AssemblyLoadSuccessEventArgs> OnAssemblyLoadSuccess;
+      public event Action<AssemblyLoadFailedEventArgs> OnAssemblyLoadFail;
 
       internal Assembly PerformAssemblyResolve( AssemblyName assemblyName )
       {
@@ -613,7 +725,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          {
             try
             {
-               this.OnAssemblyLoadFail?.Invoke( new AssemblyResolveFailedEventArgs( assemblyName ) );
+               this.OnAssemblyLoadFail?.Invoke( new AssemblyLoadFailedEventArgs( assemblyName ) );
             }
             catch
             {
@@ -769,6 +881,9 @@ namespace UtilPack.NuGet.AssemblyLoading
    }
 }
 
+/// <summary>
+/// This class contains extension methods for types defined in this assembly.
+/// </summary>
 public static partial class E_UtilPack
 {
    internal static TResolveResult ExtractAssemblyPaths(
@@ -784,6 +899,15 @@ public static partial class E_UtilPack
          );
    }
 
+   /// <summary>
+   /// Convenience method to load one assembly from one NuGet package.
+   /// </summary>
+   /// <param name="resolver">This <see cref="NuGetAssemblyResolver"/>.</param>
+   /// <param name="packageID">The ID of the package from which to load assembly from.</param>
+   /// <param name="packageVersion">The optional version of the package from thich to load assembly from.</param>
+   /// <param name="assemblyPath">The optional assembly path within the package.</param>
+   /// <returns>Task which will have loaded <see cref="System.Reflection.Assembly"/> object or <c>null</c> on completion.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="NuGetAssemblyResolver"/> is <c>null</c>.</exception>
    public static async Task<Assembly> LoadNuGetAssembly(
       this NuGetAssemblyResolver resolver,
       String packageID,
@@ -791,15 +915,24 @@ public static partial class E_UtilPack
       String assemblyPath = null
       )
    {
-      return ( await resolver.LoadNuGetAssemblies( new[] { packageID }, new[] { packageVersion }, new[] { assemblyPath } ) )[0];
+      // Don't use ArgumentValidator, as this may be executing in other app domain
+      // (Same reason we don't use value tuples here)
+      return ( await ( resolver ?? throw new NullReferenceException() ).LoadNuGetAssemblies( new[] { packageID }, new[] { packageVersion }, new[] { assemblyPath } ) )[0];
    }
 
+   /// <summary>
+   /// Conveience method to load multiple assembleis from multiple NuGet packages, and specifying parameters using value tuples.
+   /// </summary>
+   /// <param name="resolver">This <see cref="NuGetAssemblyResolver"/>.</param>
+   /// <param name="packageInfo">The information about packages as value tuple.</param>
+   /// <returns>Task which on completion has array of loaded <see cref="Assembly"/> objects for each given package ID in <paramref name="packageInfo"/>.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="NuGetAssemblyResolver"/> is <c>null</c>.</exception>
    public static Task<Assembly[]> LoadNuGetAssemblies(
       this NuGetAssemblyResolver resolver,
       params (String PackageID, String PackageVersion, String AssemblyPath)[] packageInfo
       )
    {
-      return resolver.LoadNuGetAssemblies(
+      return ( resolver ?? throw new NullReferenceException() ).LoadNuGetAssemblies(
          packageInfo.Select( p => p.PackageID ).ToArray(),
          packageInfo.Select( p => p.PackageVersion ).ToArray(),
          packageInfo.Select( p => p.AssemblyPath ).ToArray() );

@@ -36,6 +36,13 @@ namespace UtilPack.NuGet
    /// </summary>
    public static partial class UtilPackNuGetUtility
    {
+      /// <summary>
+      /// This is helper method to try and deduce the <see cref="NuGetFramework"/> representing the currently running process.
+      /// If optional framework information is specified as parameter, this method will always return that information as wrapped around <see cref="NuGetFramework"/>.
+      /// Otherwise, it will try deduce the required information from entry point assembly <see cref="System.Runtime.Versioning.TargetFrameworkAttribute"/> on desktop, and from <see cref="P:System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription"/> on core.
+      /// </summary>
+      /// <param name="givenInformation">Optional framework information passed from "outside world", e.g. configuration.</param>
+      /// <returns>The deduced <see cref="NuGetFramework"/>, or <see cref="NuGetFramework.AnyFramework"/> if automatic deduce failed.</returns>
       public static NuGetFramework TryAutoDetectThisProcessFramework(
          (String FrameworkName, String FrameworkVersion)? givenInformation = null
          )

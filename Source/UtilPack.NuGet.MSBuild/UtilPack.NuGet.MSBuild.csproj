@@ -8,6 +8,7 @@
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
     <TreatSpecificWarningsAsErrors />
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+    <DefineConstants Condition=" '$(TargetFramework)' != 'net45' ">$(DefineConstants);IS_NETSTANDARD</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -37,10 +38,6 @@
     <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
     <PackageReference Include="System.Reflection.Emit" Version="4.3.0" />
   </ItemGroup>
-  
-  <ItemGroup>
-    <ProjectReference Include="..\UtilPack.NuGet\UtilPack.NuGet.csproj" />
-  </ItemGroup>
 
   <ItemGroup>
     <None Include="build\**">
@@ -50,6 +47,21 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\UtilPack.NuGet.AssemblyLoading\NuGetAssemblyResolver.cs" Link="UtilPack.NuGet.AssembyLoading.NuGetAssemblyResolver.cs" />
+    <Compile Include="..\UtilPack.NuGet\Frameworks.cs" Link="UtilPack.NuGet.Frameworks.cs" />
+    <Compile Include="..\UtilPack.NuGet\Restoring.cs" Link="UtilPack.NuGet.Restoring.cs" />
+    <Compile Include="..\UtilPack\Miscellaneous.cs" Link="UtilPack.Miscellaneous.cs" />
+    <Compile Include="..\UtilPack\CollectionExtensions.cs" Link="UtilPack.CollectionExtensions.cs" />
+    <Compile Include="..\UtilPack\SequenceEqualityComparer.cs" Link="UtilPack.SequenceEqualityComparer.cs" />
+    <Compile Include="..\UtilPack\Lazies.cs" Link="UtilPack.Lazies.cs" />
+    <Compile Include="..\UtilPack\ArgumentValidator.cs" Link="UtilPack.ArgumentValidator.cs" />
+    <Compile Include="..\UtilPack\Empty.cs" Link="UtilPack.Empty.cs" />
+    <Compile Include="..\UtilPack\ComparerFromFunctions.cs" Link="UtilPack.ComparerFromFunctions.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--<PackageReference Include="System.Threading.Tasks.Extensions" Version="4.3.0" />-->
+    <PackageReference Include="System.ValueTuple" Version="4.3.1" />
     <PackageReference Include="NuGet.Commands" Version="4.0.0" />
   </ItemGroup>
 

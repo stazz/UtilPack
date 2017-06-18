@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard1.5;net45</TargetFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <TreatSpecificWarningsAsErrors />
+    <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="System.ValueTuple" Version="4.3.1" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' != 'net45'">
+    <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UtilPack.NuGet\UtilPack.NuGet.csproj" />
+  </ItemGroup>  
+
+</Project>

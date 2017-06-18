@@ -34,8 +34,52 @@ namespace UtilPack.NuGet
    /// <summary>
    /// This class contains extension method which are for types not contained in this library.
    /// </summary>
-   public static partial class UtilPackExtensions
+   public static partial class UtilPackNuGetUtility
    {
+      public static NuGetFramework TryAutoDetectThisProcessFramework(
+         (String FrameworkName, String FrameworkVersion)? givenInformation = null
+         )
+      {
+         NuGetFramework retVal;
+         if (
+            givenInformation.HasValue
+            && !String.IsNullOrEmpty( givenInformation.Value.FrameworkName )
+            && !String.IsNullOrEmpty( givenInformation.Value.FrameworkVersion )
+            && Version.TryParse( givenInformation.Value.FrameworkVersion, out var version )
+            )
+         {
+            retVal = new NuGetFramework( givenInformation.Value.FrameworkName, version );
+         }
+         else
+         {
+#if NET45
+            retVal = Assembly.GetEntryAssembly().GetNuGetFrameworkFromAssembly();
+#else
+            var fwName = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription;
+            retVal = null;
+            if ( !String.IsNullOrEmpty( fwName ) && fwName.StartsWith( ".NET Core" ) )
+            {
+               if ( Version.TryParse( fwName.Substring( 10 ), out var netCoreVersion ) )
+               {
+                  if ( netCoreVersion.Major == 4 )
+                  {
+                     if ( netCoreVersion.Minor == 0 )
+                     {
+                        retVal = FrameworkConstants.CommonFrameworks.NetCoreApp10;
+                     }
+                     else if ( netCoreVersion.Minor == 6 )
+                     {
+                        retVal = FrameworkConstants.CommonFrameworks.NetCoreApp11;
+                     }
+                  }
+               }
+            }
+#endif
+         }
+         return retVal ?? NuGetFramework.AnyFramework;
+      }
+
+
       /// <summary>
       /// Tries to parse the <see cref="System.Runtime.Versioning.TargetFrameworkAttribute"/> applied to this assembly into <see cref="NuGetFramework"/>.
       /// </summary>
@@ -49,7 +93,7 @@ namespace UtilPack.NuGet
             .FirstOrDefault();
          return thisFrameworkString == null
               ? NuGetFramework.AnyFramework
-              : NuGetFramework.ParseFrameworkName( thisFrameworkString, new DefaultFrameworkNameProvider() );
+              : NuGetFramework.ParseFrameworkName( thisFrameworkString, DefaultFrameworkNameProvider.Instance );
       }
    }
 }

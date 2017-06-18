@@ -31,6 +31,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using UtilPack;
+using UtilPack.NuGet;
 
 namespace UtilPack.NuGet
 {
@@ -50,7 +52,7 @@ namespace UtilPack.NuGet
       private readonly String _nugetRestoreRootDir; // NuGet restore command never writes anything to disk (apart from packages themselves), but if certain file paths are omitted, it simply fails with argumentnullexception when invoking Path.Combine or Path.GetFullName. So this can be anything, really, as long as it's understandable by Path class.
       private readonly TargetFrameworkInformation _restoreTargetFW;
       private LockFile _previousLockFile;
-      private readonly ConcurrentDictionary<String, ConcurrentDictionary<NuGetVersion, LockFile>> _allLockFiles;
+      private readonly ConcurrentDictionary<String, ConcurrentDictionary<NuGetVersion, RestoreResult>> _allLockFiles;
 
       /// <summary>
       /// Creates new instance of <see cref="BoundRestoreCommandUser"/> with given parameters.
@@ -58,14 +60,16 @@ namespace UtilPack.NuGet
       /// <param name="thisFramework">The framework to bind to.</param>
       /// <param name="nugetSettings">The settings to use.</param>
       /// <param name="nugetLogger">The logger to use in restore command.</param>
-      /// <exception cref="ArgumentNullException">If <paramref name="thisFramework"/> or <paramref name="nugetSettings"/> is <c>null</c>.</exception>
+      /// <param name="sourceCacheContext">The optional <see cref="SourceCacheContext"/> to use.</param>
+      /// <exception cref="ArgumentNullException">If <paramref name="nugetSettings"/> is <c>null</c>.</exception>
       public BoundRestoreCommandUser(
-         NuGetFramework thisFramework,
          ISettings nugetSettings,
-         ILogger nugetLogger
+         NuGetFramework thisFramework = null,
+         ILogger nugetLogger = null,
+         SourceCacheContext sourceCacheContext = null
          )
       {
-         this.ThisFramework = ArgumentValidator.ValidateNotNull( nameof( thisFramework ), thisFramework );
+         this.ThisFramework = thisFramework ?? UtilPackNuGetUtility.TryAutoDetectThisProcessFramework();
          ArgumentValidator.ValidateNotNull( nameof( nugetSettings ), nugetSettings );
          if ( nugetLogger == null )
          {
@@ -74,7 +78,7 @@ namespace UtilPack.NuGet
 
          var global = SettingsUtility.GetGlobalPackagesFolder( nugetSettings );
          var fallbacks = SettingsUtility.GetFallbackPackageFolders( nugetSettings );
-         var ctx = new SourceCacheContext();
+         var ctx = sourceCacheContext ?? new SourceCacheContext();
          var psp = new PackageSourceProvider( nugetSettings );
          var csp = new global::NuGet.Protocol.CachingSourceProvider( psp );
          this._cacheContext = ctx;
@@ -93,7 +97,7 @@ namespace UtilPack.NuGet
             FrameworkName = this.ThisFramework
          };
          this.LocalRepositories = this._restoreCommandProvider.GlobalPackages.Singleton().Concat( this._restoreCommandProvider.FallbackPackageFolders ).ToDictionary( r => r.RepositoryRoot, r => r );
-         this._allLockFiles = new ConcurrentDictionary<String, ConcurrentDictionary<NuGetVersion, LockFile>>();
+         this._allLockFiles = new ConcurrentDictionary<String, ConcurrentDictionary<NuGetVersion, RestoreResult>>();
       }
 
       /// <summary>
@@ -115,59 +119,85 @@ namespace UtilPack.NuGet
       public IReadOnlyDictionary<String, NuGetv3LocalRepository> LocalRepositories { get; }
 
       /// <summary>
-      /// Performs restore command for given package and version, if not already cached.
+      /// Performs restore command for given combinations of package and version.
+      /// Will use cached results, if available.
       /// Returns resulting lock file.
       /// </summary>
-      /// <param name="packageID">The package ID to use.</param>
-      /// <param name="version">The version to use. Should be parseable into <see cref="VersionRange"/>. If <c>null</c> or empty, <see cref="VersionRange.AllFloating"/> will be used.</param>
+      /// <param name="packageInfo">The package ID + version combination. The package version should be parseable into <see cref="VersionRange"/>. If the version is <c>null</c> or empty, <see cref="VersionRange.AllFloating"/> will be used.</param>
       /// <returns>Cached or restored lock file.</returns>
       /// <seealso cref="RestoreCommand"/>
-      public async ValueTask<LockFile> RestoreIfNeeded(
-         String packageID,
-         String version
-         )
+      public async Task<LockFile> RestoreIfNeeded( params (String PackageID, String PackageVersion)[] packageInfo )
       {
-         // Prepare for invoking restore command
+
          LockFile retVal;
-         if ( !String.IsNullOrEmpty( packageID ) )
+         if ( !packageInfo.IsNullOrEmpty() )
          {
-            VersionRange versionRange;
-            if ( String.IsNullOrEmpty( version ) )
+            // Prepare for invoking restore command
+            var versionRanges = packageInfo
+               .Select( tuple => String.IsNullOrEmpty( tuple.PackageVersion ) ? VersionRange.AllFloating : VersionRange.Parse( tuple.PackageVersion ) )
+               .ToArray();
+            var cachedResults = versionRanges.Select( ( versionRange, idx ) =>
+             {
+                RestoreResult curLockFile = null;
+                if ( !versionRange.IsFloating && this._allLockFiles.TryGetValue( packageInfo[idx].PackageID, out var thisPackageLockFiles ) )
+                {
+                   var matchingActualVersion = versionRange.FindBestMatch( thisPackageLockFiles.Keys.Where( v => versionRange.Satisfies( v ) ) );
+                   if ( matchingActualVersion != null )
+                   {
+                      curLockFile = thisPackageLockFiles[matchingActualVersion];
+                   }
+                }
+
+                return curLockFile;
+             } )
+            .Where( l => l != null )
+            .ToArray();
+
+            if ( cachedResults.Length == packageInfo.Length )
             {
-               // Accept all versions, and pick the newest
-               versionRange = VersionRange.AllFloating;
+               // All lock files are cached
+               // Need to merge into single LockFile
+               var remoteWalkContext = new global::NuGet.DependencyResolver.RemoteWalkContext( this._cacheContext, this.NuGetLogger );
+               foreach ( var local in this._restoreCommandProvider.LocalProviders )
+               {
+                  remoteWalkContext.LocalLibraryProviders.Add( local );
+               }
+               foreach ( var remote in this._restoreCommandProvider.RemoteProviders )
+               {
+                  remoteWalkContext.RemoteLibraryProviders.Add( remote );
+               }
+
+
+               retVal = new LockFileBuilder(
+                  cachedResults[0].LockFile.Version,
+                  this.NuGetLogger,
+                  new Dictionary<RestoreTargetGraph, Dictionary<String, LibraryIncludeFlags>>()
+                  ).CreateLockFile(
+                     cachedResults[0].LockFile, // Previous lock file
+                     this.CreatePackageSpec( versionRanges.Select( ( v, idx ) => (packageInfo[idx].PackageID, v) ).ToArray() ), // PackageSpec
+                     cachedResults.SelectMany( r => r.RestoreGraphs ).ToArray(), // Restore Graphs
+                     this.LocalRepositories.Values.ToList(), // Local repos
+                     remoteWalkContext // Remote walk context
+                     );
             }
             else
             {
-               // Accept specific version range
-               versionRange = VersionRange.Parse( version );
-            }
-
-            // Invoking restore command is quite expensive, so let's try to see if we have cached result
-            retVal = null;
-            if ( !versionRange.IsFloating && this._allLockFiles.TryGetValue( packageID, out var thisPackageLockFiles ) )
-            {
-               var matchingActualVersion = versionRange.FindBestMatch( thisPackageLockFiles.Keys.Where( v => versionRange.Satisfies( v ) ) );
-               if ( matchingActualVersion != null )
+               // Need to invoke restore command
+               var result = await this.PerformRestore( versionRanges.Select( ( v, idx ) => (packageInfo[idx].PackageID, v) ).ToArray() );
+               retVal = result.LockFile;
+               foreach ( var tuple in packageInfo )
                {
-                  retVal = thisPackageLockFiles[matchingActualVersion];
+                  var packageID = tuple.PackageID;
+                  var actualVersion = retVal.Libraries.FirstOrDefault( l => String.Equals( l.Name, packageID ) )?.Version;
+                  if ( actualVersion != null )
+                  {
+                     this._allLockFiles
+                        .GetOrAdd( packageID, p => new ConcurrentDictionary<NuGetVersion, RestoreResult>() )
+                        .TryAdd( actualVersion, result );
+                  }
                }
+               System.Threading.Interlocked.Exchange( ref this._previousLockFile, retVal );
             }
-
-            if ( retVal == null )
-            {
-               retVal = await this.PerformRestore( packageID, versionRange );
-               var actualVersion = retVal.Libraries.First( l => String.Equals( l.Name, packageID ) ).Version;
-               this._allLockFiles
-                  .GetOrAdd( packageID, p => new ConcurrentDictionary<NuGetVersion, LockFile>() )
-                  .TryAdd( actualVersion, retVal );
-            }
-
-
-            // Restore command never modifies existing lock file object, instead it creates new one
-            // Just update to newest (thus the next request will be able to use cached information and be faster)
-            System.Threading.Interlocked.Exchange( ref this._previousLockFile, retVal );
-
          }
          else
          {
@@ -180,28 +210,14 @@ namespace UtilPack.NuGet
       /// <summary>
       /// This method is invoked by <see cref="RestoreIfNeeded"/> when the lock file is not in cache and restore command needs to be actually run.
       /// </summary>
-      /// <param name="packageID">The package ID.</param>
-      /// <param name="versionRange">The <see cref="VersionRange"/> of package.</param>
+      /// <param name="targets">What packages to restore.</param>
       /// <returns>The <see cref="LockFile"/> generated by <see cref="RestoreCommand"/>.</returns>
-      protected virtual async System.Threading.Tasks.Task<LockFile> PerformRestore(
-         String packageID,
-         VersionRange versionRange
+      protected virtual async Task<RestoreResult> PerformRestore(
+         (String ID, VersionRange Version)[] targets
          )
       {
-         var spec = new PackageSpec()
-         {
-            Name = $"Restoring {packageID}",
-            FilePath = Path.Combine( this._nugetRestoreRootDir, "dummy" )
-         };
-         spec.TargetFrameworks.Add( this._restoreTargetFW );
-
-         spec.Dependencies.Add( new LibraryDependency()
-         {
-            LibraryRange = new LibraryRange( packageID, versionRange, LibraryDependencyTarget.Package )
-         } );
-
          var request = new RestoreRequest(
-            spec,
+            this.CreatePackageSpec( targets ),
             this._restoreCommandProvider,
             this._cacheContext,
             this.NuGetLogger
@@ -211,7 +227,31 @@ namespace UtilPack.NuGet
             RestoreOutputPath = this._nugetRestoreRootDir,
             ExistingLockFile = this._previousLockFile
          };
-         return ( await ( new RestoreCommand( request ).ExecuteAsync() ) ).LockFile;
+         return await ( new RestoreCommand( request ).ExecuteAsync() );
+      }
+
+      /// <summary>
+      /// Helper method to create <see cref="PackageSpec"/> out of package ID + version combinations.
+      /// </summary>
+      /// <param name="targets">The package ID + version combinations.</param>
+      /// <returns>A new instance of <see cref="PackageSpec"/> having <see cref="PackageSpec.TargetFrameworks"/> and <see cref="PackageSpec.Dependencies"/> populated as needed.</returns>
+      protected PackageSpec CreatePackageSpec( (String ID, VersionRange Version)[] targets )
+      {
+         var spec = new PackageSpec()
+         {
+            Name = $"Restoring: {String.Join( ", ", targets )}",
+            FilePath = Path.Combine( this._nugetRestoreRootDir, "dummy" )
+         };
+         spec.TargetFrameworks.Add( this._restoreTargetFW );
+
+         foreach ( var tuple in targets )
+         {
+            spec.Dependencies.Add( new LibraryDependency()
+            {
+               LibraryRange = new LibraryRange( tuple.ID, tuple.Version, LibraryDependencyTarget.Package )
+            } );
+         }
+         return spec;
       }
 
       /// <summary>
@@ -221,5 +261,70 @@ namespace UtilPack.NuGet
       {
          this._cacheContext.DisposeSafely();
       }
+   }
+
+   public delegate IEnumerable<String> GetFileItemsDelegate( LockFileTargetLibrary targetLibrary, Lazy<IDictionary<String, LockFileLibrary>> libraries );
+}
+
+public static partial class E_UtilPack
+{
+   /// <summary>
+   /// Performs restore command for given package and version, if not already cached.
+   /// Returns resulting lock file.
+   /// </summary>
+   /// <param name="packageID">The package ID to use.</param>
+   /// <param name="version">The version to use. Should be parseable into <see cref="VersionRange"/>. If <c>null</c> or empty, <see cref="VersionRange.AllFloating"/> will be used.</param>
+   /// <returns>Cached or restored lock file.</returns>
+   /// <seealso cref="RestoreCommand"/>
+   public static Task<LockFile> RestoreIfNeeded(
+      this BoundRestoreCommandUser restorer,
+      String packageID,
+      String version
+      )
+   {
+      return restorer.RestoreIfNeeded( (packageID, version) );
+   }
+
+   public static IDictionary<String, TResult> ExtractAssemblyPaths<TResult>(
+      this BoundRestoreCommandUser restorer,
+      LockFile lockFile,
+      Func<String, IEnumerable<String>, TResult> resultCreator,
+      GetFileItemsDelegate fileGetter = null
+   )
+   {
+      var retVal = new Dictionary<String, TResult>();
+      if ( fileGetter == null )
+      {
+         fileGetter = ( ( lib, libs ) => lib.RuntimeAssemblies.Select( i => i.Path ) );
+      }
+      var libDic = new Lazy<IDictionary<String, LockFileLibrary>>( () =>
+      {
+         return lockFile.Libraries.ToDictionary( lib => lib.Name, lib => lib );
+      }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
+
+      // We will always have only one target, since we are running restore always against one target framework
+      foreach ( var targetLib in lockFile.Targets[0].Libraries )
+      {
+         var curLib = targetLib;
+         var targetLibFullPath = lockFile.PackageFolders
+            .Select( f =>
+            {
+               return restorer.LocalRepositories.TryGetValue( f.Path, out var curRepo ) ?
+                  Path.Combine( curRepo.RepositoryRoot, curRepo.PathResolver.GetPackageDirectory( curLib.Name, curLib.Version ) ) :
+                  null;
+            } )
+            .FirstOrDefault( fp => !String.IsNullOrEmpty( fp ) && Directory.Exists( fp ) );
+         if ( !String.IsNullOrEmpty( targetLibFullPath ) )
+         {
+            retVal.Add( curLib.Name, resultCreator(
+               targetLibFullPath,
+               fileGetter( curLib, libDic )
+                  ?.Select( p => Path.Combine( targetLibFullPath, p ) )
+                  ?? Empty<String>.Enumerable
+               ) );
+         }
+      }
+
+      return retVal;
    }
 }

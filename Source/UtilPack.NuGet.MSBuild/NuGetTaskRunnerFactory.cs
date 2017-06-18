@@ -49,9 +49,13 @@ using System.Threading.Tasks;
 using UtilPack.NuGet;
 using UtilPack.NuGet.MSBuild;
 using UtilPack;
+using UtilPack.NuGet.AssemblyLoading;
 
 namespace UtilPack.NuGet.MSBuild
 {
+   // On first task create the task type is dynamically generated, and app domain initialized
+   // On cleanup, app domain will be unloaded, but task type kept
+   // On subsequent uses, app-domain will be re-initialized and unloaded again, but the generated type prevails.
    public partial class NuGetTaskRunnerFactory : ITaskFactory
    {
 
@@ -88,6 +92,7 @@ namespace UtilPack.NuGet.MSBuild
       private const String PACKAGE_VERSION = "PackageVersion";
       private const String ASSEMBLY_PATH = "AssemblyPath";
       private const String NUGET_FW = "NuGetFramework";
+      private const String NUGET_FW_VERSION = "NuGetFrameworkVersion";
       internal const String NUGET_FW_PACKAGE_ID = "NuGetFrameworkPackageID";
       internal const String NUGET_FW_PACKAGE_VERSION = "NuGetFrameworkPackageVersion";
 
@@ -172,8 +177,8 @@ namespace UtilPack.NuGet.MSBuild
          var taskBodyElement = XElement.Parse( taskBody );
 
          // Nuget stuff
-         var nugetFrameworkFromProjectFile = taskBodyElement.Element( NUGET_FW )?.Value;
-         var thisFW = this.GetNuGetFrameworkForRuntime( taskFactoryLoggingHost );
+         var thisFW = UtilPackNuGetUtility.TryAutoDetectThisProcessFramework( (taskBodyElement.Element( NUGET_FW )?.Value, taskBodyElement.Element( NUGET_FW_VERSION )?.Value) );
+
          String nugetConfig;
          ISettings nugetSettings;
          if ( String.IsNullOrEmpty( ( nugetConfig = taskBodyElement.Element( "NuGetConfigurationFile" )?.Value ) ) )
@@ -188,48 +193,54 @@ namespace UtilPack.NuGet.MSBuild
 
          var nugetLogger = new NuGetMSBuildLogger( taskFactoryLoggingHost );
          var nugetResolver = new BoundRestoreCommandUser(
-            thisFW,
             nugetSettings,
-            nugetLogger
+            thisFramework: thisFW,
+            nugetLogger: nugetLogger
             );
-         GetFileItemsDelegate getFiles = ( lib, libs ) => GetSuitableFiles( thisFW, lib, libs );
+
 
          // Restore task package
          String packageID;
-         var resolveInfo = nugetResolver.ResolveNuGetPackages(
+         var restoreResult = nugetResolver.RestoreIfNeeded(
             ( packageID = taskBodyElement.Element( PACKAGE_ID )?.Value ),
-            taskBodyElement.Element( "PackageVersion" )?.Value,
-            getFiles
+            taskBodyElement.Element( "PackageVersion" )?.Value
             ).GetAwaiter().GetResult();
-
          var retVal = false;
-         if ( resolveInfo != null
-            && resolveInfo.TryGetValue( packageID, out var assemblyPaths )
+         String packageVersion;
+         if ( restoreResult != null
+            && !String.IsNullOrEmpty( ( packageVersion = restoreResult.Libraries.Where( lib => String.Equals( lib.Name, packageID ) ).FirstOrDefault()?.Version?.ToNormalizedString() ) )
             )
          {
-            var assemblyPath = CommonHelpers.GetAssemblyPathFromNuGetAssemblies(
-               assemblyPaths.Assemblies, assemblyPaths.PackageDirectory, taskBodyElement.Element( "AssemblyPath" )?.Value );
+            GetFileItemsDelegate getFiles = ( lib, libs ) => GetSuitableFiles( thisFW, lib, libs );
+            var taskAssemblies = nugetResolver.ExtractAssemblyPaths(
+               restoreResult,
+               getFiles
+               )[packageID];
+            var assemblyPath = NuGetAssemblyResolverUtility.GetAssemblyPathFromNuGetAssemblies(
+               taskAssemblies.Assemblies,
+               taskAssemblies.PackageDirectory,
+               taskBodyElement.Element( "AssemblyPath" )?.Value
+               );
             if ( !String.IsNullOrEmpty( assemblyPath ) )
             {
                var resolverWrapper = new NuGetResolverWrapper( nugetResolver, getFiles );
                taskName = this.ProcessTaskName( taskBodyElement, taskName );
-               var deps = GroupDependenciesBySimpleAssemblyName( resolveInfo );
 #if !NET45
-               var platformFrameworkPaths = nugetResolver.ResolveNuGetPackages(
+               var platformFrameworkPaths = nugetResolver.RestoreIfNeeded(
                   taskBodyElement.Element( NUGET_FW_PACKAGE_ID )?.Value ?? "Microsoft.NETCore.App", // This value is hard-coded in Microsoft.NET.Sdk.Common.targets, and currently no proper API exists to map NuGetFrameworks into package ID (+ version combination).
-                  taskBodyElement.Element( NUGET_FW_PACKAGE_VERSION )?.Value ?? "1.1.2",
-                  ( lib, libs ) => lib.CompileTimeAssemblies.Select( i => i.Path )
+                  taskBodyElement.Element( NUGET_FW_PACKAGE_VERSION )?.Value ?? "1.1.2"
                ).GetAwaiter().GetResult();
 #endif
 
                this._helper = LazyFactory.NewReadOnlyResettableLazy( () => this.CreateExecutionHelper(
-                   taskFactoryLoggingHost,
-                   taskBodyElement,
-                   taskName,
-                   resolverWrapper,
-                   assemblyPath,
-                   deps,
-                   new ResolverLogger( nugetLogger )
+                  taskName,
+                  taskBodyElement,
+                  packageID,
+                  packageVersion,
+                  assemblyPath,
+                  nugetResolver,
+                  new ResolverLogger( nugetLogger ),
+                  getFiles
 #if !NET45
                    , platformFrameworkPaths
 #endif
@@ -247,7 +258,7 @@ namespace UtilPack.NuGet.MSBuild
                      -1,
                      -1,
                      -1,
-                     $"Failed to find suitable assembly in {packageID}.",
+                     $"Failed to find suitable assembly in {packageID}@{packageVersion}.",
                      null,
                      this.FactoryName
                   )
@@ -353,86 +364,6 @@ namespace UtilPack.NuGet.MSBuild
             }
          }
          return retVal;
-      }
-
-
-      private NuGetFramework GetNuGetFrameworkForRuntime(
-         IBuildEngine be
-         )
-      {
-#if NET45
-         return Assembly.GetEntryAssembly().GetNuGetFrameworkFromAssembly();
-#else
-         var fwName = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription;
-         NuGetFramework retVal = null;
-         var senderName = this.FactoryName;
-         if ( !String.IsNullOrEmpty( fwName ) && fwName.StartsWith( ".NET Core" ) )
-         {
-            if ( Version.TryParse( fwName.Substring( 10 ), out var netCoreVersion ) )
-            {
-               if ( netCoreVersion.Major == 4 )
-               {
-                  if ( netCoreVersion.Minor == 0 )
-                  {
-                     retVal = FrameworkConstants.CommonFrameworks.NetCoreApp10;
-                  }
-                  else if ( netCoreVersion.Minor == 6 )
-                  {
-                     retVal = FrameworkConstants.CommonFrameworks.NetCoreApp11;
-                  }
-               }
-            }
-            else
-            {
-               be.LogWarningEvent( new BuildWarningEventArgs(
-                  "NuGetFrameworkError",
-                  "NMSBT004",
-                  null,
-                  -1,
-                  -1,
-                  -1,
-                  -1,
-                  $"Failed to parse version from .NET Core framework \"{fwName}\".",
-                  null,
-                  senderName
-                  ) );
-            }
-         }
-         else
-         {
-            be.LogWarningEvent( new BuildWarningEventArgs(
-               "NuGetFrameworkError",
-               "NMSBT003",
-               null,
-               -1,
-               -1,
-               -1,
-               -1,
-               $"Unrecognized framework name: \"{fwName}\", try specifying NuGet framework and package strings that describes this process runtime in <Task> element (using \"{NUGET_FW}\", \"{NUGET_FW_PACKAGE_ID}\", and \"{NUGET_FW_PACKAGE_VERSION}\" elements)!",
-               null,
-               senderName
-               ) );
-         }
-
-         if ( retVal == null )
-         {
-            retVal = FrameworkConstants.CommonFrameworks.NetCoreApp11;
-            be.LogWarningEvent( new BuildWarningEventArgs(
-               "NuGetFrameworkError",
-               "NMSBT005",
-               null,
-               -1,
-               -1,
-               -1,
-               -1,
-               $"Failed to automatically deduct NuGet framework of running process, defaulting to \"{retVal}\". Expect possible failures.",
-               null,
-               senderName
-               ) );
-         }
-
-         return retVal;
-#endif
       }
 
       private static Type GenerateTaskType( TTaskTypeGenerationParameters parameters )
@@ -755,6 +686,98 @@ namespace UtilPack.NuGet.MSBuild
                return null;
          }
       }
+
+      internal static (Type, ConstructorInfo, Object[], Boolean) LoadTaskType(
+         String taskTypeName,
+         NuGetAssemblyResolver resolver,
+         String packageID,
+         String packageVersion,
+         String assemblyPath
+         )
+      {
+         // This should never cause any actual async waiting, since LockFile for task package has been already cached by restorer
+         var taskAssembly = resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath ).GetAwaiter().GetResult();
+
+         var taskType = taskAssembly.GetType( taskTypeName, false, false );
+
+         (var taskCtor, var ctorParameters) = GetTaskConstructorInfo( resolver, taskType );
+
+         return (taskType, taskCtor, ctorParameters, ( ctorParameters?.Length ?? 0 ) > 0);
+      }
+
+      private static (ConstructorInfo, Object[]) GetTaskConstructorInfo(
+         NuGetAssemblyResolver resolver,
+         Type type
+         )
+      {
+         var ctors = type
+#if !NET45
+            .GetTypeInfo()
+#endif
+            .GetConstructors();
+         ConstructorInfo matchingCtor = null;
+         Object[] ctorParams = null;
+         if ( ctors.Length > 0 )
+         {
+            var ctorInfo = new Dictionary<Int32, IDictionary<ISet<Type>, ConstructorInfo>>();
+            foreach ( var ctor in ctors )
+            {
+               var paramz = ctor.GetParameters();
+               ctorInfo
+                  .GetOrAdd_NotThreadSafe( paramz.Length, pl => new Dictionary<ISet<Type>, ConstructorInfo>( SetEqualityComparer<Type>.DefaultEqualityComparer ) )
+                  .Add( new HashSet<Type>( paramz.Select( p => p.ParameterType ) ), ctor );
+            }
+
+            TNuGetPackageResolverCallback nugetResolveCallback = ( packageID, packageVersion, assemblyPath ) => resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath );
+            TAssemblyByPathResolverCallback pathResolveCallback = ( assemblyPath ) => resolver.LoadOtherAssembly( assemblyPath );
+
+            if (
+               ctorInfo.TryGetValue( 2, out var curInfo )
+               && curInfo.TryGetValue( new HashSet<Type>() { typeof( TNuGetPackageResolverCallback ), typeof( TAssemblyByPathResolverCallback ) }, out matchingCtor )
+               )
+            {
+               ctorParams = new Object[2];
+               ctorParams[Array.FindIndex( matchingCtor.GetParameters(), p => p.ParameterType.Equals( typeof( TNuGetPackageResolverCallback ) ) )] = nugetResolveCallback;
+               ctorParams[Array.FindIndex( matchingCtor.GetParameters(), p => p.ParameterType.Equals( typeof( TAssemblyByPathResolverCallback ) ) )] = pathResolveCallback;
+            }
+            else if ( ctorInfo.TryGetValue( 1, out curInfo ) )
+            {
+               if ( curInfo.TryGetValue( new HashSet<Type>( typeof( TNuGetPackageResolverCallback ).Singleton() ), out matchingCtor ) )
+               {
+                  ctorParams = new Object[] { nugetResolveCallback };
+               }
+               else if ( curInfo.TryGetValue( new HashSet<Type>( typeof( TAssemblyByPathResolverCallback ).Singleton() ), out matchingCtor ) )
+               {
+                  ctorParams = new Object[] { pathResolveCallback };
+               }
+            }
+            else if ( ctorInfo.TryGetValue( 0, out curInfo ) )
+            {
+               matchingCtor = curInfo.Values.First();
+            }
+         }
+
+         if ( matchingCtor == null )
+         {
+            throw new Exception( $"No public suitable constructors found for type {type.AssemblyQualifiedName}." );
+         }
+
+         return (matchingCtor, ctorParams);
+      }
+
+      private static Boolean IsMBFAssembly( AssemblyName an )
+      {
+         switch ( an.Name )
+         {
+            case "Microsoft.Build":
+            case "Microsoft.Build.Framework":
+            case "Microsoft.Build.Tasks.Core":
+            case "Microsoft.Build.Utilities.Core":
+               return true;
+            default:
+               return false;
+         }
+      }
    }
 
    // Instances of this class reside in target task app domain, so we must be careful not to use any UtilPack stuff here! So no ArgumentValidator. etc.
@@ -870,6 +893,7 @@ namespace UtilPack.NuGet.MSBuild
          return ((WrappedPropertyKind) ( ( encoded & 0xF8 ) >> 3 ), (WrappedPropertyInfo) ( ( encoded & 0x03 ) ));
 
       }
+
    }
 
    // Instances of this class reside in task factory app domain.
@@ -1009,10 +1033,6 @@ namespace UtilPack.NuGet.MSBuild
          System.Threading.Interlocked.Exchange( ref this._be, be );
       }
    }
-
-   internal delegate IEnumerable<String> GetFileItemsDelegate( LockFileTargetLibrary targetLibrary, Lazy<IDictionary<String, LockFileLibrary>> libraries );
-
-
 
 #if NET45
    [Serializable] // We want to be serializable instead of MarshalByRef as we want to copy these objects
@@ -1182,387 +1202,4 @@ namespace UtilPack.NuGet.MSBuild
       Out
    }
 
-   internal abstract class CommonAssemblyRelatedHelper : IDisposable
-   {
-      private readonly ConcurrentDictionary<String, ConcurrentDictionary<String, Lazy<Assembly>>> _assemblyPathsBySimpleName; // We will get multiple requests to load same assembly, so cache them
-      //private readonly String _thisAssemblyName;
-      protected readonly NuGetResolverWrapper _resolver;
-      private readonly String _targetAssemblyPath;
-      private readonly String _taskName;
-
-      protected CommonAssemblyRelatedHelper(
-         IDictionary<String, ISet<String>> assemblyPathsBySimpleName,
-         NuGetResolverWrapper resolver,
-         String targetAssemblyPath,
-         String taskName
-         )
-      {
-         this._assemblyPathsBySimpleName = new ConcurrentDictionary<String, ConcurrentDictionary<String, Lazy<Assembly>>>( assemblyPathsBySimpleName.Select(
-            kvp => new KeyValuePair<String, ConcurrentDictionary<String, Lazy<Assembly>>>(
-               kvp.Key,
-               new ConcurrentDictionary<String, Lazy<Assembly>>( kvp.Value.Select( fullPath => new KeyValuePair<String, Lazy<Assembly>>( fullPath, new Lazy<Assembly>( () => this.LoadAssemblyFromPath( fullPath ), System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) ) ) )
-               )
-            ) );
-         this._resolver = resolver;
-         this._targetAssemblyPath = targetAssemblyPath;
-         this._taskName = taskName;
-      }
-
-      public virtual void Dispose()
-      {
-         this._assemblyPathsBySimpleName.Clear();
-         this._resolver.Resolver.DisposeSafely();
-      }
-
-      internal protected Assembly PerformAssemblyResolve( AssemblyName assemblyName )
-      {
-         Assembly retVal;
-         if ( this._assemblyPathsBySimpleName.TryGetValue( assemblyName.Name, out var assemblyLazies ) )
-         {
-            retVal = assemblyLazies.FirstOrDefault( kvp =>
-            {
-               var defName = kvp.Value.IsValueCreated ? kvp.Value.Value.GetName() :
-#if !NET45
-               System.Runtime.Loader.AssemblyLoadContext
-#else
-               AssemblyName
-#endif
-               .GetAssemblyName( kvp.Key );
-
-               return AssemblyNamesMatch( assemblyName, defName );
-            } ).Value?.Value;
-
-            this.LogResolveMessage( retVal == null ?
-               $"Assembly reference did not match definition for \"{assemblyName}\", considered \"{String.Join( ";", assemblyLazies.Keys )}\"." :
-               $"Found \"{assemblyName}\" by simple name \"{assemblyName.Name}\" in \"{retVal.CodeBase}\"." );
-         }
-         else
-         {
-            this.LogResolveMessage( $"Failed to find \"{assemblyName}\" by simple name \"{assemblyName.Name}\"." );
-            retVal = null;
-         }
-         return retVal;
-      }
-
-      private static Boolean AssemblyNamesMatch(
-         AssemblyName reference,
-         AssemblyName definition
-         )
-      {
-         String refStr; String defStr;
-         if ( reference.Flags.HasFlag( AssemblyNameFlags.Retargetable ) )
-         {
-            refStr = reference.Name;
-            defStr = definition.Name;
-         }
-         else
-         {
-            refStr = reference.FullName;
-            defStr = reference.FullName;
-         }
-
-         return String.Equals( refStr, defStr );
-      }
-
-      internal protected (Type, ConstructorInfo, Object[], Boolean) LoadTaskType()
-      {
-         var taskAssembly = this.PerformAssemblyResolve(
-#if !NET45
-            System.Runtime.Loader.AssemblyLoadContext.GetAssemblyName
-#else
-            AssemblyName.GetAssemblyName
-#endif
-            ( this._targetAssemblyPath )
-            );
-
-         var taskType = taskAssembly.GetType( this._taskName, false, false );
-
-         (var taskCtor, var ctorParameters) = this.GetTaskConstructorInfo( taskType );
-
-         return (taskType, taskCtor, ctorParameters, ( ctorParameters?.Length ?? 0 ) > 0);
-      }
-
-      private (ConstructorInfo, Object[]) GetTaskConstructorInfo(
-         Type type
-         )
-      {
-         var ctors = type
-#if !NET45
-            .GetTypeInfo()
-#endif
-            .GetConstructors();
-         ConstructorInfo matchingCtor = null;
-         Object[] ctorParams = null;
-         if ( ctors.Length > 0 )
-         {
-            var ctorInfo = new Dictionary<Int32, IDictionary<ISet<Type>, ConstructorInfo>>();
-
-            foreach ( var ctor in ctors )
-            {
-               var paramz = ctor.GetParameters();
-               ctorInfo
-                  .GetOrAdd_NotThreadSafe( paramz.Length, pl => new Dictionary<ISet<Type>, ConstructorInfo>( SetEqualityComparer<Type>.DefaultEqualityComparer ) )
-                  .Add( new HashSet<Type>( paramz.Select( p => p.ParameterType ) ), ctor );
-            }
-
-            if (
-               ctorInfo.TryGetValue( 2, out var curInfo )
-               && curInfo.TryGetValue( new HashSet<Type>() { typeof( TNuGetPackageResolverCallback ), typeof( TAssemblyByPathResolverCallback ) }, out matchingCtor )
-               )
-            {
-               ctorParams = new Object[2];
-               ctorParams[Array.FindIndex( matchingCtor.GetParameters(), p => p.ParameterType.Equals( typeof( TNuGetPackageResolverCallback ) ) )] = (TNuGetPackageResolverCallback) this.LoadNuGetAssembly;
-               ctorParams[Array.FindIndex( matchingCtor.GetParameters(), p => p.ParameterType.Equals( typeof( TAssemblyByPathResolverCallback ) ) )] = (TAssemblyByPathResolverCallback) this.LoadOtherAssembly;
-            }
-            else if ( ctorInfo.TryGetValue( 1, out curInfo ) )
-            {
-               if ( curInfo.TryGetValue( new HashSet<Type>( typeof( TNuGetPackageResolverCallback ).Singleton() ), out matchingCtor ) )
-               {
-                  ctorParams = new Object[] { (TNuGetPackageResolverCallback) this.LoadNuGetAssembly };
-               }
-               else if ( curInfo.TryGetValue( new HashSet<Type>( typeof( TAssemblyByPathResolverCallback ).Singleton() ), out matchingCtor ) )
-               {
-                  ctorParams = new Object[] { (TAssemblyByPathResolverCallback) this.LoadOtherAssembly };
-               }
-            }
-            else if ( ctorInfo.TryGetValue( 0, out curInfo ) )
-            {
-               matchingCtor = curInfo.Values.First();
-            }
-         }
-
-         if ( matchingCtor == null )
-         {
-            throw new Exception( $"No public suitable constructors found for type {type.AssemblyQualifiedName}." );
-         }
-
-         return (matchingCtor, ctorParams);
-      }
-
-      // This method can get called by target task to dynamically load nuget assemblies.
-      private async System.Threading.Tasks.Task<Assembly> LoadNuGetAssembly(
-         String packageID,
-         String packageVersion,
-         String assemblyPath
-         )
-      {
-         // TODO Path.GetFileNameWithoutExtension( curPath ) should be replaced with AssemblyName.GetAssemblyName( String path ) for kinky situations when assembly name is with different casing than its file name.
-         // Obviously, this slows down things by a lot, and will change data structures a bit, but it should be done at some point.
-
-         var assemblyInfos = await
-#if NET45
-            this.UseResolver( packageID, packageVersion )
-#else
-            this._resolver.ResolveNuGetPackageAssemblies( packageID, packageVersion )
-#endif
-            ;
-
-         Assembly retVal = null;
-         if ( assemblyInfos != null )
-         {
-            var assembliesBySimpleName = this._assemblyPathsBySimpleName;
-            foreach ( var kvp in assemblyInfos )
-            {
-               foreach ( var nugetAssemblyPath in kvp.Value.Assemblies )
-               {
-                  var curPath = nugetAssemblyPath;
-                  assembliesBySimpleName
-                     .GetOrAdd( Path.GetFileNameWithoutExtension( curPath ), sn => new ConcurrentDictionary<String, Lazy<Assembly>>() )
-                     .TryAdd( curPath, new Lazy<Assembly>( () => this.LoadAssemblyFromPath( curPath ), System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) );
-               }
-            }
-
-            var possibleAssemblyPaths = assemblyInfos[packageID];
-            assemblyPath = CommonHelpers.GetAssemblyPathFromNuGetAssemblies( possibleAssemblyPaths.Assemblies, possibleAssemblyPaths.PackageDirectory, assemblyPath );
-            if ( !String.IsNullOrEmpty( assemblyPath ) )
-            {
-               retVal = assembliesBySimpleName
-                  [Path.GetFileNameWithoutExtension( assemblyPath )]
-                  [assemblyPath]
-                  .Value;
-            }
-         }
-
-         return retVal;
-      }
-
-      // This method can get called by target task to dynamically load assemblies by path.
-      private Assembly LoadOtherAssembly(
-         String assemblyPath
-         )
-      {
-         assemblyPath = Path.GetFullPath( assemblyPath );
-         Assembly retVal = null;
-         if ( File.Exists( assemblyPath ) )
-         {
-            retVal = this._assemblyPathsBySimpleName
-               .GetOrAdd( Path.GetFileNameWithoutExtension( assemblyPath ), ap => new ConcurrentDictionary<String, Lazy<Assembly>>() )
-               .GetOrAdd( assemblyPath, ap => new Lazy<Assembly>( () => this.LoadAssemblyFromPath( ap ), System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) )
-               .Value;
-         }
-         return retVal;
-      }
-
-      protected abstract void LogResolveMessage( String message );
-
-      protected abstract Assembly LoadAssemblyFromPath( String path );
-
-      public Boolean IsMBFAssembly( AssemblyName an )
-      {
-         switch ( an.Name )
-         {
-            case "Microsoft.Build":
-            case "Microsoft.Build.Framework":
-            case "Microsoft.Build.Tasks.Core":
-            case "Microsoft.Build.Utilities.Core":
-               return true;
-            default:
-               return false;
-         }
-      }
-
-
-#if NET45
-
-      private System.Threading.Tasks.Task<TResolveResult> UseResolver(
-         String packageID,
-         String packageVersion
-         )
-      {
-         var setter = new MarshaledResultSetter<TResolveResult>();
-         this._resolver.ResolveNuGetPackageAssemblies( packageID, packageVersion, setter );
-         return setter.Task;
-      }
-#endif
-
-   }
-
-#if NET45
-
-   internal sealed class MarshaledResultSetter<T> : MarshalByRefObject
-   {
-      private readonly System.Threading.Tasks.TaskCompletionSource<T> _tcs;
-
-      public MarshaledResultSetter()
-      {
-         this._tcs = new System.Threading.Tasks.TaskCompletionSource<T>();
-      }
-
-      public void SetResult( T result ) => this._tcs.SetResult( result );
-      public System.Threading.Tasks.Task<T> Task => this._tcs.Task;
-   }
-
-#endif
-
-
-   // Instances of this class reside in task factory app domain.
-   internal sealed class NuGetResolverWrapper
-#if NET45
-      : MarshalByRefObject
-#endif
-   {
-
-      private readonly GetFileItemsDelegate _getFiles;
-
-      public NuGetResolverWrapper(
-         BoundRestoreCommandUser resolver,
-         GetFileItemsDelegate getFiles
-         )
-      {
-         this.Resolver = resolver;
-         this._getFiles = getFiles;
-      }
-
-      public
-#if NET45
-         void
-#else
-         System.Threading.Tasks.Task<TResolveResult>
-#endif
-         ResolveNuGetPackageAssemblies(
-         String packageID,
-         String packageVersion
-#if NET45
-         , MarshaledResultSetter<TResolveResult> setter
-#endif
-         )
-      {
-#if NET45
-         var task = this.PerformResolve( packageID, packageVersion );
-         task.ContinueWith( prevTask =>
-         {
-            try
-            {
-               var dic = prevTask.Result;
-               setter.SetResult( dic );
-            }
-            catch
-            {
-               setter.SetResult( null );
-            }
-         } );
-
-#else
-         return this.PerformResolve( packageID, packageVersion );
-#endif
-      }
-
-      private async System.Threading.Tasks.Task<TResolveResult> PerformResolve(
-         String packageID,
-         String packageVersion
-         )
-      {
-         return await this.Resolver.ResolveNuGetPackages( packageID, packageVersion, this._getFiles );
-      }
-
-      public BoundRestoreCommandUser Resolver { get; }
-   }
-}
-
-internal static class E_UtilPack
-{
-   public static async ValueTask<TResolveResult> ResolveNuGetPackages(
-      this BoundRestoreCommandUser restorer,
-      String packageID,
-      String version,
-      GetFileItemsDelegate fileGetter = null
-   )
-   {
-      var lockFile = await restorer.RestoreIfNeeded( packageID, version );
-
-      // We will always have only one target, since we are running restore always against one target framework
-      var retVal = new Dictionary<String, ResolvedPackageInfo>();
-      if ( fileGetter == null )
-      {
-         fileGetter = ( ( lib, libs ) => lib.RuntimeAssemblies.Select( i => i.Path ) );
-      }
-      var libDic = new Lazy<IDictionary<String, LockFileLibrary>>( () =>
-      {
-         return lockFile.Libraries.ToDictionary( lib => lib.Name, lib => lib );
-      }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
-
-      foreach ( var targetLib in lockFile.Targets[0].Libraries )
-      {
-         var curLib = targetLib;
-         var targetLibFullPath = lockFile.PackageFolders
-            .Select( f =>
-            {
-               return restorer.LocalRepositories.TryGetValue( f.Path, out var curRepo ) ?
-                  Path.Combine( curRepo.RepositoryRoot, curRepo.PathResolver.GetPackageDirectory( curLib.Name, curLib.Version ) ) :
-                  null;
-            } )
-            .FirstOrDefault( fp => !String.IsNullOrEmpty( fp ) && Directory.Exists( fp ) );
-         if ( !String.IsNullOrEmpty( targetLibFullPath ) )
-         {
-            retVal.Add( curLib.Name, new ResolvedPackageInfo(
-               targetLibFullPath,
-               fileGetter( curLib, libDic )
-                  ?.Select( p => Path.Combine( targetLibFullPath, p ) )
-                  ?.ToArray() ?? Empty<String>.Array
-               ) );
-         }
-      }
-
-      return retVal;
-   }
 }

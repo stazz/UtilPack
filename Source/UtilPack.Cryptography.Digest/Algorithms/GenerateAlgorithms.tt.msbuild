@@ -54,7 +54,7 @@ namespace UtilPack.Cryptography.Digest
    public sealed class <#= algIDString #> : AbstractDisposable, BlockDigestAlgorithm
    {
       private const Int32 BLOCK_SIZE = <#= blockSize #>;
-      private const Int32 DIGEST_BYTE_COUNT = <#= GetDigestByteCount( algID ) #>;
+      public const Int32 DIGEST_BYTE_COUNT = <#= GetDigestByteCount( algID ) #>;
       private const Int32 STATE_SIZE = <#= GetStateArrayLength( algID ) #>;
       private const Int32 EXPANDED_STATE_SIZE = <#= expandedSize #>;
 
@@ -167,7 +167,7 @@ namespace UtilPack.Cryptography.Digest
                      // 3. Copy in the remaining data
                      if ( count > 0 )
                      {
-                        Buffer.BlockCopy( data, offset, this._block, 0, count );
+                        Buffer.BlockCopy( data, offset, this._block, blockOffset, count );
                      }
 <#
    if ( useUnsafe )

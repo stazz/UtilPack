@@ -17,7 +17,7 @@ The task factory is used from the project file in the following way:
     This reference is needed in order to use the task factory.
     The UtilPack.NuGet.MSBuild has no dependencies and no lib folder, so it should be very transparent.
     -->
-    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="1.0.0-RC4"/>
+    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="1.0.0-RC7"/>
   </ItemGroup>
 
   <!-- 
@@ -79,10 +79,11 @@ Since code related to both usecases is already implemented in ```UtilPack.NuGet.
 Furthermore, assembly loading is radically different .NET Desktop and .NET Core.
 
 This is why the task executed by ```UtilPack.NuGet.MSBuild``` task factory may declare a constructor which takes one or both of the following arguments, in no specific order:
-* ```Func<String, String, String, Task<Assembly>>```: The callback to asynchronously load assembly from NuGet package, and
+* ```Func<String[], String[], String[], Task<Assembly[]>>```: The callback to asynchronously load assemblies from multiple NuGet packages,
+* ```Func<String, String, String, Task<Assembly>>```: The callback to asynchronously load single assembly from single NuGet package, and
 * ```Func<String, Assembly>```: The callback to load assembly from path.
 
-The NuGet package loader callback has the following parameters, in the following order:
+The NuGet package loader callback has the following parameters, in the following order (the callback to load from multiple NuGet packages has the same parameters, but each type is an array, the meaning still the same):
 * ```String packageID```: The NuGet package ID, required.
 * ```String packageVersion```: The NuGet package version, optional (newest will be used if not specified). Should be [version range](https://docs.microsoft.com/en-us/nuget/create-packages/dependency-versions#version-ranges).
 * ```String assemblyPath```: The path within package home folder where the assembly resides. May be ```null``` or empty if the package only has one assembly.

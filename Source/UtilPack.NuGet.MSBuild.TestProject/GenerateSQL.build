@@ -11,7 +11,7 @@
     This reference is needed for UtilPackNuGetMSBuildAssemblyPath property.
     The UtilPack.NuGet.MSBuild has no dependencies and no lib folder, so it should be very transparent.
     -->
-    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="1.0.0-RC4"/>
+    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="1.0.0-RC7"/>
   </ItemGroup>
   
   <!-- 
@@ -30,7 +30,7 @@
         <!-- This element is mandatory, and should be the package ID of the package containing MSBuild task to be executed. -->
         <PackageID>SQLGenerator.MSBuild</PackageID>
         <!-- Optionally specify the version. By default, newest will be used. Note that leaving this out will cause NuGet restore to always scan all sources. -->
-        <PackageVersion>1.0.0-RC1</PackageVersion>
+        <PackageVersion>1.0.0-RC2</PackageVersion>
         <!-- Optionally specify the assembly path of the task DLL -->
         <!--<AssemblyPath>lib/netstandard1.3/X.Y.dll</AssemblyPath>-->
         <!-- Optionally specify NuGet configuration file -->
@@ -54,7 +54,7 @@
     <!-- Use our generator assembly as loadable assembly since we don't want to publish it to NuGet. -->
     <SQLGenerator.MSBuild.WriteSQLFileTask
       VendorPackageID="SQLGenerator.PostgreSQL"
-      VendorPackageVersion="1.0.0-RC1"
+      VendorPackageVersion="1.0.0-RC2"
       GeneratorAssemblyPath="$(MSBuildThisFileDirectory)\DemoSQLGenerator\bin\Debug\netstandard1.0\DemoSQLGenerator.dll"
       OutputFile="$(MSBuildThisFileDirectory)\output.sql"
     />

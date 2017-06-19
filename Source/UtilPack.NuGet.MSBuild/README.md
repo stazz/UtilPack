@@ -78,7 +78,7 @@ Sometimes the task may need to dynamically load a NuGet package assembly, or ano
 Since code related to both usecases is already implemented in ```UtilPack.NuGet.MSBuild``` task factory, there is no point duplicating it in your task.
 Furthermore, assembly loading is radically different .NET Desktop and .NET Core.
 
-This is why the task executed by ```UtilPack.NuGet.MSBuild``` task factory may declare a constructor which takes one or both of the following arguments, in no specific order:
+This is why the task executed by ```UtilPack.NuGet.MSBuild``` task factory may declare a constructor which takes one or some or all of the following arguments, in no specific order:
 * ```Func<String[], String[], String[], Task<Assembly[]>>```: The callback to asynchronously load assemblies from multiple NuGet packages,
 * ```Func<String, String, String, Task<Assembly>>```: The callback to asynchronously load single assembly from single NuGet package, and
 * ```Func<String, Assembly>```: The callback to load assembly from path.

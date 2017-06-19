@@ -104,8 +104,3 @@ The Restore command also takes care of downloading any missing packages.
 
 In order to seamlessly integrate into the build, all required assemblies are placed under ```build/net45``` and ```build/netcoreapp1.1``` folders, so that the package would not have any dependencies.
 Furthermore, the ```build``` folder contains the ```.props``` file, which will setup the property ```UtilPackNuGetMSBuildAssemblyPath``` pointing to correct (Desktop or Core, depending which version of MSBuild is executing the project file) assembly containing the task factory.
-
-# TODO
-CommonAssemblyHelper should accept IEnumerable<String> as full paths to all "visible" assemblies.
-The .NET core should filter out from here all platform assemblies.
-Then CAH should use ConcurrentDictionary<AssemblyName, ConcurrentDictionary<AssemblyName, Lazy<Assembly>>> as its assembly dictionary.

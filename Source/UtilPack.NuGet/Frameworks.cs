@@ -27,6 +27,7 @@ using NuGet.Versioning;
 using NuGet.Common;
 using UtilPack.NuGet;
 using UtilPack;
+using NuGet.Configuration;
 
 namespace UtilPack.NuGet
 {
@@ -84,6 +85,48 @@ namespace UtilPack.NuGet
 #endif
          }
          return retVal ?? NuGetFramework.AnyFramework;
+      }
+
+      /// <summary>
+      /// Helper method to get NuGet <see cref="ISettings"/> object from multiple potential NuGet configuration file locations.
+      /// </summary>
+      /// <param name="potentialConfigFileLocations">The potential configuration file locations. Will be traversed in given order.</param>
+      /// <returns>A <see cref="ISettings"/> loaded from first specified configuration file location, or <see cref="ISettings"/> loaded using defaults if no potential configuration file locations are specified (array is <c>null</c>, empty, or contains only <c>null</c>s).</returns>
+      public static ISettings GetNuGetSettings(
+         params String[] potentialConfigFileLocations
+         ) => GetNuGetSettingsWithDefaultRootDirectory( null, potentialConfigFileLocations );
+
+      /// <summary>
+      /// Helper method to get Nuget <see cref="ISettings"/> object from multiple potential NuGet configuration file locations, and use specified root directory if none of them work.
+      /// </summary>
+      /// <param name="rootDirectory">The root directory if none of the <paramref name="potentialConfigFileLocations"/> are valid.</param>
+      /// <param name="potentialConfigFileLocations">The potential configuration file locations. Will be traversed in given order.</param>
+      /// <returns>A <see cref="ISettings"/> loaded from first specified configuration file location, or <see cref="ISettings"/> loaded using defaults if no potential configuration file locations are specified (array is <c>null</c>, empty, or contains only <c>null</c>s).</returns>
+      public static ISettings GetNuGetSettingsWithDefaultRootDirectory(
+         String rootDirectory,
+         params String[] potentialConfigFileLocations
+         )
+      {
+         ISettings nugetSettings = null;
+         if ( !potentialConfigFileLocations.IsNullOrEmpty() )
+         {
+            for ( var i = 0; i < potentialConfigFileLocations.Length && nugetSettings == null; ++i )
+            {
+               var curlocation = potentialConfigFileLocations[i];
+               if ( !String.IsNullOrEmpty( curlocation ) )
+               {
+                  var fp = Path.GetFullPath( curlocation );
+                  nugetSettings = Settings.LoadSpecificSettings( Path.GetDirectoryName( fp ), Path.GetFileName( fp ) );
+               }
+            }
+         }
+
+         if ( nugetSettings == null )
+         {
+            nugetSettings = Settings.LoadDefaultSettings( rootDirectory, null, new XPlatMachineWideSetting() );
+         }
+
+         return nugetSettings;
       }
 
 

@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.5;net45</TargetFrameworks>
+    <TargetFramework>netstandard1.3</TargetFramework>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -8,16 +9,15 @@
     <TreatSpecificWarningsAsErrors />
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
   </PropertyGroup>
-  
-  <ItemGroup>
-    <PackageReference Include="System.ValueTuple" Version="4.3.1" />
-  </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' != 'net45'">
-    <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="15.1.1012" />
+    <PackageReference Include="NuGet.Commands" Version="4.0.0" />
+    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="1.0.0-RC7" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\UtilPack.NuGet.Common.MSBuild\UtilPack.NuGet.Common.MSBuild.csproj" />
     <ProjectReference Include="..\UtilPack.NuGet\UtilPack.NuGet.csproj" />
   </ItemGroup>
 
@@ -28,9 +28,9 @@
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <AssemblyTitle>UtilPack.NuGet.AssemblyLoading</AssemblyTitle>
+    <AssemblyTitle>UtilPack.NuGet.Push.MSBuild</AssemblyTitle>
     <Product>UtilPack</Product>
-    <Description>Library containing NuGetAssemblyResolver interface, which provides uniform way for both .NET Desktop and Core to dynamically load assemblies from NuGet packages and dependencies.</Description>
+    <Description>MSBuild task to push packages. Most suitable to use in rapid development builds, where each build should propagate to (local) NuGet feed.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>
     <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
   </PropertyGroup>
@@ -45,7 +45,7 @@
   <PropertyGroup Condition=" '$(Configuration)' == 'Release'">
     <DebugType>none</DebugType>
     <DebugSymbols>False</DebugSymbols>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!--<GenerateDocumentationFile>true</GenerateDocumentationFile>-->
   </PropertyGroup>
 
   <!-- NuGet package stuff -->
@@ -55,8 +55,8 @@
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
-    <PackageTags>utility nuget extensions dynamically load assembly</PackageTags>
-    <Title>NuGet Assembly Resolving Helper</Title>
+    <PackageTags>utility nuget extensions nuget msbuild push</PackageTags>
+    <Title>MSBuild Task to Push NuGet Packages</Title>
     <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>
     <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
     <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>

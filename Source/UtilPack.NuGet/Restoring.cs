@@ -246,10 +246,13 @@ namespace UtilPack.NuGet
 
          foreach ( var tuple in targets )
          {
-            spec.Dependencies.Add( new LibraryDependency()
+            if ( !String.IsNullOrEmpty( tuple.ID ) )
             {
-               LibraryRange = new LibraryRange( tuple.ID, tuple.Version, LibraryDependencyTarget.Package )
-            } );
+               spec.Dependencies.Add( new LibraryDependency()
+               {
+                  LibraryRange = new LibraryRange( tuple.ID, tuple.Version, LibraryDependencyTarget.Package )
+               } );
+            }
          }
          return spec;
       }

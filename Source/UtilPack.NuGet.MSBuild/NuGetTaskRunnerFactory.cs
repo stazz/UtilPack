@@ -50,6 +50,7 @@ using UtilPack.NuGet;
 using UtilPack.NuGet.MSBuild;
 using UtilPack;
 using UtilPack.NuGet.AssemblyLoading;
+using UtilPack.NuGet.Common.MSBuild;
 
 namespace UtilPack.NuGet.MSBuild
 {
@@ -172,122 +173,139 @@ namespace UtilPack.NuGet.MSBuild
          IBuildEngine taskFactoryLoggingHost
          )
       {
-         this._logger = taskFactoryLoggingHost;
-
-         var taskBodyElement = XElement.Parse( taskBody );
-
-         // Nuget stuff
-         var thisFW = UtilPackNuGetUtility.TryAutoDetectThisProcessFramework( (taskBodyElement.Element( NUGET_FW )?.Value, taskBodyElement.Element( NUGET_FW_VERSION )?.Value) );
-
-         String nugetConfig;
-         ISettings nugetSettings;
-         if ( String.IsNullOrEmpty( ( nugetConfig = taskBodyElement.Element( "NuGetConfigurationFile" )?.Value ) ) )
-         {
-            nugetSettings = Settings.LoadDefaultSettings( Path.GetDirectoryName( taskFactoryLoggingHost.ProjectFileOfTaskNode ), null, new XPlatMachineWideSetting() );
-         }
-         else
-         {
-            var fp = Path.GetFullPath( nugetConfig );
-            nugetSettings = Settings.LoadSpecificSettings( Path.GetDirectoryName( fp ), Path.GetFileName( fp ) );
-         }
-
-         var nugetLogger = new NuGetMSBuildLogger( taskFactoryLoggingHost );
-         var nugetResolver = new BoundRestoreCommandUser(
-            nugetSettings,
-            thisFramework: thisFW,
-            nugetLogger: nugetLogger
-            );
-
-
-         // Restore task package
-         String packageID;
-         var restoreResult = nugetResolver.RestoreIfNeeded(
-            ( packageID = taskBodyElement.Element( PACKAGE_ID )?.Value ),
-            taskBodyElement.Element( "PackageVersion" )?.Value
-            ).GetAwaiter().GetResult();
          var retVal = false;
-         String packageVersion;
-         if ( restoreResult != null
-            && !String.IsNullOrEmpty( ( packageVersion = restoreResult.Libraries.Where( lib => String.Equals( lib.Name, packageID ) ).FirstOrDefault()?.Version?.ToNormalizedString() ) )
-            )
+         try
          {
-            GetFileItemsDelegate getFiles = ( lib, libs ) => GetSuitableFiles( thisFW, lib, libs );
-            var taskAssemblies = nugetResolver.ExtractAssemblyPaths(
-               restoreResult,
-               getFiles
-               )[packageID];
-            var assemblyPath = NuGetAssemblyResolverUtility.GetAssemblyPathFromNuGetAssemblies(
-               taskAssemblies.Assemblies,
-               taskAssemblies.PackageDirectory,
-               taskBodyElement.Element( "AssemblyPath" )?.Value
+            this._logger = taskFactoryLoggingHost;
+
+            var taskBodyElement = XElement.Parse( taskBody );
+
+            // Nuget stuff
+            var thisFW = UtilPackNuGetUtility.TryAutoDetectThisProcessFramework( (taskBodyElement.ElementAnyNS( NUGET_FW )?.Value, taskBodyElement.ElementAnyNS( NUGET_FW_VERSION )?.Value) );
+
+            var nugetSettings = UtilPackNuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
+               Path.GetDirectoryName( taskFactoryLoggingHost.ProjectFileOfTaskNode ),
+               taskBodyElement.ElementAnyNS( "NuGetConfigurationFile" )?.Value
                );
-            if ( !String.IsNullOrEmpty( assemblyPath ) )
+            var nugetLogger = new NuGetMSBuildLogger(
+               "NR0001",
+               "NR0002",
+               "NR0003",
+               this.FactoryName,
+               this.FactoryName,
+               taskFactoryLoggingHost
+               );
+            var nugetResolver = new BoundRestoreCommandUser(
+               nugetSettings,
+               thisFramework: thisFW,
+               nugetLogger: nugetLogger
+               );
+
+
+            // Restore task package
+            String packageID;
+            var restoreResult = nugetResolver.RestoreIfNeeded(
+               ( packageID = taskBodyElement.ElementAnyNS( PACKAGE_ID )?.Value ),
+               taskBodyElement.ElementAnyNS( "PackageVersion" )?.Value
+               ).GetAwaiter().GetResult();
+            String packageVersion;
+            if ( restoreResult != null
+               && !String.IsNullOrEmpty( ( packageVersion = restoreResult.Libraries.Where( lib => String.Equals( lib.Name, packageID ) ).FirstOrDefault()?.Version?.ToNormalizedString() ) )
+               )
             {
-               var resolverWrapper = new NuGetRestorerWrapper( nugetResolver, getFiles );
-               taskName = this.ProcessTaskName( taskBodyElement, taskName );
+               GetFileItemsDelegate getFiles = ( lib, libs ) => GetSuitableFiles( thisFW, lib, libs );
+               var taskAssemblies = nugetResolver.ExtractAssemblyPaths(
+                  restoreResult,
+                  getFiles
+                  )[packageID];
+               var assemblyPath = NuGetAssemblyResolverUtility.GetAssemblyPathFromNuGetAssemblies(
+                  taskAssemblies.Assemblies,
+                  taskAssemblies.PackageDirectory,
+                  taskBodyElement.ElementAnyNS( "AssemblyPath" )?.Value
+                  );
+               if ( !String.IsNullOrEmpty( assemblyPath ) )
+               {
+                  var resolverWrapper = new NuGetRestorerWrapper( nugetResolver, getFiles );
+                  taskName = this.ProcessTaskName( taskBodyElement, taskName );
 #if !NET45
                var platformFrameworkPaths = nugetResolver.RestoreIfNeeded(
-                  taskBodyElement.Element( NUGET_FW_PACKAGE_ID )?.Value ?? "Microsoft.NETCore.App", // This value is hard-coded in Microsoft.NET.Sdk.Common.targets, and currently no proper API exists to map NuGetFrameworks into package ID (+ version combination).
-                  taskBodyElement.Element( NUGET_FW_PACKAGE_VERSION )?.Value ?? "1.1.2"
+                  taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_ID )?.Value ?? "Microsoft.NETCore.App", // This value is hard-coded in Microsoft.NET.Sdk.Common.targets, and currently no proper API exists to map NuGetFrameworks into package ID (+ version combination).
+                  taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_VERSION )?.Value ?? "1.1.2"
                ).GetAwaiter().GetResult();
 #endif
 
-               this._helper = LazyFactory.NewReadOnlyResettableLazy( () =>
-               {
-                  var tempFolder = Path.Combine( Path.GetTempPath(), "NuGetAssemblies_" + packageID + "_" + packageVersion + "_" + ( Guid.NewGuid().ToString() ) );
-                  Directory.CreateDirectory( tempFolder );
+                  this._helper = LazyFactory.NewReadOnlyResettableLazy( () =>
+                  {
+                     var tempFolder = Path.Combine( Path.GetTempPath(), "NuGetAssemblies_" + packageID + "_" + packageVersion + "_" + ( Guid.NewGuid().ToString() ) );
+                     Directory.CreateDirectory( tempFolder );
 
-                  return this.CreateExecutionHelper(
-                     taskName,
-                     taskBodyElement,
-                     packageID,
-                     packageVersion,
-                     assemblyPath,
-                     nugetResolver,
-                     new ResolverLogger( nugetLogger ),
-                     getFiles,
-                     tempFolder
+                     return this.CreateExecutionHelper(
+                        taskName,
+                        taskBodyElement,
+                        packageID,
+                        packageVersion,
+                        assemblyPath,
+                        nugetResolver,
+                        new ResolverLogger( nugetLogger ),
+                        getFiles,
+                        tempFolder
 #if !NET45
                      , platformFrameworkPaths
 #endif
                    );
-               }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
-               retVal = true;
+                  }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
+                  retVal = true;
+               }
+               else
+               {
+                  taskFactoryLoggingHost.LogErrorEvent(
+                     new BuildErrorEventArgs(
+                        "Task factory error",
+                        "NMSBT003",
+                        null,
+                        -1,
+                        -1,
+                        -1,
+                        -1,
+                        $"Failed to find suitable assembly in {packageID}@{packageVersion}.",
+                        null,
+                        this.FactoryName
+                     )
+                  );
+               }
             }
             else
             {
                taskFactoryLoggingHost.LogErrorEvent(
                   new BuildErrorEventArgs(
                      "Task factory error",
-                     "NMSBT003",
+                     "NMSBT002",
                      null,
                      -1,
                      -1,
                      -1,
                      -1,
-                     $"Failed to find suitable assembly in {packageID}@{packageVersion}.",
+                     $"Failed to find main package, check that you have suitable {PACKAGE_ID} element in task body and that package is installed.",
                      null,
                      this.FactoryName
                   )
                );
             }
          }
-         else
+         catch ( Exception exc )
          {
-            taskFactoryLoggingHost.LogErrorEvent(
-               new BuildErrorEventArgs(
-                  "Task factory error",
-                  "NMSBT002",
-                  null,
-                  -1,
-                  -1,
-                  -1,
-                  -1,
-                  $"Failed to find main package, check that you have suitable {PACKAGE_ID} element in task body and that package is installed.",
-                  null,
-                  this.FactoryName
-               )
-            );
+            taskFactoryLoggingHost.LogErrorEvent( new BuildErrorEventArgs(
+               "Task factory error",
+               "NMSBT003",
+               null,
+               -1,
+               -1,
+               -1,
+               -1,
+               $"Exception in initialization: {exc}",
+               null,
+               this.FactoryName
+               ) );
          }
          return retVal;
       }
@@ -346,7 +364,7 @@ namespace UtilPack.NuGet.MSBuild
          String taskName
          )
       {
-         var overrideTaskName = taskBodyElement.Element( "TaskName" )?.Value;
+         var overrideTaskName = taskBodyElement.ElementAnyNS( "TaskName" )?.Value;
          return String.IsNullOrEmpty( overrideTaskName ) ? taskName : taskName;
       }
 
@@ -994,7 +1012,7 @@ namespace UtilPack.NuGet.MSBuild
          if ( be != null && Interlocked.CompareExchange( ref this._state, TASK_BE_INITIALIZING, INITIAL ) == INITIAL )
          {
             Interlocked.Exchange( ref this._be, be );
-            this._nugetLogger.SetBuildEngine( null );
+            this._nugetLogger.BuildEngine = null;
          }
       }
 
@@ -1003,7 +1021,7 @@ namespace UtilPack.NuGet.MSBuild
       {
          if ( Interlocked.CompareExchange( ref this._state, TASK_BE_READY, TASK_BE_INITIALIZING ) == TASK_BE_INITIALIZING )
          {
-            this._nugetLogger.SetBuildEngine( this._be );
+            this._nugetLogger.BuildEngine = this._be;
             // process all queued messages
             foreach ( var msg in this._queuedMessages )
             {
@@ -1039,70 +1057,7 @@ namespace UtilPack.NuGet.MSBuild
       }
    }
 
-   internal sealed class NuGetMSBuildLogger : global::NuGet.Common.ILogger
-   {
-      private const String CAT = "NuGetRestore";
 
-      private IBuildEngine _be;
-
-      public NuGetMSBuildLogger( IBuildEngine be )
-      {
-         this._be = be;
-      }
-
-      public void LogDebug( String data )
-      {
-         var args = new BuildMessageEventArgs( "[NuGet Debug]: " + data, null, CAT, MessageImportance.Low );
-         this._be.LogMessageEvent( args );
-      }
-
-      public void LogError( String data )
-      {
-         var args = new BuildErrorEventArgs( CAT, "NR0001", null, -1, -1, -1, -1, "[NuGet Error]: " + data, null, CAT );
-         this._be.LogErrorEvent( args );
-      }
-
-      public void LogErrorSummary( String data )
-      {
-         var args = new BuildErrorEventArgs( CAT, "NR0002", null, -1, -1, -1, -1, "[NuGet ErrorSummary]: " + data, null, CAT );
-         this._be.LogErrorEvent( args );
-      }
-
-      public void LogInformation( String data )
-      {
-         var args = new BuildMessageEventArgs( "[NuGet Info]: " + data, null, CAT, MessageImportance.High );
-         this._be.LogMessageEvent( args );
-      }
-
-      public void LogInformationSummary( String data )
-      {
-         var args = new BuildMessageEventArgs( "[NuGet InfoSummary]: " + data, null, CAT, MessageImportance.High );
-         this._be.LogMessageEvent( args );
-      }
-
-      public void LogMinimal( String data )
-      {
-         var args = new BuildMessageEventArgs( "[NuGet Minimal]: " + data, null, CAT, MessageImportance.Low );
-         this._be.LogMessageEvent( args );
-      }
-
-      public void LogVerbose( String data )
-      {
-         var args = new BuildMessageEventArgs( "[NuGet Verbose]: " + data, null, CAT, MessageImportance.Normal );
-         this._be.LogMessageEvent( args );
-      }
-
-      public void LogWarning( String data )
-      {
-         var args = new BuildWarningEventArgs( CAT, "NR0003", null, -1, -1, -1, -1, "[NuGet Warning]: " + data, null, CAT );
-         this._be.LogWarningEvent( args );
-      }
-
-      public void SetBuildEngine( IBuildEngine be )
-      {
-         System.Threading.Interlocked.Exchange( ref this._be, be );
-      }
-   }
 
 #if NET45
    [Serializable] // We want to be serializable instead of MarshalByRef as we want to copy these objects
@@ -1272,4 +1227,30 @@ namespace UtilPack.NuGet.MSBuild
       Out
    }
 
+}
+
+public static partial class E_UtilPack
+{
+   // From https://stackoverflow.com/questions/1145659/ignore-namespaces-in-linq-to-xml
+   internal static IEnumerable<XElement> ElementsAnyNS<T>( this IEnumerable<T> source, String localName )
+      where T : XContainer
+   {
+      return source.Elements().Where( e => e.Name.LocalName == localName );
+   }
+
+   internal static XElement ElementAnyNS<T>( this IEnumerable<T> source, String localName )
+      where T : XContainer
+   {
+      return source.ElementsAnyNS( localName ).FirstOrDefault();
+   }
+
+   internal static IEnumerable<XElement> ElementsAnyNS( this XContainer source, String localName )
+   {
+      return source.Elements().Where( e => e.Name.LocalName == localName );
+   }
+
+   internal static XElement ElementAnyNS( this XContainer source, String localName )
+   {
+      return source.ElementsAnyNS( localName ).FirstOrDefault();
+   }
 }

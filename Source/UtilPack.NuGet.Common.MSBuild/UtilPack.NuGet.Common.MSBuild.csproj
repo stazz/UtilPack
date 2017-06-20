@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.5;net45</TargetFrameworks>
+    <TargetFramework>netstandard1.3</TargetFramework>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -8,17 +9,10 @@
     <TreatSpecificWarningsAsErrors />
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
   </PropertyGroup>
-  
-  <ItemGroup>
-    <PackageReference Include="System.ValueTuple" Version="4.3.1" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' != 'net45'">
-    <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
-  </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\UtilPack.NuGet\UtilPack.NuGet.csproj" />
+    <PackageReference Include="Microsoft.Build.Framework" Version="15.1.1012" />
+    <PackageReference Include="NuGet.Common" Version="4.0.0" />
   </ItemGroup>
 
   <!-- Assembly information stuff -->
@@ -28,9 +22,9 @@
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <AssemblyTitle>UtilPack.NuGet.AssemblyLoading</AssemblyTitle>
+    <AssemblyTitle>UtilPack.NuGet.Common.MSBuild</AssemblyTitle>
     <Product>UtilPack</Product>
-    <Description>Library containing NuGetAssemblyResolver interface, which provides uniform way for both .NET Desktop and Core to dynamically load assemblies from NuGet packages and dependencies.</Description>
+    <Description>Library containing some commonly used types (e.g. logger) for working with NuGet packages in MSBuild tasks.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>
     <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
   </PropertyGroup>
@@ -55,8 +49,8 @@
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
-    <PackageTags>utility nuget extensions dynamically load assembly</PackageTags>
-    <Title>NuGet Assembly Resolving Helper</Title>
+    <PackageTags>utility nuget extensions nuget msbuild</PackageTags>
+    <Title>Common NuGet Types for MSBuild Tasks</Title>
     <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>
     <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
     <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
@@ -70,5 +64,4 @@
   <Target Name="DeleteAssemblyInfoFile" BeforeTargets="CoreGenerateAssemblyInfo">
     <Delete Condition=" '$(Configuration)' == 'Release' " Files="$(IntermediateOutputPath)$(MSBuildProjectName).AssemblyInfo.cs" />
   </Target>
-
 </Project>

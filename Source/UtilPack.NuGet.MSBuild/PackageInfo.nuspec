@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
     <id>UtilPack.NuGet.MSBuild</id>
-    <version>1.0.0-RC7</version>
+    <version>1.0.0-RC8</version>
     <title>MSBuild Task Factory for NuGet-Oriented MSBuild Tasks</title>
     <authors>Stanislav Muhametsin</authors>
     <owners>Stanislav Muhametsin</owners>
@@ -10,7 +10,7 @@
     <licenseUrl>https://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
     <projectUrl>https://github.com/CometaSolutions/UtilPack</projectUrl>
     <description>Provides easy way to execute NuGet-based MSBuild tasks.</description>
-    <releaseNotes>The framework of currently running process is now detected in better way. The desktop version of task assembly now avoids loading certain assemblies in task app domain. The assemblies are now also copied to temporary folder in order to avoid locking assemblies located in package repository.</releaseNotes>
+    <releaseNotes>The .props file now also exists in "buildMultitargeting" folder - a feature not easily found on the web. The task element XML processing is now namespace-independant.</releaseNotes>
     <copyright>Stanislav Muhametsin</copyright>
     <tags>utility nuget extensions msbuild task package resolve</tags>
     <repository url="https://github.com/CometaSolutions/UtilPack" />

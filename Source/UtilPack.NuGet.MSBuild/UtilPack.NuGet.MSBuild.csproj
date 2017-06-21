@@ -47,6 +47,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="buildMultiTargeting\**">
+      <Pack>true</Pack>
+      <PackagePath>buildMultiTargeting\%(RecursiveDir)%(FileName)%(Extension)</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Include="..\UtilPack.NuGet.AssemblyLoading\NuGetAssemblyResolver.cs" Link="UtilPack.NuGet.AssembyLoading.NuGetAssemblyResolver.cs" />
     <Compile Include="..\UtilPack.NuGet\Frameworks.cs" Link="UtilPack.NuGet.Frameworks.cs" />
     <Compile Include="..\UtilPack.NuGet\Restoring.cs" Link="UtilPack.NuGet.Restoring.cs" />

@@ -17,7 +17,7 @@ The task factory is used from the project file in the following way:
     This reference is needed in order to use the task factory.
     The UtilPack.NuGet.MSBuild has no dependencies and no lib folder, so it should be very transparent.
     -->
-    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="1.0.0-RC7"/>
+    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="1.0.0-RC8"/>
   </ItemGroup>
 
   <!-- 

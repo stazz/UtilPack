@@ -24,5 +24,6 @@
     <file src="bin\Release\netcoreapp1.1\System.ValueTuple.dll" target="build\netcoreapp1.1\" />
     <file src="bin\Release\netcoreapp1.1\UtilPack.NuGet.MSBuild.dll" target="build\netcoreapp1.1\" />
     <file src="build\*.*" target="build\" />
+    <file src="buildMultiTargeting\*.*" target="buildMultiTargeting\" />
   </files>
 </package>

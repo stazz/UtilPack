@@ -32,7 +32,7 @@ using UtilPack.NuGet.Common.MSBuild;
 
 namespace UtilPack.NuGet.Push.MSBuild
 {
-   public class PushOnBuildTask : Microsoft.Build.Utilities.Task
+   public class PushTask : Microsoft.Build.Utilities.Task
    {
       public override Boolean Execute()
       {
@@ -63,8 +63,8 @@ namespace UtilPack.NuGet.Push.MSBuild
                "NP0001",
                "NP0002",
                "NP0003",
-               nameof( PushOnBuildTask ),
-               nameof( PushOnBuildTask ),
+               nameof( PushTask ),
+               nameof( PushTask ),
                this.BuildEngine
                );
 
@@ -98,6 +98,12 @@ namespace UtilPack.NuGet.Push.MSBuild
       {
          var skipOverwrite = sourceItem.GetMetadata( "SkipOverwriteLocalFeed" ).ParseAsBooleanSafe();
          var skipClearRepositories = sourceItem.GetMetadata( "SkipClearingLocalRepositories" ).ParseAsBooleanSafe();
+         var timeoutString = sourceItem.GetMetadata( "PushTimeout" );
+         if ( String.IsNullOrEmpty( timeoutString ) || !Int32.TryParse( timeoutString, out var timeout ) )
+         {
+            timeout = 1000;
+         }
+
          var source = sourceItem.ItemSpec;
 
          var sourceSpec = psp.LoadPackageSources().FirstOrDefault( s => String.Equals( s.Name, source ) );
@@ -118,7 +124,7 @@ namespace UtilPack.NuGet.Push.MSBuild
             null,
             null,
             null,
-            1000,
+            timeout,
             false,
             true,
             logger

@@ -38,6 +38,141 @@ namespace UtilPack.NuGet
    public static partial class UtilPackNuGetUtility
    {
       /// <summary>
+      /// Gets the matching assembly path from set of assembly paths, the expanded home path of the package, and optional assembly path from "outside world", e.g. configuration.
+      /// </summary>
+      /// <param name="assemblyPaths">All assembly paths to be considered from this package.</param>
+      /// <param name="packageExpandedPath">The package home directory path.</param>
+      /// <param name="optionalGivenAssemblyPath">Optional assembly path from "outside world", e.g. configuration.</param>
+      /// <returns>Best matched assembly path, or <c>null</c>.</returns>
+      public static String GetAssemblyPathFromNuGetAssemblies(
+         String[] assemblyPaths,
+         String packageExpandedPath,
+         String optionalGivenAssemblyPath
+         )
+      {
+         String assemblyPath = null;
+         if ( assemblyPaths.Length == 1 || (
+               assemblyPaths.Length > 1 // There is more than 1 possible assembly
+               && !String.IsNullOrEmpty( ( assemblyPath = optionalGivenAssemblyPath ) ) // AssemblyPath task property was given
+               && ( assemblyPath = Path.GetFullPath( ( Path.Combine( packageExpandedPath, assemblyPath ) ) ) ).StartsWith( packageExpandedPath ) // The given assembly path truly resides in the package folder
+               ) )
+         {
+            // TODO maybe check that assembly path is in possibleAssemblies array?
+            if ( assemblyPath == null )
+            {
+               assemblyPath = assemblyPaths[0];
+            }
+         }
+         return assemblyPath;
+      }
+
+      public const String SDK_PACKAGE_NETCORE = "Microsoft.NETCore.App";
+      public const String SDK_PACKAGE_NETSTANDARD = "NETStandard.Library";
+
+      public static String GetSDKPackageID( this NuGetFramework framework, String givenID = null )
+      {
+         // NuGet library should really have something like this method, or this information should be somewhere in repository
+         String id;
+         if ( !String.IsNullOrEmpty( givenID ) )
+         {
+            id = givenID;
+         }
+         else
+         {
+            id = framework.Framework;
+            if (
+               (
+                  String.Equals( id, FrameworkConstants.FrameworkIdentifiers.Net, StringComparison.OrdinalIgnoreCase )
+                  && framework.Version >= new Version( 4, 5 )
+               ) ||
+               String.Equals( id, FrameworkConstants.FrameworkIdentifiers.NetStandard, StringComparison.OrdinalIgnoreCase )
+               )
+            {
+               id = SDK_PACKAGE_NETSTANDARD;
+            }
+            else if ( String.Equals( id, FrameworkConstants.FrameworkIdentifiers.NetCoreApp, StringComparison.OrdinalIgnoreCase ) )
+            {
+               id = SDK_PACKAGE_NETCORE;
+            }
+            else
+            {
+               id = null;
+            }
+         }
+         return id;
+      }
+
+      public static String GetSDKPackageVersion( this NuGetFramework framework, String sdkPackageID, String givenVersion = null )
+      {
+         String retVal;
+         if ( !String.IsNullOrEmpty( givenVersion ) )
+         {
+            retVal = givenVersion;
+         }
+         else
+         {
+            switch ( sdkPackageID )
+            {
+               case SDK_PACKAGE_NETSTANDARD:
+                  retVal = "1.6.1";
+                  //if ( String.Equals( framework.Framework, FrameworkConstants.FrameworkIdentifiers.NetStandard, StringComparison.OrdinalIgnoreCase ) )
+                  //{
+                  //   retVal = framework.Version.ToString();
+                  //}
+                  //else
+                  //{
+                  //   // .NETFramework compatibility, see https://docs.microsoft.com/en-gb/dotnet/standard/net-standard
+                  //   var version = framework.Version;
+                  //   var minor = version.Minor;
+                  //   var build = version.Build;
+                  //   switch ( minor )
+                  //   {
+                  //      case 5:
+                  //         retVal = build == 0 ? "1.1" : "1.2";
+                  //         break;
+                  //      case 6:
+                  //         retVal = build == 0 ? "1.3" : ( build == 1 ? "1.4" : "1.5" );
+                  //         break;
+                  //      default:
+                  //         retVal = null;
+                  //         break;
+                  //   }
+                  //}
+                  break;
+               case SDK_PACKAGE_NETCORE:
+                  {
+                     var version = framework.Version;
+                     switch ( version.Major )
+                     {
+                        case 1:
+                           switch ( version.Minor )
+                           {
+                              case 0:
+                                 retVal = "1.0.5";
+                                 break;
+                              case 1:
+                                 retVal = "1.1.2";
+                                 break;
+                              default:
+                                 retVal = null;
+                                 break;
+                           }
+                           break;
+                        default:
+                           retVal = null;
+                           break;
+                     }
+                  }
+                  break;
+               default:
+                  retVal = null;
+                  break;
+            }
+         }
+         return retVal;
+      }
+
+      /// <summary>
       /// This is helper method to try and deduce the <see cref="NuGetFramework"/> representing the currently running process.
       /// If optional framework information is specified as parameter, this method will always return that information as wrapped around <see cref="NuGetFramework"/>.
       /// Otherwise, it will try deduce the required information from entry point assembly <see cref="System.Runtime.Versioning.TargetFrameworkAttribute"/> on desktop, and from <see cref="P:System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription"/> on core.
@@ -85,6 +220,66 @@ namespace UtilPack.NuGet
 #endif
          }
          return retVal ?? NuGetFramework.AnyFramework;
+      }
+
+      public static String TryAutoDetectThisProcessRuntimeIdentifier(
+         String givenRID = null
+         )
+      {
+
+         String retVal;
+         if ( !String.IsNullOrEmpty( givenRID ) )
+         {
+            retVal = givenRID;
+         }
+         else
+         {
+            // I wish these constants were in NuGet.Client library
+            const String WIN = "win";
+            const String UNIX = "unix";
+            const String OSX = "osx";
+#if NET45
+            switch ( Environment.OSVersion.Platform )
+            {
+               case PlatformID.Win32NT:
+               case PlatformID.Win32S:
+               case PlatformID.Win32Windows:
+               case PlatformID.WinCE:
+                  retVal = WIN;
+                  break;
+               case PlatformID.Unix:
+                  retVal = UNIX;
+                  break;
+               case PlatformID.MacOSX:
+                  retVal = OSX;
+                  break;
+               default:
+                  retVal = null;
+                  break;
+            }
+#else
+
+            if ( System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform( System.Runtime.InteropServices.OSPlatform.Windows ) )
+            {
+               retVal = WIN;
+            }
+            else if ( System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform( System.Runtime.InteropServices.OSPlatform.Linux ) )
+            {
+               retVal = UNIX;
+            }
+            else if ( System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform( System.Runtime.InteropServices.OSPlatform.OSX ) )
+            {
+               retVal = OSX;
+            }
+            else
+            {
+               retVal = null;
+            }
+#endif
+
+         }
+
+         return retVal;
       }
 
       /// <summary>

@@ -190,6 +190,7 @@ namespace UtilPack.NuGet.AssemblyLoading
       /// <param name="additionalCheckForDefaultLoader">The optional callback to check whether some assembly needs to be loaded using parent loader (the loader which loaded this assembly).</param>
       /// <param name="defaultGetFiles">The optional callback to give to <see cref="M:E_UtilPack.ExtractAssemblyPaths{TResult}(BoundRestoreCommandUser, LockFile, Func{string, IEnumerable{string}, TResult}, GetFileItemsDelegate)"/> method.</param>
       /// <param name="pathProcessor">The optional callback to process assembly path just before it is loaded. It can e.g. copy assembly to some temp folder in order to avoid locking assembly in package repository.</param>
+      /// <param name="knownSDKPackages">The package ID's of the packages which are known to be SDK packages. This will help with performance as less number of files will be read for <see cref="AssemblyName"/>.</param>
       /// <returns>A new instance of <see cref="NuGetAssemblyResolver"/>.</returns>
       /// <remarks>
       /// The created <see cref="System.Runtime.Loader.AssemblyLoadContext"/> and other resources will be cleared on calling <see cref="IDisposable.Dispose"/> method on returned <see cref="NuGetAssemblyResolver"/>.
@@ -220,9 +221,17 @@ namespace UtilPack.NuGet.AssemblyLoading
       {
          if ( defaultGetFiles == null )
          {
-            defaultGetFiles = ( targetLib, libs ) => targetLib.RuntimeAssemblies.Select( i => i.Path );
+            defaultGetFiles = UtilPackNuGetUtility.GetRuntimeAssembliesDelegate;
          }
-         var resolver = new NuGetRestorerWrapper( restorer, ( targetLib, libs ) => defaultGetFiles( targetLib, libs ).FilterUnderscores() );
+         var resolver = new NuGetRestorerWrapper(
+            restorer,
+            ( rid, targetLib, libs ) => defaultGetFiles( rid, targetLib, libs ).FilterUnderscores(),
+#if NET45
+            null
+#else
+            thisFrameworkRestoreResult.Libraries.Select( lib => lib.Name )
+#endif
+            );
 
          NuGetAssemblyResolver retVal;
 #if NET45
@@ -262,34 +271,7 @@ namespace UtilPack.NuGet.AssemblyLoading
    /// </summary>
    public static class NuGetAssemblyResolverUtility
    {
-      /// <summary>
-      /// Gets the matching assembly path from set of assembly paths, the expanded home path of the package, and optional assembly path from "outside world", e.g. configuration.
-      /// </summary>
-      /// <param name="assemblyPaths">All assembly paths to be considered from this package.</param>
-      /// <param name="packageExpandedPath">The package home directory path.</param>
-      /// <param name="optionalGivenAssemblyPath">Optional assembly path from "outside world", e.g. configuration.</param>
-      /// <returns>Best matched assembly path, or <c>null</c>.</returns>
-      public static String GetAssemblyPathFromNuGetAssemblies(
-         String[] assemblyPaths,
-         String packageExpandedPath,
-         String optionalGivenAssemblyPath
-         )
-      {
-         String assemblyPath = null;
-         if ( assemblyPaths.Length == 1 || (
-               assemblyPaths.Length > 1 // There is more than 1 possible assembly
-               && !String.IsNullOrEmpty( ( assemblyPath = optionalGivenAssemblyPath ) ) // AssemblyPath task property was given
-               && ( assemblyPath = Path.GetFullPath( ( Path.Combine( packageExpandedPath, assemblyPath ) ) ) ).StartsWith( packageExpandedPath ) // The given assembly path truly resides in the package folder
-               ) )
-         {
-            // TODO maybe check that assembly path is in possibleAssemblies array?
-            if ( assemblyPath == null )
-            {
-               assemblyPath = assemblyPaths[0];
-            }
-         }
-         return assemblyPath;
-      }
+
    }
 
 #if !NET45
@@ -317,7 +299,11 @@ namespace UtilPack.NuGet.AssemblyLoading
             );
          // .NET Core is package-based framework, so we need to find out which packages are part of framework, and which ones are actually client ones.
          this._frameworkAssemblySimpleNames = new HashSet<String>(
-            restorer.ExtractAssemblyPaths( thisFrameworkRestoreResult, ( lib, libs ) => lib.CompileTimeAssemblies.Select( i => i.Path ).FilterUnderscores() ).Values
+            restorer.ExtractAssemblyPaths(
+                  thisFrameworkRestoreResult,
+                  ( rid, lib, libs ) => lib.CompileTimeAssemblies.Select( i => i.Path ).FilterUnderscores(),
+                  null
+                  ).Values
                .SelectMany( p => p.Assemblies )
                .Select( p => Path.GetFileNameWithoutExtension( p ) ) // For framework assemblies, we can assume that file name without extension = assembly name
             );
@@ -615,7 +601,8 @@ namespace UtilPack.NuGet.AssemblyLoading
 #else
             this._resolver.Resolver.ExtractAssemblyPaths(
                await this._resolver.Resolver.RestoreIfNeeded( packageIDs.Select( ( p, idx ) => (p, packageVersions[idx]) ).ToArray() ),
-               this._resolver.GetFiles
+               this._resolver.GetFiles,
+               this._resolver.SDKPackageIDs
                )
 #endif
             ;
@@ -623,8 +610,6 @@ namespace UtilPack.NuGet.AssemblyLoading
             retVal = new Assembly[packageIDs.Length];
             if ( assemblyInfos != null )
             {
-               // TODO there is some performance optimizing here left to do, as not nearly all assembly names are actually used.
-               // .NET Core uses default loader for all system assemblies, and in .NET Desktop system assemblies are loaded from GAC.
                var assemblyNames = assemblyInfos.Values
                   .SelectMany( v => v.Assemblies )
                   .Distinct()
@@ -652,7 +637,7 @@ namespace UtilPack.NuGet.AssemblyLoading
                {
                   if ( assemblyInfos.TryGetValue( packageIDs[i], out var possibleAssemblyPaths ) )
                   {
-                     var assemblyPath = NuGetAssemblyResolverUtility.GetAssemblyPathFromNuGetAssemblies(
+                     var assemblyPath = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
                         possibleAssemblyPaths.Assemblies,
                         possibleAssemblyPaths.PackageDirectory,
                         assemblyPaths[i]
@@ -800,11 +785,13 @@ namespace UtilPack.NuGet.AssemblyLoading
 
       public NuGetRestorerWrapper(
          BoundRestoreCommandUser resolver,
-         GetFileItemsDelegate getFiles
+         GetFileItemsDelegate getFiles,
+         IEnumerable<String> sdkPackages
          )
       {
          this.Resolver = resolver;
          this.GetFiles = getFiles;
+         this.SDKPackageIDs = sdkPackages?.ToList();
       }
 
 #if NET45
@@ -821,7 +808,7 @@ namespace UtilPack.NuGet.AssemblyLoading
             try
             {
                var result = prevTask.Result;
-               setter.SetResult( this.Resolver.ExtractAssemblyPaths( result, this.GetFiles ) );
+               setter.SetResult( this.Resolver.ExtractAssemblyPaths( result, this.GetFiles, this.SDKPackageIDs ) );
             }
             catch
             {
@@ -846,6 +833,8 @@ namespace UtilPack.NuGet.AssemblyLoading
 #endif
          GetFileItemsDelegate GetFiles
       { get; }
+
+      public IReadOnlyList<String> SDKPackageIDs { get; }
    }
 
 
@@ -889,13 +878,15 @@ public static partial class E_UtilPack
    internal static TResolveResult ExtractAssemblyPaths(
       this BoundRestoreCommandUser restorer,
       LockFile lockFile,
-      GetFileItemsDelegate fileGetter = null
+      GetFileItemsDelegate fileGetter,
+      IEnumerable<String> sdkPackages
    )
    {
       return restorer.ExtractAssemblyPaths(
          lockFile,
          ( packageFolder, filePaths ) => new ResolvedPackageInfo( packageFolder, filePaths.ToArray() ),
-         fileGetter
+         fileGetter: fileGetter,
+         filterablePackages: sdkPackages
          );
    }
 

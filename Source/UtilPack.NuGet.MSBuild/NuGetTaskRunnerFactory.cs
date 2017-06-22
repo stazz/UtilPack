@@ -94,8 +94,9 @@ namespace UtilPack.NuGet.MSBuild
       private const String ASSEMBLY_PATH = "AssemblyPath";
       private const String NUGET_FW = "NuGetFramework";
       private const String NUGET_FW_VERSION = "NuGetFrameworkVersion";
-      internal const String NUGET_FW_PACKAGE_ID = "NuGetFrameworkPackageID";
-      internal const String NUGET_FW_PACKAGE_VERSION = "NuGetFrameworkPackageVersion";
+      private const String NUGET_FW_PACKAGE_ID = "NuGetFrameworkPackageID";
+      private const String NUGET_FW_PACKAGE_VERSION = "NuGetFrameworkPackageVersion";
+      //private const String KNOWN_SDK_PACKAGE = "KnownSDKPackage";
 
       // We will re-create anything that needs re-creating between mutiple task usages from this same lazy.
       private ReadOnlyResettableLazy<TaskReferenceHolderInfo> _helper;
@@ -203,37 +204,47 @@ namespace UtilPack.NuGet.MSBuild
 
 
             // Restore task package
+            // TODO cancellation token source + cancel on Ctrl-C (since Inititalize method offers no support for asynchrony/cancellation)
             String packageID;
             var restoreResult = nugetResolver.RestoreIfNeeded(
                ( packageID = taskBodyElement.ElementAnyNS( PACKAGE_ID )?.Value ),
-               taskBodyElement.ElementAnyNS( "PackageVersion" )?.Value
+               taskBodyElement.ElementAnyNS( PACKAGE_VERSION )?.Value
                ).GetAwaiter().GetResult();
             String packageVersion;
             if ( restoreResult != null
                && !String.IsNullOrEmpty( ( packageVersion = restoreResult.Libraries.Where( lib => String.Equals( lib.Name, packageID ) ).FirstOrDefault()?.Version?.ToNormalizedString() ) )
                )
             {
-               GetFileItemsDelegate getFiles = ( lib, libs ) => GetSuitableFiles( thisFW, lib, libs );
+               GetFileItemsDelegate getFiles = ( rid, lib, libs ) => GetSuitableFiles( thisFW, rid, lib, libs );
+               // On Desktop we must always load everything, since it's possible to have assemblies compiled against .NET Standard having references to e.g. System.IO.FileSystem.dll, which is not present in GAC
+#if NET45
+               String[] sdkPackages = null;
+#else
+
+               var sdkPackageID = thisFW.GetSDKPackageID( taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_ID )?.Value );
+               // Some packages (e.g. Microsoft.Build.Utilities.Core) are a bit weird - they have direct dependencies to SDK packages (e.g. System.AppContext)
+               // So we can't really trust just to start from entrypoint packages and filter out the given filterable packages
+               // We must recursively get full set of packages of sdk package, and use those as filterable packages
+               var sdkRestoreResult = nugetResolver.RestoreIfNeeded(
+                     sdkPackageID,
+                     thisFW.GetSDKPackageVersion( sdkPackageID, taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_VERSION )?.Value )
+                     ).GetAwaiter().GetResult();
+               var sdkPackages = sdkRestoreResult.Libraries.Select( lib => lib.Name ).ToArray();
+#endif
+
                var taskAssemblies = nugetResolver.ExtractAssemblyPaths(
                   restoreResult,
-                  getFiles
+                  getFiles,
+                  sdkPackages
                   )[packageID];
-               var assemblyPath = NuGetAssemblyResolverUtility.GetAssemblyPathFromNuGetAssemblies(
+               var assemblyPath = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
                   taskAssemblies.Assemblies,
                   taskAssemblies.PackageDirectory,
-                  taskBodyElement.ElementAnyNS( "AssemblyPath" )?.Value
+                  taskBodyElement.ElementAnyNS( ASSEMBLY_PATH )?.Value
                   );
                if ( !String.IsNullOrEmpty( assemblyPath ) )
                {
-                  var resolverWrapper = new NuGetRestorerWrapper( nugetResolver, getFiles );
                   taskName = this.ProcessTaskName( taskBodyElement, taskName );
-#if !NET45
-               var platformFrameworkPaths = nugetResolver.RestoreIfNeeded(
-                  taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_ID )?.Value ?? "Microsoft.NETCore.App", // This value is hard-coded in Microsoft.NET.Sdk.Common.targets, and currently no proper API exists to map NuGetFrameworks into package ID (+ version combination).
-                  taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_VERSION )?.Value ?? "1.1.2"
-               ).GetAwaiter().GetResult();
-#endif
-
                   this._helper = LazyFactory.NewReadOnlyResettableLazy( () =>
                   {
                      var tempFolder = Path.Combine( Path.GetTempPath(), "NuGetAssemblies_" + packageID + "_" + packageVersion + "_" + ( Guid.NewGuid().ToString() ) );
@@ -250,7 +261,7 @@ namespace UtilPack.NuGet.MSBuild
                         getFiles,
                         tempFolder
 #if !NET45
-                     , platformFrameworkPaths
+                     , sdkRestoreResult
 #endif
                    );
                   }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
@@ -312,18 +323,15 @@ namespace UtilPack.NuGet.MSBuild
 
       private static IEnumerable<String> GetSuitableFiles(
          NuGetFramework thisFramework,
+         String runtimeIdentifier,
          LockFileTargetLibrary targetLibrary,
          Lazy<IDictionary<String, LockFileLibrary>> libraries
          )
       {
-         var runtime = targetLibrary.RuntimeAssemblies;
-         IEnumerable<String> retVal;
-         if ( runtime.Count > 0 )
+         var retVal = UtilPackNuGetUtility.GetRuntimeAssembliesDelegate( runtimeIdentifier, targetLibrary, libraries );
+         if ( !retVal.Any() && libraries.Value.TryGetValue( targetLibrary.Name, out var lib ) )
          {
-            retVal = runtime.Select( i => i.Path );
-         }
-         else if ( libraries.Value.TryGetValue( targetLibrary.Name, out var lib ) )
-         {
+
             // targetLibrary does not list stuff like build/net45/someassembly.dll
             // So let's do manual matching
             var fwGroups = lib.Files.Where( f =>
@@ -350,10 +358,6 @@ namespace UtilPack.NuGet.MSBuild
                thisFramework,
                g => g.TargetFramework );
             retVal = matchingGroup?.Items;
-         }
-         else
-         {
-            retVal = null;
          }
 
          return retVal;
@@ -683,7 +687,7 @@ namespace UtilPack.NuGet.MSBuild
          return tb.
 #if NET45
             CreateType()
-#else 
+#else
             CreateTypeInfo().AsType()
 #endif
             ;

@@ -21,6 +21,11 @@ using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.IO;
+using System.Reflection;
+using NuGet.Frameworks;
+using UtilPack.ProcessMonitor;
+using UtilPack.NuGet.Deployment;
 
 namespace UtilPack.NuGet.ProcessRunner
 {
@@ -30,36 +35,57 @@ namespace UtilPack.NuGet.ProcessRunner
       {
          var retVal = -1;
 
-         InitializationConfiguration initConfig = null;
-         MonitoringConfiguration monitorConfig = null;
+         DeploymentConfiguration deployConfig = null;
+         DefaultMonitoringConfiguration monitorConfig = null;
+         NuGetConfiguration nugetConfig = null;
          try
          {
             var config = new ConfigurationBuilder()
                .AddCommandLine( args )
                .Build();
-            initConfig = config.Get<InitializationConfiguration>();
-            monitorConfig = config.Get<MonitoringConfiguration>();
+            deployConfig = config.Get<DefaultDeploymentConfiguration>();
+            monitorConfig = config.Get<DefaultMonitoringConfiguration>();
+            nugetConfig = config.Get<NuGetConfiguration>();
          }
          catch ( Exception exc )
          {
             Console.Error.WriteLine( $"Error with reading configuration, please check your command line parameters! ({exc.Message})" );
          }
 
-         if ( initConfig != null && monitorConfig != null )
+         if ( deployConfig != null && monitorConfig != null && nugetConfig != null )
          {
+            var source = new CancellationTokenSource();
             try
             {
-               var source = new CancellationTokenSource();
+
                Console.CancelKeyPress += ( s, e ) =>
                {
                   e.Cancel = true;
                   source.Cancel();
                };
 
+
+               var targetDirectory = Path.Combine( Path.GetTempPath(), "NuGetProcess_" + Guid.NewGuid().ToString() );
+
                // Initialization step - restore needed packages, copy required files, etc
-               (var assemblyPath, var framework) = new Initialization( initConfig )
-                  .PerformInitializationAsync( source.Token )
-                  .GetAwaiter().GetResult();
+               (var assemblyPath, var framework) = new NuGetDeployment( deployConfig )
+                  .DeployAsync(
+                     UtilPackNuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
+                        Path.GetDirectoryName( new Uri( typeof( Program ).GetTypeInfo().Assembly.CodeBase ).LocalPath ),
+                        nugetConfig.NuGetConfigurationFile
+                     ),
+                     targetDirectory,
+                     token: source.Token,
+                     logger: new TextWriterLogger( new TextWriterLoggerOptions()
+                     {
+                        DebugWriter = null
+                     } )
+                     ).GetAwaiter().GetResult();
+
+               if ( framework != null && String.IsNullOrEmpty( monitorConfig.ToolPath ) )
+               {
+                  monitorConfig.ToolPath = TryAutoDetectTool( framework );
+               }
 
                Console.Write( $"\n\nInitialization is complete, starting process located in {assemblyPath}.\n\n" );
 
@@ -70,25 +96,15 @@ namespace UtilPack.NuGet.ProcessRunner
                // The Microsoft.Extensions.Configuration will only see one argument with the example arguments:
                // /ProcessArgument:MyArg=34 /ProcessArgument:MyArg:Test=35
                // So we need to parse these ourselves
-               using ( var monitoring = new Monitoring(
+               var monitoring = new ProcessMonitor.ProcessMonitor(
                   monitorConfig,
                   args.Where( arg => arg.StartsWith( PROCESS_ARG_PREFIX ) )
                   .Select( arg => arg.Substring( PROCESS_ARG_PREFIX.Length ) )
-                  ) )
-               {
-                  try
-                  {
-                     monitoring.KeepMonitoringAsync( assemblyPath, framework, source.Token ).GetAwaiter().GetResult();
-                  }
-                  finally
-                  {
-                     // Make sure to stop the target process if this process is e.g. killed
-                     if ( !source.IsCancellationRequested )
-                     {
-                        source.Cancel();
-                     }
-                  }
-               }
+                  );
+               monitoring.MonitorAsync(
+                  assemblyPath,
+                  source.Token
+                  ).GetAwaiter().GetResult();
 
                retVal = 0;
             }
@@ -97,6 +113,38 @@ namespace UtilPack.NuGet.ProcessRunner
                Console.Error.WriteLine( $"An error occurred: {exc.Message}." );
                retVal = -2;
             }
+            finally
+            {
+               // Make sure to stop the target process if this process is e.g. killed
+               if ( !source.IsCancellationRequested )
+               {
+                  source.Cancel();
+               }
+            }
+         }
+
+         return retVal;
+      }
+
+      private static String TryAutoDetectTool( NuGetFramework targetFW )
+      {
+         String retVal;
+         if ( targetFW.IsDesktop() )
+         {
+            retVal = null;
+         }
+         else
+         {
+            switch ( targetFW.Framework )
+            {
+               case FrameworkConstants.FrameworkIdentifiers.NetCoreApp:
+                  retVal = "dotnet";
+                  break;
+               default:
+                  retVal = null;
+                  break;
+
+            }
          }
 
          return retVal;
@@ -104,33 +152,8 @@ namespace UtilPack.NuGet.ProcessRunner
 
    }
 
-
-   public class InitializationConfiguration
+   public class NuGetConfiguration
    {
-      public String ProcessPackageID { get; set; }
-      public String ProcessPackageVersion { get; set; }
-      public String ProcessAssemblyPath { get; set; }
-
       public String NuGetConfigurationFile { get; set; }
-
-      public String ProcessFrameworkPackageID { get; set; }
-      public String ProcessFrameworkPackageVersion { get; set; }
-      public DeploymentKind DeploymentKind { get; set; }
-   }
-
-   public class MonitoringConfiguration
-   {
-      public String ToolPath { get; set; }
-      public String ProcessArgumentPrefix { get; set; } = "/";
-
-      public String ShutdownSemaphoreProcessArgument { get; set; }
-      public TimeSpan ShutdownSemaphoreWaitTime { get; set; } = TimeSpan.FromSeconds( 1 );
-      public String RestartSemaphoreProcessArgument { get; set; }
-   }
-
-   public enum DeploymentKind
-   {
-      GenerateConfigFiles,
-      CopyNonSDKAssemblies
    }
 }

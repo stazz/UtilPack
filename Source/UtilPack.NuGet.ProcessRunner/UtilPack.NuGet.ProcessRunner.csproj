@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp1.1</TargetFramework>
+    <TargetFrameworks>netcoreapp1.1;net451</TargetFrameworks>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -14,12 +14,11 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="1.1.2" />
     <PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="1.1.2" />
-    <PackageReference Include="Microsoft.Extensions.DependencyModel" Version="1.1.2" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\UtilPack.Cryptography.Digest\UtilPack.Cryptography.Digest.csproj" />
-    <ProjectReference Include="..\UtilPack.NuGet\UtilPack.NuGet.csproj" />
+    <ProjectReference Include="..\UtilPack.NuGet.Deployment\UtilPack.NuGet.Deployment.csproj" />
+    <ProjectReference Include="..\UtilPack.ProcessMonitor\UtilPack.ProcessMonitor.csproj" />
   </ItemGroup>
 
 </Project>

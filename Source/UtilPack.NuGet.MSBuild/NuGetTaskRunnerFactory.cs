@@ -222,9 +222,6 @@ namespace UtilPack.NuGet.MSBuild
 #else
 
                var sdkPackageID = thisFW.GetSDKPackageID( taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_ID )?.Value );
-               // Some packages (e.g. Microsoft.Build.Utilities.Core) are a bit weird - they have direct dependencies to SDK packages (e.g. System.AppContext)
-               // So we can't really trust just to start from entrypoint packages and filter out the given filterable packages
-               // We must recursively get full set of packages of sdk package, and use those as filterable packages
                var sdkRestoreResult = nugetResolver.RestoreIfNeeded(
                      sdkPackageID,
                      thisFW.GetSDKPackageVersion( sdkPackageID, taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_VERSION )?.Value )
@@ -913,11 +910,11 @@ namespace UtilPack.NuGet.MSBuild
                      str => Convert.ChangeType( str, propType ) :
                      (Func<String, Object>) null;
                   return new TaskPropertyInfo(
-                  kvp.Value.Item1,
-                  kvp.Value.Item2,
-                  () => curProperty.GetMethod.Invoke( this._task, null ),
-                  val => curProperty.SetMethod.Invoke( this._task, new[] { val } ),
-                  converter
+                     kvp.Value.Item1,
+                     kvp.Value.Item2,
+                     () => curProperty.GetMethod.Invoke( this._task, null ),
+                     val => curProperty.SetMethod.Invoke( this._task, new[] { val } ),
+                     converter
                   );
                } );
 

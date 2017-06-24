@@ -190,7 +190,6 @@ namespace UtilPack.NuGet.AssemblyLoading
       /// <param name="additionalCheckForDefaultLoader">The optional callback to check whether some assembly needs to be loaded using parent loader (the loader which loaded this assembly).</param>
       /// <param name="defaultGetFiles">The optional callback to give to <see cref="M:E_UtilPack.ExtractAssemblyPaths{TResult}(BoundRestoreCommandUser, LockFile, Func{string, IEnumerable{string}, TResult}, GetFileItemsDelegate)"/> method.</param>
       /// <param name="pathProcessor">The optional callback to process assembly path just before it is loaded. It can e.g. copy assembly to some temp folder in order to avoid locking assembly in package repository.</param>
-      /// <param name="knownSDKPackages">The package ID's of the packages which are known to be SDK packages. This will help with performance as less number of files will be read for <see cref="AssemblyName"/>.</param>
       /// <returns>A new instance of <see cref="NuGetAssemblyResolver"/>.</returns>
       /// <remarks>
       /// The created <see cref="System.Runtime.Loader.AssemblyLoadContext"/> and other resources will be cleared on calling <see cref="IDisposable.Dispose"/> method on returned <see cref="NuGetAssemblyResolver"/>.

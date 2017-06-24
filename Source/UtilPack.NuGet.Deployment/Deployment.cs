@@ -34,9 +34,14 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace UtilPack.NuGet.ProcessRunner
+namespace UtilPack.NuGet.Deployment
 {
-   internal class Initialization
+   /// <summary>
+   /// This class contains configurable implementation for deploying NuGet packages.
+   /// Deploying in this context means restoring any missing packages, and copying and generating all the required files so that the package can be executed using <c>dotnet</c> tool.
+   /// This means that only one framework of the package will be used.
+   /// </summary>
+   public class NuGetDeployment
    {
       private const String RUNTIME_CONFIG_FW_NAME = "runtimeOptions.framework.name";
       private const String RUNTIME_CONFIG_FW_VERSION = "runtimeOptions.framework.version";
@@ -44,18 +49,31 @@ namespace UtilPack.NuGet.ProcessRunner
       private const String DEPS_EXTENSION = ".deps.json";
       private const String RUNTIME_CONFIG_EXTENSION = ".runtimeconfig.json";
 
-      private readonly InitializationConfiguration _config;
+      private readonly DeploymentConfiguration _config;
 
-      public Initialization( InitializationConfiguration config )
+      /// <summary>
+      /// Creates a new instance of <see cref="NuGetDeployment"/> with given <see cref="DeploymentConfiguration"/>.
+      /// </summary>
+      /// <param name="config">The deployment configuration.</param>
+      /// <exception cref="ArgumentNullException">If <paramref name="config"/> is <c>null</c>.</exception>
+      public NuGetDeployment( DeploymentConfiguration config )
       {
          this._config = ArgumentValidator.ValidateNotNull( nameof( config ), config );
       }
 
-      // Returns:
-      // Full path to target assembly, which should be all set up for execution
-      // Target NuGet framework
-      internal async Task<(String, NuGetFramework)> PerformInitializationAsync(
-         CancellationToken token
+      /// <summary>
+      /// Performs deployment asynchronously.
+      /// </summary>
+      /// <param name="nugetSettings">The NuGet settings to use.</param>
+      /// <param name="targetDirectory">The directory where to place required files.</param>
+      /// <param name="logger">The optional logger to use.</param>
+      /// <param name="token">The optional cancellation token to use.</param>
+      /// <returns>The full path to the assembly which should be executed, along with the resolved target framework as <see cref="NuGetFramework"/> object.</returns>
+      public async Task<(String, NuGetFramework)> DeployAsync(
+         ISettings nugetSettings,
+         String targetDirectory,
+         ILogger logger = null,
+         CancellationToken token = default( CancellationToken )
          )
       {
          var processConfig = this._config;
@@ -64,19 +82,15 @@ namespace UtilPack.NuGet.ProcessRunner
          NuGetFramework targetFW = null;
          using ( var sourceCache = new SourceCacheContext() )
          {
-            var logger = new TextWriterLogger( new TextWriterLoggerOptions()
+            if ( logger == null )
             {
-               DebugWriter = null
-            } );
-            var nugetSettings = UtilPackNuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
-               Path.GetDirectoryName( new Uri( typeof( Program ).GetTypeInfo().Assembly.CodeBase ).LocalPath ),
-               processConfig.NuGetConfigurationFile
-            );
+               logger = NullLogger.Instance;
+            }
 
             (var identity, var fwInfo, var entryPointAssembly) = await this.PerformInitialRestore(
                nugetSettings,
                sourceCache,
-               logger,
+               new InitialRestoreLoggerWrapper( logger ),
                token
                );
 
@@ -100,6 +114,8 @@ namespace UtilPack.NuGet.ProcessRunner
                      token
                      );
 
+                  CreateTargetDirectory( targetDirectory );
+
                   switch ( processConfig.DeploymentKind )
                   {
                      case DeploymentKind.GenerateConfigFiles:
@@ -115,7 +131,7 @@ namespace UtilPack.NuGet.ProcessRunner
                               runtimeConfig,
                               sdkPackageID,
                               sdkPackageVersion,
-                              CreateTargetPath()
+                              targetDirectory
                               );
                         }
                         else
@@ -127,7 +143,7 @@ namespace UtilPack.NuGet.ProcessRunner
                               runtimeConfig,
                               sdkPackageID,
                               sdkPackageVersion,
-                              CreateTargetPath()
+                              targetDirectory
                               );
                         }
                         break;
@@ -140,7 +156,7 @@ namespace UtilPack.NuGet.ProcessRunner
                            runtimeConfig,
                            sdkPackageID,
                            sdkPackageVersion,
-                           CreateTargetPath()
+                           targetDirectory
                            );
                         break;
                      default:
@@ -246,8 +262,7 @@ namespace UtilPack.NuGet.ProcessRunner
          sdkPackageID = UtilPackNuGetUtility.GetSDKPackageID( targetFramework, config.ProcessFrameworkPackageID ?? sdkPackageID );
          sdkPackageVersion = UtilPackNuGetUtility.GetSDKPackageVersion( targetFramework, sdkPackageID, config.ProcessFrameworkPackageVersion ?? sdkPackageVersion );
 
-         var sdkPackages = new HashSet<String>( lockFile.ComputeClosedSet(
-            lockFile.Targets[0],
+         var sdkPackages = new HashSet<String>( lockFile.Targets[0].GetAllDependencies(
             sdkPackageID.Singleton()
             )
             .Select( lib => lib.Name )
@@ -337,16 +352,16 @@ namespace UtilPack.NuGet.ProcessRunner
                      .Where( dep => allLibs.ContainsKey( dep.Id ) )
                      .Select( dep => new Dependency( dep.Id.ToLowerInvariant(), allLibs[dep.Id].Version.ToNormalizedString() ) ),
                    true,
-                   lib.Path, // Specify path even for EP package, if it happens to consist of multiple 
+                   lib.Path, // Specify path even for EP package, if it happens to consist of multiple assemblies
                    lib.Files.FirstOrDefault( f => f.EndsWith( "sha512" ) )
                    );
             } ),
-            Empty<RuntimeFallbacks>.Enumerable
+            Empty<RuntimeFallbacks>.Enumerable // TODO proper generation of this, prolly related to native stuff
             );
 
          // Copy EP Assembly
          var targetAssembly = Path.Combine( targetPath, Path.GetFileName( epAssemblyPath ) );
-         File.Copy( epAssemblyPath, targetAssembly );
+         File.Copy( epAssemblyPath, targetAssembly, true );
 
          // Write .deps.json file
          // The .deps.json extension is in Microsoft.Extensions.DependencyModel.DependencyContextLoader as a const field, but it is private... :/
@@ -418,11 +433,19 @@ namespace UtilPack.NuGet.ProcessRunner
          return targetAssemblyName;
       }
 
-      private static String CreateTargetPath()
+      private static void CreateTargetDirectory(
+         String targetDirectory
+         )
       {
-         var retVal = Path.Combine( Path.GetTempPath(), "NuGetProcess_" + Guid.NewGuid().ToString() );
-         Directory.CreateDirectory( retVal );
-         return retVal;
+         if ( String.IsNullOrEmpty( targetDirectory ) )
+         {
+            targetDirectory = Path.Combine( Path.GetTempPath(), "NuGetProcess_" + Guid.NewGuid() );
+         }
+
+         if ( !Directory.Exists( targetDirectory ) )
+         {
+            Directory.CreateDirectory( targetDirectory );
+         }
       }
 
       private static void WriteRuntimeConfigFile(
@@ -434,6 +457,7 @@ namespace UtilPack.NuGet.ProcessRunner
          )
       {
          // Unfortunately, there doesn't seem to be API for this like there is Microsoft.Extensions.DependencyModel for .deps.json file... :/
+         // So we need to directly manipulate JSON structure.
          if ( runtimeConfig == null )
          {
             runtimeConfig = new JObject();
@@ -460,14 +484,174 @@ namespace UtilPack.NuGet.ProcessRunner
 
          File.WriteAllText(
             Path.ChangeExtension( targetAssemblyPath, RUNTIME_CONFIG_EXTENSION ),
-            runtimeConfig.ToString( Formatting.Indented ), // Seems there is no way to write JTokens directly to stream
+            runtimeConfig.ToString( Formatting.Indented ), // Runtimeconfig is small file usually so just use this instead of filestream + textwriter + jsontextwriter combo.
             new UTF8Encoding( false, false ) // The Encoding.UTF8 emits byte order mark, which we don't want to do
             );
       }
    }
+
+   /// <summary>
+   /// This configuration provides a way to get information for deploying a single NuGet package.
+   /// </summary>
+   /// <seealso cref="DefaultDeploymentConfiguration"/>
+   public interface DeploymentConfiguration
+   {
+      /// <summary>
+      /// Gets the package ID of the package to be deployed.
+      /// </summary>
+      /// <value>The package ID of the package to be deployed.</value>
+      String ProcessPackageID { get; }
+
+      /// <summary>
+      /// Gets the package version of the package to be deployed.
+      /// </summary>
+      /// <value>The package version of the package to be deployed.</value>
+      /// <remarks>
+      /// If this property is <c>null</c> or empty string, then NuGet source will be queried for the newest version.
+      /// </remarks>
+      String ProcessPackageVersion { get; }
+
+      /// <summary>
+      /// Gets the path within the package where the entrypoint assembly resides.
+      /// </summary>
+      /// <value>The path within the package where the entrypoint assembly resides.</value>
+      /// <remarks>
+      /// This property will not be used for NuGet packages with only one assembly.
+      /// </remarks>
+      String ProcessAssemblyPath { get; }
+
+      /// <summary>
+      /// Gets the package ID of the SDK of the framework of the NuGet package.
+      /// </summary>
+      /// <value>The package ID of the SDK of the framework of the NuGet package.</value>
+      /// <remarks>
+      /// If this property is <c>null</c> or empty string, then <see cref="NuGetDeployment"/> will try to use automatic detection of SDK package ID.
+      /// </remarks>
+      String ProcessFrameworkPackageID { get; }
+
+      /// <summary>
+      /// Gets the package version of the SDK of the framework of the NuGet package.
+      /// </summary>
+      /// <value>The package version of the SDK of the framework of the NuGet package.</value>
+      /// <remarks>
+      /// If this property is <c>null</c> or empty string, then <see cref="NuGetDeployment"/> will try to use automatic detection of SDK package version.
+      /// </remarks>
+      String ProcessFrameworkPackageVersion { get; }
+
+      /// <summary>
+      /// Gets the deployment kind.
+      /// </summary>
+      /// <value>The deployment kind.</value>
+      /// <seealso cref="Deployment.DeploymentKind"/>
+      DeploymentKind DeploymentKind { get; }
+   }
+
+   /// <summary>
+   /// This enumeration controls which files are copied and generated during deployment process of <see cref="NuGetDeployment.DeployAsync"/>.
+   /// </summary>
+   public enum DeploymentKind
+   {
+      /// <summary>
+      /// This value indicates that only the entrypoint assembly will be copied to the target directory, and <c>.deps.json</c> file will be generated, along with <c>.runtimeconfig.json</c> file.
+      /// Those files will contain required information so that dotnet process will know to resolve dependency assemblies.
+      /// This way the IO load by the deployment process will be kept at minimum.
+      /// </summary>
+      GenerateConfigFiles,
+
+      /// <summary>
+      /// This value indicates that entrypoint assembly along with all the non-SDK dependencies will be copied to the target folder.
+      /// The <c>.deps.json</c> file will not be generated, but the <c>.runtimeconfig.json</c> file for .NET Core and <c>.exe.config</c> file for the .NET Desktop will be generated.
+      /// The IO load may become heavy in this scenario, since possibly a lot of files may need to be copied.
+      /// </summary>
+      CopyNonSDKAssemblies
+   }
+
+   /// <summary>
+   /// This class provides easy-to-use implementation of <see cref="DeploymentConfiguration"/>.
+   /// </summary>
+   public class DefaultDeploymentConfiguration : DeploymentConfiguration
+   {
+      /// <inheritdoc />
+      public String ProcessPackageID { get; set; }
+
+      /// <inheritdoc />
+      public String ProcessPackageVersion { get; set; }
+
+      /// <inheritdoc />
+      public String ProcessAssemblyPath { get; set; }
+
+      /// <inheritdoc />
+      public String ProcessFrameworkPackageID { get; set; }
+
+      /// <inheritdoc />
+      public String ProcessFrameworkPackageVersion { get; set; }
+
+      /// <inheritdoc />
+      public DeploymentKind DeploymentKind { get; set; }
+   }
+
+   // During initial restore, we get two error messages that package is not compatible with Agnostic framework, and we would like to suppress that error message
+   internal sealed class InitialRestoreLoggerWrapper : ILogger
+   {
+      private readonly ILogger _logger;
+
+      public InitialRestoreLoggerWrapper( ILogger logger )
+      {
+         this._logger = logger;
+      }
+
+      public void LogDebug( String data )
+      {
+         this._logger?.LogDebug( data );
+      }
+
+      public void LogError( String data )
+      {
+         if ( this._logger != null && !String.IsNullOrEmpty( data ) )
+         {
+            if (
+               data.IndexOf( "is not compatible with agnostic (Agnostic,Version=v0.0)." ) < 0
+               && data.IndexOf( "One or more packages are incompatible with Agnostic,Version=v0.0." ) < 0
+               )
+            {
+               this._logger.LogError( data );
+            }
+         }
+      }
+
+      public void LogErrorSummary( String data )
+      {
+         this._logger?.LogErrorSummary( data );
+      }
+
+      public void LogInformation( String data )
+      {
+         this._logger?.LogInformation( data );
+      }
+
+      public void LogInformationSummary( String data )
+      {
+         this._logger?.LogInformationSummary( data );
+      }
+
+      public void LogMinimal( String data )
+      {
+         this._logger?.LogMinimal( data );
+      }
+
+      public void LogVerbose( String data )
+      {
+         this._logger?.LogVerbose( data );
+      }
+
+      public void LogWarning( String data )
+      {
+         this._logger?.LogWarning( data );
+      }
+   }
 }
 
-public static class E_ProcessRunner
+internal static class E_UtilPack
 {
    internal static void SetToken( this JToken obj, String path, JToken value )
    {

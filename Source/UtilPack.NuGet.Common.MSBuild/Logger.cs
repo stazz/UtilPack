@@ -43,14 +43,14 @@ namespace UtilPack.NuGet.Common.MSBuild
       /// <param name="warningCode">The error code to use in <see cref="LogWarning(string)"/> method.</param>
       /// <param name="senderName">The sender name to use when logging.</param>
       /// <param name="subCategory">The sub category name to use when doing error and warning events.</param>
-      /// <param name="be">The optional <see cref="IBuildEngine"/> to use.</param>
+      /// <param name="be">The <see cref="IBuildEngine"/> to use. May be <c>null</c>.</param>
       public NuGetMSBuildLogger(
          String errorCode,
          String errorSummaryCode,
          String warningCode,
          String senderName,
          String subCategory,
-         IBuildEngine be = null
+         IBuildEngine be
          )
       {
          this._errorCode = errorCode;

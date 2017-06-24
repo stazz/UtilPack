@@ -66,9 +66,23 @@ namespace UtilPack.NuGet
          return assemblyPath;
       }
 
+      /// <summary>
+      /// The package ID for SDK package of framework <c>.NET Core App</c>. The value is <c>Microsoft.NETCore.App</c>.
+      /// </summary>
       public const String SDK_PACKAGE_NETCORE = "Microsoft.NETCore.App";
+
+      /// <summary>
+      /// The package ID for SDK package of framework <c>.NET Standard</c>. The value is <c>NETStandard.Library</c>.
+      /// </summary>
       public const String SDK_PACKAGE_NETSTANDARD = "NETStandard.Library";
 
+      /// <summary>
+      /// Gets the package ID of the SDK package for given framework. If the optional override is supplied, always returns that.
+      /// </summary>
+      /// <param name="framework">This <see cref="NuGetFramework"/>.</param>
+      /// <param name="givenID">The optional override.</param>
+      /// <returns>The value of <paramref name="givenID"/>, if it is non-<c>null</c> and not empty; otherwise tries to deduce the value from this <see cref="NuGetFramework"/>. Currently, returns value of <see cref="SDK_PACKAGE_NETSTANDARD"/> for .NET Standard and .NET Desktop frameworks, and <see cref="SDK_PACKAGE_NETCORE"/> for .NET Core frameworks.</returns>
+      /// <seealso cref="GetSDKPackageVersion"/>
       public static String GetSDKPackageID( this NuGetFramework framework, String givenID = null )
       {
          // NuGet library should really have something like this method, or this information should be somewhere in repository
@@ -102,6 +116,14 @@ namespace UtilPack.NuGet
          return id;
       }
 
+      /// <summary>
+      /// Gets the package version of the SDK package for given framework. If the optional override is supplied, always returns that.
+      /// </summary>
+      /// <param name="framework">This <see cref="NuGetFramework"/>.</param>
+      /// <param name="sdkPackageID">The package ID of the SDK package.</param>
+      /// <param name="givenVersion">The optional override.</param>
+      /// <returns>The value of <paramref name="givenVersion"/>, if it is non-<c>null</c> and not empty; otherwise tries to deduce the value from this <see cref="NuGetFramework"/> and <paramref name="sdkPackageID"/>.</returns>
+      /// <seealso cref="GetSDKPackageID"/>
       public static String GetSDKPackageVersion( this NuGetFramework framework, String sdkPackageID, String givenVersion = null )
       {
          String retVal;
@@ -222,6 +244,11 @@ namespace UtilPack.NuGet
          return retVal ?? NuGetFramework.AnyFramework;
       }
 
+      /// <summary>
+      /// Tries to automatically detect the runtime identifier of currently running process.
+      /// </summary>
+      /// <param name="givenRID">The optional override.</param>
+      /// <returns>The value of <paramref name="givenRID"/>, if it is non-<c>null</c> and not empty; otherwise tries to deduce the RID using framework library methods. In such cahse, the result is always one of <c>"win"</c>, <c>"linux"</c>, <c>"osx"</c>, or <c>null</c>.</returns>
       public static String TryAutoDetectThisProcessRuntimeIdentifier(
          String givenRID = null
          )

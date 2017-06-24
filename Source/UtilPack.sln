@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.13
+VisualStudioVersion = 15.0.26430.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack", "UtilPack\UtilPack.csproj", "{6023CF33-713A-471D-A58C-D59228E900A3}"
 EndProject
@@ -26,6 +26,12 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.NuGet.Common.MSBuild", "UtilPack.NuGet.Common.MSBuild\UtilPack.NuGet.Common.MSBuild.csproj", "{D277A436-1D02-4FBB-A12A-ADDCC058C647}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.NuGet.ProcessRunner", "UtilPack.NuGet.ProcessRunner\UtilPack.NuGet.ProcessRunner.csproj", "{3403D3A2-9397-42D9-A424-13702D563C9E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.NuGet.Deployment", "UtilPack.NuGet.Deployment\UtilPack.NuGet.Deployment.csproj", "{8DA594F2-424D-45C0-A159-F7B1C0D1F79C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.ProcessMonitor", "UtilPack.ProcessMonitor\UtilPack.ProcessMonitor.csproj", "{B5CBEA41-01E2-4496-BEE9-77D117695EF8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.NuGet.Deployment.MSBuild", "UtilPack.NuGet.Deployment.MSBuild\UtilPack.NuGet.Deployment.MSBuild.csproj", "{B0BE3461-258E-4ACA-AF2C-39F62F5C3966}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -81,6 +87,18 @@ Global
 		{3403D3A2-9397-42D9-A424-13702D563C9E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3403D3A2-9397-42D9-A424-13702D563C9E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3403D3A2-9397-42D9-A424-13702D563C9E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8DA594F2-424D-45C0-A159-F7B1C0D1F79C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8DA594F2-424D-45C0-A159-F7B1C0D1F79C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8DA594F2-424D-45C0-A159-F7B1C0D1F79C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8DA594F2-424D-45C0-A159-F7B1C0D1F79C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B5CBEA41-01E2-4496-BEE9-77D117695EF8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5CBEA41-01E2-4496-BEE9-77D117695EF8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5CBEA41-01E2-4496-BEE9-77D117695EF8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5CBEA41-01E2-4496-BEE9-77D117695EF8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B0BE3461-258E-4ACA-AF2C-39F62F5C3966}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B0BE3461-258E-4ACA-AF2C-39F62F5C3966}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B0BE3461-258E-4ACA-AF2C-39F62F5C3966}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B0BE3461-258E-4ACA-AF2C-39F62F5C3966}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

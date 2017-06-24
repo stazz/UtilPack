@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
-using NuGet.Frameworks;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -24,30 +23,32 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using UtilPack.Cryptography;
-using UtilPack.Cryptography.Digest;
+using System.Reflection;
 
-namespace UtilPack.NuGet.ProcessRunner
+namespace UtilPack.ProcessMonitor
 {
-   internal class Monitoring : AbstractDisposable
+   public class ProcessMonitor
    {
       private readonly MonitoringConfiguration _config;
-      private readonly Lazy<RandomGenerator> _rng;
       private readonly String[] _args;
+#if NETSTANDARD1_5
+      private readonly System.Runtime.Loader.AssemblyLoadContext _assemblyLoadContext;
+#endif
 
-      public Monitoring(
+      public ProcessMonitor(
          MonitoringConfiguration config,
          IEnumerable<String> args
          )
       {
          this._config = ArgumentValidator.ValidateNotNull( nameof( config ), config );
-         this._rng = new Lazy<RandomGenerator>( () => DigestBasedRandomGenerator.CreateAndSeedWithDefaultLogic( new SHA512() ) );
          this._args = args?.ToArray() ?? Empty<String>.Array;
+#if NETSTANDARD1_5
+         this._assemblyLoadContext = System.Runtime.Loader.AssemblyLoadContext.GetLoadContext( this.GetType().GetTypeInfo().Assembly );
+#endif
       }
 
-      public async Task KeepMonitoringAsync(
+      public async Task MonitorAsync(
          String assemblyPath,
-         NuGetFramework targetFW,
          CancellationToken token
          )
       {
@@ -56,7 +57,7 @@ namespace UtilPack.NuGet.ProcessRunner
          String location;
          StringBuilder argsBuilder;
          var tool = config.ToolPath;
-         if ( !String.IsNullOrEmpty( tool ) || !String.IsNullOrEmpty( tool = TryAutoDetectTool( targetFW ) ) )
+         if ( !String.IsNullOrEmpty( tool ) )
          {
             location = tool;
             argsBuilder = new StringBuilder( EscapeArgumentString( assemblyPath ) );
@@ -82,23 +83,14 @@ namespace UtilPack.NuGet.ProcessRunner
          var argsString = argsBuilder.ToString();
          while ( !token.IsCancellationRequested && await this.PerformSingleCycle( location, argsString, Path.GetDirectoryName( assemblyPath ), token ) )
          {
+            // TODO provide "RestartStateFile" argument to process, so it can convey state between restarts.
+            // Or use memory mapped files
             Console.Write( "\n\nProcess requested restart...\n\n" );
          }
 
          if ( !token.IsCancellationRequested )
          {
             Console.Write( "\n\nProcess has exited.\n\n" );
-         }
-      }
-
-      protected override void Dispose( Boolean disposing )
-      {
-         if ( disposing )
-         {
-            if ( this._rng.IsValueCreated )
-            {
-               this._rng.Value.DisposeSafely();
-            }
          }
       }
 
@@ -116,6 +108,7 @@ namespace UtilPack.NuGet.ProcessRunner
          Semaphore restartSemaphore = null;
          try
          {
+
             shutdownSemaphore = this.CreateSemaphore( config.ShutdownSemaphoreProcessArgument, "ShutdownSemaphore_", ref argsString );
             restartSemaphore = this.CreateSemaphore( config.RestartSemaphoreProcessArgument, "RestartSemaphore_", ref argsString );
 
@@ -155,76 +148,128 @@ namespace UtilPack.NuGet.ProcessRunner
                }
             };
 
-            // Start the process
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
 
-            var restart = false;
-            DateTime? shutdownSignalledTime = null;
-            using ( var cancelRegistration = token.Register( () =>
+#if NETSTANDARD1_5
+            Action<System.Runtime.Loader.AssemblyLoadContext> thisProcessExitHandler = ( ctx ) =>
             {
                try
                {
-                  if ( shutdownSemaphore == null )
-                  {
-                     // Kill the process
-                     process.Kill();
-                  }
-                  else
-                  {
-                     // Signal the process to shut down
-                     shutdownSignalledTime = DateTime.UtcNow;
-                     shutdownSemaphore.Release();
-                  }
+                  process.Kill();
                }
                catch
                {
-                  // Make the main loop stop
-                  shutdownSignalledTime = DateTime.UtcNow;
+                  // Ignore
                }
-            } ) )
+            };
+            this._assemblyLoadContext.Unloading += thisProcessExitHandler;
+#else
+#if !NETSTANDARD1_3
+            EventHandler thisProcessExitHandler = ( sender, args ) =>
             {
-
-               var hasExited = false;
-               while ( !hasExited )
+               try
                {
-                  if ( process.WaitForExit( 0 ) )
-                  {
-                     // The process has exited, clean up our stuff
+                  process.Kill();
+               }
+               catch
+               {
+                  // Ignore
+               }
+            };
+            AppDomain.CurrentDomain.ProcessExit += thisProcessExitHandler;
+#endif
+#endif
 
-                     // Process.HasExited has following documentation:
-                     // When standard output has been redirected to asynchronous event handlers, it is possible that output processing will
-                     // not have completed when this property returns true. To ensure that asynchronous event handling has been completed,
-                     // call the WaitForExit() overload that takes no parameter before checking HasExited.
-                     process.WaitForExit();
-                     hasExited = true;
+#if NETSTANDARD1_5 || !NETSTANDARD1_3
+            using ( new UsingHelper( () =>
+#if NETSTANDARD1_5
+            this._assemblyLoadContext.Unloading
+#else
+            AppDomain.CurrentDomain.ProcessExit
+#endif
+            -= thisProcessExitHandler
+            ) )
+            {
+#endif
 
-                     // Now, check if restart semaphore has been signalled
-                     restart = restartSemaphore != null && restartSemaphore.WaitOne( 0 );
-                  }
-                  else if ( shutdownSignalledTime.HasValue && DateTime.UtcNow - shutdownSignalledTime.Value > config.ShutdownSemaphoreWaitTime )
+               // Start the process
+               process.Start();
+               process.BeginOutputReadLine();
+               process.BeginErrorReadLine();
+
+               var restart = false;
+               DateTime? shutdownSignalledTime = null;
+               using ( var cancelRegistration = token.Register( () =>
+               {
+                  try
                   {
-                     // We have signalled shutdown, but process has not exited in time
-                     try
+                     if ( shutdownSemaphore == null )
                      {
+                        // Kill the process
                         process.Kill();
                      }
-                     catch
+                     else
                      {
-                        // Nothing we can do, really
-                        hasExited = true;
+                        // Signal the process to shut down
+                        shutdownSignalledTime = DateTime.UtcNow;
+                        shutdownSemaphore.Release();
                      }
                   }
-                  else
+                  catch
                   {
-                     // Wait async
-                     await Task.Delay( 100 );
+                     // Make the main loop stop
+                     shutdownSignalledTime = DateTime.UtcNow;
+                  }
+               } ) )
+               {
+
+                  var hasExited = false;
+                  while ( !hasExited )
+                  {
+                     if ( process.WaitForExit( 0 ) )
+                     {
+                        // The process has exited, clean up our stuff
+
+                        // Process.HasExited has following documentation:
+                        // When standard output has been redirected to asynchronous event handlers, it is possible that output processing will
+                        // not have completed when this property returns true. To ensure that asynchronous event handling has been completed,
+                        // call the WaitForExit() overload that takes no parameter before checking HasExited.
+                        process.WaitForExit();
+                        hasExited = true;
+
+                        // Now, check if restart semaphore has been signalled
+                        restart = restartSemaphore != null && restartSemaphore.WaitOne( 0 );
+                     }
+                     else if ( shutdownSignalledTime.HasValue && DateTime.UtcNow - shutdownSignalledTime.Value > config.ShutdownSemaphoreWaitTime )
+                     {
+                        // We have signalled shutdown, but process has not exited in time
+                        try
+                        {
+                           process.Kill();
+                        }
+                        catch
+                        {
+                           // Nothing we can do, really
+                           hasExited = true;
+                        }
+                     }
+                     else
+                     {
+                        // Wait async
+                        await
+#if NET40
+                        TaskEx
+#else
+                        Task
+#endif
+                        .Delay( 100 );
+                     }
                   }
                }
-            }
 
-            return restart;
+               return restart;
+#if NETSTANDARD1_5 || !NETSTANDARD1_3
+            }
+#endif
          }
          finally
          {
@@ -252,8 +297,7 @@ namespace UtilPack.NuGet.ProcessRunner
          Semaphore retVal;
          do
          {
-            this._rng.Value.NextBytes( bytez );
-            semaphoreName = @"Global\" + namePrefix + StringConversions.EncodeBase64( bytez, true );
+            semaphoreName = @"Global\" + namePrefix + StringConversions.EncodeBase64( Guid.NewGuid().ToByteArray(), true );
             retVal = new Semaphore( 0, Int32.MaxValue, semaphoreName, out var createdNewSemaphore );
             if ( !createdNewSemaphore )
             {
@@ -275,29 +319,25 @@ namespace UtilPack.NuGet.ProcessRunner
          return argString;
       }
 
-      private static String TryAutoDetectTool( NuGetFramework targetFW )
-      {
-         String retVal;
-         if ( targetFW.IsDesktop() )
-         {
-            retVal = null;
-         }
-         else
-         {
-            switch ( targetFW.Framework )
-            {
-               case FrameworkConstants.FrameworkIdentifiers.NetCoreApp:
-                  retVal = "dotnet";
-                  break;
-               default:
-                  retVal = null;
-                  break;
+   }
 
-            }
-         }
+   public interface MonitoringConfiguration
+   {
+      String ToolPath { get; }
+      String ProcessArgumentPrefix { get; }
 
-         return retVal;
-      }
+      String ShutdownSemaphoreProcessArgument { get; }
+      TimeSpan ShutdownSemaphoreWaitTime { get; }
+      String RestartSemaphoreProcessArgument { get; }
+   }
 
+   public class DefaultMonitoringConfiguration : MonitoringConfiguration
+   {
+      public String ToolPath { get; set; }
+      public String ProcessArgumentPrefix { get; set; } = "/";
+
+      public String ShutdownSemaphoreProcessArgument { get; set; }
+      public TimeSpan ShutdownSemaphoreWaitTime { get; set; } = TimeSpan.FromSeconds( 1 );
+      public String RestartSemaphoreProcessArgument { get; set; }
    }
 }

@@ -55,5 +55,7 @@ namespace UtilPack.NuGet.Deployment.MSBuild
       public String NuGetConfigurationFile { get; set; }
 
       public String TargetDirectory { get; set; }
+
+      // TODO add output parameter, which would contain ep assembly full path
    }
 }

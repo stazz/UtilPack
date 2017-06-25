@@ -351,7 +351,8 @@ namespace UtilPack.NuGet
          return packageIDs
             .Where( pID => targetLibsDictionary.ContainsKey( pID ) )
             .Select( pID => targetLibsDictionary[pID] )
-            .SelectMany( targetLib => targetLib.AsDepthFirstEnumerableWithLoopDetection( curLib => GetChildrenExceptFilterable( curLib ), returnHead: true ) );
+            .SelectMany( targetLib => targetLib.AsDepthFirstEnumerableWithLoopDetection( curLib => GetChildrenExceptFilterable( curLib ), returnHead: true ) )
+            .Distinct();
       }
    }
 }

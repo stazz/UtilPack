@@ -555,6 +555,7 @@ namespace UtilPack.NuGet.Deployment
       /// This value indicates that only the entrypoint assembly will be copied to the target directory, and <c>.deps.json</c> file will be generated, along with <c>.runtimeconfig.json</c> file.
       /// Those files will contain required information so that dotnet process will know to resolve dependency assemblies.
       /// This way the IO load by the deployment process will be kept at minimum.
+      /// However, the dotnet process will then lock the DLL files in your package repository, as they are loaded directly from there.
       /// </summary>
       GenerateConfigFiles,
 
@@ -562,6 +563,7 @@ namespace UtilPack.NuGet.Deployment
       /// This value indicates that entrypoint assembly along with all the non-SDK dependencies will be copied to the target folder.
       /// The <c>.deps.json</c> file will not be generated, but the <c>.runtimeconfig.json</c> file for .NET Core and <c>.exe.config</c> file for the .NET Desktop will be generated.
       /// The IO load may become heavy in this scenario, since possibly a lot of files may need to be copied.
+      /// But with this deployment kind, the dotnet won't lock DLL files in your package repository.
       /// </summary>
       CopyNonSDKAssemblies
    }

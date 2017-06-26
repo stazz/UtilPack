@@ -907,7 +907,7 @@ namespace UtilPack.NuGet.MSBuild
                   var curProperty = kvp.Value.Item3;
                   var propType = curProperty.PropertyType;
                   var converter = kvp.Value.Item1 == WrappedPropertyKind.String ?
-                     str => Convert.ChangeType( str, propType ) :
+                     ( propType.GetTypeInfo().IsEnum ? (Func<String, Object>) ( str => Enum.Parse( propType, str, true ) ) : ( str => Convert.ChangeType( str, propType ) ) ) :
                      (Func<String, Object>) null;
                   return new TaskPropertyInfo(
                      kvp.Value.Item1,

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
+using Microsoft.Build.Framework;
 using System;
 using System.IO;
 using System.Reflection;
@@ -26,7 +27,8 @@ namespace UtilPack.NuGet.Deployment.MSBuild
    {
       public override Boolean Execute()
       {
-         new NuGetDeployment( this ).DeployAsync(
+         // TODO maybe use this.BuildEngine.Yield?
+         var retVal = new NuGetDeployment( this ).DeployAsync(
             UtilPackNuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
                Path.GetDirectoryName( this.BuildEngine.ProjectFileOfTaskNode ),
                this.NuGetConfigurationFile
@@ -35,27 +37,38 @@ namespace UtilPack.NuGet.Deployment.MSBuild
             logger: new NuGetMSBuildLogger( "NDE", "NDE", "NDE", this.GetType().FullName, null, this.BuildEngine )
             ).GetAwaiter().GetResult();
 
-         return true;
+         var epAssembly = retVal.Item1;
+
+         var success = !this.Log.HasLoggedErrors
+            && !String.IsNullOrEmpty( epAssembly )
+            && File.Exists( epAssembly );
+         if ( success )
+         {
+            this.EntryPointAssemblyPath = Path.GetFullPath( epAssembly );
+         }
+         return success;
       }
 
       public String ProcessPackageID { get; set; }
 
       public String ProcessPackageVersion { get; set; }
 
+      public String ProcessFramework { get; set; }
+
       public String ProcessAssemblyPath { get; set; }
 
-      public String ProcessFrameworkPackageID { get; set; }
+      public String ProcessSDKFrameworkPackageID { get; set; }
 
-      public String ProcessFrameworkPackageVersion { get; set; }
+      public String ProcessSDKFrameworkPackageVersion { get; set; }
 
       public DeploymentKind DeploymentKind { get; set; }
-
 
 
       public String NuGetConfigurationFile { get; set; }
 
       public String TargetDirectory { get; set; }
 
-      // TODO add output parameter, which would contain ep assembly full path
+      [Output]
+      public String EntryPointAssemblyPath { get; set; }
    }
 }

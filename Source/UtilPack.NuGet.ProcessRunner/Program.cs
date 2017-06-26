@@ -82,31 +82,39 @@ namespace UtilPack.NuGet.ProcessRunner
                      } )
                      ).GetAwaiter().GetResult();
 
-               if ( framework != null && String.IsNullOrEmpty( monitorConfig.ToolPath ) )
+               if ( !String.IsNullOrEmpty( assemblyPath ) && framework != null )
                {
-                  monitorConfig.ToolPath = TryAutoDetectTool( framework );
+
+                  if ( framework != null && String.IsNullOrEmpty( monitorConfig.ToolPath ) )
+                  {
+                     monitorConfig.ToolPath = TryAutoDetectTool( framework );
+                  }
+
+                  Console.Out.Write( $"\n\nInitialization is complete, starting process located in {assemblyPath}.\n\n" );
+
+                  // Monitor step - start process, and keep running until it exits or this process exits.
+                  // Restart the target process if it requests it.
+                  const String PROCESS_ARG_PREFIX = "/ProcessArgument:";
+                  // We don't know how target process parses arguments, and we don't want to make assumptions
+                  // The Microsoft.Extensions.Configuration will only see one argument with the example arguments:
+                  // /ProcessArgument:MyArg=34 /ProcessArgument:MyArg:Test=35
+                  // So we need to parse these ourselves
+                  var monitoring = new ProcessMonitor.ProcessMonitor(
+                     monitorConfig,
+                     args.Where( arg => arg.StartsWith( PROCESS_ARG_PREFIX ) )
+                     .Select( arg => arg.Substring( PROCESS_ARG_PREFIX.Length ) )
+                     );
+                  monitoring.KeepMonitoringAsync(
+                     assemblyPath,
+                     source.Token
+                     ).GetAwaiter().GetResult();
+
+                  retVal = 0;
                }
-
-               Console.Write( $"\n\nInitialization is complete, starting process located in {assemblyPath}.\n\n" );
-
-               // Monitor step - start process, and keep running until it exits or this process exits.
-               // Restart the target process if it requests it.
-               const String PROCESS_ARG_PREFIX = "/ProcessArgument:";
-               // We don't know how target process parses arguments, and we don't want to make assumptions
-               // The Microsoft.Extensions.Configuration will only see one argument with the example arguments:
-               // /ProcessArgument:MyArg=34 /ProcessArgument:MyArg:Test=35
-               // So we need to parse these ourselves
-               var monitoring = new ProcessMonitor.ProcessMonitor(
-                  monitorConfig,
-                  args.Where( arg => arg.StartsWith( PROCESS_ARG_PREFIX ) )
-                  .Select( arg => arg.Substring( PROCESS_ARG_PREFIX.Length ) )
-                  );
-               monitoring.MonitorAsync(
-                  assemblyPath,
-                  source.Token
-                  ).GetAwaiter().GetResult();
-
-               retVal = 0;
+               else
+               {
+                  Console.Error.WriteLine( $"Failed to resolve assembly path within package, try specifying \"{nameof( DeploymentConfiguration.ProcessFramework )}\" and/or \"{nameof( DeploymentConfiguration.ProcessAssemblyPath )}\" configuration properties." );
+               }
             }
             catch ( Exception exc )
             {
@@ -152,7 +160,7 @@ namespace UtilPack.NuGet.ProcessRunner
 
    }
 
-   public class NuGetConfiguration
+   internal class NuGetConfiguration
    {
       public String NuGetConfigurationFile { get; set; }
    }

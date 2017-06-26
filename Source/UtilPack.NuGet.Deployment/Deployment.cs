@@ -65,10 +65,11 @@ namespace UtilPack.NuGet.Deployment
       /// Performs deployment asynchronously.
       /// </summary>
       /// <param name="nugetSettings">The NuGet settings to use.</param>
-      /// <param name="targetDirectory">The directory where to place required files.</param>
+      /// <param name="targetDirectory">The directory where to place required files. If <c>null</c> or empty, then a new directory with randomized name will be created in temporary folder of the current user.</param>
       /// <param name="logger">The optional logger to use.</param>
       /// <param name="token">The optional cancellation token to use.</param>
       /// <returns>The full path to the assembly which should be executed, along with the resolved target framework as <see cref="NuGetFramework"/> object.</returns>
+      /// <exception cref="ArgumentNullException">If <paramref name="nugetSettings"/> is <c>null</c>.</exception>
       public async Task<(String, NuGetFramework)> DeployAsync(
          ISettings nugetSettings,
          String targetDirectory,
@@ -210,16 +211,32 @@ namespace UtilPack.NuGet.Deployment
                   .Where( tuple => PackageHelper.IsAssembly( tuple.Item2 ) )
                   .Select( tuple => (tuple.Item1, Path.GetFullPath( Path.Combine( packagePath, tuple.Item2 ) )) )
                   .ToArray();
-               var possibleAssemblyPaths = possibleAssemblies.Select( tuple => tuple.Item2 ).ToArray();
-               var matchingAssembly = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
-                  possibleAssemblyPaths,
-                  packagePath,
-                  config.ProcessAssemblyPath
-                  );
-               if ( !String.IsNullOrEmpty( matchingAssembly ) )
+
+               var targetFWString = config.ProcessFramework;
+               NuGetFramework targetFW;
+               if ( !String.IsNullOrEmpty( targetFWString ) )
                {
-                  var assemblyInfo = possibleAssemblies[Array.IndexOf( possibleAssemblyPaths, matchingAssembly )];
-                  retVal = (packageID, assemblyInfo.Item1, assemblyInfo.Item2);
+                  targetFW = NuGetFramework.ParseFolder( targetFWString );
+                  possibleAssemblies = possibleAssemblies
+                     .Where( t => t.Item1.TargetFramework.Equals( targetFW ) )
+                     .ToArray();
+               }
+
+               if ( possibleAssemblies.Length > 0 )
+               {
+                  var possibleAssemblyPaths = possibleAssemblies.Select( tuple => tuple.Item2 ).ToArray();
+                  var matchingAssembly = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
+                     possibleAssemblyPaths,
+                     packagePath,
+                     config.ProcessAssemblyPath
+                     );
+
+                  if ( !String.IsNullOrEmpty( matchingAssembly ) )
+                  {
+                     var assemblyInfo = possibleAssemblies[Array.IndexOf( possibleAssemblyPaths, matchingAssembly )];
+                     retVal = (packageID, assemblyInfo.Item1, assemblyInfo.Item2);
+                  }
+
                }
             }
          }
@@ -259,8 +276,8 @@ namespace UtilPack.NuGet.Deployment
             }
          }
 
-         sdkPackageID = UtilPackNuGetUtility.GetSDKPackageID( targetFramework, config.ProcessFrameworkPackageID ?? sdkPackageID );
-         sdkPackageVersion = UtilPackNuGetUtility.GetSDKPackageVersion( targetFramework, sdkPackageID, config.ProcessFrameworkPackageVersion ?? sdkPackageVersion );
+         sdkPackageID = UtilPackNuGetUtility.GetSDKPackageID( targetFramework, config.ProcessSDKFrameworkPackageID ?? sdkPackageID );
+         sdkPackageVersion = UtilPackNuGetUtility.GetSDKPackageVersion( targetFramework, sdkPackageID, config.ProcessSDKFrameworkPackageVersion ?? sdkPackageVersion );
 
          var sdkPackages = new HashSet<String>( lockFile.Targets[0].GetAllDependencies(
             sdkPackageID.Singleton()
@@ -512,6 +529,15 @@ namespace UtilPack.NuGet.Deployment
       String ProcessPackageVersion { get; }
 
       /// <summary>
+      /// Gets the framework name (the folder name of the 'lib' folder within NuGet package) which should be deployed.
+      /// </summary>
+      /// <value>The framework name (the folder name of the 'lib' folder within NuGet package) which should be deployed.</value>
+      /// <remarks>
+      /// This property will not be used for NuGet packages with only one framework.
+      /// </remarks>
+      String ProcessFramework { get; }
+
+      /// <summary>
       /// Gets the path within the package where the entrypoint assembly resides.
       /// </summary>
       /// <value>The path within the package where the entrypoint assembly resides.</value>
@@ -527,7 +553,7 @@ namespace UtilPack.NuGet.Deployment
       /// <remarks>
       /// If this property is <c>null</c> or empty string, then <see cref="NuGetDeployment"/> will try to use automatic detection of SDK package ID.
       /// </remarks>
-      String ProcessFrameworkPackageID { get; }
+      String ProcessSDKFrameworkPackageID { get; }
 
       /// <summary>
       /// Gets the package version of the SDK of the framework of the NuGet package.
@@ -536,7 +562,7 @@ namespace UtilPack.NuGet.Deployment
       /// <remarks>
       /// If this property is <c>null</c> or empty string, then <see cref="NuGetDeployment"/> will try to use automatic detection of SDK package version.
       /// </remarks>
-      String ProcessFrameworkPackageVersion { get; }
+      String ProcessSDKFrameworkPackageVersion { get; }
 
       /// <summary>
       /// Gets the deployment kind.
@@ -583,10 +609,13 @@ namespace UtilPack.NuGet.Deployment
       public String ProcessAssemblyPath { get; set; }
 
       /// <inheritdoc />
-      public String ProcessFrameworkPackageID { get; set; }
+      public String ProcessFramework { get; set; }
 
       /// <inheritdoc />
-      public String ProcessFrameworkPackageVersion { get; set; }
+      public String ProcessSDKFrameworkPackageID { get; set; }
+
+      /// <inheritdoc />
+      public String ProcessSDKFrameworkPackageVersion { get; set; }
 
       /// <inheritdoc />
       public DeploymentKind DeploymentKind { get; set; }

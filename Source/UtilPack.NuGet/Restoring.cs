@@ -77,8 +77,8 @@ namespace UtilPack.NuGet
          )
       {
 
-         this.ThisFramework = thisFramework ?? UtilPackNuGetUtility.TryAutoDetectThisProcessFramework();
          ArgumentValidator.ValidateNotNull( nameof( nugetSettings ), nugetSettings );
+         this.ThisFramework = thisFramework ?? UtilPackNuGetUtility.TryAutoDetectThisProcessFramework();
          if ( nugetLogger == null )
          {
             nugetLogger = NullLogger.Instance;

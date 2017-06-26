@@ -29,11 +29,24 @@ using NuGet.Packaging;
 using NuGet.Repositories;
 using System.Threading.Tasks;
 using UtilPack.NuGet.Common.MSBuild;
+using System.Threading;
 
 namespace UtilPack.NuGet.Push.MSBuild
 {
-   public class PushTask : Microsoft.Build.Utilities.Task
+   public class PushTask : Microsoft.Build.Utilities.Task, ICancelableTask
    {
+      private readonly CancellationTokenSource _cancelSource;
+
+      public PushTask()
+      {
+         this._cancelSource = new CancellationTokenSource();
+      }
+
+      public void Cancel()
+      {
+         this._cancelSource.Cancel( false );
+      }
+
       public override Boolean Execute()
       {
          var sourceNames = this.SourceNames;
@@ -98,37 +111,45 @@ namespace UtilPack.NuGet.Push.MSBuild
       {
          var skipOverwrite = sourceItem.GetMetadata( "SkipOverwriteLocalFeed" ).ParseAsBooleanSafe();
          var skipClearRepositories = sourceItem.GetMetadata( "SkipClearingLocalRepositories" ).ParseAsBooleanSafe();
-         var timeoutString = sourceItem.GetMetadata( "PushTimeout" );
-         if ( String.IsNullOrEmpty( timeoutString ) || !Int32.TryParse( timeoutString, out var timeout ) )
-         {
-            timeout = 1000;
-         }
+         var skipOfflineFeedOptimization = sourceItem.GetMetadata( "SkipOfflineFeedOptimization" ).ParseAsBooleanSafe();
 
          var source = sourceItem.ItemSpec;
-
-         var sourceSpec = psp.LoadPackageSources().FirstOrDefault( s => String.Equals( s.Name, source ) );
-         if ( ( sourceSpec?.IsLocal ?? false ) && !skipOverwrite )
+         var isLocal = IsLocalFeed( psp, source, out var localPath );
+         if ( isLocal && !skipOverwrite )
          {
-            var sourceDir = sourceSpec.Source;
-            if ( !String.IsNullOrEmpty( sourceDir ) )
-            {
-               this.DeleteDir( OfflineFeedUtility.GetPackageDirectory( identity.Value, sourceDir ) );
-            }
+            this.DeleteDir( OfflineFeedUtility.GetPackageDirectory( identity.Value, localPath ) );
          }
 
-         await PushRunner.Run(
-            settings,
-            psp,
-            packagePath,
-            source,
-            null,
-            null,
-            null,
-            timeout,
-            false,
-            true,
-            logger
-            );
+         if ( isLocal && !skipOfflineFeedOptimization )
+         {
+            // The default v2 repo detection algorithm for PushRunner (PackageUpdateResource.IsV2LocalRepository) always returns true for empty folders, so let's use the OfflineFeedUtility here right away (which will assume v3 repository)
+            await OfflineFeedUtility.AddPackageToSource(
+               new OfflineFeedAddContext( packagePath, localPath, logger, true, false, false, true ),
+               this._cancelSource.Token
+               );
+         }
+         else
+         {
+            var timeoutString = sourceItem.GetMetadata( "PushTimeout" );
+            if ( String.IsNullOrEmpty( timeoutString ) || !Int32.TryParse( timeoutString, out var timeout ) )
+            {
+               timeout = 1000;
+            }
+
+            await PushRunner.Run(
+               settings,
+               psp,
+               packagePath,
+               source,
+               null,
+               null,
+               null,
+               timeout,
+               false,
+               true,
+               logger
+               );
+         }
 
          if ( !skipClearRepositories )
          {
@@ -190,6 +211,29 @@ namespace UtilPack.NuGet.Push.MSBuild
                }
             }
          }
+      }
+
+      private static Boolean IsLocalFeed(
+         PackageSourceProvider psp,
+         String source,
+         out String path
+         )
+      {
+         PackageSource sourceSpec;
+         if ( Path.IsPathRooted( source ) )
+         {
+            path = source;
+         }
+         else if ( ( sourceSpec = psp.LoadPackageSources().FirstOrDefault( s => String.Equals( s.Name, source ) ) )?.IsLocal ?? false )
+         {
+            path = sourceSpec.Source;
+         }
+         else
+         {
+            path = null;
+         }
+
+         return path != null;
       }
    }
 }

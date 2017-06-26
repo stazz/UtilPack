@@ -100,11 +100,22 @@ namespace UtilPack.ProcessMonitor
          }
 
          var argsString = argsBuilder.ToString();
+         var restartWaitTime = config.RestartWaitTime;
          while ( !token.IsCancellationRequested && await this.PerformSingleCycle( location, argsString, Path.GetDirectoryName( processLocation ), token ) )
          {
             // TODO provide "RestartStateFile" argument to process, so it can convey state between restarts.
             // Or use memory mapped files
             Console.Out.Write( "\n\nProcess requested restart...\n\n" );
+            if ( restartWaitTime > TimeSpan.Zero )
+            {
+               await
+#if NET40
+                  TaskEx
+#else
+                  Task
+#endif
+                  .Delay( restartWaitTime );
+            }
          }
 
          if ( !token.IsCancellationRequested )
@@ -142,6 +153,8 @@ namespace UtilPack.ProcessMonitor
                RedirectStandardInput = true,
                UseShellExecute = false
             };
+            // TODO encodings for stream redirects!
+            // TODO Maybe close input right after starting? Or hook up to Console.KeyPressed ... ?
             var process = new Process()
             {
                StartInfo = startInfo,
@@ -151,6 +164,7 @@ namespace UtilPack.ProcessMonitor
             {
                if ( e.Data != null ) // e.Data will be null on process closedown
                {
+                  // TODO we actually don't want to write to console here, instead enqueue the data and process separately.
                   Console.Out.WriteLine( String.Format( "[{0}]: {1}", DateTime.UtcNow, e.Data ) );
                }
             };
@@ -158,6 +172,7 @@ namespace UtilPack.ProcessMonitor
             {
                if ( e.Data != null ) // e.Data will be null on process closedown
                {
+                  // TODO we actually don't want to write to console here, instead enqueue the data and process separately.
                   Console.Error.Write( String.Format( "[{0}] ", DateTime.UtcNow ) );
                   var oldColor = Console.ForegroundColor;
                   Console.ForegroundColor = ConsoleColor.Red;
@@ -253,6 +268,17 @@ namespace UtilPack.ProcessMonitor
                         // not have completed when this property returns true. To ensure that asynchronous event handling has been completed,
                         // call the WaitForExit() overload that takes no parameter before checking HasExited.
                         process.WaitForExit();
+                        while ( !process.HasExited )
+                        {
+                           await
+#if NET40
+                              TaskEx
+#else
+                              Task
+#endif
+                              .Delay( 50 );
+                        }
+
                         hasExited = true;
 
                         // Now, check if restart semaphore has been signalled
@@ -382,6 +408,17 @@ namespace UtilPack.ProcessMonitor
       /// This semaphore is watched by this process monitor, and should be released by target process.
       /// </remarks>
       String RestartSemaphoreProcessArgument { get; }
+
+      /// <summary>
+      /// Gets the amount of time that should be waited before restarting a process, if it has signalled that it needs to be restarted.
+      /// </summary>
+      /// <value></value>
+      /// <remarks>
+      /// Sometimes, the handles and locks acquired by the process are not freed up immediately when the process exits (unless process explicitly frees them).
+      /// If the process is immediately restarted and it tries to reqcuire handles or locks, it will get an exception.
+      /// This property controls the amount of time that is waited before restarting the process, which should be an educated guess of how long it will take for OS to release locks and handles of the terminated process.
+      /// </remarks>
+      TimeSpan RestartWaitTime { get; }
    }
 
    /// <summary>
@@ -403,5 +440,8 @@ namespace UtilPack.ProcessMonitor
 
       /// <inheritdoc />
       public String RestartSemaphoreProcessArgument { get; set; }
+
+      /// <inheritdoc />
+      public TimeSpan RestartWaitTime { get; } = TimeSpan.Zero;
    }
 }

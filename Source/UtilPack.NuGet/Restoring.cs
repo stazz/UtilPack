@@ -35,6 +35,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
 using UtilPack.NuGet;
+using NuGet.RuntimeModel;
+using NuGet.Packaging;
 
 namespace UtilPack.NuGet
 {
@@ -266,7 +268,8 @@ namespace UtilPack.NuGet
          var spec = new PackageSpec()
          {
             Name = $"Restoring: {String.Join( ", ", targets )}",
-            FilePath = Path.Combine( this._nugetRestoreRootDir, "dummy" )
+            FilePath = Path.Combine( this._nugetRestoreRootDir, "dummy" ),
+            //RuntimeGraph = new RuntimeGraph( new RuntimeDescription( this.RuntimeIdentifier ).Singleton() )
          };
          spec.TargetFrameworks.Add( this._restoreTargetFW );
 
@@ -446,19 +449,10 @@ public static partial class E_UtilPack
             );
       }
 
-      var onlyOnePackageFolder = lockFile.PackageFolders.Count == 1;
-
       foreach ( var targetLib in libraries )
       {
          var curLib = targetLib;
-         var targetLibFullPath = lockFile.PackageFolders
-            .Select( f =>
-            {
-               return restorer.LocalRepositories.TryGetValue( f.Path, out var curRepo ) ?
-                  Path.Combine( curRepo.RepositoryRoot, curRepo.PathResolver.GetPackageDirectory( curLib.Name, curLib.Version ) ) :
-                  null;
-            } )
-            .FirstOrDefault( fp => !String.IsNullOrEmpty( fp ) && ( onlyOnePackageFolder || Directory.Exists( fp ) ) );
+         var targetLibFullPath = restorer.ResolveFullPath( lockFile, pathResolver => pathResolver.GetPackageDirectory( curLib.Name, curLib.Version ) );
          if ( !String.IsNullOrEmpty( targetLibFullPath ) )
          {
             retVal.Add( curLib.Name, resultCreator(
@@ -471,6 +465,29 @@ public static partial class E_UtilPack
       }
 
       return retVal;
+   }
+
+   public static String ResolveFullPath( this BoundRestoreCommandUser restorer, LockFile lockFile, String pathWithinPackageFolder )
+   {
+      return restorer.ResolveFullPath(
+         lockFile,
+         String.IsNullOrEmpty( pathWithinPackageFolder ) ?
+            (Func<VersionFolderPathResolver, String>) null :
+            _ => pathWithinPackageFolder
+         );
+   }
+
+   public static String ResolveFullPath( this BoundRestoreCommandUser restorer, LockFile lockFile, Func<VersionFolderPathResolver, String> pathExtractor )
+   {
+      var onlyOnePackageFolder = lockFile.PackageFolders.Count == 1;
+      return pathExtractor == null ? null : lockFile.PackageFolders
+         .Select( f =>
+         {
+            return restorer.LocalRepositories.TryGetValue( f.Path, out var curRepo ) ?
+                  Path.Combine( curRepo.RepositoryRoot, pathExtractor( curRepo.PathResolver ) ) :
+                  null;
+         } )
+         .FirstOrDefault( fp => !String.IsNullOrEmpty( fp ) && ( onlyOnePackageFolder || Directory.Exists( fp ) ) );
    }
 
 

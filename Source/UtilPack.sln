@@ -33,6 +33,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.ProcessMonitor", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.NuGet.Deployment.MSBuild", "UtilPack.NuGet.Deployment.MSBuild\UtilPack.NuGet.Deployment.MSBuild.csproj", "{B0BE3461-258E-4ACA-AF2C-39F62F5C3966}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.MSBuild.AsyncExec", "UtilPack.MSBuild.AsyncExec\UtilPack.MSBuild.AsyncExec.csproj", "{980BFAC3-28AD-411A-AF38-38A6E4C0CBEB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -99,6 +101,10 @@ Global
 		{B0BE3461-258E-4ACA-AF2C-39F62F5C3966}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B0BE3461-258E-4ACA-AF2C-39F62F5C3966}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B0BE3461-258E-4ACA-AF2C-39F62F5C3966}.Release|Any CPU.Build.0 = Release|Any CPU
+		{980BFAC3-28AD-411A-AF38-38A6E4C0CBEB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{980BFAC3-28AD-411A-AF38-38A6E4C0CBEB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{980BFAC3-28AD-411A-AF38-38A6E4C0CBEB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{980BFAC3-28AD-411A-AF38-38A6E4C0CBEB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

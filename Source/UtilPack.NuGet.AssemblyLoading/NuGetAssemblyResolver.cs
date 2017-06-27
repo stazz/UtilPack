@@ -459,11 +459,9 @@ namespace UtilPack.NuGet.AssemblyLoading
       private readonly ConcurrentDictionary<String, Lazy<AssemblyName>> _assemblyNames;
       private readonly TNuGetResolver _resolver;
       private readonly Func<String, Assembly> _fromPathLoader;
-      private readonly Func<AssemblyName, Assembly> _fromNameLoader;
       private readonly Func<String, String> _pathProcessor;
 #if NET45
       private readonly CallbackWrapper _callbackWrapper;
-      private readonly ThreadLocal<Boolean> _insideResolve;
 #endif
 
       public NuGetAssemblyResolverImpl(
@@ -488,7 +486,6 @@ namespace UtilPack.NuGet.AssemblyLoading
       {
 
 #if NET45
-         this._insideResolve = new ThreadLocal<Boolean>( () => false );
          AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
 #endif
 
@@ -502,13 +499,6 @@ namespace UtilPack.NuGet.AssemblyLoading
             path => loader.LoadFromAssemblyPath( path )
 #endif
             ;
-         this._fromNameLoader =
-#if NET45
-         Assembly.Load
-#else
-         name => loader.LoadFromAssemblyName( name )
-#endif
-         ;
 
          this._resolver =
 #if NET45
@@ -536,34 +526,25 @@ namespace UtilPack.NuGet.AssemblyLoading
       {
          Assembly retVal;
          var name = new AssemblyName( args.Name );
-         // We must use direct call to resolve method only if we are already inside nested resolving.
-         // Otherwise, we must always try to resolve by name - in order to avoid loading System.Threading.Tasks.Extensions and System.ValueTuple twice.
-         if ( this._insideResolve.Value )
+         if ( this._assemblies == null )
          {
-            retVal = this.PerformAssemblyResolve( name );
+            // Happens when casting constructor parameters
+            retVal = this.GetType().Assembly;
          }
          else
          {
-            this._insideResolve.Value = true;
-            try
+            String overrideLocation;
+            if ( !String.IsNullOrEmpty( overrideLocation = this._callbackWrapper?.OverrideLocation( name ) ) )
             {
-               String overrideLocation;
-               if ( !String.IsNullOrEmpty( overrideLocation = this._callbackWrapper?.OverrideLocation( name ) ) )
-               {
-                  retVal = this._assemblies.AddOrUpdate(
-                     name,
-                     an => new AssemblyInformation( overrideLocation, this, true ),
-                     ( an, existing ) => new AssemblyInformation( overrideLocation, this, true )
-                     ).Assembly;
-               }
-               else
-               {
-                  retVal = this._fromNameLoader( name );
-               }
+               retVal = this._assemblies.AddOrUpdate(
+                  name,
+                  an => new AssemblyInformation( overrideLocation, this, true ),
+                  ( an, existing ) => new AssemblyInformation( overrideLocation, this, true )
+                  ).Assembly;
             }
-            finally
+            else
             {
-               this._insideResolve.Value = false;
+               retVal = this.PerformAssemblyResolve( name ); // this._fromNameLoader( name );
             }
          }
          return retVal;
@@ -644,7 +625,7 @@ namespace UtilPack.NuGet.AssemblyLoading
                      if ( !String.IsNullOrEmpty( assemblyPath ) )
                      {
                         var name = assemblyNames[assemblyPath].Value;
-                        retVal[i] = this._fromNameLoader( name );
+                        retVal[i] = this._assemblies[name].Assembly;
                      }
                   }
                }
@@ -652,8 +633,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          }
          else
          {
-            // Don't use Empty<..> as it will cause UtilPack to load in this app domain.
-            retVal = new Assembly[0];
+            retVal = Empty<Assembly>.Array;
          }
          return retVal;
       }
@@ -674,12 +654,10 @@ namespace UtilPack.NuGet.AssemblyLoading
                AssemblyName
 #endif
                .GetAssemblyName( p ), System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) ).Value;
-            this._assemblies.GetOrAdd(
+            retVal = this._assemblies.GetOrAdd(
                assemblyName,
                an => new AssemblyInformation( assemblyPath, this )
-               );
-
-            retVal = this._fromNameLoader( assemblyName );
+               ).Assembly;
          }
          return retVal;
       }

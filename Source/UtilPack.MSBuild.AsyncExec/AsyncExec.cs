@@ -21,7 +21,7 @@ using System.Diagnostics;
 
 namespace UtilPack.MSBuild.AsyncExec
 {
-   public class AsyncExec : Exec
+   public class AsyncExecTask : Exec
    {
       protected override Int32 ExecuteTool(
          String pathToTool,

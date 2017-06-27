@@ -28,6 +28,7 @@ using NuGet.Common;
 using UtilPack.NuGet;
 using UtilPack;
 using NuGet.Configuration;
+using NuGet.ProjectModel;
 
 namespace UtilPack.NuGet
 {

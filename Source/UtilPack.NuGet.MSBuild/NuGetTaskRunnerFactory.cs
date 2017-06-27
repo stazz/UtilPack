@@ -244,23 +244,31 @@ namespace UtilPack.NuGet.MSBuild
                   taskName = this.ProcessTaskName( taskBodyElement, taskName );
                   this._helper = LazyFactory.NewReadOnlyResettableLazy( () =>
                   {
-                     var tempFolder = Path.Combine( Path.GetTempPath(), "NuGetAssemblies_" + packageID + "_" + packageVersion + "_" + ( Guid.NewGuid().ToString() ) );
-                     Directory.CreateDirectory( tempFolder );
+                     try
+                     {
+                        var tempFolder = Path.Combine( Path.GetTempPath(), "NuGetAssemblies_" + packageID + "_" + packageVersion + "_" + ( Guid.NewGuid().ToString() ) );
+                        Directory.CreateDirectory( tempFolder );
 
-                     return this.CreateExecutionHelper(
-                        taskName,
-                        taskBodyElement,
-                        packageID,
-                        packageVersion,
-                        assemblyPath,
-                        nugetResolver,
-                        new ResolverLogger( nugetLogger ),
-                        getFiles,
-                        tempFolder
+                        return this.CreateExecutionHelper(
+                           taskName,
+                           taskBodyElement,
+                           packageID,
+                           packageVersion,
+                           assemblyPath,
+                           nugetResolver,
+                           new ResolverLogger( nugetLogger ),
+                           getFiles,
+                           tempFolder
 #if !NET45
                      , sdkRestoreResult
 #endif
                    );
+                     }
+                     catch ( Exception exc )
+                     {
+                        Console.Error.WriteLine( "Exception when creating task: " + exc );
+                        throw;
+                     }
                   }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
                   retVal = true;
                }
@@ -723,6 +731,10 @@ namespace UtilPack.NuGet.MSBuild
          // This should never cause any actual async waiting, since LockFile for task package has been already cached by restorer
          var taskAssembly = resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath ).GetAwaiter().GetResult();
          var taskType = taskAssembly.GetType( taskTypeName, false, false );
+         if ( taskType == null )
+         {
+            throw new Exception( $"Could not find task with type {taskTypeName} from assembly {taskAssembly}." );
+         }
          GetTaskConstructorInfo( resolver, taskType, out taskConstructor, out constructorArguments );
          usesDynamicLoading = ( constructorArguments?.Length ?? 0 ) > 0;
       }
@@ -1046,7 +1058,7 @@ namespace UtilPack.NuGet.MSBuild
                   null
                ) );
                break;
-            case TASK_BE_INITIALIZING:
+            default:
                // When assembly resolve happens during task initialization (setting BuildEngine etc properties).
                // Using BuildEngine then will cause NullReferenceException as its LoggingContext property is not yet set.
                // And task factory logging context has already been marked inactive, so this is when we can't immediately log.

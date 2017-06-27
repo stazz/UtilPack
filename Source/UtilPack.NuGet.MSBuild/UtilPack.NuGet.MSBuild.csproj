@@ -57,6 +57,7 @@
     <Compile Include="..\UtilPack.NuGet.AssemblyLoading\NuGetAssemblyResolver.cs" Link="UtilPack.NuGet.AssembyLoading.NuGetAssemblyResolver.cs" />
     <Compile Include="..\UtilPack.NuGet\Frameworks.cs" Link="UtilPack.NuGet.Frameworks.cs" />
     <Compile Include="..\UtilPack.NuGet\Restoring.cs" Link="UtilPack.NuGet.Restoring.cs" />
+    <Compile Include="..\UtilPack.NuGet\AgnosticLoggerWrapper.cs" Link="UtilPack.NuGet.AgnosticLoggerWrapper.cs" />
     <Compile Include="..\UtilPack\Miscellaneous.cs" Link="UtilPack.Miscellaneous.cs" />
     <Compile Include="..\UtilPack\CollectionExtensions.cs" Link="UtilPack.CollectionExtensions.cs" />
     <Compile Include="..\UtilPack\SequenceEqualityComparer.cs" Link="UtilPack.SequenceEqualityComparer.cs" />

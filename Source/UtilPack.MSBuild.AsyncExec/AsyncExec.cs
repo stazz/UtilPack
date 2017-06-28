@@ -21,8 +21,12 @@ using System.Diagnostics;
 
 namespace UtilPack.MSBuild.AsyncExec
 {
+   /// <summary>
+   /// This task starts a process, and does not wait for it to terminate.
+   /// </summary>
    public class AsyncExecTask : Exec
    {
+      /// <inheritdoc/>
       protected override Int32 ExecuteTool(
          String pathToTool,
          String responseFileCommands,
@@ -39,6 +43,7 @@ namespace UtilPack.MSBuild.AsyncExec
          return 0;
       }
 
+      /// <inheritdoc/>
       protected override ProcessStartInfo GetProcessStartInfo(
          String pathToTool,
          String commandLineCommands,

@@ -22,7 +22,7 @@
   <!-- Assembly information stuff -->
   <PropertyGroup>
     <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>RC3</VersionSuffix>
+    <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
@@ -52,7 +52,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Following fixes in UtilPack.NuGet.Deployment package. This task now also returns false on failures. Added output parameter for entrypoint assembly.</PackageReleaseNotes>
+    <PackageReleaseNotes>No changes since last RC</PackageReleaseNotes>
     <PackageTags>utility nuget extensions deployment msbuild</PackageTags>
     <Title>NuGet Package Deployment MSBuild Task</Title>
     <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>

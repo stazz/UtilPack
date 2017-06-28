@@ -467,6 +467,13 @@ public static partial class E_UtilPack
       return retVal;
    }
 
+   /// <summary>
+   /// Helper method to resolve full path from relative path (to one of the <see cref="LockFile.PackageFolders"/>) with the lock file.
+   /// </summary>
+   /// <param name="restorer">This <see cref="BoundRestoreCommandUser"/>.</param>
+   /// <param name="lockFile">The <see cref="LockFile"/>.</param>
+   /// <param name="pathWithinPackageFolder">Some path originating from <paramref name="lockFile"/> and relative to <see cref="LockFile.PackageFolders"/>.</param>
+   /// <returns>The full path, or <c>null</c>.</returns>
    public static String ResolveFullPath( this BoundRestoreCommandUser restorer, LockFile lockFile, String pathWithinPackageFolder )
    {
       return restorer.ResolveFullPath(
@@ -477,9 +484,17 @@ public static partial class E_UtilPack
          );
    }
 
+   /// <summary>
+   /// Helper method to resolve full path from relative path (to one of the <see cref="LockFile.PackageFolders"/>) callback.
+   /// </summary>
+   /// <param name="restorer">This <see cref="BoundRestoreCommandUser"/>.</param>
+   /// <param name="lockFile">The <see cref="LockFile"/>.</param>
+   /// <param name="pathExtractor">The callback which should return path relative to <see cref="LockFile.PackageFolders"/>.</param>
+   /// <returns>The full path, or <c>null</c>.</returns>
    public static String ResolveFullPath( this BoundRestoreCommandUser restorer, LockFile lockFile, Func<VersionFolderPathResolver, String> pathExtractor )
    {
-      var onlyOnePackageFolder = lockFile.PackageFolders.Count == 1;
+      ArgumentValidator.ValidateNotNullReference( restorer );
+      var onlyOnePackageFolder = ArgumentValidator.ValidateNotNull( nameof( lockFile ), lockFile ).PackageFolders.Count == 1;
       return pathExtractor == null ? null : lockFile.PackageFolders
          .Select( f =>
          {

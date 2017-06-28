@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
     <id>UtilPack.NuGet.MSBuild</id>
-    <version>1.0.0-RC11</version>
+    <version>1.0.0</version>
     <title>MSBuild Task Factory for NuGet-Oriented MSBuild Tasks</title>
     <authors>Stanislav Muhametsin</authors>
     <owners>Stanislav Muhametsin</owners>
@@ -10,7 +10,7 @@
     <licenseUrl>https://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
     <projectUrl>https://github.com/CometaSolutions/UtilPack</projectUrl>
     <description>Provides easy way to execute NuGet-based MSBuild tasks.</description>
-    <releaseNotes>Apparently Convert.ChangeType does not know how to parse enums - fixed that.</releaseNotes>
+    <releaseNotes>Fixed bug which caused loading NuGet assemblies from this task factory folder instead as NuGet packages.</releaseNotes>
     <copyright>Stanislav Muhametsin</copyright>
     <tags>utility nuget extensions msbuild task package resolve</tags>
     <repository url="https://github.com/CometaSolutions/UtilPack" />

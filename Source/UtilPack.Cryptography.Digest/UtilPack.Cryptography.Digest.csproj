@@ -14,7 +14,7 @@
   <!-- Assembly information stuff -->
   <PropertyGroup>
     <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>RC3</VersionSuffix>
+    <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
@@ -44,7 +44,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Fixed type which caused critical bug: if small data packets were used to compute digest, the value from new one would overwrite previous. Now digest algorithms work correctly even in small subsequent data packets.</PackageReleaseNotes>
+    <PackageReleaseNotes>No changes since last RC.</PackageReleaseNotes>
     <PackageTags>utility cryptography random block hash digest md5 sha128 sha256 sha384 sha512</PackageTags>
     <Title>Cryptographic Digest Functions</Title>
     <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>

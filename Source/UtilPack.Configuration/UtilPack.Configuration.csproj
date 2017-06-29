@@ -25,7 +25,7 @@
     <NeutralLanguage>en-US</NeutralLanguage>
     <AssemblyTitle>UtilPack.Configuration</AssemblyTitle>
     <Product>UtilPack</Product>
-    <Description>Library containing DynamicConfigurableTypeLoader class, which dynamically loads and instantiates types from NuGet packages using information in Microsoft.Extensions.Configuration.IConfiguration object.</Description>
+    <Description>Library containing DynamicConfigurableTypeLoader class, which dynamically loads and instantiates types using information in Microsoft.Extensions.Configuration.IConfiguration object.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>
     <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
   </PropertyGroup>

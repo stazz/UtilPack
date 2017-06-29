@@ -29,7 +29,8 @@
     <NeutralLanguage>en-US</NeutralLanguage>
     <AssemblyTitle>UtilPack.NuGet.Push.MSBuild</AssemblyTitle>
     <Product>UtilPack</Product>
-    <Description>MSBuild task to push packages. Most suitable to use in rapid development builds, where each build should propagate to (local) NuGet feed.</Description>
+    <Description>MSBuild task to push packages. Most suitable to use in rapid development builds, where each build should propagate to (local) NuGet feed.
+The task in this package should be loaded by UtilPack.NuGet.MSBuild task factory.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>
     <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
   </PropertyGroup>

@@ -51,8 +51,8 @@ namespace UtilPack.MSBuild.AsyncExec
          )
       {
          var retVal = base.GetProcessStartInfo( pathToTool, commandLineCommands, responseFileSwitch );
-         retVal.UseShellExecute = false;
-         retVal.CreateNoWindow = false;
+         retVal.UseShellExecute = this.UseShellExecute;
+         retVal.CreateNoWindow = this.CreateNoWindow;
          retVal.RedirectStandardOutput = false;
          retVal.RedirectStandardError = false;
          retVal.RedirectStandardInput = false;
@@ -61,5 +61,16 @@ namespace UtilPack.MSBuild.AsyncExec
          return retVal;
       }
 
+      /// <summary>
+      /// Gets or sets the argument to pass to <see cref="ProcessStartInfo.UseShellExecute"/> property.
+      /// </summary>
+      /// <value>The argument to pass to <see cref="ProcessStartInfo.UseShellExecute"/> property.</value>
+      public Boolean UseShellExecute { get; set; }
+
+      /// <summary>
+      /// Gets or sets the argument to pass to <see cref="ProcessStartInfo.CreateNoWindow"/> property.
+      /// </summary>
+      /// <value>The argument to pass to <see cref="ProcessStartInfo.CreateNoWindow"/> property.</value>
+      public Boolean CreateNoWindow { get; set; }
    }
 }

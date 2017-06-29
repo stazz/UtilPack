@@ -28,7 +28,8 @@
     <NeutralLanguage>en-US</NeutralLanguage>
     <AssemblyTitle>UtilPack.NuGet.Deployment.MSBuild</AssemblyTitle>
     <Product>UtilPack</Product>
-    <Description>MSBuild task which utilizes UtilPack.NuGet.Deployment library in order to deploy NuGet packages so that they can be executed directly by dotnet.</Description>
+    <Description>MSBuild task which utilizes UtilPack.NuGet.Deployment library in order to deploy NuGet packages so that they can be executed directly by dotnet.
+The task in this package should be loaded by UtilPack.NuGet.MSBuild task factory.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>
     <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
   </PropertyGroup>

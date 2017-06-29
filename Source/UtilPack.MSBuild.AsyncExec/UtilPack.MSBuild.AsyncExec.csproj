@@ -26,7 +26,8 @@
     <NeutralLanguage>en-US</NeutralLanguage>
     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Product>UtilPack</Product>
-    <Description>MSBuild task which extends Exec but does not wait for the spawned process to terminate.</Description>
+    <Description>MSBuild task which extends Exec but does not wait for the spawned process to terminate.
+The task in this package should be loaded by UtilPack.NuGet.MSBuild task factory.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>
     <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
   </PropertyGroup>

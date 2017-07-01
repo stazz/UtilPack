@@ -199,9 +199,9 @@ namespace UtilPack.Configuration
                   {
                      // This is normal property - process recursively
                      var nestedSection = section.GetSection( configProp.Name );
-                     if ( !String.IsNullOrEmpty( nestedSection?.Value ) )
+                     if ( nestedSection != null && nestedSection.GetChildren().Any() ) // String.IsNullOrEmpty( nestedSection?.Value ) )
                      {
-
+                        // This is complex value (not string/number), iterate...
                         Object nestedConfigInstance = null;
                         try
                         {

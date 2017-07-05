@@ -21,7 +21,7 @@
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <AssemblyTitle>UtilPack.Cryptography</AssemblyTitle>
+    <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Product>UtilPack</Product>
     <Description>Library containing basic abstractions to cryptography. Aims to fill the gap in cryptographic API lack in .NET Standard 1.0, and to co-operate with existing cryptographic API in other .NET frameworks.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>

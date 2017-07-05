@@ -26,7 +26,7 @@
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <AssemblyTitle>UtilPack.NuGet.Deployment.MSBuild</AssemblyTitle>
+    <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Product>UtilPack</Product>
     <Description>MSBuild task which utilizes UtilPack.NuGet.Deployment library in order to deploy NuGet packages so that they can be executed directly by dotnet.
 The task in this package should be loaded by UtilPack.NuGet.MSBuild task factory.</Description>

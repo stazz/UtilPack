@@ -28,7 +28,7 @@
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <AssemblyTitle>UtilPack.NuGet.AssemblyLoading</AssemblyTitle>
+    <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Product>UtilPack</Product>
     <Description>Library containing NuGetAssemblyResolver interface, which provides uniform way for both .NET Desktop and Core to dynamically load assemblies from NuGet packages and dependencies.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>

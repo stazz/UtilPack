@@ -22,7 +22,7 @@
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <AssemblyTitle>UtilPack.NuGet.Common.MSBuild</AssemblyTitle>
+    <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Product>UtilPack</Product>
     <Description>Library containing some commonly used types (e.g. logger) for working with NuGet packages in MSBuild tasks.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>

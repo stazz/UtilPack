@@ -730,7 +730,7 @@ namespace UtilPack.NuGet.MSBuild
       {
          // This should never cause any actual async waiting, since LockFile for task package has been already cached by restorer
          var taskAssembly = resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath ).GetAwaiter().GetResult();
-         var taskType = taskAssembly.GetType( taskTypeName, false, false );
+         var taskType = taskAssembly.GetType( taskTypeName, true, false );
          if ( taskType == null )
          {
             throw new Exception( $"Could not find task with type {taskTypeName} from assembly {taskAssembly}." );

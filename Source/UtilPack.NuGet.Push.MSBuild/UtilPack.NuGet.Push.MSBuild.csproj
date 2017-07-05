@@ -27,7 +27,7 @@
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <AssemblyTitle>UtilPack.NuGet.Push.MSBuild</AssemblyTitle>
+    <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Product>UtilPack</Product>
     <Description>MSBuild task to push packages. Most suitable to use in rapid development builds, where each build should propagate to (local) NuGet feed.
 The task in this package should be loaded by UtilPack.NuGet.MSBuild task factory.</Description>

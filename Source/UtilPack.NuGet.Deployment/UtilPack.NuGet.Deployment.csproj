@@ -29,7 +29,7 @@
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <AssemblyTitle>UtilPack.NuGet.Deployment</AssemblyTitle>
+    <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Product>UtilPack</Product>
     <Description>Library for deploying NuGet packages so that they can be directly executed by dotnet tool. All required functionality is in NuGetDeployment class.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>

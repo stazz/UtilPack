@@ -23,7 +23,7 @@
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <AssemblyTitle>UtilPack.Configuration</AssemblyTitle>
+    <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Product>UtilPack</Product>
     <Description>Library containing DynamicConfigurableTypeLoader class, which dynamically loads and instantiates types using information in Microsoft.Extensions.Configuration.IConfiguration object.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>

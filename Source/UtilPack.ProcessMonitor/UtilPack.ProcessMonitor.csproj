@@ -29,7 +29,7 @@
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <AssemblyTitle>UtilPack.ProcessMonitor</AssemblyTitle>
+    <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Product>UtilPack</Product>
     <Description>Library to start, monitor, and restart processes. Provides way to gracefully shutdown process-to-be-monitored via semaphore, and also to enable the process to signal that it needs to be restarted, also via semaphore.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>

@@ -28,7 +28,7 @@
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <AssemblyTitle>UtilPack.NuGet.ProcessRunner</AssemblyTitle>
+    <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Product>UtilPack</Product>
     <Description>This package contains executable which combines the functionalities of UtilPack.NuGet.Deployment and UtilPack.ProcessMonitor packages: it can restore missing packages, and then execute and monitor them.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>

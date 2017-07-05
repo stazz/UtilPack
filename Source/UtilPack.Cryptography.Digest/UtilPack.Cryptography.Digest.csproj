@@ -18,7 +18,7 @@
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
-    <AssemblyTitle>UtilPack.Cryptography.Digest</AssemblyTitle>
+    <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Product>UtilPack</Product>
     <Description>Provides block-based digest-producing cryptographical algorithms. Also provides concrete implementation for RandomGenerator interface of UtilPack.Cryptography package.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>

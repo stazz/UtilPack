@@ -8,8 +8,11 @@ This interface can be implemented by other libraries as well.
 The `DigestBasedRandomGenerator` provides concrete implementation for `RandomGenerator` interface in [UtilPack.Cryptography](../UtilPack.Cryptography), using the given `BlockDigestAlgorithm` interface to generate random data.
 The `DigestBasedRandomGenerator` is not safe to use concurrently - it has state that it modifies during the calls to methods in such way that concurrent calls would most likely cause errors or erroneous data.
 
+# Distribution
+
 See [NuGet package](http://www.nuget.org/packages/UtilPack.Cryptography.Digest) for binary distribution.
 
 # TODO
-Need to copy-paste the `BlockDigestAlgorithm` which uses the .NET native algorithms (if they are available) instead of completely managed current implementations of MD5/SHA*.
+
+Need to write the `BlockDigestAlgorithm` which uses the .NET native algorithms (if they are available) instead of completely managed current implementations of MD5/SHA*.
 Also need to add more digest algorithms (SHA3, BLAKE2).

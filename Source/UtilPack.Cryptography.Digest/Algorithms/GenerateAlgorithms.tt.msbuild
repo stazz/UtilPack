@@ -33,10 +33,6 @@
    var blockSize = GetBlockSize( algID );
    var expandedSize = GetExpandedStateArrayLength( algID );
 
-   // TODO try to use pinned variables in .NET desktop and core app versions?
-   // Or maybe expand the transformation methods more?
-   // Currently these are roughly 2 times slower than the System.Security.Cryptography ones.
-
    var useUnsafe = true;
    var unsafeString = useUnsafe ? "unsafe" : "";
    var digestByteCount = GetDigestByteCount( algID );

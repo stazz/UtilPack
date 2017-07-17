@@ -55,8 +55,8 @@
     <PackageReleaseNotes>Added logger wrapper to filter out specific error messages during restoring using agnostic framework. Added extension method to effectively resolve full path from relative paths in lock file items. Some minor bugfixes too.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions restore</PackageTags>
     <Title>NuGet Restore Helper</Title>
-    <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>
-    <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
+    <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>
+    <PackageProjectUrl>$(RepositoryUrl)/Source/$(AssemblyName)</PackageProjectUrl>
     <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
   </PropertyGroup>
 

@@ -57,8 +57,8 @@
     <PackageReleaseNotes>No longer using from-name resolution when resolving assemblies, in order to avoid loading assemblies in the same folder as calling assembly..</PackageReleaseNotes>
     <PackageTags>utility nuget extensions dynamically load assembly</PackageTags>
     <Title>NuGet Assembly Resolving Helper</Title>
-    <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>
-    <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
+    <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>
+    <PackageProjectUrl>$(RepositoryUrl)/Source/$(AssemblyName)</PackageProjectUrl>
     <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
   </PropertyGroup>
 

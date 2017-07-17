@@ -52,8 +52,8 @@
     <PackageReleaseNotes>Fixed a bug in detecting property which should be traversed recursively when scanning for NestedDynamicConfiguration attributes.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions configuration dynamically load assembly type</PackageTags>
     <Title>Dynamic NuGet Configuration</Title>
-    <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>
-    <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
+    <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>
+    <PackageProjectUrl>$(RepositoryUrl)/Source/$(AssemblyName)</PackageProjectUrl>
     <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
   </PropertyGroup>
 

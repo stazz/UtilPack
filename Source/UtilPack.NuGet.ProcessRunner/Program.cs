@@ -37,7 +37,7 @@ namespace UtilPack.NuGet.ProcessRunner
 
          DeploymentConfiguration deployConfig = null;
          DefaultMonitoringConfiguration monitorConfig = null;
-         NuGetConfiguration nugetConfig = null;
+         ProcessRunnerConfiguration nugetConfig = null;
          try
          {
             var config = new ConfigurationBuilder()
@@ -45,7 +45,7 @@ namespace UtilPack.NuGet.ProcessRunner
                .Build();
             deployConfig = config.Get<DefaultDeploymentConfiguration>();
             monitorConfig = config.Get<DefaultMonitoringConfiguration>();
-            nugetConfig = config.Get<NuGetConfiguration>();
+            nugetConfig = config.Get<ProcessRunnerConfiguration>();
          }
          catch ( Exception exc )
          {
@@ -160,7 +160,7 @@ namespace UtilPack.NuGet.ProcessRunner
 
    }
 
-   internal class NuGetConfiguration
+   internal class ProcessRunnerConfiguration
    {
       public String NuGetConfigurationFile { get; set; }
    }

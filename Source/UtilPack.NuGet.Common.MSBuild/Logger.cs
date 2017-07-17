@@ -25,6 +25,9 @@ namespace UtilPack.NuGet.Common.MSBuild
    /// <summary>
    /// This class delegates NuGet logging messages to underlying <see cref="IBuildEngine"/>, if it is specified.
    /// </summary>
+   /// <remarks>
+   /// TODO: customize prefixes and make this as configurable and customizable as TextWriterLogger in UtilPack.NuGet project.
+   /// </remarks>
    public class NuGetMSBuildLogger : global::NuGet.Common.ILogger
    {
       private IBuildEngine _be;

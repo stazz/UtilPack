@@ -3,7 +3,7 @@
 This project contains library which exposes `ProcessMonitor` class, that can be used to monitor other process, along with some extra functionality.
 The `ProcessMonitor` class exposes one method, `KeepMonitoringAsync`, which will start the process, and keep monitoring it until the given `CancellationToken` is canceled, or process shuts down.
 
-# Features of process monitoring
+# Features of UtilPack.ProcessMonitor
 The `ProcessMonitor` class has support for graceful target process shutdown and restart.
 Both of shutdown and restart functionalities are implemented using semaphores.
 The target process must have support for these functionalities as well, as only the names of the semaphores are given to the process.
@@ -24,12 +24,16 @@ Then, the monitoring process will start a new process.
 # Configuration
 The `MonitoringConfiguration` interface (implemented by `DefaultMonitoringConfiguration` class) has static configuration for the `ProcessMonitor` class.
 The properties are explained below.
-* The `ToolPath` is optional parameter, and should specify the executable to run instead of the directly running the deployed entrypoint assembly. In case of .NET Core executable assembly, this should be a path to a `dotnet` tool.
+* The `ToolPath` is optional parameter, and should specify the executable to run instead of the directly running the deployed entrypoint assembly. In case of .NET Core executable assembly, this should be a path to a `dotnet` tool. If this parameter is supplied, then it will override the `processLocation` parameter of the `KeepMonitoringAsync` method, and the method parameter will be passed as first command-line parameter to the tool.
 * The `ProcessArgumentPrefix` is optional parameter, that should contain string that process parameters will be prefixed with. By default, the value of this is `/`.
-* The `ShutdownSemaphoreProcessArgument` is optional parameter, that should be the name of the process parameter that accepts shutdown semaphore name. This semaphore will be used to implement graceful process shutdown. By default, this parameter will not be used. Read more about shutdown semaphores in [UtilPack.ProcessMonitor project documentation](../UtilPack.ProcessMonitor).
+* The `ShutdownSemaphoreProcessArgument` is optional parameter, that should be the name of the process parameter that accepts shutdown semaphore name. This semaphore will be used to implement graceful process shutdown. By default, this parameter will not be used.
 * The `ShutdownSemaphoreWaitTime is optional parameter containing the `TimeSpan` for how long to wait for process graceful shutdown. This parameter will only be used if `ShutdownSemaphoreProcessArgument` is specified. The default value is one second.
-* The `RestartSemaphoreProcessArgument` is optional parameter, that should be the name of the process parameter that accepts restart semaphore name. This semaphore will be used to implemented graceful process restart. By default, this parameter will not be used. Read more about shutdown semaphores in [UtilPack.ProcessMonitor project documentation](../UtilPack.ProcessMonitor).
+* The `RestartSemaphoreProcessArgument` is optional parameter, that should be the name of the process parameter that accepts restart semaphore name. This semaphore will be used to implemented graceful process restart. By default, this parameter will not be used.
 * The `RestartWaitTime` is optional parameter containing the `TimeSpan` for how long to wait before restarting the process in the graceful restart situation. This parameter will only be used if `RestartSemaphoreProcessArgument` is specified. The default value is zero seconds, that is, no wait at all.
+
+The `KeepMonitoringAsync` method of the `ProcessMonitor` class has the following parameters.
+* `String processLocation`: The path to the process executable.
+* `CancellationToken token`: The cancellation token to monitor.
 
 # Distribution
 See [NuGet package](http://www.nuget.org/packages/UtilPack.ProcessMonitor) for binary distribution.

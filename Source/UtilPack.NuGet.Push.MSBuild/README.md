@@ -21,5 +21,5 @@ The input parameters of the `UtilPack.NuGet.Push.MSBuild.PushTask` are listed be
 This task has now output parameters.
 
 # Distribution
-__The task provided by this project should be loaded using [UtilPack.NuGet.MSBuild](../UtilPack.NuGet.MSBuild) task factory.__
 The [NuGet package](http://www.nuget.org/packages/UtilPack.NuGet.Push.MSBuild) has the same package ID as this folder name.
+__The task provided by this project should be loaded using [UtilPack.NuGet.MSBuild](../UtilPack.NuGet.MSBuild) task factory.__

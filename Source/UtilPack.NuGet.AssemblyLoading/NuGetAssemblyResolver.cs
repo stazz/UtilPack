@@ -36,7 +36,7 @@ namespace UtilPack.NuGet.AssemblyLoading
 {
    /// <summary>
    /// This interface provides uniform way of dynamically load assemblies from NuGet packages and file paths.
-   /// Instances of this interface are creatd by <see cref="NuGetAssemblyResolverFactory"/> class.
+   /// Instances of this interface are created by <see cref="NuGetAssemblyResolverFactory"/> class.
    /// </summary>
    public interface NuGetAssemblyResolver : IDisposable
    {

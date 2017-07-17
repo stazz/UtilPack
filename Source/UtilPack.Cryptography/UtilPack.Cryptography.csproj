@@ -50,8 +50,8 @@
     <PackageReleaseNotes>No changes since last RC.</PackageReleaseNotes>
     <PackageTags>utility cryptography random</PackageTags>
     <Title>Cryptographic Abstractions</Title>
-    <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>
-    <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
+    <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>
+    <PackageProjectUrl>$(RepositoryUrl)/Source/$(AssemblyName)</PackageProjectUrl>
     <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
   </PropertyGroup>
 

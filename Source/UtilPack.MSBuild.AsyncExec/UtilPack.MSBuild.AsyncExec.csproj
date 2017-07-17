@@ -54,8 +54,8 @@ The task in this package should be loaded by UtilPack.NuGet.MSBuild task factory
     <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
     <PackageTags>utility extensions msbuild async exec</PackageTags>
     <Title>Asynchronous Exec MSBuild Task</Title>
-    <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>
-    <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
+    <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>
+    <PackageProjectUrl>$(RepositoryUrl)/Source/$(AssemblyName)</PackageProjectUrl>
     <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
   </PropertyGroup>
 

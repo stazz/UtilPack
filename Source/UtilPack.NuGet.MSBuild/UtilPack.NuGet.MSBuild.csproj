@@ -121,8 +121,8 @@
     <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions msbuild task package resolve</PackageTags>
     <Title>MSBuild Task Factory for NuGet-Oriented MSBuild Tasks</Title>
-    <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>
-    <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
+    <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>
+    <PackageProjectUrl>$(RepositoryUrl)/Source/$(AssemblyName)</PackageProjectUrl>
     <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>-->
   </PropertyGroup>
 

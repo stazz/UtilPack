@@ -57,8 +57,8 @@ The task in this package should be loaded by UtilPack.NuGet.MSBuild task factory
     <PackageReleaseNotes>No changes since last RC.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions nuget msbuild push</PackageTags>
     <Title>MSBuild Task to Push NuGet Packages</Title>
-    <PackageProjectUrl>https://github.com/CometaSolutions/UtilPack</PackageProjectUrl>
-    <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
+    <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>
+    <PackageProjectUrl>$(RepositoryUrl)/Source/$(AssemblyName)</PackageProjectUrl>
     <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
   </PropertyGroup>
 

@@ -167,10 +167,6 @@ namespace UtilPack.NuGet.Push.MSBuild
 
       public String NuGetConfigurationFilePath { get; set; }
 
-      public Boolean SkipOverwriteLocalFeed { get; set; }
-
-      public Boolean SkipClearingLocalRepositories { get; set; }
-
       public Int32 RetryTimeoutForDirectoryDeletionFail { get; set; } = 500;
 
       private void DeleteDir( String dir )

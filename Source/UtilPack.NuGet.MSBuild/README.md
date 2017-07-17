@@ -1,4 +1,7 @@
-# Running Custom MSBuild Tasks, Which Are NuGet Packages
+# UtilPack.NuGet.MSBuild
+This project contains task factory, which makes it easy to execute tasks which are in assemblies of NuGet packages, and potentially are dependant on some other NuGet packages.
+
+# Usage
 ## Introduction
 The ```UtilPack.NuGet.MSBuild``` NuGet package provides a MSBuild task factory, which will execute the given MSBuild task located in some NuGet package.
 This NuGet package is searched by specifying mandatory package ID and optional package version in the task factory parameters inside ```<Task>``` element of the ```UsingTask``` declaration.
@@ -38,6 +41,14 @@ The task factory is used from the project file in the following way:
       </NuGetTaskInfo>
     </Task>
   </UsingTask>
+  
+  <Target Name="MyTarget">
+    <YourTaskNameHere
+      TaskParameter1="ValueForFirstTaskParameter"
+      TaskParameter2="ValueForSecondTaskParameter"
+      ...
+    />
+  </Target>
 ```
 
 The following are key aspects when using the task factory from project file:
@@ -45,6 +56,7 @@ The following are key aspects when using the task factory from project file:
 * The ```TargetFramework``` property is not affected - the ```UtilPack.NuGet.MSBuild``` package does not have any dependencies nor assemblies in its ```lib``` path, so it is completely transparent for the build.
 * The ```UsingTask``` element should have its ```Condition```, ```TaskFactory``` and ```AssemblyFile``` attributes always the same. By default, the only customizable attribute should be ```TaskName```, which should be the full type name of the task to execute.
 * The ```UsingTask``` __must__ contain the ```Task``` element as its child, and ```Task``` element __must__ contain ```NuGetTaskInfo``` element as its child. The ```NuGetTaskInfo``` element __must__ adhere to a certain format, explained in next section.
+* After declaring the task, the task may be executed just like any other task declared by any other task factory.
 
 ### Task Factory Parameters
 The ```UtilPack.NuGet.MSBuild``` task factory requires some information about the task to execute.

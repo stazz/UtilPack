@@ -58,7 +58,7 @@
     <PackageTags>json utility binary serialization extensions async asynchronous deserialization</PackageTags>
     <Title>Asynchronous JSON Serialization</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>
-    <PackageProjectUrl>$(RepositoryUrl)/Source/$(AssemblyName)</PackageProjectUrl>
+    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
     <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
   </PropertyGroup>
   

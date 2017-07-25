@@ -48,7 +48,7 @@
     <PackageTags>utility cryptography random block hash digest md5 sha128 sha256 sha384 sha512</PackageTags>
     <Title>Cryptographic Digest Functions</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>
-    <PackageProjectUrl>$(RepositoryUrl)/Source/$(AssemblyName)</PackageProjectUrl>
+    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
     <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
   </PropertyGroup>
 

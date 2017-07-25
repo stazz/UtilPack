@@ -1,39 +1,41 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.14
+VisualStudioVersion = 15.0.26430.16
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack", "UtilPack\UtilPack.csproj", "{6023CF33-713A-471D-A58C-D59228E900A3}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.JSON", "UtilPack.JSON\UtilPack.JSON.csproj", "{2B61DE29-C6C2-42DC-B2F4-8FECA746958C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.NuGet", "UtilPack.NuGet\UtilPack.NuGet.csproj", "{455DE6EB-AB4B-4B79-BDB6-A7C2D16CEEC5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet", "UtilPack.NuGet\UtilPack.NuGet.csproj", "{455DE6EB-AB4B-4B79-BDB6-A7C2D16CEEC5}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Tests", "UtilPack.Tests\UtilPack.Tests.csproj", "{9F1E8C76-8B7E-43B1-821B-6D7854680B09}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.NuGet.MSBuild", "UtilPack.NuGet.MSBuild\UtilPack.NuGet.MSBuild.csproj", "{465F915D-A876-485A-8AE2-C2CAB224D23E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.MSBuild", "UtilPack.NuGet.MSBuild\UtilPack.NuGet.MSBuild.csproj", "{465F915D-A876-485A-8AE2-C2CAB224D23E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.Cryptography.Digest", "UtilPack.Cryptography.Digest\UtilPack.Cryptography.Digest.csproj", "{D6F43E1B-BD28-428C-8AA5-7C97E4F7D9F1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Cryptography.Digest", "UtilPack.Cryptography.Digest\UtilPack.Cryptography.Digest.csproj", "{D6F43E1B-BD28-428C-8AA5-7C97E4F7D9F1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.Cryptography", "UtilPack.Cryptography\UtilPack.Cryptography.csproj", "{7A3817AE-6B9B-444E-95AC-F9D7D758688B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Cryptography", "UtilPack.Cryptography\UtilPack.Cryptography.csproj", "{7A3817AE-6B9B-444E-95AC-F9D7D758688B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.Configuration", "UtilPack.Configuration\UtilPack.Configuration.csproj", "{E8614DA1-1CD5-4244-B13F-C92C937B4618}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Configuration", "UtilPack.Configuration\UtilPack.Configuration.csproj", "{E8614DA1-1CD5-4244-B13F-C92C937B4618}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.NuGet.AssemblyLoading", "UtilPack.NuGet.AssemblyLoading\UtilPack.NuGet.AssemblyLoading.csproj", "{92442473-CF41-4F1D-95AC-E9BA3684D5D9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.AssemblyLoading", "UtilPack.NuGet.AssemblyLoading\UtilPack.NuGet.AssemblyLoading.csproj", "{92442473-CF41-4F1D-95AC-E9BA3684D5D9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.NuGet.Push.MSBuild", "UtilPack.NuGet.Push.MSBuild\UtilPack.NuGet.Push.MSBuild.csproj", "{68E0F5BF-5874-4C30-8275-EC8555AC9916}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.Push.MSBuild", "UtilPack.NuGet.Push.MSBuild\UtilPack.NuGet.Push.MSBuild.csproj", "{68E0F5BF-5874-4C30-8275-EC8555AC9916}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.NuGet.Common.MSBuild", "UtilPack.NuGet.Common.MSBuild\UtilPack.NuGet.Common.MSBuild.csproj", "{D277A436-1D02-4FBB-A12A-ADDCC058C647}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.Common.MSBuild", "UtilPack.NuGet.Common.MSBuild\UtilPack.NuGet.Common.MSBuild.csproj", "{D277A436-1D02-4FBB-A12A-ADDCC058C647}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.NuGet.ProcessRunner", "UtilPack.NuGet.ProcessRunner\UtilPack.NuGet.ProcessRunner.csproj", "{3403D3A2-9397-42D9-A424-13702D563C9E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.ProcessRunner", "UtilPack.NuGet.ProcessRunner\UtilPack.NuGet.ProcessRunner.csproj", "{3403D3A2-9397-42D9-A424-13702D563C9E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.NuGet.Deployment", "UtilPack.NuGet.Deployment\UtilPack.NuGet.Deployment.csproj", "{8DA594F2-424D-45C0-A159-F7B1C0D1F79C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.Deployment", "UtilPack.NuGet.Deployment\UtilPack.NuGet.Deployment.csproj", "{8DA594F2-424D-45C0-A159-F7B1C0D1F79C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.ProcessMonitor", "UtilPack.ProcessMonitor\UtilPack.ProcessMonitor.csproj", "{B5CBEA41-01E2-4496-BEE9-77D117695EF8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.ProcessMonitor", "UtilPack.ProcessMonitor\UtilPack.ProcessMonitor.csproj", "{B5CBEA41-01E2-4496-BEE9-77D117695EF8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.NuGet.Deployment.MSBuild", "UtilPack.NuGet.Deployment.MSBuild\UtilPack.NuGet.Deployment.MSBuild.csproj", "{B0BE3461-258E-4ACA-AF2C-39F62F5C3966}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.Deployment.MSBuild", "UtilPack.NuGet.Deployment.MSBuild\UtilPack.NuGet.Deployment.MSBuild.csproj", "{B0BE3461-258E-4ACA-AF2C-39F62F5C3966}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.MSBuild.AsyncExec", "UtilPack.MSBuild.AsyncExec\UtilPack.MSBuild.AsyncExec.csproj", "{980BFAC3-28AD-411A-AF38-38A6E4C0CBEB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.MSBuild.AsyncExec", "UtilPack.MSBuild.AsyncExec\UtilPack.MSBuild.AsyncExec.csproj", "{980BFAC3-28AD-411A-AF38-38A6E4C0CBEB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.AsyncEnumeration", "UtilPack.AsyncEnumeration\UtilPack.AsyncEnumeration.csproj", "{D7039410-AFFE-4E4A-BC1D-03F2CEB9A667}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -105,6 +107,10 @@ Global
 		{980BFAC3-28AD-411A-AF38-38A6E4C0CBEB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{980BFAC3-28AD-411A-AF38-38A6E4C0CBEB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{980BFAC3-28AD-411A-AF38-38A6E4C0CBEB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D7039410-AFFE-4E4A-BC1D-03F2CEB9A667}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D7039410-AFFE-4E4A-BC1D-03F2CEB9A667}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D7039410-AFFE-4E4A-BC1D-03F2CEB9A667}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D7039410-AFFE-4E4A-BC1D-03F2CEB9A667}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

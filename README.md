@@ -6,8 +6,8 @@ UtilPack is designed to be extremely portable.
 Currently, most of the projects target .NET 4 and .NET Standard 1.0.
 
 ## Projects
-There are currently 16 projects in UtilPack repository, with 1 being project for (currently small amount of) tests.
-Each of the remaining 15 projects is its own NuGet package, with the NuGet package ID being the project assembly name.
+There are currently 17 projects in UtilPack repository, with 1 being project for (currently small amount of) tests.
+Each of the remaining 16 projects is its own NuGet package, with the NuGet package ID being the project assembly name.
 The amount of projects to handle infrastructure and various assembly-loading aspects when working with NuGet packages is 8 (all of UtilPack.NuGet.* projects).
 The rest of the projects fall under the broad "miscellaneous" category - to find out more about each project, browse the subdirectories of [Source](./Source) directory.
 

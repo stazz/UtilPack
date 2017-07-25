@@ -58,7 +58,7 @@
     <PackageTags>utility nuget extensions dynamically load assembly</PackageTags>
     <Title>NuGet Assembly Resolving Helper</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>
-    <PackageProjectUrl>$(RepositoryUrl)/Source/$(AssemblyName)</PackageProjectUrl>
+    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
     <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
   </PropertyGroup>
 

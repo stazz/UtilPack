@@ -8,12 +8,12 @@
     <owners>Stanislav Muhametsin</owners>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <licenseUrl>https://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
-    <projectUrl>https://github.com/CometaSolutions/UtilPack</projectUrl>
+    <repository url="https://github.com/CometaSolutions/UtilPack" />
+    <projectUrl>https://github.com/CometaSolutions/UtilPack/tree/develop/Source/UtilPack.NuGet.MSBuild</projectUrl>
     <description>Provides easy way to execute NuGet-based MSBuild tasks.</description>
     <releaseNotes>Fixed bug which caused loading NuGet assemblies from this task factory folder instead as NuGet packages.</releaseNotes>
     <copyright>Stanislav Muhametsin</copyright>
     <tags>utility nuget extensions msbuild task package resolve</tags>
-    <repository url="https://github.com/CometaSolutions/UtilPack" />
     <developmentDependency>true</developmentDependency>
     <dependencies/>
   </metadata>

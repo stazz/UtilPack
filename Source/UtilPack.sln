@@ -35,7 +35,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.Deployment.M
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.MSBuild.AsyncExec", "UtilPack.MSBuild.AsyncExec\UtilPack.MSBuild.AsyncExec.csproj", "{980BFAC3-28AD-411A-AF38-38A6E4C0CBEB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.AsyncEnumeration", "UtilPack.AsyncEnumeration\UtilPack.AsyncEnumeration.csproj", "{D7039410-AFFE-4E4A-BC1D-03F2CEB9A667}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.AsyncEnumeration", "UtilPack.AsyncEnumeration\UtilPack.AsyncEnumeration.csproj", "{D7039410-AFFE-4E4A-BC1D-03F2CEB9A667}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.TabularData", "UtilPack.TabularData\UtilPack.TabularData.csproj", "{A5C7A366-142B-4D47-956C-E96777E6B48E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -111,6 +113,10 @@ Global
 		{D7039410-AFFE-4E4A-BC1D-03F2CEB9A667}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D7039410-AFFE-4E4A-BC1D-03F2CEB9A667}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D7039410-AFFE-4E4A-BC1D-03F2CEB9A667}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A5C7A366-142B-4D47-956C-E96777E6B48E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A5C7A366-142B-4D47-956C-E96777E6B48E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A5C7A366-142B-4D47-956C-E96777E6B48E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A5C7A366-142B-4D47-956C-E96777E6B48E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

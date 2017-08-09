@@ -453,16 +453,33 @@ namespace UtilPack
       /// <param name="offset">The offset in array.</param>
       /// <param name="count">The amount of elements array must have starting at <paramref name="offset"/>.</param>
       /// <exception cref="ArgumentNullException">If <paramref name="array"/> is <c>null</c>.</exception>
-      /// <exception cref="ArgumentOutOfRangeException">If <paramref name="offset"/> or <paramref name="count"/> is less than <c>0</c>, or if array length is smaller than <paramref name="offset"/> <c>+</c> <paramref name="count"/>.</exception>
+      /// <exception cref="ArgumentOutOfRangeException">If <paramref name="offset"/> or <paramref name="count"/> is less than <c>0</c>.</exception>
       /// <exception cref="ArgumentException">If <paramref name="offset"/> + <paramref name="count"/> is greater than array length.</exception>
       public static void CheckArrayArguments<T>( this T[] array, Int32 offset, Int32 count )
+      {
+         // TODO remove this in 2.0 and make throwOnZeroCount = false in method below
+         array.CheckArrayArguments( offset, count, false );
+      }
+
+      /// <summary>
+      /// Checks whether given array is not <c>null</c> and has at least <paramref name="count"/> elements starting at <paramref name="offset"/>.
+      /// </summary>
+      /// <typeparam name="T">The array element type.</typeparam>
+      /// <param name="array">The array.</param>
+      /// <param name="offset">The offset in array.</param>
+      /// <param name="count">The amount of elements array must have starting at <paramref name="offset"/>.</param>
+      /// <param name="throwOnZeroCount">Whether throw when <paramref name="count"/> is <c>0</c>. By default, <c>0</c> <paramref name="count"/> does not cause an exception.</param>
+      /// <exception cref="ArgumentNullException">If <paramref name="array"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentOutOfRangeException">If <paramref name="offset"/> or <paramref name="count"/> is less than <c>0</c>. Also when <paramref name="throwOnZeroCount"/> is <c>true</c> and <paramref name="count"/> is <c>0</c>.</exception>
+      /// <exception cref="ArgumentException">If <paramref name="offset"/> + <paramref name="count"/> is greater than array length.</exception>
+      public static void CheckArrayArguments<T>( this T[] array, Int32 offset, Int32 count, Boolean throwOnZeroCount )
       {
          ArgumentValidator.ValidateNotNull( "Array", array );
          if ( offset < 0 )
          {
             throw new ArgumentOutOfRangeException( "Offset" );
          }
-         if ( count < 0 )
+         if ( count < 0 || ( count == 0 && throwOnZeroCount ) )
          {
             throw new ArgumentOutOfRangeException( "Count" );
          }

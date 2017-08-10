@@ -443,12 +443,52 @@ namespace UtilPack
       /// </summary>
       public static System.Threading.Tasks.Task CompletedTask { get; }
 
+
       static TaskUtils()
       {
          var src = new System.Threading.Tasks.TaskCompletionSource<Object>();
          src.SetResult( null );
 
          CompletedTask = src.Task;
+      }
+
+      // We can't put these two methods in #if , since then library targeting netstandard 1.0 and loaded in .net core app would fail with missingmethodexception
+
+      /// <summary>
+      /// Creates a new instance of <see cref="Task"/> which has already been canceled.
+      /// </summary>
+      /// <param name="token">The <see cref="CancellationToken"/>.</param>
+      /// <returns>A new instance of <see cref="Task"/> which has already been canceled.</returns>
+      /// <exception cref="ArgumentException">If <see cref="CancellationToken.IsCancellationRequested"/> of given <paramref name="token"/> returns <c>false</c>.</exception>
+      /// <remarks>
+      /// Due to limitations of public async API, the private state bits of returned task will be slightly different than the ones returned by framework's own corresponding method.
+      /// </remarks>
+      public static Task FromCanceled( CancellationToken token )
+      {
+         if ( !token.IsCancellationRequested )
+         {
+            throw new ArgumentException( nameof( token ) );
+         }
+         return new Task( () => { }, token, TaskCreationOptions.None );
+      }
+
+      /// <summary>
+      /// Creates a new instance of <see cref="Task{T}"/> which has already been canceled.
+      /// </summary>
+      /// <typeparam name="T">The type of task result.</typeparam>
+      /// <param name="token">The <see cref="CancellationToken"/>.</param>
+      /// <returns>A new instance of <see cref="Task{T}"/> which has already been canceled.</returns>
+      /// <exception cref="ArgumentException">If <see cref="CancellationToken.IsCancellationRequested"/> of given <paramref name="token"/> returns <c>false</c>.</exception>
+      /// <remarks>
+      /// Due to limitations of public async API, the private state bits of returned task will be slightly different than the ones returned by framework's own corresponding method.
+      /// </remarks>
+      public static Task<T> FromCanceled<T>( CancellationToken token )
+      {
+         if ( !token.IsCancellationRequested )
+         {
+            throw new ArgumentException( nameof( token ) );
+         }
+         return new Task<T>( () => default( T ), token, TaskCreationOptions.None );
       }
    }
 
@@ -510,7 +550,7 @@ namespace UtilPack
       /// Asynchronous infrastructure support. This method permits instances of <see cref="AsyncLazy{T}"/> to be awaited.
       /// </summary>
 #if NET40
-      [CLSCompliant(false)]
+      [CLSCompliant( false )]
 #endif
       public TaskAwaiter<T> GetAwaiter()
       {
@@ -587,7 +627,7 @@ namespace UtilPack
       /// Asynchronous infrastructure support. This method permits instances of <see cref="ReadOnlyResettableAsyncLazy{T}"/> to be awaited.
       /// </summary>
 #if NET40
-      [CLSCompliant(false)]
+      [CLSCompliant( false )]
 #endif
       public TaskAwaiter<T> GetAwaiter()
       {

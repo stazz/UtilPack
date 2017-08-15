@@ -38,6 +38,9 @@ namespace UtilPack.NuGet
    /// </summary>
    public static partial class UtilPackNuGetUtility
    {
+
+      private static readonly NuGetFramework NETCOREAPP20 = new NuGetFramework( FrameworkConstants.FrameworkIdentifiers.NetCoreApp, new Version( 2, 0, 0, 0 ) );
+
       /// <summary>
       /// Gets the matching assembly path from set of assembly paths, the expanded home path of the package, and optional assembly path from "outside world", e.g. configuration.
       /// </summary>
@@ -219,26 +222,53 @@ namespace UtilPack.NuGet
          else
          {
 #if NET45
-            retVal = Assembly.GetEntryAssembly().GetNuGetFrameworkFromAssembly();
+            var epAssembly = Assembly.GetEntryAssembly();
+            if ( epAssembly == null )
+            {
+               // Deduct entrypoint assembly as the top-most assembly in current stack trace with TargetFramework attribute
+               var fwString = new System.Diagnostics.StackTrace()
+                  .GetFrames()
+                  .Select( f => f.GetMethod().DeclaringType.Assembly.GetNuGetFrameworkStringFromAssembly() )
+                  .LastOrDefault( fwName => !String.IsNullOrEmpty( fwName ) );
+               retVal = fwString == null
+                 ? NuGetFramework.AnyFramework
+                 : NuGetFramework.ParseFrameworkName( fwString, DefaultFrameworkNameProvider.Instance );
+            }
+            else
+            {
+               retVal = epAssembly.GetNuGetFrameworkFromAssembly();
+            }
 #else
             var fwName = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription;
             retVal = null;
-            if ( !String.IsNullOrEmpty( fwName ) && fwName.StartsWith( ".NET Core" ) )
+            if ( !String.IsNullOrEmpty( fwName )
+               && fwName.StartsWith( ".NET Core" )
+               && Version.TryParse( fwName.Substring( 10 ), out var netCoreVersion )
+               )
             {
-               if ( Version.TryParse( fwName.Substring( 10 ), out var netCoreVersion ) )
+               if ( netCoreVersion.Major == 4 )
                {
-                  if ( netCoreVersion.Major == 4 )
+                  if ( netCoreVersion.Minor == 0 )
                   {
-                     if ( netCoreVersion.Minor == 0 )
-                     {
-                        retVal = FrameworkConstants.CommonFrameworks.NetCoreApp10;
-                     }
-                     else if ( netCoreVersion.Minor == 6 )
+                     retVal = FrameworkConstants.CommonFrameworks.NetCoreApp10;
+                  }
+                  else if ( netCoreVersion.Minor == 6 )
+                  {
+                     // The strings are a bit messed up, e.g.:
+                     // Core 1.1: ".NET Core 4.6.25211.01"
+                     // Core 2.0: ".NET Core 4.6.00001.0"
+                     if ( netCoreVersion.Build == 25211 )
                      {
                         retVal = FrameworkConstants.CommonFrameworks.NetCoreApp11;
                      }
+                     else
+                     {
+                        // NET Core 2.0, except that we don't see it as field of FrameworkConstants.CommonFrameworks, since we are targeting NuGet.Client package 4.0.0
+                        retVal = NETCOREAPP20;
+                     }
                   }
                }
+
             }
 #endif
          }
@@ -361,12 +391,23 @@ namespace UtilPack.NuGet
       /// <exception cref="NullReferenceException">If this <see cref="Assembly"/> is <c>null</c>.</exception>
       public static NuGetFramework GetNuGetFrameworkFromAssembly( this Assembly assembly )
       {
-         var thisFrameworkString = ArgumentValidator.ValidateNotNullReference( assembly ).GetCustomAttributes<System.Runtime.Versioning.TargetFrameworkAttribute>()
-            .Select( x => x.FrameworkName )
-            .FirstOrDefault();
+         var thisFrameworkString = assembly.GetNuGetFrameworkStringFromAssembly();
          return thisFrameworkString == null
               ? NuGetFramework.AnyFramework
               : NuGetFramework.ParseFrameworkName( thisFrameworkString, DefaultFrameworkNameProvider.Instance );
+      }
+
+      /// <summary>
+      /// Tries to get the framework string from <see cref="System.Runtime.Versioning.TargetFrameworkAttribute"/> possibly applied to this assembly.
+      /// </summary>
+      /// <param name="assembly">This <see cref="Assembly"/>.</param>
+      /// <returns>The value of <see cref="System.Runtime.Versioning.TargetFrameworkAttribute.FrameworkName"/> possibly applied to this assembly, or <c>null</c> if no such attribute was found.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="Assembly"/> is <c>null</c>.</exception>
+      public static String GetNuGetFrameworkStringFromAssembly( this Assembly assembly )
+      {
+         return ArgumentValidator.ValidateNotNullReference( assembly ).GetCustomAttributes<System.Runtime.Versioning.TargetFrameworkAttribute>()
+            .Select( x => x.FrameworkName )
+            .FirstOrDefault();
       }
    }
 }

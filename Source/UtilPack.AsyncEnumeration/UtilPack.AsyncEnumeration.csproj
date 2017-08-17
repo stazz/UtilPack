@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <!-- We must use package reference in debug mode, since we are using .InvokeAllEventHandlers extension method written in IL code, which is not available in MSVS when using direct project reference. -->
-    <PackageReference Condition=" '$(Configuration)' == 'Debug' " Include="UtilPack" Version="1.0.0" />
+    <PackageReference Condition=" '$(Configuration)' == 'Debug' " Include="UtilPack" Version="1.0.2" />
     
     <!-- Release mode compilation is always done via command-line, so we can use normal project reference there. -->
     <ProjectReference Condition=" '$(Configuration)' != 'Debug' " Include="../UtilPack/UtilPack.csproj" />
@@ -22,7 +22,7 @@
   <!-- Assembly information stuff -->
   <PropertyGroup>
     <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>RC1</VersionSuffix>
+    <VersionSuffix>RC2</VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
@@ -52,7 +52,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
+    <PackageReleaseNotes>Changed the return value of EnumerateAsync extension methods to ValueTask. Added documentation about using those methods instead of directly calling MoveNextAsync.</PackageReleaseNotes>
     <PackageTags>utility async enumerable enumerator</PackageTags>
     <Title>Asynchronous Enumeration</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

@@ -20,6 +20,8 @@ The members of `AsyncEnumerator` are listed below.
 * The `Current` read-only property will return the previously encountered item. It will never throw - if used outside normal scope, it will return the default value for item type (`null` for classes).
 * The `TryResetAsync` method will try to reset the enumerator to its initial state. It will return `false` if enumerator is already in its initial state, or if used concurrently.
 
+Note that generally, one shouldn't use `MoveNextAsync` directly, but instead use the `EnumerateAsync` extension methods defined for `AsyncEnumerator` interface.
+
 # AsyncEnumeratorObservable
 Just like the `AsyncEnumerator`, there are two variations of `AsyncEnumeratorObservable` interface - with one generic type parameter, and with two generic type parameters.
 The variation with two generic parameters, similarly to `AsyncEnumerator`, adds a type for the `metadata` object.

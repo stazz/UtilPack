@@ -34,6 +34,7 @@ namespace UtilPack.AsyncEnumeration
    {
       /// <summary>
       /// This method mimics <see cref="System.Collections.IEnumerator.MoveNext"/> method in order to asynchronously read the next item.
+      /// Please note that instead of directly using this method, one should use <see cref="E_UtilPack.EnumerateAsync{T}(AsyncEnumerator{T}, Action{T})"/> and <see cref="E_UtilPack.EnumerateAsync{T}(AsyncEnumerator{T}, Func{T, Task})"/> extension methods, as those methods will take care of properly finishing enumeration in case of exceptions.
       /// </summary>
       /// <returns>A task, which will return <c>true</c> if next item is encountered, and <c>false</c> if this enumeration ended.</returns>
       /// <remarks>
@@ -430,17 +431,22 @@ public static partial class E_UtilPack
    /// <typeparam name="T">The type of the items being enumerated.</typeparam>
    /// <param name="enumerator">This <see cref="AsyncEnumerator{T}"/>.</param>
    /// <param name="action">The callback to invoke for each item. May be <c>null</c>.</param>
-   /// <returns>A task which will have enumerated the <see cref="AsyncEnumerator{T}"/> on completion.</returns>
+   /// <returns>A task which will have enumerated the <see cref="AsyncEnumerator{T}"/> on completion. The return value is amount of items encountered during enumeration.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="AsyncEnumerator{T}"/> is <c>null</c>.</exception>
-   public static async Task EnumerateAsync<T>( this AsyncEnumerator<T> enumerator, Action<T> action )
+   /// <exception cref="OverflowException">If there are more than <see cref="Int64.MaxValue"/> amount of items encountered.</exception>
+   public static async ValueTask<Int64> EnumerateAsync<T>( this AsyncEnumerator<T> enumerator, Action<T> action )
    {
       ArgumentValidator.ValidateNotNullReference( enumerator );
       try
       {
+         var retVal = 0L;
          while ( await enumerator.MoveNextAsync() )
          {
+            ++retVal;
             action?.Invoke( enumerator.Current );
          }
+
+         return retVal;
       }
       catch
       {
@@ -464,20 +470,25 @@ public static partial class E_UtilPack
    /// <typeparam name="T">The type of the items being enumerated.</typeparam>
    /// <param name="enumerator">This <see cref="AsyncEnumerator{T}"/>.</param>
    /// <param name="asyncAction">The callback to invoke for each item. May be <c>null</c>, and may also return <c>null</c>.</param>
-   /// <returns>A task which will have enumerated the <see cref="AsyncEnumerator{T}"/> on completion.</returns>
+   /// <returns>A task which will have enumerated the <see cref="AsyncEnumerator{T}"/> on completion. The return value is amount of items encountered during enumeration.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="AsyncEnumerator{T}"/> is <c>null</c>.</exception>
-   public static async Task EnumerateAsync<T>( this AsyncEnumerator<T> enumerator, Func<T, Task> asyncAction )
+   /// <exception cref="OverflowException">If there are more than <see cref="Int64.MaxValue"/> amount of items encountered.</exception>
+   public static async ValueTask<Int64> EnumerateAsync<T>( this AsyncEnumerator<T> enumerator, Func<T, Task> asyncAction )
    {
       try
       {
+         var retVal = 0L;
          while ( await enumerator.MoveNextAsync() )
          {
+            ++retVal;
             Task task;
             if ( asyncAction != null && ( task = asyncAction( enumerator.Current ) ) != null )
             {
                await task;
             }
          }
+
+         return retVal;
       }
       catch
       {

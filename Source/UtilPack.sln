@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.16
+VisualStudioVersion = 15.0.26730.16
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack", "UtilPack\UtilPack.csproj", "{6023CF33-713A-471D-A58C-D59228E900A3}"
 EndProject
@@ -39,7 +39,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.AsyncEnumeration",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.TabularData", "UtilPack.TabularData\UtilPack.TabularData.csproj", "{A5C7A366-142B-4D47-956C-E96777E6B48E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.ResourcePooling", "UtilPack.ResourcePooling\UtilPack.ResourcePooling.csproj", "{7360F115-A801-43E2-AF48-F27F5FC67DD6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.ResourcePooling", "UtilPack.ResourcePooling\UtilPack.ResourcePooling.csproj", "{7360F115-A801-43E2-AF48-F27F5FC67DD6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -126,5 +126,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {753AD67F-6E03-41D5-9A7E-CE3FA153AC6D}
 	EndGlobalSection
 EndGlobal

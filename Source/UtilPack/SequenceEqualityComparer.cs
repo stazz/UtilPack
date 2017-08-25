@@ -508,13 +508,11 @@ namespace UtilPack
          {
             // Jon Skeet's answer on http://stackoverflow.com/questions/263400/what-is-the-best-algorithm-for-an-overridden-system-object-gethashcode
             result = 17;
-            unchecked // Overflow is fine, just wrap
+            var max = obj.Length;
+            for ( var i = 0; i < max; ++i )
             {
-               var max = obj.Length;
-               for ( var i = 0; i < max; ++i )
-               {
-                  result = result * 23 + hashCode( obj[i] );
-               }
+               // Overflow is fine, just wrap
+               result = unchecked(result * 23 + hashCode( obj[i] ));
             }
          }
          return result;

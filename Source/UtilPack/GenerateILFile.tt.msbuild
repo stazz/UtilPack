@@ -32,6 +32,7 @@
   switch(tfm)
   {
     case "netstandard1.5":
+    case "netstandard1.1":
     case "netstandard1.0":
       delegateAssembly = equalityComparerAssembly = objectAssembly = actionAssembly = actionAssembly = exceptionAssembly = ienumerableAssembly = extensionAssembly = obsoleteAssembly = "System.Runtime";
       linkedListAssembly = "System.Collections";

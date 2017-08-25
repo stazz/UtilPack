@@ -8,7 +8,7 @@ This NuGet package is searched by specifying mandatory package ID and optional p
 The task factory will then take care of loading the assemblies of given NuGet package, instantiating a task, and load the dependent packages and assemblies on-the-fly.
 The task factory will also restore any missing packages from local repository.
 
-N.B.! If you are running MSBuild on .NET Core, please use version 15.3(-Preview).
+N.B.! If you are running MSBuild on .NET Core, please use version 15.3.
 Task factories are not supported in MSBuild 15.1 for .NET Core.
 
 ## Usage From Project File

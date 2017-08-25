@@ -229,7 +229,7 @@ namespace UtilPack
          }
          return retVal;
       }
-#if !NETSTANDARD1_0
+#if !IS_NETSTANDARD
       private const BindingFlags DEFAULT_METHOD_SEARCH_FLAGS = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic;
 #endif
 

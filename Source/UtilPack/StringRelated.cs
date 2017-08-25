@@ -78,6 +78,9 @@ namespace UtilPack
    /// <summary>
    /// This class implements <see cref="IEncodingInfo"/> for <see cref="UTF8Encoding"/>.
    /// </summary>
+   /// <remarks>
+   /// This class has no other state than given <see cref="UTF8Encoding"/>.
+   /// </remarks>
    public sealed class UTF8EncodingInfo : IEncodingInfo
    {
       /// <summary>
@@ -155,6 +158,9 @@ namespace UtilPack
    /// <summary>
    /// This is abstract class for information about little-endian and big-endian UTF-16 encodings represented by <see cref="UnicodeEncoding"/> class.
    /// </summary>
+   /// <remarks>
+   /// This class has no other state than given <see cref="UnicodeEncoding"/>.
+   /// </remarks>
    public abstract class UTF16EncodingInfo : IEncodingInfo
    {
       private const Int32 SIZE = sizeof( Int16 );
@@ -227,6 +233,9 @@ namespace UtilPack
    /// <summary>
    /// This class contains information about little-endian UTF-16 encoding.
    /// </summary>
+   /// <remarks>
+   /// This class has no other state than given <see cref="UnicodeEncoding"/>.
+   /// </remarks>
    public sealed class UTF16LEEncodingInfo : UTF16EncodingInfo
    {
       /// <summary>
@@ -260,6 +269,9 @@ namespace UtilPack
    /// <summary>
    /// This class contains information about big-endian UTF-16 encoding.
    /// </summary>
+   /// <remarks>
+   /// This class has no other state than given <see cref="UnicodeEncoding"/>.
+   /// </remarks>
    public sealed class UTF16BEEncodingInfo : UTF16EncodingInfo
    {
       /// <summary>
@@ -296,6 +308,9 @@ namespace UtilPack
    /// <summary>
    /// This class contains information about UTF-32 encoding.
    /// </summary>
+   /// <remarks>
+   /// This class has no other state than given <see cref="UTF32Encoding"/>.
+   /// </remarks>
    public sealed class UTF32EncodingInfo : IEncodingInfo
    {
       private const Int32 SIZE = sizeof( Int32 );

@@ -1369,6 +1369,40 @@ public static partial class E_UtilPack
          IsGenericType ?? false ) && Equals( type.GetGenericTypeDefinition(), typeof( Nullable<> ) );
    }
 
+
+
+   /// <summary>
+   /// Checks whether <paramref name="type"/> is not <c>null</c> and is vector array type.
+   /// </summary>
+   /// <param name="type">The type to check.</param>
+   /// <returns><c>true</c> if <paramref name="type"/> is not <c>null</c> and is vector array type; <c>false</c> otherwise.</returns>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+   public static Boolean IsVectorArray( this Type type )
+   {
+      return type != null && type.IsArray && type.Name.EndsWith( "[]" );
+   }
+
+   /// <summary>
+   /// Checks whether <paramref name="type"/> is not <c>null</c> and is multi-dimensional array type.
+   /// </summary>
+   /// <param name="type">The type to check.</param>
+   /// <returns><c>true</c> if <paramref name="type"/> is not <c>null</c> and is multi-dimensional array type; <c>false</c> otherwise.</returns>
+   /// <remarks>
+   /// This method bridges the gap in native Reflection API which doesn't offer a way to properly detect single-rank "multidimensional" array.
+   /// This method detects such array by checking whether second-to-last character is something else than <c>[</c>.
+   /// Multidimensional arrays with rank greater than <c>1</c> will have a number there, and "multidimensional" array with rank <c>1</c> will have character <c>*</c> there.
+   /// </remarks>
+#if !NET40
+   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+   public static Boolean IsMultiDimensionalArray( this Type type )
+   {
+      String name;
+      return type != null && type.IsArray && ( type.GetArrayRank() > 1 || ( ( name = type.Name ).EndsWith( "]" ) && name[name.Length - 2] != '[' ) );
+   }
+
    /// <summary>
    /// Helper method to invoke the event and then wait for any awaitables stored to the list of <see cref="EventArgsWithAsyncContextImpl"/>.
    /// </summary>

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.0;netstandard1.5;net40;net45</TargetFrameworks>
+    <TargetFrameworks>netstandard1.0;netstandard1.1;netstandard1.5;net40;net45</TargetFrameworks>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -10,7 +10,7 @@
   </PropertyGroup>
   
   <PropertyGroup>
-    <DefineConstants Condition=" '$(TargetFramework)' == 'netstandard1.0' or '$(TargetFramework)' == 'netstandard1.5' ">$(DefineConstants);IS_NETSTANDARD</DefineConstants>
+    <DefineConstants Condition=" '$(TargetFramework)' == 'netstandard1.0' or '$(TargetFramework)' == 'netstandard1.1' or '$(TargetFramework)' == 'netstandard1.5' ">$(DefineConstants);IS_NETSTANDARD</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' != 'net40' ">
@@ -24,7 +24,7 @@
   
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.0.2</VersionPrefix>
+    <VersionPrefix>1.1.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
@@ -55,7 +55,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Added "FromCanceled" method to TaskUtils class.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added BinaryStringPool interface and factory class for it.</PackageReleaseNotes>
     <PackageTags>bcl utility binary serialization collection extensions</PackageTags>
     <Title>Utility Package for CLR</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

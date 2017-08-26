@@ -11,7 +11,7 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <PackageReference Include="NuGet.Commands" Version="4.0.0" />
+    <PackageReference Include="NuGet.Commands" Version="4.3.0" />
     <PackageReference Include="System.ValueTuple" Version="4.3.1" />
   </ItemGroup>
 
@@ -21,7 +21,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.0.1</VersionPrefix>
+    <VersionPrefix>1.1.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
@@ -52,7 +52,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>TryAutoDetectThisProcessFramework method now knows how to handle .NET Core 2.0 information in System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription. The same method now also tries to use stack trace information when Assembly.GetEntryAssembly() returns null.</PackageReleaseNotes>
+    <PackageReleaseNotes>Updated to NuGet 4.3.0, as it introduced backward-incompatible change to e.g. ILogger interface.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions restore</PackageTags>
     <Title>NuGet Restore Helper</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

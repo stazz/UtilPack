@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace UtilPack.NuGet
 {
@@ -11,6 +12,9 @@ namespace UtilPack.NuGet
    /// </summary>
    public sealed class AgnosticFrameworkLoggerWrapper : ILogger
    {
+      private const String AGNOSTIC_ERROR_1 = "is not compatible with agnostic (Agnostic,Version=v0.0).";
+      private const String AGNOSTIC_ERROR_2 = "One or more packages are incompatible with Agnostic,Version=v0.0.";
+
       private readonly ILogger _logger;
 
       /// <summary>
@@ -23,6 +27,62 @@ namespace UtilPack.NuGet
       }
 
       /// <inheritdoc/>
+      public void Log( LogLevel level, String data )
+      {
+         if ( this._logger != null
+            && level == LogLevel.Error
+            && !String.IsNullOrEmpty( data )
+            && data.IndexOf( AGNOSTIC_ERROR_1 ) < 0
+            && data.IndexOf( AGNOSTIC_ERROR_2 ) < 0
+            )
+         {
+            this._logger.Log( level, data );
+         }
+      }
+
+      /// <inheritdoc/>
+      public void Log( ILogMessage message )
+      {
+         String data;
+         if ( this._logger != null
+            && message != null
+            && message.Level == LogLevel.Error
+            && !String.IsNullOrEmpty( data = message.Message )
+            && data.IndexOf( AGNOSTIC_ERROR_1 ) < 0
+            && data.IndexOf( AGNOSTIC_ERROR_2 ) < 0
+            )
+         {
+            this._logger.Log( message );
+         }
+      }
+
+      /// <inheritdoc/>
+      public Task LogAsync( LogLevel level, String data )
+      {
+         return this._logger != null
+            && level == LogLevel.Error
+            && !String.IsNullOrEmpty( data )
+            && data.IndexOf( AGNOSTIC_ERROR_1 ) < 0
+            && data.IndexOf( AGNOSTIC_ERROR_2 ) < 0 ?
+               this._logger.LogAsync( level, data ) :
+               TaskUtils.CompletedTask;
+      }
+
+      /// <inheritdoc/>
+      public Task LogAsync( ILogMessage message )
+      {
+         String data;
+         return this._logger != null
+            && message != null
+            && message.Level == LogLevel.Error
+            && !String.IsNullOrEmpty( data = message.Message )
+            && data.IndexOf( AGNOSTIC_ERROR_1 ) < 0
+            && data.IndexOf( AGNOSTIC_ERROR_2 ) < 0 ?
+               this._logger.LogAsync( message ) :
+               TaskUtils.CompletedTask;
+      }
+
+      /// <inheritdoc/>
       public void LogDebug( String data )
       {
          this._logger?.LogDebug( data );
@@ -31,22 +91,15 @@ namespace UtilPack.NuGet
       /// <inheritdoc/>
       public void LogError( String data )
       {
-         if ( this._logger != null && !String.IsNullOrEmpty( data ) )
+         if (
+            this._logger != null
+            && !String.IsNullOrEmpty( data )
+            && data.IndexOf( AGNOSTIC_ERROR_1 ) < 0
+            && data.IndexOf( AGNOSTIC_ERROR_2 ) < 0
+            )
          {
-            if (
-               data.IndexOf( "is not compatible with agnostic (Agnostic,Version=v0.0)." ) < 0
-               && data.IndexOf( "One or more packages are incompatible with Agnostic,Version=v0.0." ) < 0
-               )
-            {
-               this._logger.LogError( data );
-            }
+            this._logger.LogError( data );
          }
-      }
-
-      /// <inheritdoc/>
-      public void LogErrorSummary( String data )
-      {
-         this._logger?.LogErrorSummary( data );
       }
 
       /// <inheritdoc/>

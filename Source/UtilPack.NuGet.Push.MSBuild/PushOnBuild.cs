@@ -75,7 +75,6 @@ namespace UtilPack.NuGet.Push.MSBuild
             var logger = new NuGetMSBuildLogger(
                "NP0001",
                "NP0002",
-               "NP0003",
                nameof( PushTask ),
                nameof( PushTask ),
                this.BuildEngine
@@ -94,6 +93,10 @@ namespace UtilPack.NuGet.Push.MSBuild
                  ) )
                  .ToArray()
                );
+         }
+         else
+         {
+            this.Log.LogWarning( $"No sources specified for push command, please specify at least one source via \"{nameof( SourceNames )}\" property." );
          }
 
          return true;

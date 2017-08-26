@@ -191,7 +191,6 @@ namespace UtilPack.NuGet.MSBuild
             var nugetLogger = new NuGetMSBuildLogger(
                "NR0001",
                "NR0002",
-               "NR0003",
                this.FactoryName,
                this.FactoryName,
                taskFactoryLoggingHost

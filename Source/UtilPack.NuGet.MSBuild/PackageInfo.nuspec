@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
     <id>UtilPack.NuGet.MSBuild</id>
-    <version>1.0.1</version>
+    <version>1.1.0</version>
     <title>MSBuild Task Factory for NuGet-Oriented MSBuild Tasks</title>
     <authors>Stanislav Muhametsin</authors>
     <owners>Stanislav Muhametsin</owners>
@@ -11,7 +11,7 @@
     <repository url="https://github.com/CometaSolutions/UtilPack" />
     <projectUrl>https://github.com/CometaSolutions/UtilPack/tree/develop/Source/UtilPack.NuGet.MSBuild</projectUrl>
     <description>Provides easy way to execute NuGet-based MSBuild tasks.</description>
-    <releaseNotes>.NET Core 2.0 runtime can now be auto-detected. Automatic detection also tries to use stack trace information in .NET Desktop, when entrypoint assembly is null (e.g. when unmanaged code calls managed code).</releaseNotes>
+    <releaseNotes>Updated to NuGet 4.3.0, as it introduced backward-incompatible change to e.g. ILogger interface. This caused task factory to always fail in MSBuild ran with "dotnet msbuild" command on .NET Core 2.0.</releaseNotes>
     <copyright>Stanislav Muhametsin</copyright>
     <tags>utility nuget extensions msbuild task package resolve</tags>
     <developmentDependency>true</developmentDependency>

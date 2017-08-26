@@ -69,9 +69,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!--<PackageReference Include="System.Threading.Tasks.Extensions" Version="4.3.0" />-->
     <PackageReference Include="System.ValueTuple" Version="4.3.1" />
-    <PackageReference Include="NuGet.Commands" Version="4.0.0" />
+    <PackageReference Include="NuGet.Commands" Version="4.3.0" />
   </ItemGroup>
 
   <!-- Collect all dependencies and include them in the package itself, next to the Task assembly. -->

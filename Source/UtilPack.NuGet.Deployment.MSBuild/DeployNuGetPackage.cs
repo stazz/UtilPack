@@ -34,7 +34,7 @@ namespace UtilPack.NuGet.Deployment.MSBuild
                this.NuGetConfigurationFile
             ),
             this.TargetDirectory,
-            logger: new NuGetMSBuildLogger( "NDE", "NDE", "NDE", this.GetType().FullName, null, this.BuildEngine )
+            logger: new NuGetMSBuildLogger( "NDE001", "NDE002", this.GetType().FullName, null, this.BuildEngine )
             ).GetAwaiter().GetResult();
 
          var epAssembly = retVal.Item1;

@@ -12,7 +12,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="15.1.1012" />
-    <PackageReference Include="NuGet.Commands" Version="4.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,7 +21,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionPrefix>1.1.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
@@ -54,7 +53,7 @@ The task in this package should be loaded by UtilPack.NuGet.MSBuild task factory
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>No changes since last RC.</PackageReleaseNotes>
+    <PackageReleaseNotes>Updated to NuGet 4.3.0, as it introduced backward-incompatible change to e.g. ILogger interface. A warning is now printed if no sources are specified.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions nuget msbuild push</PackageTags>
     <Title>MSBuild Task to Push NuGet Packages</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

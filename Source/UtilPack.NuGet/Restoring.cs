@@ -269,6 +269,10 @@ namespace UtilPack.NuGet
          {
             Name = $"Restoring: {String.Join( ", ", targets )}",
             FilePath = Path.Combine( this._nugetRestoreRootDir, "dummy" ),
+            RestoreMetadata = new ProjectRestoreMetadata() // restore command will call GetBuildIntegratedProjectCacheFilePath, which will use request.Project.RestoreMetadata.ProjectPath without null-checks
+            {
+               ProjectPath = "dummy.csproj"
+            }
             //RuntimeGraph = new RuntimeGraph( new RuntimeDescription( this.RuntimeIdentifier ).Singleton() )
          };
          spec.TargetFrameworks.Add( this._restoreTargetFW );

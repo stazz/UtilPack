@@ -407,8 +407,7 @@ namespace UtilPack.TabularData
       /// <param name="metadata">The column <see cref="DataColumnMetaData"/>.</param>
       /// <param name="columnIndex">The index of this column in <see cref="AsyncDataRow"/> it was obtained from.</param>
       /// <param name="previousColumn">The previous <see cref="DataColumnSUKS"/> column of the <see cref="AsyncDataRow"/> this belongs to.</param>
-      /// <exception cref="ArgumentNullException">If either of <paramref name="metadata"/> is <c>null</c>.</exception>
-      /// <exception cref="ArgumentException">If <paramref name="columnIndex"/> is greater than <c>0</c> but <paramref name="previousColumn"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="metadata"/> is <c>null</c>, or if <paramref name="columnIndex"/> is greater than <c>0</c> but <paramref name="previousColumn"/> is <c>null</c>.</exception>
       public DataColumnSUKS(
          DataColumnMetaData metadata,
          Int32 columnIndex,

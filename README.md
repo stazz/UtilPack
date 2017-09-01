@@ -1,10 +1,6 @@
 # UtilPack
 Home of UtilPack - library with various useful and generic stuff for .NET Desktop and Core, and also for managing NuGet packages and assemblies.
 
-## Portability
-UtilPack is designed to be extremely portable.
-Currently, most of the projects target .NET 4 and .NET Standard 1.0.
-
 ## Projects
 There are currently 19 projects in UtilPack repository, with 1 being project for (currently small amount of) tests.
 Each of the remaining 18 projects is its own NuGet package, with the NuGet package ID being the project assembly name.
@@ -100,6 +96,10 @@ This package deploys a NuGet package (restoring it if needed), and executes entr
 This package provides functionality of `PushRunner.Run` method of the [NuGet library](https://github.com/NuGet/NuGet.Client) as MSBuild task, which can be integrated into build process to automatically push package on every build.
 
 [Read More ->](./Source/UtilPack.NuGet.Push.MSBuild)
+
+## Portability
+UtilPack is designed to be extremely portable.
+Currently, most of the projects target .NET 4 and .NET Standard 1.0.
 
 ## TODO
 One of the most important thing to be done is adding proper unit tests for all the code.

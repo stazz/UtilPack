@@ -30,7 +30,7 @@ namespace UtilPack.ResourcePooling
    /// It provides a way to use resources via <see cref="UseResourceAsync(Func{TResource, Task}, CancellationToken)"/> method.
    /// </summary>
    /// <typeparam name="TResource">The type of resources handled by this pool.</typeparam>
-   public interface AsyncResourcePool<out TResource>
+   public interface AsyncResourcePool<out TResource> : ResourceFactoryInformation
    {
       /// <summary>
       /// Takes an existing resource or creates a new one, runs the given asynchronous callback for it, and returns it back into the pool.

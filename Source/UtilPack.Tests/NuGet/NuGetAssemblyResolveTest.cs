@@ -151,47 +151,47 @@ namespace UtilPack.Tests.NuGet
       //   }
    }
 
-   public sealed class ConsoleLogger : ILogger
-   {
+   //public sealed class ConsoleLogger : ILogger
+   //{
 
-      public void LogDebug( String data )
-      {
-         Console.WriteLine( "[NuGet Debug]: " + data );
-      }
+   //   public void LogDebug( String data )
+   //   {
+   //      Console.WriteLine( "[NuGet Debug]: " + data );
+   //   }
 
-      public void LogError( String data )
-      {
-         Console.WriteLine( "[NuGet Error]: " + data );
-      }
+   //   public void LogError( String data )
+   //   {
+   //      Console.WriteLine( "[NuGet Error]: " + data );
+   //   }
 
-      public void LogErrorSummary( String data )
-      {
-         Console.WriteLine( "[NuGet ErrorSummary]: " + data );
-      }
+   //   public void LogErrorSummary( String data )
+   //   {
+   //      Console.WriteLine( "[NuGet ErrorSummary]: " + data );
+   //   }
 
-      public void LogInformation( String data )
-      {
-         Console.WriteLine( "[NuGet Info]: " + data );
-      }
+   //   public void LogInformation( String data )
+   //   {
+   //      Console.WriteLine( "[NuGet Info]: " + data );
+   //   }
 
-      public void LogInformationSummary( String data )
-      {
-         Console.WriteLine( "[NuGet InfoSummary]: " + data );
-      }
+   //   public void LogInformationSummary( String data )
+   //   {
+   //      Console.WriteLine( "[NuGet InfoSummary]: " + data );
+   //   }
 
-      public void LogMinimal( String data )
-      {
-         Console.WriteLine( "[NuGet Minimal]: " + data );
-      }
+   //   public void LogMinimal( String data )
+   //   {
+   //      Console.WriteLine( "[NuGet Minimal]: " + data );
+   //   }
 
-      public void LogVerbose( String data )
-      {
-         Console.WriteLine( "[NuGet Verbose]: " + data );
-      }
+   //   public void LogVerbose( String data )
+   //   {
+   //      Console.WriteLine( "[NuGet Verbose]: " + data );
+   //   }
 
-      public void LogWarning( String data )
-      {
-         Console.WriteLine( "[NuGet Warning]: " + data );
-      }
-   }
+   //   public void LogWarning( String data )
+   //   {
+   //      Console.WriteLine( "[NuGet Warning]: " + data );
+   //   }
+   //}
 }

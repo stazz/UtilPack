@@ -31,7 +31,7 @@ namespace UtilPack.ResourcePooling
    /// Typically, most client code won't need to use this interface - it is provided for the sake of generic scenarios, where resource pool needs to be instantiated dynamically based on some kind of configuration.
    /// Most common scenario to create resource pools is to directly use vendor-specific class.
    /// </remarks>
-   public interface ResourcePoolProvider<out TResource>
+   public interface AsyncResourcePoolProvider<out TResource>
    {
       /// <summary>
       /// Creates a new instance of <see cref="AsyncResourcePoolObservable{TResource}"/>, which will close all resources as they are returned to pool.

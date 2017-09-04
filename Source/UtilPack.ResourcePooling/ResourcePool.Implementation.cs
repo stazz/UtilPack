@@ -658,7 +658,7 @@ namespace UtilPack.ResourcePooling
       }
 
       /// <summary>
-      /// This method overrides <see cref="OneTimeUseAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}.DisposeResourceAsync(TResourceInstance, CancellationToken)"/> in order to return the resource to this <see cref="Pool"/>, if it is returnable back to the pool as specified by <see cref="AsyncResourceAcquireInfo{TResource}.IsResourceReturnableToPool"/>.
+      /// This method overrides <see cref="OneTimeUseAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}.DisposeResourceAsync(TResourceInstance, CancellationToken)"/> in order to return the resource to this <see cref="Pool"/>, if it is returnable back to the pool as specified by <see cref="AbstractResourceAcquireInfo.IsResourceReturnableToPool"/>.
       /// </summary>
       /// <param name="instance">The resource instance to dispose or to return to the <see cref="Pool"/>.</param>
       /// <param name="token">The <see cref="CancellationToken"/> to use when disposing asynchronously.</param>

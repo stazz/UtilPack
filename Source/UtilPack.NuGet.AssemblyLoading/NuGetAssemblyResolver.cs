@@ -265,14 +265,6 @@ namespace UtilPack.NuGet.AssemblyLoading
       }
    }
 
-   /// <summary>
-   /// This class contains utility methods related to resolving assemblies from NuGet packages.
-   /// </summary>
-   public static class NuGetAssemblyResolverUtility
-   {
-
-   }
-
 #if !NET45
    internal sealed class NuGetAssemblyLoadContext : System.Runtime.Loader.AssemblyLoadContext
    {

@@ -47,7 +47,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Added ability for resource factory to reset its state.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added ability for resource factory to reset its state. Changed name of ResourcePoolProvider to AsyncResourcePoolProvider.</PackageReleaseNotes>
     <PackageTags>utility async resource pool</PackageTags>
     <Title>Resource Pooling Support</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

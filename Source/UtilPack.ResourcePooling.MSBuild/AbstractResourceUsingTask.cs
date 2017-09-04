@@ -161,7 +161,7 @@ namespace UtilPack.ResourcePooling.MSBuild
       protected abstract Boolean CheckTaskParametersBeforeResourcePoolUsage();
 
       /// <summary>
-      /// This method is called by <see cref="Execute"/> after calling <see cref="AcquireResourcePoolProvider"/> in order to potentially asynchronously provide argument object for <see cref="AsyncResourcePoolProvider.CreateOneTimeUseResourcePool"/> method.
+      /// This method is called by <see cref="Execute"/> after calling <see cref="AcquireResourcePoolProvider"/> in order to potentially asynchronously provide argument object for <see cref="AsyncResourcePoolProvider{TResource}.CreateOneTimeUseResourcePool"/> method.
       /// </summary>
       /// <param name="poolProvider">The pool provider returned by <see cref="AcquireResourcePoolProvider"/> method.</param>
       /// <returns>A parameter for <see cref="AsyncResourcePoolProvider{TResource}.CreateOneTimeUseResourcePool"/> or <see cref="AsyncResourcePoolProvider{TResource}.CreateTimeoutingResourcePool"/> method.</returns>
@@ -195,11 +195,11 @@ namespace UtilPack.ResourcePooling.MSBuild
       /// This implementation returns the result of <see cref="AsyncResourcePoolProvider{TResource}.CreateOneTimeUseResourcePool"/>.
       /// </remarks>
       protected virtual ValueTask<AsyncResourcePool<TResource>> AcquireResourcePool(
-         AsyncResourcePoolProvider<TResource> provider,
+         AsyncResourcePoolProvider<TResource> poolProvider,
          Object poolCreationArgs
          )
       {
-         return new ValueTask<AsyncResourcePool<TResource>>( provider.CreateOneTimeUseResourcePool( poolCreationArgs ) );
+         return new ValueTask<AsyncResourcePool<TResource>>( poolProvider.CreateOneTimeUseResourcePool( poolCreationArgs ) );
       }
 
       /// <summary>
@@ -227,49 +227,64 @@ namespace UtilPack.ResourcePooling.MSBuild
          AsyncResourcePoolProvider<TResource> retVal = null;
          if ( resolver != null )
          {
-            var assembly = await this._nugetPackageResolver(
-               this.PoolProviderPackageID, // package ID
-               this.PoolProviderVersion,  // optional package version
-               this.PoolProviderAssemblyPath // optional assembly path within package
-               );
-            if ( assembly != null )
+            var packageID = this.PoolProviderPackageID;
+            if ( !String.IsNullOrEmpty( packageID ) )
             {
-               // Now search for the type
-               var typeName = this.PoolProviderTypeName;
-               var parentType = typeof( AsyncResourcePoolProvider<TResource> ).GetTypeInfo();
-               var checkParentType = !String.IsNullOrEmpty( typeName );
-               Type providerType;
-               if ( checkParentType )
+               try
                {
-                  // Instantiate directly
-                  providerType = assembly.GetType( typeName, false, false );
-               }
-               else
-               {
-                  // Search for first available
-                  providerType = assembly.DefinedTypes.FirstOrDefault( t => !t.IsInterface && !t.IsAbstract && parentType.IsAssignableFrom( t ) )?.AsType();
-               }
-
-               if ( providerType != null )
-               {
-                  if ( !checkParentType || parentType.IsAssignableFrom( providerType.GetTypeInfo() ) )
+                  var assembly = await this._nugetPackageResolver(
+                     this.PoolProviderPackageID, // package ID
+                     this.PoolProviderVersion,  // optional package version
+                     this.PoolProviderAssemblyPath // optional assembly path within package
+                     );
+                  if ( assembly != null )
                   {
-                     // All checks passed, instantiate the pool provider
-                     retVal = (AsyncResourcePoolProvider<TResource>) Activator.CreateInstance( providerType );
+                     // Now search for the type
+                     var typeName = this.PoolProviderTypeName;
+                     var parentType = typeof( AsyncResourcePoolProvider<TResource> ).GetTypeInfo();
+                     var checkParentType = !String.IsNullOrEmpty( typeName );
+                     Type providerType;
+                     if ( checkParentType )
+                     {
+                        // Instantiate directly
+                        providerType = assembly.GetType( typeName, false, false );
+                     }
+                     else
+                     {
+                        // Search for first available
+                        providerType = assembly.DefinedTypes.FirstOrDefault( t => !t.IsInterface && !t.IsAbstract && t.IsPublic && parentType.IsAssignableFrom( t ) )?.AsType();
+                     }
+
+                     if ( providerType != null )
+                     {
+                        if ( !checkParentType || parentType.IsAssignableFrom( providerType.GetTypeInfo() ) )
+                        {
+                           // All checks passed, instantiate the pool provider
+                           retVal = (AsyncResourcePoolProvider<TResource>) Activator.CreateInstance( providerType );
+                        }
+                        else
+                        {
+                           this.Log.LogError( $"The type \"{providerType.FullName}\" in \"{assembly}\" does not have required parent type \"{parentType.FullName}\"." );
+                        }
+                     }
+                     else
+                     {
+                        this.Log.LogError( $"Failed to find type within assembly in \"{assembly}\", try specify \"{nameof( PoolProviderTypeName )}\" parameter." );
+                     }
                   }
                   else
                   {
-                     this.Log.LogError( $"The type \"{providerType.FullName}\" in \"{assembly}\" does not have required parent type \"{parentType.FullName}\"." );
+                     this.Log.LogError( $"Failed to load resource pool provider package \"{this.PoolProviderPackageID}\"." );
                   }
                }
-               else
+               catch ( Exception exc )
                {
-                  this.Log.LogError( $"Failed to find type within assembly in \"{assembly}\", try specify \"{nameof( PoolProviderTypeName )}\" parameter." );
+                  this.Log.LogError( $"An exception occurred when acquiring resource pool provider: {exc.Message}" );
                }
             }
             else
             {
-               this.Log.LogError( $"Failed to load resource pool provider package \"{this.PoolProviderPackageID}\"." );
+               this.Log.LogError( $"No NuGet package ID were provided as \"{nameof( PoolProviderPackageID )}\" parameter. The package ID should be of the package holding implementation for \"{nameof( AsyncResourcePoolProvider<TResource> )}\" type." );
             }
          }
          else
@@ -280,17 +295,60 @@ namespace UtilPack.ResourcePooling.MSBuild
          return retVal;
       }
 
+      /// <summary>
+      /// Gets or sets the value indicating whether to call <see cref="IBuildEngine3.Yield"/> or not.
+      /// By default, the <see cref="IBuildEngine3.Yield"/> will be called.
+      /// </summary>
+      /// <value>The value indicating whether to call <see cref="IBuildEngine3.Yield"/> or not.</value>
       public Boolean RunSynchronously { get; set; }
 
-      [Required]
+      /// <summary>
+      /// Gets or sets the value for NuGet package ID of the package holding the type implementing <see cref="AsyncResourcePoolProvider{TResource}"/>.
+      /// </summary>
+      /// <value>The value for NuGet package ID of the package holding the type implementing <see cref="AsyncResourcePoolProvider{TResource}"/>.</value>
+      /// <remarks>
+      /// This property is used by <see cref="AcquireResourcePoolProvider"/> when loading an instance of <see cref="AsyncResourcePoolProvider{TResource}"/>.
+      /// </remarks>
+      /// <seealso cref="PoolProviderVersion"/>
       public String PoolProviderPackageID { get; set; }
 
+      /// <summary>
+      /// Gets or sets the value for NuGet package version of the package holding the type implementing <see cref="AsyncResourcePoolProvider{TResource}"/>.
+      /// </summary>
+      /// <value>The value for NuGet package version of the package holding the type implementing <see cref="AsyncResourcePoolProvider{TResource}"/>.</value>
+      /// <remarks>
+      /// This property is used by <see cref="AcquireResourcePoolProvider"/> when loading an instance of <see cref="AsyncResourcePoolProvider{TResource}"/>.
+      /// The value, if specified, should be parseable into <see cref="T:NuGet.Versioning.VersionRange"/>.
+      /// If left out, then the newest version will be used, but this will cause additional overhead when querying for the newest version.
+      /// </remarks>
       public String PoolProviderVersion { get; set; }
 
+      /// <summary>
+      /// Gets or sets the path within NuGet package specified by <see cref="PoolProviderPackageID"/> and <see cref="PoolProviderVersion"/> properties where the assembly holding type implementing <see cref="AsyncResourcePoolProvider{TResource}"/> resides.
+      /// </summary>
+      /// <value>The path within NuGet package specified by <see cref="PoolProviderPackageID"/> and <see cref="PoolProviderVersion"/> properties where the assembly holding type implementing <see cref="AsyncResourcePoolProvider{TResource}"/> resides.</value>
+      /// <remarks>
+      /// This property will be used only for NuGet packages with more than assembly within its framework-specific folder.
+      /// </remarks>
       public String PoolProviderAssemblyPath { get; set; }
 
+      /// <summary>
+      /// Gets or sets the name of the type implementing <see cref="AsyncResourcePoolProvider{TResource}"/>, located in assembly within NuGet package specified by <see cref="PoolProviderPackageID"/> and <see cref="PoolProviderVersion"/> properties.
+      /// </summary>
+      /// <value>The name of the type implementing <see cref="AsyncResourcePoolProvider{TResource}"/>, located in assembly within NuGet package specified by <see cref="PoolProviderPackageID"/> and <see cref="PoolProviderVersion"/> properties.</value>
+      /// <remarks>
+      /// This value can be left out so that <see cref="AcquireResourcePoolProvider"/> will search for all types within package implementing <see cref="AsyncResourcePoolProvider{TResource}"/> and use the first suitable one.
+      /// </remarks>
       public String PoolProviderTypeName { get; set; }
 
+      /// <summary>
+      /// Gets or sets the path to the configuration file holding creation parameter for <see cref="AsyncResourcePoolProvider{TResource}.CreateOneTimeUseResourcePool(object)"/>.
+      /// </summary>
+      /// <value>The path to the configuration file holding creation parameter for <see cref="AsyncResourcePoolProvider{TResource}.CreateOneTimeUseResourcePool(object)"/>.</value>
+      /// <remarks>
+      /// This property is used by <see cref="ProvideResourcePoolCreationParameters"/> method.
+      /// </remarks>
+      /// <seealso cref="ProvideResourcePoolCreationParameters"/>
       public String PoolConfigurationFilePath { get; set; }
    }
 }

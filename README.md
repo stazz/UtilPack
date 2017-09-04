@@ -52,6 +52,11 @@ This package contains API and implementation for pooling and using the pool of a
 
 [Read More ->](./Source/UtilPack.ResourcePooling)
 
+### UtilPack.ResourcePooling.MSBuild
+This package contains abstract task type acting as a bridge between UtilPack.ResourcePooling project and custom MSBuild tasks.
+
+[Read More ->](./Source/UtilPack.ResourcePooling.MSBuild)
+
 ### UtilPack.TabularData
 This package contains API and skeleton implementation for data which is in tabular format, meaning it has rows and columns.
 

@@ -44,7 +44,7 @@ namespace UtilPack.ResourcePooling.MSBuild
       private readonly TNuGetPackageResolverCallback _nugetPackageResolver;
 
       /// <summary>
-      /// Creates a new instance of <see cref="AbstractResourceUsingTask{TResource}"/> with given callback to load NuGet assemblies.
+      /// Initializes a new instance of <see cref="AbstractResourceUsingTask{TResource}"/> with given callback to load NuGet assemblies.
       /// </summary>
       /// <param name="nugetAssemblyLoader">The callback to asynchronously load assembly based on NuGet package ID and version.</param>
       /// <remarks>

@@ -34,7 +34,7 @@ namespace UtilPack.AsyncEnumeration
    {
       /// <summary>
       /// This method mimics <see cref="System.Collections.IEnumerator.MoveNext"/> method in order to asynchronously read the next item.
-      /// Please note that instead of directly using this method, one should use <see cref="E_UtilPack.EnumerateAsync{T}(AsyncEnumerator{T}, Action{T})"/> and <see cref="E_UtilPack.EnumerateAsync{T}(AsyncEnumerator{T}, Func{T, Task})"/> extension methods, as those methods will take care of properly finishing enumeration in case of exceptions.
+      /// Please note that instead of directly using this method, one should use <see cref="E_UtilPack.EnumerateSequentiallyAsync{T}(AsyncEnumerator{T}, Action{T})"/> and <see cref="E_UtilPack.EnumerateSequentialyAsync{T}(AsyncEnumerator{T}, Func{T, Task})"/> extension methods, as those methods will take care of properly finishing enumeration in case of exceptions.
       /// </summary>
       /// <returns>A task, which will return <c>true</c> if next item is encountered, and <c>false</c> if this enumeration ended.</returns>
       /// <remarks>
@@ -326,7 +326,7 @@ namespace UtilPack.AsyncEnumeration
       /// <param name="initialMoveNext">The <see cref="InitialMoveNextAsyncDelegate{T}"/> callback which will control how resulting <see cref="AsyncEnumerator{T}"/> will behave.</param>
       /// <returns>A new <see cref="AsyncEnumerator{T}"/>.</returns>
       /// <exception cref="ArgumentNullException">If <paramref name="initialMoveNext"/> is <c>null</c>.</exception>
-      public static AsyncEnumerator<T> CreateEnumerator<T>(
+      public static AsyncEnumerator<T> CreateSequentialEnumerator<T>(
          InitialMoveNextAsyncDelegate<T> initialMoveNext
          )
       {
@@ -342,7 +342,7 @@ namespace UtilPack.AsyncEnumeration
       /// <param name="metadata">The metadata.</param>
       /// <returns>A new <see cref="AsyncEnumerator{T, TMetadata}"/>.</returns>
       /// <exception cref="ArgumentNullException">If <paramref name="initialMoveNext"/> is <c>null</c>.</exception>
-      public static AsyncEnumerator<T, TMetadata> CreateEnumerator<T, TMetadata>(
+      public static AsyncEnumerator<T, TMetadata> CreateSequentialEnumerator<T, TMetadata>(
          InitialMoveNextAsyncDelegate<T> initialMoveNext,
          TMetadata metadata
          )
@@ -362,7 +362,7 @@ namespace UtilPack.AsyncEnumeration
       /// <param name="getGlobalAfterEnumerationExecutionItemEncountered">The optional callback to get global-scope <see cref="AsyncEnumerationObservation{T}.AfterEnumerationItemEncountered"/> event, which will be invoked after event of the returned enumerator.</param>
       /// <returns>A new <see cref="AsyncEnumeratorObservable{T}"/>.</returns>
       /// <exception cref="ArgumentNullException">If <paramref name="initialMoveNext"/> is <c>null</c>.</exception>
-      public static AsyncEnumeratorObservable<T> CreateObservableEnumerator<T>(
+      public static AsyncEnumeratorObservable<T> CreateSequentialObservableEnumerator<T>(
          InitialMoveNextAsyncDelegate<T> initialMoveNext,
          Func<GenericEventHandler<EnumerationStartedEventArgs>> getGlobalBeforeEnumerationExecutionStart = null,
          Func<GenericEventHandler<EnumerationStartedEventArgs>> getGlobalAfterEnumerationExecutionStart = null,
@@ -395,7 +395,7 @@ namespace UtilPack.AsyncEnumeration
       /// <param name="getGlobalAfterEnumerationExecutionItemEncountered">The optional callback to get global-scope <see cref="AsyncEnumerationObservation{T, TMetadata}.AfterEnumerationItemEncountered"/> event, which will be invoked after event of the returned enumerator.</param>
       /// <returns>A new <see cref="AsyncEnumeratorObservable{T, TMetadata}"/>.</returns>
       /// <exception cref="ArgumentNullException">If <paramref name="initialMoveNext"/> is <c>null</c>.</exception>
-      public static AsyncEnumeratorObservable<T, TMetadata> CreateObservableEnumerator<T, TMetadata>(
+      public static AsyncEnumeratorObservable<T, TMetadata> CreateSequentialObservableEnumerator<T, TMetadata>(
          InitialMoveNextAsyncDelegate<T> initialMoveNext,
          TMetadata metadata,
          Func<GenericEventHandler<EnumerationStartedEventArgs<TMetadata>>> getGlobalBeforeEnumerationExecutionStart = null,
@@ -434,7 +434,7 @@ public static partial class E_UtilPack
    /// <returns>A task which will have enumerated the <see cref="AsyncEnumerator{T}"/> on completion. The return value is amount of items encountered during enumeration.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="AsyncEnumerator{T}"/> is <c>null</c>.</exception>
    /// <exception cref="OverflowException">If there are more than <see cref="Int64.MaxValue"/> amount of items encountered.</exception>
-   public static async ValueTask<Int64> EnumerateAsync<T>( this AsyncEnumerator<T> enumerator, Action<T> action )
+   public static async ValueTask<Int64> EnumerateSequentiallyAsync<T>( this AsyncEnumerator<T> enumerator, Action<T> action )
    {
       ArgumentValidator.ValidateNotNullReference( enumerator );
       try
@@ -473,7 +473,7 @@ public static partial class E_UtilPack
    /// <returns>A task which will have enumerated the <see cref="AsyncEnumerator{T}"/> on completion. The return value is amount of items encountered during enumeration.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="AsyncEnumerator{T}"/> is <c>null</c>.</exception>
    /// <exception cref="OverflowException">If there are more than <see cref="Int64.MaxValue"/> amount of items encountered.</exception>
-   public static async ValueTask<Int64> EnumerateAsync<T>( this AsyncEnumerator<T> enumerator, Func<T, Task> asyncAction )
+   public static async ValueTask<Int64> EnumerateSequentialyAsync<T>( this AsyncEnumerator<T> enumerator, Func<T, Task> asyncAction )
    {
       try
       {

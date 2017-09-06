@@ -21,7 +21,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.1.0</VersionPrefix>
+    <VersionPrefix>1.2.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
@@ -53,7 +53,7 @@ The task in this package should be loaded by UtilPack.NuGet.MSBuild task factory
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Updated to NuGet 4.3.0, as it introduced backward-incompatible change to e.g. ILogger interface. A warning is now printed if no sources are specified.</PackageReleaseNotes>
+    <PackageReleaseNotes>The following features were added by Sumo-MBryant: symbol support, and ability to specify API key for package and symbols.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions nuget msbuild push</PackageTags>
     <Title>MSBuild Task to Push NuGet Packages</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

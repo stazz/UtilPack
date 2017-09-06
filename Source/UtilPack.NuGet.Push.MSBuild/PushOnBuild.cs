@@ -24,6 +24,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Linq;
+using System.Net.Http;
 using NuGet.Protocol.Core.Types;
 using NuGet.Packaging;
 using NuGet.Repositories;
@@ -115,6 +116,9 @@ namespace UtilPack.NuGet.Push.MSBuild
          var skipOverwrite = sourceItem.GetMetadata( "SkipOverwriteLocalFeed" ).ParseAsBooleanSafe();
          var skipClearRepositories = sourceItem.GetMetadata( "SkipClearingLocalRepositories" ).ParseAsBooleanSafe();
          var skipOfflineFeedOptimization = sourceItem.GetMetadata( "SkipOfflineFeedOptimization" ).ParseAsBooleanSafe();
+         var apiKey = sourceItem.GetMetadata( "ApiKey" );
+         var symbolSource = sourceItem.GetMetadata( "SymbolSource" );
+         var symbolApiKey = sourceItem.GetMetadata( "SymbolApiKey" );
 
          var source = sourceItem.ItemSpec;
          var isLocal = IsLocalFeed( psp, source, out var localPath );
@@ -139,19 +143,28 @@ namespace UtilPack.NuGet.Push.MSBuild
                timeout = 1000;
             }
 
-            await PushRunner.Run(
-               settings,
-               psp,
-               packagePath,
-               source,
-               null,
-               null,
-               null,
-               timeout,
-               false,
-               true,
-               logger
-               );
+            try
+            {
+               await PushRunner.Run(
+                  settings,
+                  psp,
+                  packagePath,
+                  source,
+                  apiKey,
+                  symbolSource,
+                  symbolApiKey,
+                  timeout,
+                  false,
+                  string.IsNullOrEmpty( symbolSource ),
+                  logger
+                  );
+            }
+            catch ( HttpRequestException e ) when
+               ( e.Message.Contains( "already exists. The server is configured to not allow overwriting packages that already exist." ) )
+            {
+               // Nuget.Server returns this message when attempting to overwrite a package.
+               this.Log.LogMessage( $"Package already exists on source {source}, not updated." );
+            }
          }
 
          if ( !skipClearRepositories )

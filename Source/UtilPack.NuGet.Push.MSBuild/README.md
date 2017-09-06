@@ -11,14 +11,17 @@ Because of this, unless `SkipClearingLocalRepositories` task item metadata is se
 The input parameters of the `UtilPack.NuGet.Push.MSBuild.PushTask` are listed below.
 * The `PackageFilePath` is required parameter, which should be a path to the package being pushed.
 * The `SourceNames` is optional parameter, and is MSBuild task item collection of all the sources where to push the package. This parameter is "optional" in a sense that omitting it does not cause errors, but then this task will simply do nothing. The task will check for the following metadata for each item.
-** The `SkipOverwriteLocalFeed` metadata is interpreted as `System.Boolean`, and if `true`, the task won't try to delete the folder before pushing to local source.
-** The `SkipClearingLocalRepositories` metadata is interpreted as `System.Boolean`, and if `true`, the task won't try to delete the folder in all package repositories after the push.
-** The `SkipOfflineFeedOptimization` metadata is interpreted as `System.Boolean`, and if `true`, the task will use the default `PushRunner.Run` method instead of `OfflineFeedUtility.AddPackageToSource` when pushing to local source.
+  * The `SkipOverwriteLocalFeed` metadata is interpreted as `System.Boolean`, and if `true`, the task won't try to delete the folder before pushing to local source.
+  * The `SkipClearingLocalRepositories` metadata is interpreted as `System.Boolean`, and if `true`, the task won't try to delete the folder in all package repositories after the push.
+  * The `SkipOfflineFeedOptimization` metadata is interpreted as `System.Boolean`, and if `true`, the task will use the default `PushRunner.Run` method instead of `OfflineFeedUtility.AddPackageToSource` when pushing to local source.
+  * The `ApiKey` metadata contains the API key used to authenticate when pushing to a remote source.
+  * The `SymbolSource` metadata contains the name of the Nuget source to push the symbols package to. If omitted, no symbols will be pushed.
+  * The `SymbolApiKey` metadata contains the API keys used to authenticate when pushing to a remote symbol source.
 * The `NuGetConfigurationFilePath` is optional parameter, containing the path to the NuGet configuration file. By default, machine-wide configuration file will be used.
 * The `RetryTimeoutForDirectoryDeletionFail` is optional parameter, which is used when deleting existing source directory (when the source to push is local feed, and `SkipOverwriteLocalFeed` item metadata is not `true`) and deleting existing package repository folder (when the `SkipClearingLocalRepositories` item metadata is not `true`). This parameter contains the timeout, in milliseconds, how much to wait between 2nd attempt to delete the existing source directory. By default the value is `500`. Scenarios when this is useful and needed is when there exist file watchers for the folder being deleted, which causes the first delete to fail. If file watchers then immediately dispose themselves, the second deletion will be successful.
 
 # Output parameters
-This task has now output parameters.
+This task has no output parameters.
 
 # Distribution
 The [NuGet package](http://www.nuget.org/packages/UtilPack.NuGet.Push.MSBuild) has the same package ID as this folder name.

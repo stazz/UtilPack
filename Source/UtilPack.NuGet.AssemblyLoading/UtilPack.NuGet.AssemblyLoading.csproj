@@ -23,7 +23,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.1.0</VersionPrefix>
+    <VersionPrefix>1.1.1</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
@@ -54,7 +54,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Updated to NuGet 4.3.0, as it introduced backward-incompatible change to e.g. ILogger interface.</PackageReleaseNotes>
+    <PackageReleaseNotes>Tracking UtilPack.NuGet release.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions dynamically load assembly</PackageTags>
     <Title>NuGet Assembly Resolving Helper</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

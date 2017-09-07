@@ -318,12 +318,24 @@ namespace UtilPack.NuGet
       /// </summary>
       public static GetFileItemsDelegate GetRuntimeAssembliesDelegate { get; } = ( currentRID, targetLib, libs ) =>
       {
-         return targetLib.RuntimeAssemblies
-         .Select( i => i.Path )
-         .Concat( targetLib.RuntimeTargets
-               .Where( rt => String.Equals( rt.Runtime, currentRID, StringComparison.OrdinalIgnoreCase ) )
-               .Select( rt => rt.Path )
-            );
+         IEnumerable<String> retVal = null;
+         if ( targetLib.RuntimeTargets.Count > 0 )
+         {
+            retVal = targetLib.RuntimeTargets
+                  .Where( rt => String.Equals( rt.Runtime, currentRID, StringComparison.OrdinalIgnoreCase ) )
+                  .Select( rt => rt.Path );
+         }
+         if ( retVal.IsNullOrEmpty() )
+         {
+            retVal = targetLib.RuntimeAssemblies.Select( ra => ra.Path );
+         }
+         else
+         {
+            // Filter out the ones which have same name as native ones
+            var arr = retVal.Select( p => Path.GetFileNameWithoutExtension( p ) ).ToArray();
+            retVal = retVal.Concat( targetLib.RuntimeAssemblies.Where( ra => Array.IndexOf( arr, Path.GetFileNameWithoutExtension( ra.Path ) ) < 0 ).Select( ra => ra.Path ) );
+         }
+         return retVal;
       };
 
       /// <summary>

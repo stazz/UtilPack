@@ -123,7 +123,7 @@ namespace UtilPack.ResourcePooling
    /// </summary>
    /// <typeparam name="TResource">The type of resources handled by this pool.</typeparam>
    /// <typeparam name="TCleanUpParameter">The type of parameter for <see cref="AsyncResourcePoolCleanUp{TCleanUpParameter}.CleanUpAsync(TCleanUpParameter, CancellationToken)"/> method.</typeparam>
-   public interface AsyncResourcePoolObservable<out TResource, in TCleanUpParameter> : AsyncResourcePool<TResource, TCleanUpParameter>, ResourcePoolObservation<TResource, AfterAsyncResourceCreationEventArgs<TResource>, AfterAsyncResourceAcquiringEventArgs<TResource>, BeforeAsyncResourceReturningEventArgs<TResource>, BeforeAsyncResourceCloseEventArgs<TResource>>
+   public interface AsyncResourcePoolObservable<out TResource, in TCleanUpParameter> : AsyncResourcePool<TResource, TCleanUpParameter>, AsyncResourcePoolObservable<TResource>
    {
 
    }

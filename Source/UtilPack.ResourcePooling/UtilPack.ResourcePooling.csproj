@@ -17,7 +17,7 @@
   <!-- Assembly information stuff -->
   <PropertyGroup>
     <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>RC2</VersionSuffix>
+    <VersionSuffix>RC3</VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
@@ -47,7 +47,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Added ability for resource factory to reset its state. Changed name of ResourcePoolProvider to AsyncResourcePoolProvider.</PackageReleaseNotes>
+    <PackageReleaseNotes>Fixed bug: AsyncResourcePoolObservable with cleanup parameter did not inherit AsyncResourcePoolObservable without cleanup parameter.</PackageReleaseNotes>
     <PackageTags>utility async resource pool</PackageTags>
     <Title>Resource Pooling Support</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

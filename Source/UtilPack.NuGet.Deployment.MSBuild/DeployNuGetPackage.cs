@@ -63,6 +63,8 @@ namespace UtilPack.NuGet.Deployment.MSBuild
 
       public DeploymentKind DeploymentKind { get; set; }
 
+      public Boolean? SDKPackageContainsAllPackagesAsAssemblies { get; }
+
       public String NuGetConfigurationFile { get; set; }
 
       public String TargetDirectory { get; set; }

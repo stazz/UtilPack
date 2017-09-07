@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFrameworks>netcoreapp1.1;net451</TargetFrameworks>
+    <LangVersion>7.1</LangVersion>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -23,7 +24,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.1.0</VersionPrefix>
+    <VersionPrefix>1.1.1</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
@@ -54,7 +55,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Updated to NuGet 4.3.0, as it introduced backward-incompatible change to e.g. ILogger interface.</PackageReleaseNotes>
+    <PackageReleaseNotes>Tracking UtilPack.NuGet.Deployment release.</PackageReleaseNotes>
     <PackageTags>utility extensions nuget process monitor start restart shutdown restore</PackageTags>
     <Title>NuGet Process Runner</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

@@ -26,12 +26,13 @@ using System.Reflection;
 using NuGet.Frameworks;
 using UtilPack.ProcessMonitor;
 using UtilPack.NuGet.Deployment;
+using System.Threading.Tasks;
 
 namespace UtilPack.NuGet.ProcessRunner
 {
    class Program
    {
-      static Int32 Main( String[] args )
+      async static Task<Int32> Main( String[] args )
       {
          var retVal = -1;
 
@@ -68,7 +69,7 @@ namespace UtilPack.NuGet.ProcessRunner
                var targetDirectory = Path.Combine( Path.GetTempPath(), "NuGetProcess_" + Guid.NewGuid().ToString() );
 
                // Initialization step - restore needed packages, copy required files, etc
-               (var assemblyPath, var framework) = new NuGetDeployment( deployConfig )
+               (var assemblyPath, var framework) = await new NuGetDeployment( deployConfig )
                   .DeployAsync(
                      UtilPackNuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
                         Path.GetDirectoryName( new Uri( typeof( Program ).GetTypeInfo().Assembly.CodeBase ).LocalPath ),
@@ -80,7 +81,7 @@ namespace UtilPack.NuGet.ProcessRunner
                      {
                         DebugWriter = null
                      } )
-                     ).GetAwaiter().GetResult();
+                     );
 
                if ( !String.IsNullOrEmpty( assemblyPath ) && framework != null )
                {
@@ -104,10 +105,10 @@ namespace UtilPack.NuGet.ProcessRunner
                      args.Where( arg => arg.StartsWith( PROCESS_ARG_PREFIX ) )
                      .Select( arg => arg.Substring( PROCESS_ARG_PREFIX.Length ) )
                      );
-                  monitoring.KeepMonitoringAsync(
+                  await monitoring.KeepMonitoringAsync(
                      assemblyPath,
                      source.Token
-                     ).GetAwaiter().GetResult();
+                     );
 
                   retVal = 0;
                }

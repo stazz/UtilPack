@@ -250,6 +250,7 @@ namespace UtilPack.NuGet.Deployment
       {
          var config = this._config;
          var lockFile = await restorer.RestoreIfNeeded( identity.Id, identity.Version.ToNormalizedString(), token );
+         var sdkPackageContainsAllPackagesAsAssemblies = this._config.SDKPackageContainsAllPackagesAsAssemblies;
          JToken runtimeConfig = null;
          String sdkPackageID = null;
          String sdkPackageVersion = null;
@@ -280,6 +281,19 @@ namespace UtilPack.NuGet.Deployment
             )
             .Select( lib => lib.Name )
             );
+
+         // In addition, check all compile assemblies from sdk package (e.g. Microsoft.NETCore.App )
+         // Starting from 2.0.0, all assemblies from all dependent packages are marked as compile-assemblies stored in sdk package.
+         if ( sdkPackageContainsAllPackagesAsAssemblies.IsTrue() ||
+            ( !sdkPackageContainsAllPackagesAsAssemblies.HasValue && sdkPackageID == UtilPackNuGetUtility.SDK_PACKAGE_NETCORE && Version.TryParse( sdkPackageVersion, out var sdkPkgVer ) && sdkPkgVer.Major >= 2 )
+            )
+         {
+            var sdkPackageLibrary = lockFile.Targets[0].Libraries.FirstOrDefault( l => l.Name == sdkPackageID );
+            if ( sdkPackageLibrary != null )
+            {
+               sdkPackages.UnionWith( sdkPackageLibrary.CompileTimeAssemblies.Select( cta => Path.GetFileNameWithoutExtension( cta.Path ) ) );
+            }
+         }
 
          // Actually -> return LockFile, but modify it so that sdk packages are removed
          var targetLibs = lockFile.Targets[0].Libraries;
@@ -341,6 +355,7 @@ namespace UtilPack.NuGet.Deployment
          var target = lockFile.Targets[0];
          var allLibs = lockFile.Libraries
             .ToDictionary( lib => lib.Name, lib => lib );
+         // TODO at least in .NET Core 2.0, all the SDK assemblies ('trusted' assemblies) will *not* have "runtime" entry in their library json.
          var ctx = new DependencyContext(
             new TargetInfo( target.Name, null, null, true ), // portable will be false for native deployments, TODO detect that
             new CompilationOptions( Empty<String>.Enumerable, null, null, null, null, null, null, null, null, null, null, null ),
@@ -566,6 +581,17 @@ namespace UtilPack.NuGet.Deployment
       /// <value>The deployment kind.</value>
       /// <seealso cref="Deployment.DeploymentKind"/>
       DeploymentKind DeploymentKind { get; }
+
+      /// <summary>
+      /// Gets the information about SDK NuGet package (e.g. <c>"Microsoft.NETCore.App"</c>) related to how the SDK assemblies are relayed.
+      /// </summary>
+      /// <value>The information about SDK NuGet package (e.g. <c>"Microsoft.NETCore.App"</c>) related to how the SDK assemblies are relayed.</value>
+      /// <remarks>
+      /// Setting this to <c>true</c> will force the SDK package logic to assume that all compile time assemblies are package IDs of SDK sub-packages, thus affecting SDK package resolving logic.
+      /// Setting this to <c>false</c> will force the SDK package logic to assume that main SDK package only has the assemblies that are exposed via NuGet package dependency chain.
+      /// Leaving this unset (<c>null</c>) will use auto-detection (which will use <c>true</c> when deploying for .NET Core 2.0+, and will use <c>false</c> when deploying for other frameworks).
+      /// </remarks>
+      Boolean? SDKPackageContainsAllPackagesAsAssemblies { get; }
    }
 
    /// <summary>
@@ -615,6 +641,9 @@ namespace UtilPack.NuGet.Deployment
 
       /// <inheritdoc />
       public DeploymentKind DeploymentKind { get; set; }
+
+      /// <inheritdoc />
+      public Boolean? SDKPackageContainsAllPackagesAsAssemblies { get; set; }
    }
 
 

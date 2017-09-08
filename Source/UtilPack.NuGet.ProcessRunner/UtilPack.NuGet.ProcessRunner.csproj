@@ -24,7 +24,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.1.1</VersionPrefix>
+    <VersionPrefix>1.2.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
@@ -55,7 +55,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Tracking UtilPack.NuGet.Deployment release.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added new option: PauseBeforeExitIfErrorsSeen - will wait for console key press if output seen in monitored process error stream.</PackageReleaseNotes>
     <PackageTags>utility extensions nuget process monitor start restart shutdown restore</PackageTags>
     <Title>NuGet Process Runner</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

@@ -38,7 +38,7 @@ namespace UtilPack.NuGet.ProcessRunner
 
          DeploymentConfiguration deployConfig = null;
          DefaultMonitoringConfiguration monitorConfig = null;
-         ProcessRunnerConfiguration nugetConfig = null;
+         ProcessRunnerConfiguration programConfig = null;
          try
          {
             var config = new ConfigurationBuilder()
@@ -46,14 +46,16 @@ namespace UtilPack.NuGet.ProcessRunner
                .Build();
             deployConfig = config.Get<DefaultDeploymentConfiguration>();
             monitorConfig = config.Get<DefaultMonitoringConfiguration>();
-            nugetConfig = config.Get<ProcessRunnerConfiguration>();
+            programConfig = config.Get<ProcessRunnerConfiguration>();
          }
          catch ( Exception exc )
          {
             Console.Error.WriteLine( $"Error with reading configuration, please check your command line parameters! ({exc.Message})" );
          }
 
-         if ( deployConfig != null && monitorConfig != null && nugetConfig != null )
+         var errorsSeen = false;
+
+         if ( deployConfig != null && monitorConfig != null && programConfig != null )
          {
             var source = new CancellationTokenSource();
             try
@@ -73,7 +75,7 @@ namespace UtilPack.NuGet.ProcessRunner
                   .DeployAsync(
                      UtilPackNuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
                         Path.GetDirectoryName( new Uri( typeof( Program ).GetTypeInfo().Assembly.CodeBase ).LocalPath ),
-                        nugetConfig.NuGetConfigurationFile
+                        programConfig.NuGetConfigurationFile
                      ),
                      targetDirectory,
                      token: source.Token,
@@ -105,11 +107,18 @@ namespace UtilPack.NuGet.ProcessRunner
                      args.Where( arg => arg.StartsWith( PROCESS_ARG_PREFIX ) )
                      .Select( arg => arg.Substring( PROCESS_ARG_PREFIX.Length ) )
                      );
-                  await monitoring.KeepMonitoringAsync(
+                  errorsSeen = await monitoring.KeepMonitoringAsync(
                      assemblyPath,
                      source.Token
                      );
-
+                  if ( errorsSeen && programConfig.PauseBeforeExitIfErrorsSeen )
+                  {
+                     await Console.Out.WriteLineAsync( "Monitored process showed errors, press any key to terminate this process." );
+                     while ( !Console.KeyAvailable )
+                     {
+                        await Task.Delay( 100 );
+                     }
+                  }
                   retVal = 0;
                }
                else
@@ -131,6 +140,7 @@ namespace UtilPack.NuGet.ProcessRunner
                }
             }
          }
+
 
          return retVal;
       }
@@ -164,5 +174,7 @@ namespace UtilPack.NuGet.ProcessRunner
    internal class ProcessRunnerConfiguration
    {
       public String NuGetConfigurationFile { get; set; }
+
+      public Boolean PauseBeforeExitIfErrorsSeen { get; set; }
    }
 }

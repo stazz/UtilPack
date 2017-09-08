@@ -27,6 +27,7 @@ The format for parameters is `/<parameter-name>[=value]`, i.e. default syntax th
 * The `RestartWaitTime` is optional parameter containing the `TimeSpan` for how long to wait before restarting the process in the graceful restart situation. This parameter will only be used if `RestartSemaphoreProcessArgument` is specified. The default value is zero seconds, that is, no wait at all.
 ## Infrastructure-related parameters
 * The `NuGetConfigurationFile` is optional parameter specifying where the NuGet configuration file is located. By default, the default machine-specific NuGet configuration file will be used.
+* The `PauseBeforeExitIfErrorsSeen` is optional parameter specifying whether for this program to wait for console key press if it sees output in monitored process error stream, or if monitored process returns non-zero.
 
 # Distribution
 See [NuGet package](http://www.nuget.org/packages/UtilPack.NuGet.ProcessRunner) for binary distribution.

@@ -24,6 +24,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Reflection;
+using System.Collections.Concurrent;
 
 namespace UtilPack.ProcessMonitor
 {
@@ -65,8 +66,8 @@ namespace UtilPack.ProcessMonitor
       /// </summary>
       /// <param name="processLocation">The location of the process.</param>
       /// <param name="token">The cancellation token.</param>
-      /// <returns>A task which will keep monitoring given process.</returns>
-      public async Task KeepMonitoringAsync(
+      /// <returns>A task which will keep monitoring given process, and return <c>true</c> if it sees any output in process' error stream, or if monitored process returns non-zero.</returns>
+      public async Task<Boolean> KeepMonitoringAsync(
          String processLocation,
          CancellationToken token
          )
@@ -101,8 +102,20 @@ namespace UtilPack.ProcessMonitor
 
          var argsString = argsBuilder.ToString();
          var restartWaitTime = config.RestartWaitTime;
-         while ( !token.IsCancellationRequested && await this.PerformSingleCycle( location, argsString, Path.GetDirectoryName( processLocation ), token ) )
+         (Boolean RestartRequested, Boolean ErrorsSeen, Int32? ExitCode) cycleResult = default;
+         var retVal = false;
+         void ProcessRetVal( ref Boolean rVal, (Boolean RestartRequested, Boolean ErrorsSeen, Int32? ExitCode) thisCycleResult )
          {
+            if ( !retVal )
+            {
+               retVal = cycleResult.ErrorsSeen || ( cycleResult.ExitCode.HasValue && cycleResult.ExitCode.Value != 0 );
+            }
+         }
+
+         while ( !token.IsCancellationRequested && ( cycleResult = await this.PerformSingleCycle( location, argsString, Path.GetDirectoryName( processLocation ), token ) ).RestartRequested )
+         {
+            ProcessRetVal( ref retVal, cycleResult );
+
             // TODO provide "RestartStateFile" argument to process, so it can convey state between restarts.
             // Or use memory mapped files
             Console.Out.Write( "\n\nProcess requested restart...\n\n" );
@@ -118,14 +131,13 @@ namespace UtilPack.ProcessMonitor
             }
          }
 
-         if ( !token.IsCancellationRequested )
-         {
-            Console.Out.Write( "\n\nProcess has exited.\n\n" );
-         }
+         ProcessRetVal( ref retVal, cycleResult );
+
+         return retVal;
       }
 
       // returns true if process has signalled that it should be restarted
-      private async Task<Boolean> PerformSingleCycle(
+      private async Task<(Boolean RestartRequested, Boolean ErrorsSeen, Int32? ExitCode)> PerformSingleCycle(
          String location,
          String argsString,
          String workingDir,
@@ -134,8 +146,11 @@ namespace UtilPack.ProcessMonitor
       {
          var config = this._config;
          var argPrefix = config.ProcessArgumentPrefix;
+         var processOutput = new ConcurrentQueue<(Boolean IsError, DateTime Timestamp, String Data)>();
+
          Semaphore shutdownSemaphore = null;
          Semaphore restartSemaphore = null;
+         Int32 errorOutPutSeen = 0;
          try
          {
 
@@ -160,27 +175,24 @@ namespace UtilPack.ProcessMonitor
                StartInfo = startInfo,
                EnableRaisingEvents = true
             };
+
             process.OutputDataReceived += ( s, e ) =>
             {
                if ( e.Data != null ) // e.Data will be null on process closedown
                {
-                  // TODO we actually don't want to write to console here, instead enqueue the data and process separately.
-                  Console.Out.WriteLine( String.Format( "[{0}]: {1}", DateTime.UtcNow, e.Data ) );
+                  processOutput.Enqueue( (false, DateTime.UtcNow, e.Data) );
                }
             };
             process.ErrorDataReceived += ( s, e ) =>
             {
                if ( e.Data != null ) // e.Data will be null on process closedown
                {
-                  // TODO we actually don't want to write to console here, instead enqueue the data and process separately.
-                  Console.Error.Write( String.Format( "[{0}] ", DateTime.UtcNow ) );
-                  var oldColor = Console.ForegroundColor;
-                  Console.ForegroundColor = ConsoleColor.Red;
-                  Console.Error.Write( "ERROR" );
-                  Console.ForegroundColor = oldColor;
-                  Console.Error.WriteLine( String.Format( ": {0}", e.Data ) );
+                  Interlocked.CompareExchange( ref errorOutPutSeen, 1, 0 );
+                  processOutput.Enqueue( (true, DateTime.UtcNow, e.Data) );
                }
             };
+
+            Int32? pid = null;
 
 
 #if NETSTANDARD1_5
@@ -230,6 +242,9 @@ namespace UtilPack.ProcessMonitor
                process.BeginOutputReadLine();
                process.BeginErrorReadLine();
 
+               pid = process.Id;
+               await Console.Out.WriteLineAsync( $"\n\nProcess started, ID: {pid}.\n\n" );
+
                var restart = false;
                DateTime? shutdownSignalledTime = null;
                using ( var cancelRegistration = token.Register( () =>
@@ -259,6 +274,9 @@ namespace UtilPack.ProcessMonitor
                   var hasExited = false;
                   while ( !hasExited )
                   {
+                     // Write all queued messages
+                     await ProcessOutput( processOutput );
+
                      if ( process.WaitForExit( 0 ) )
                      {
                         // The process has exited, clean up our stuff
@@ -300,6 +318,7 @@ namespace UtilPack.ProcessMonitor
                      else
                      {
                         // Wait async
+                        // TODO await on MRES/SemaphoreSlim, which would get set by stdout/stderr processing, for faster relaying of output
                         await
 #if NET40
                         TaskEx
@@ -311,7 +330,21 @@ namespace UtilPack.ProcessMonitor
                   }
                }
 
-               return restart;
+               Int32? exitCode = null;
+               if ( pid.HasValue )
+               {
+                  try
+                  {
+                     exitCode = process.ExitCode;
+                     await Console.Out.WriteLineAsync( $"\n\nProcess with ID {pid} exit code: {exitCode}.\n\n" );
+                  }
+                  catch
+                  {
+                     // Ignore
+                  }
+               }
+
+               return (restart, errorOutPutSeen != 0, exitCode);
 #if NETSTANDARD1_5 || !NETSTANDARD1_3
             }
 #endif
@@ -320,8 +353,38 @@ namespace UtilPack.ProcessMonitor
          {
             shutdownSemaphore?.DisposeSafely();
             restartSemaphore?.DisposeSafely();
+
+            // Flush the rest of messages
+            await ProcessOutput( processOutput );
          }
 
+      }
+
+      private static async Task ProcessOutput( ConcurrentQueue<(Boolean IsError, DateTime Timestamp, String Data)> processOutput )
+      {
+         while ( processOutput.TryDequeue( out var output ) )
+         {
+            if ( output.IsError )
+            {
+               await Console.Error.WriteAsync( String.Format( "[{0}] ", output.Timestamp ) );
+               var oldColor = Console.ForegroundColor;
+               Console.ForegroundColor = ConsoleColor.Red;
+               try
+               {
+                  await Console.Error.WriteAsync( "ERROR" );
+               }
+               finally
+               {
+                  Console.ForegroundColor = oldColor;
+               }
+
+               await Console.Error.WriteLineAsync( String.Format( ": {0}", output.Data ) );
+            }
+            else
+            {
+               await Console.Out.WriteLineAsync( String.Format( "[{0}]: {1}", output.Timestamp, output.Data ) );
+            }
+         }
       }
 
       private Semaphore CreateSemaphore( String argumentName, String namePrefix, ref String argsString )
@@ -444,4 +507,44 @@ namespace UtilPack.ProcessMonitor
       /// <inheritdoc />
       public TimeSpan RestartWaitTime { get; } = TimeSpan.Zero;
    }
+
+#if NET40
+
+   internal static class PMExtensions
+   {
+      // TODO Move to UtilPack or Theraot
+      public static Task WriteLineAsync( this TextWriter writer, String value )
+      {
+         var tuple = Tuple.Create( writer, value );
+         return Task.Factory.StartNew(
+            state =>
+            {
+               var tupleState = (Tuple<TextWriter, String>) state;
+               tupleState.Item1.WriteLine( tupleState.Item2 );
+            },
+            tuple,
+            CancellationToken.None,
+            TaskCreationOptions.None,
+            TaskScheduler.Default
+            );
+      }
+
+      public static Task WriteAsync( this TextWriter writer, String value )
+      {
+         var tuple = Tuple.Create( writer, value );
+         return Task.Factory.StartNew(
+            state =>
+            {
+               var tupleState = (Tuple<TextWriter, String>) state;
+               tupleState.Item1.Write( tupleState.Item2 );
+            },
+            tuple,
+            CancellationToken.None,
+            TaskCreationOptions.None,
+            TaskScheduler.Default
+            );
+      }
+   }
+
+#endif
 }

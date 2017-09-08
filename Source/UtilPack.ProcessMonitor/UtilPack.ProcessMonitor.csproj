@@ -8,6 +8,7 @@
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
     <TreatSpecificWarningsAsErrors />
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+    <LangVersion>7.1</LangVersion>
   </PropertyGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard1.3' or '$(TargetFramework)' == 'netstandard1.5' ">
@@ -24,7 +25,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionPrefix>1.1.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
@@ -55,7 +56,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Added restart cooldown timespan.</PackageReleaseNotes>
+    <PackageReleaseNotes>Process ID is now output when process is started and ended. Printing process output is now more robust (e.g. color change won't happen between stderr and stdout printing). Monitoring task returns true if any errors seen or process returns non-zero exit code.</PackageReleaseNotes>
     <PackageTags>utility extensions process monitor start restart shutdown</PackageTags>
     <Title>Advanced Process Monitoring</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

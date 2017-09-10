@@ -26,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\UtilPack.AsyncEnumeration\UtilPack.AsyncEnumeration.csproj" />
     <ProjectReference Include="..\UtilPack.Cryptography.Digest\UtilPack.Cryptography.Digest.csproj" />
     <ProjectReference Include="..\UtilPack.NuGet.AssemblyLoading\UtilPack.NuGet.AssemblyLoading.csproj" />
     <ProjectReference Include="..\UtilPack\UtilPack.csproj" />

@@ -18,10 +18,21 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
 using UtilPack.AsyncEnumeration;
+
+using TAsyncPotentialToken = System.Nullable<System.Int64>;
+using TAsyncToken = System.Int64;
+using TConcurrentExceptionList = System.Collections.
+#if NETSTANDARD1_0
+   Generic.List
+#else
+   Concurrent.ConcurrentBag
+#endif
+   <System.Exception>;
 
 namespace UtilPack.AsyncEnumeration
 {
@@ -34,23 +45,19 @@ namespace UtilPack.AsyncEnumeration
    {
       /// <summary>
       /// This method mimics <see cref="System.Collections.IEnumerator.MoveNext"/> method in order to asynchronously read the next item.
-      /// Please note that instead of directly using this method, one should use <see cref="E_UtilPack.EnumerateSequentiallyAsync{T}(AsyncEnumerator{T}, Action{T})"/> and <see cref="E_UtilPack.EnumerateSequentialyAsync{T}(AsyncEnumerator{T}, Func{T, Task})"/> extension methods, as those methods will take care of properly finishing enumeration in case of exceptions.
+      /// Please note that instead of directly using this method, one should use <see cref="E_UtilPack.EnumerateSequentiallyAsync{T}(AsyncEnumerator{T}, Action{T})"/>, <see cref="E_UtilPack.EnumerateSequentialyAsync{T}(AsyncEnumerator{T}, Func{T, Task})"/>, <see cref="E_UtilPack.EnumerateInParallelAsync{T}(AsyncEnumerator{T}, Action{T}, CancellationToken)"/>, or <see cref="E_UtilPack.EnumerateInParallelAsync{T}(AsyncEnumerator{T}, Func{T, Task}, CancellationToken)"/> extension methods, as those methods will take care of properly finishing enumeration in case of exceptions.
       /// </summary>
-      /// <returns>A task, which will return <c>true</c> if next item is encountered, and <c>false</c> if this enumeration ended.</returns>
+      /// <returns>A task, which will return <see cref="TAsyncPotentialToken"/> if next item is encountered, and <c>null</c> if this enumeration ended.</returns>
       /// <remarks>
       /// The return type is <see cref="ValueTask{TResult}"/>, which helps abstracting away e.g. buffering functionality (since the one important motivation for buffering is to avoid allocating many <see cref="Task{TResult}"/> objects from heap).
       /// </remarks>
-      /// <exception cref="InvalidOperationException">If this method is invoked concurrently (without waiting for previous invocation to complete).</exception>
-      ValueTask<Boolean> MoveNextAsync( CancellationToken token = default( CancellationToken ) );
+      ValueTask<TAsyncPotentialToken> MoveNextAsync( CancellationToken token = default );
 
       /// <summary>
-      /// This property mimics <see cref="IEnumerator{T}.Current"/> in order to get the item previously fetched by <see cref="MoveNextAsync"/>.
+      /// This method mimics <see cref="IEnumerator{T}.Current"/> property in order to get the item previously fetched by <see cref="MoveNextAsync"/>.
       /// </summary>
-      /// <value>The item previously fetched by <see cref="MoveNextAsync"/>.</value>
-      /// <remarks>
-      /// Calling this property getter will never throw.
-      /// </remarks>
-      T Current { get; }
+      /// <param name="retrievalToken">The value of the retrieval token returned by <see cref="MoveNextAsync"/> method.</param>
+      T OneTimeRetrieve( TAsyncToken retrievalToken );
 
       /// <summary>
       /// This method mimics <see cref="System.Collections.IEnumerator.Reset"/> method in order to asynchronously reset this enumerator.
@@ -59,7 +66,7 @@ namespace UtilPack.AsyncEnumeration
       /// <remarks>
       /// Note that unlike <see cref="MoveNextAsync"/>, this method will not throw when invoked concurrently. Instead, it will just return <c>false</c>.
       /// </remarks>
-      ValueTask<Boolean> TryResetAsync( CancellationToken token = default( CancellationToken ) );
+      ValueTask<Boolean> TryResetAsync( CancellationToken token = default );
    }
 
    /// <summary>
@@ -314,8 +321,12 @@ namespace UtilPack.AsyncEnumeration
    /// <returns>A task to perform asynchronous disposing. If no asynchronous disposing is needed, this delegate can return <c>null</c>.</returns>
    public delegate Task DisposeAsyncDelegate( CancellationToken token );
 
+   public delegate Boolean StatelessMoveNextDelegate();
+
+   public delegate ValueTask<T> GetNextItemDelegate<T>( TAsyncToken seenAsyncToken, CancellationToken token );
+
    /// <summary>
-   /// This class provides static factory methods to create objects of type <see cref="AsyncEnumerator{T}"/>, <see cref="AsyncEnumerator{T, TMetadata}"/>, <see cref="AsyncEnumeratorObservable{T}"/>, and <see cref="AsyncEnumeratorObservableImpl{T, TMetadata}"/>.
+   /// This class provides static factory methods to create objects of type <see cref="AsyncEnumerator{T}"/>, <see cref="AsyncEnumerator{T, TMetadata}"/>, <see cref="AsyncEnumeratorObservable{T}"/>, and <see cref="AsyncSequentialOnlyEnumeratorObservableImpl{T, TMetadata}"/>.
    /// </summary>
    public static class AsyncEnumeratorFactory
    {
@@ -330,7 +341,7 @@ namespace UtilPack.AsyncEnumeration
          InitialMoveNextAsyncDelegate<T> initialMoveNext
          )
       {
-         return new AsyncEnumeratorImplNonObservable<T>( initialMoveNext );
+         return new AsyncSequentialOnlyEnumeratorImplNonObservable<T>( initialMoveNext );
       }
 
       /// <summary>
@@ -347,7 +358,7 @@ namespace UtilPack.AsyncEnumeration
          TMetadata metadata
          )
       {
-         return new AsyncEnumeratorImplNonObservable<T, TMetadata>( initialMoveNext, metadata );
+         return new AsyncSequentialOnlyEnumeratorImplNonObservable<T, TMetadata>( initialMoveNext, metadata );
       }
 
       /// <summary>
@@ -371,7 +382,7 @@ namespace UtilPack.AsyncEnumeration
          Func<GenericEventHandler<EnumerationItemEventArgs<T>>> getGlobalAfterEnumerationExecutionItemEncountered = null
          )
       {
-         return new AsyncEnumeratorObservableImpl<T>(
+         return new AsyncSequentialOnlyEnumeratorObservableImpl<T>(
             initialMoveNext,
             getGlobalBeforeEnumerationExecutionStart,
             getGlobalAfterEnumerationExecutionStart,
@@ -405,7 +416,7 @@ namespace UtilPack.AsyncEnumeration
          Func<GenericEventHandler<EnumerationItemEventArgs<T, TMetadata>>> getGlobalAfterEnumerationExecutionItemEncountered = null
          )
       {
-         return new AsyncEnumeratorObservableImpl<T, TMetadata>(
+         return new AsyncSequentialOnlyEnumeratorObservableImpl<T, TMetadata>(
             initialMoveNext,
             metadata,
             getGlobalBeforeEnumerationExecutionStart,
@@ -413,6 +424,34 @@ namespace UtilPack.AsyncEnumeration
             getGlobalBeforeEnumerationExecutionEnd,
             getGlobalAfterEnumerationExecutionEnd,
             getGlobalAfterEnumerationExecutionItemEncountered
+            );
+      }
+
+      public static AsyncEnumerator<T> CreateParallelEnumerator<T>(
+         StatelessMoveNextDelegate hasNext,
+         GetNextItemDelegate<T> getNext,
+         DisposeAsyncDelegate dispose
+         )
+      {
+         return new AsyncParallelEnumeratorImplSealed<T>(
+            hasNext,
+            getNext,
+            dispose
+            );
+      }
+
+      public static AsyncEnumerator<T, TMetadata> CreateParallelEnumerator<T, TMetadata>(
+         StatelessMoveNextDelegate hasNext,
+         GetNextItemDelegate<T> getNext,
+         DisposeAsyncDelegate dispose,
+         TMetadata metadata
+         )
+      {
+         return new AsyncParallelEnumeratorImpl<T, TMetadata>(
+            hasNext,
+            getNext,
+            dispose,
+            metadata
             );
       }
 
@@ -434,16 +473,17 @@ public static partial class E_UtilPack
    /// <returns>A task which will have enumerated the <see cref="AsyncEnumerator{T}"/> on completion. The return value is amount of items encountered during enumeration.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="AsyncEnumerator{T}"/> is <c>null</c>.</exception>
    /// <exception cref="OverflowException">If there are more than <see cref="Int64.MaxValue"/> amount of items encountered.</exception>
-   public static async ValueTask<Int64> EnumerateSequentiallyAsync<T>( this AsyncEnumerator<T> enumerator, Action<T> action )
+   public static async ValueTask<Int64> EnumerateSequentiallyAsync<T>( this AsyncEnumerator<T> enumerator, Action<T> action, CancellationToken token = default )
    {
       ArgumentValidator.ValidateNotNullReference( enumerator );
       try
       {
          var retVal = 0L;
-         while ( await enumerator.MoveNextAsync() )
+         TAsyncPotentialToken guid;
+         while ( ( guid = await enumerator.MoveNextAsync() ).HasValue )
          {
             ++retVal;
-            action?.Invoke( enumerator.Current );
+            action?.Invoke( enumerator.OneTimeRetrieve( guid.Value ) );
          }
 
          return retVal;
@@ -452,7 +492,7 @@ public static partial class E_UtilPack
       {
          try
          {
-            while ( await enumerator.MoveNextAsync() ) ;
+            await enumerator.TryResetAsync( token );
          }
          catch
          {
@@ -473,16 +513,17 @@ public static partial class E_UtilPack
    /// <returns>A task which will have enumerated the <see cref="AsyncEnumerator{T}"/> on completion. The return value is amount of items encountered during enumeration.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="AsyncEnumerator{T}"/> is <c>null</c>.</exception>
    /// <exception cref="OverflowException">If there are more than <see cref="Int64.MaxValue"/> amount of items encountered.</exception>
-   public static async ValueTask<Int64> EnumerateSequentialyAsync<T>( this AsyncEnumerator<T> enumerator, Func<T, Task> asyncAction )
+   public static async ValueTask<Int64> EnumerateSequentialyAsync<T>( this AsyncEnumerator<T> enumerator, Func<T, Task> asyncAction, CancellationToken token = default )
    {
       try
       {
          var retVal = 0L;
-         while ( await enumerator.MoveNextAsync() )
+         TAsyncPotentialToken guid;
+         while ( ( guid = await enumerator.MoveNextAsync( token ) ).HasValue )
          {
             ++retVal;
             Task task;
-            if ( asyncAction != null && ( task = asyncAction( enumerator.Current ) ) != null )
+            if ( asyncAction != null && ( task = asyncAction( enumerator.OneTimeRetrieve( guid.Value ) ) ) != null )
             {
                await task;
             }
@@ -494,7 +535,7 @@ public static partial class E_UtilPack
       {
          try
          {
-            while ( await enumerator.MoveNextAsync() ) ;
+            await enumerator.TryResetAsync( token );
          }
          catch
          {
@@ -504,4 +545,321 @@ public static partial class E_UtilPack
          throw;
       }
    }
+
+   const Int32 MOVE_NEXT_ENDED = 0;
+   const Int32 MOVE_NEXT_SUCCESS = 1;
+
+   /// <summary>
+   /// 
+   /// </summary>
+   /// <typeparam name="T"></typeparam>
+   /// <param name="enumerator"></param>
+   /// <param name="action"></param>
+   /// <param name="token"></param>
+   /// <returns></returns>
+   /// <exception cref="InvalidOperationException">If this <see cref="AsyncEnumerator{T}"/> does not support parallel enumeration.</exception>
+   public static ValueTask<Int64> EnumerateInParallelAsync<T>( this AsyncEnumerator<T> enumerator, Action<T> action, CancellationToken token = default )
+   {
+      ArgumentValidator.ValidateNotNullReference( enumerator );
+      TaskCompletionSource<Int64> src = null;
+      TConcurrentExceptionList exceptions = null;
+      var itemsEncountered = 0L;
+      try
+      {
+         var moveNextSuccess = MOVE_NEXT_SUCCESS;
+         var tasksStarted = 0L;
+
+         void InvokeAction( TAsyncPotentialToken guid )
+         {
+            if ( guid.HasValue )
+            {
+               Interlocked.Increment( ref itemsEncountered );
+               action?.Invoke( enumerator.OneTimeRetrieve( guid.Value ) );
+            }
+            else
+            {
+               Interlocked.Exchange( ref moveNextSuccess, MOVE_NEXT_ENDED );
+            }
+
+         }
+
+         do
+         {
+            var task = enumerator.MoveNextAsync();
+            if ( task.IsCompleted )
+            {
+               // We completed synchronously
+               InvokeAction( task.Result );
+            }
+            else
+            {
+               // Truly asynchronous call -> need to use some manual plumbing code
+               if ( src == null )
+               {
+                  src = new TaskCompletionSource<Int64>();
+               }
+
+               Interlocked.Increment( ref tasksStarted );
+
+               task.AsTask().ContinueWith( t =>
+               {
+                  Exception catched = null;
+                  try
+                  {
+                     if ( t.Status == TaskStatus.RanToCompletion )
+                     {
+                        // We have completed successfully
+                        InvokeAction( t.Result );
+                     }
+                  }
+                  catch ( Exception exc )
+                  {
+                     catched = exc;
+                  }
+                  finally
+                  {
+                     ParallelTaskContinuation( t, src, catched, ref exceptions, ref moveNextSuccess, ref tasksStarted, ref itemsEncountered );
+                  }
+               }, TaskContinuationOptions.ExecuteSynchronously );
+            }
+         } while ( moveNextSuccess == MOVE_NEXT_SUCCESS );
+      }
+      catch ( Exception exc )
+      {
+         var rethrow = true;
+         try
+         {
+            var resetTask = enumerator.TryResetAsync( token );
+            rethrow = src == null || resetTask.IsCompleted;
+            if ( !rethrow )
+            {
+               if ( src == null )
+               {
+                  src = new TaskCompletionSource<Int64>();
+               }
+               src.SetException( exc );
+            }
+         }
+         catch
+         {
+            // Ignore
+         }
+
+         if ( rethrow )
+         {
+            throw;
+         }
+      }
+
+      ValueTask<Int64> retVal;
+      if ( src == null )
+      {
+         // Completed fully synchronously.
+         retVal = new ValueTask<Int64>( itemsEncountered );
+      }
+      else if ( src.Task.IsCompleted )
+      {
+         // There was some asynchrony, but the synchronous loop was slower
+         retVal = new ValueTask<Int64>( src.Task.Result );
+      }
+      else
+      {
+         // Completed asynchronously
+         retVal = new ValueTask<Int64>( src.Task );
+      }
+
+      return retVal;
+   }
+
+   public static ValueTask<Int64> EnumerateInParallelAsync<T>( this AsyncEnumerator<T> enumerator, Func<T, Task> asyncAction, CancellationToken token = default )
+   {
+      ArgumentValidator.ValidateNotNullReference( enumerator );
+      TaskCompletionSource<Int64> src = null;
+      TConcurrentExceptionList exceptions = null;
+      var itemsEncountered = 0L;
+      try
+      {
+         var moveNextSuccess = MOVE_NEXT_SUCCESS;
+         var tasksStarted = 0L;
+
+         void InvokeAction( TAsyncPotentialToken guid )
+         {
+            if ( guid.HasValue )
+            {
+               Interlocked.Increment( ref itemsEncountered );
+               var actionTask = asyncAction?.Invoke( enumerator.OneTimeRetrieve( guid.Value ) );
+               if ( actionTask != null && !actionTask.IsCompleted )
+               {
+                  Interlocked.Increment( ref tasksStarted );
+                  actionTask.ContinueWith( t =>
+                  {
+                     ParallelTaskContinuation( t, src, t.Exception, ref exceptions, ref moveNextSuccess, ref tasksStarted, ref itemsEncountered );
+                  } );
+               }
+            }
+            else
+            {
+               Interlocked.Exchange( ref moveNextSuccess, MOVE_NEXT_ENDED );
+            }
+
+         }
+
+         do
+         {
+            var task = enumerator.MoveNextAsync();
+
+            if ( task.IsCompleted )
+            {
+               // We completed synchronously
+               InvokeAction( task.Result );
+            }
+            else
+            {
+               // Truly asynchronous call -> need to use some manual plumbing code
+               if ( src == null )
+               {
+                  src = new TaskCompletionSource<Int64>();
+               }
+
+               Interlocked.Increment( ref tasksStarted );
+
+               task.AsTask().ContinueWith( t =>
+               {
+                  Exception catched = null;
+                  try
+                  {
+                     if ( t.Status == TaskStatus.RanToCompletion )
+                     {
+                        // We have completed successfully
+                        InvokeAction( t.Result );
+                     }
+                  }
+                  catch ( Exception exc )
+                  {
+                     catched = exc;
+                  }
+                  finally
+                  {
+                     ParallelTaskContinuation( t, src, catched, ref exceptions, ref moveNextSuccess, ref tasksStarted, ref itemsEncountered );
+                  }
+
+               }, TaskContinuationOptions.ExecuteSynchronously );
+            }
+         } while ( moveNextSuccess == MOVE_NEXT_SUCCESS );
+      }
+      catch ( Exception exc )
+      {
+         var rethrow = true;
+         try
+         {
+            var resetTask = enumerator.TryResetAsync( token );
+            rethrow = src == null || resetTask.IsCompleted;
+            if ( !rethrow )
+            {
+               if ( src == null )
+               {
+                  src = new TaskCompletionSource<Int64>();
+               }
+               src.SetException( exc );
+            }
+         }
+         catch
+         {
+            // Ignore
+         }
+
+         if ( rethrow )
+         {
+            throw;
+         }
+      }
+
+      ValueTask<Int64> retVal;
+      if ( src == null )
+      {
+         // Completed fully synchronously.
+         retVal = new ValueTask<Int64>( itemsEncountered );
+      }
+      else if ( src.Task.IsCompleted )
+      {
+         // There was some asynchrony, but the synchronous loop was slower
+         retVal = new ValueTask<Int64>( src.Task.Result );
+      }
+      else
+      {
+         // Completed asynchronously
+         retVal = new ValueTask<Int64>( src.Task );
+      }
+
+      return retVal;
+   }
+
+   private static void ParallelTaskContinuation(
+      Task task,
+      TaskCompletionSource<Int64> src,
+      Exception catched,
+      ref TConcurrentExceptionList exceptions,
+      ref Int32 moveNextSuccess,
+      ref Int64 tasksStarted,
+      ref Int64 itemsEncountered // This must be 'ref' because of concurrency
+      )
+   {
+      void AddToExceptionList( ref TConcurrentExceptionList allExceptions, Exception exception )
+      {
+         if ( exception != null )
+         {
+            if ( allExceptions == null )
+            {
+               Interlocked.CompareExchange( ref allExceptions, new TConcurrentExceptionList(), null );
+            }
+#if NETSTANDARD1_0
+            lock ( allExceptions )
+            {
+#endif
+               allExceptions.Add( exception );
+#if NETSTANDARD1_0
+            }
+#endif
+         }
+      }
+
+      AddToExceptionList( ref exceptions, catched );
+
+      if (
+         moveNextSuccess == MOVE_NEXT_ENDED // The synchronous loop ended before we arrived here
+         && Interlocked.Decrement( ref tasksStarted ) == 0 // This is the last async invocation
+         )
+      {
+
+         // We need to set task completion source
+         if ( task.IsCanceled )
+         {
+            src.SetCanceled();
+         }
+         else if ( ( exceptions?.Count ?? 0 ) > 0 || task.IsFaulted )
+         {
+            AddToExceptionList( ref exceptions, task.Exception );
+            src.SetException( exceptions.Count == 1 ?
+               exceptions
+#if NETSTANDARD1_0
+               [0]
+#else
+               .First()
+#endif
+               :
+               new AggregateException( exceptions.ToArray() )
+               );
+         }
+         else if ( task.IsCompleted )
+         {
+            src.SetResult( itemsEncountered );
+         }
+         else
+         {
+            System.Diagnostics.Debug.Assert( false, "When does this happen? Task continued with, but not completed." );
+         }
+      }
+   }
+
+
 }

@@ -26,7 +26,7 @@ using TAsyncToken = System.Int64;
 
 namespace UtilPack.AsyncEnumeration
 {
-   internal class AsyncParallelEnumeratorImpl<T> : AsyncEnumerator<T>
+   internal class AsyncParallelEnumeratorImpl<T, TMoveNext> : AsyncEnumerator<T>
    {
 
       private readonly
@@ -36,16 +36,16 @@ namespace UtilPack.AsyncEnumeration
          System.Collections.Concurrent.ConcurrentDictionary
 #endif 
          <TAsyncToken, T> _seenByMoveNext;
-      private readonly StatelessMoveNextDelegate _hasNext;
-      private readonly GetNextItemDelegate<T> _next;
-      private readonly DisposeAsyncDelegate _dispose;
+      private readonly SynchronousMoveNextDelegate<TMoveNext> _hasNext;
+      private readonly GetNextItemAsyncDelegate<T, TMoveNext> _next;
+      private readonly ResetAsyncDelegate _dispose;
 
       private TAsyncToken _curToken;
 
       public AsyncParallelEnumeratorImpl(
-         StatelessMoveNextDelegate hasNext,
-         GetNextItemDelegate<T> getNext,
-         DisposeAsyncDelegate dispose
+         SynchronousMoveNextDelegate<TMoveNext> hasNext,
+         GetNextItemAsyncDelegate<T, TMoveNext> getNext,
+         ResetAsyncDelegate dispose
          )
       {
          this._hasNext = ArgumentValidator.ValidateNotNull( nameof( hasNext ), hasNext );
@@ -60,10 +60,13 @@ namespace UtilPack.AsyncEnumeration
             <TAsyncToken, T>();
       }
 
+      public Boolean IsParallelEnumerationSupported => true;
+
       public async ValueTask<TAsyncPotentialToken> MoveNextAsync( CancellationToken token )
       {
          TAsyncPotentialToken retVal;
-         if ( this._hasNext() )
+         (var hasNext, var moveNextResult) = this._hasNext();
+         if ( hasNext )
          {
             retVal = Interlocked.Increment( ref this._curToken ); // Guid.NewGuid();
             if ( !this._seenByMoveNext.
@@ -72,7 +75,7 @@ namespace UtilPack.AsyncEnumeration
 #else
                TryAdd
 #endif
-               ( retVal.Value, await this.CallNext( retVal.Value, token ) )
+               ( retVal.Value, await this.CallNext( moveNextResult, token ) )
                )
             {
                throw new InvalidOperationException( "Duplicate GUID?" );
@@ -109,29 +112,29 @@ namespace UtilPack.AsyncEnumeration
          return true;
       }
 
-      protected virtual ValueTask<T> CallNext( TAsyncToken seenAsyncToken, CancellationToken token )
+      protected virtual ValueTask<T> CallNext( TMoveNext moveNextResult, CancellationToken token )
       {
-         return this._next( seenAsyncToken, token );
+         return this._next( moveNextResult, token );
       }
    }
 
-   internal sealed class AsyncParallelEnumeratorImplSealed<T> : AsyncParallelEnumeratorImpl<T>
+   internal sealed class AsyncParallelEnumeratorImplSealed<T, TMoveNext> : AsyncParallelEnumeratorImpl<T, TMoveNext>
    {
       public AsyncParallelEnumeratorImplSealed(
-         StatelessMoveNextDelegate hasNext,
-         GetNextItemDelegate<T> getNext,
-         DisposeAsyncDelegate dispose
+         SynchronousMoveNextDelegate<TMoveNext> hasNext,
+         GetNextItemAsyncDelegate<T, TMoveNext> getNext,
+         ResetAsyncDelegate dispose
          ) : base( hasNext, getNext, dispose )
       {
       }
    }
 
-   internal sealed class AsyncParallelEnumeratorImpl<T, TMetadata> : AsyncParallelEnumeratorImpl<T>, AsyncEnumerator<T, TMetadata>
+   internal sealed class AsyncParallelEnumeratorImpl<T, TMoveNext, TMetadata> : AsyncParallelEnumeratorImpl<T, TMoveNext>, AsyncEnumerator<T, TMetadata>
    {
       public AsyncParallelEnumeratorImpl(
-         StatelessMoveNextDelegate hasNext,
-         GetNextItemDelegate<T> getNext,
-         DisposeAsyncDelegate dispose,
+         SynchronousMoveNextDelegate<TMoveNext> hasNext,
+         GetNextItemAsyncDelegate<T, TMoveNext> getNext,
+         ResetAsyncDelegate dispose,
          TMetadata metadata
          ) : base( hasNext, getNext, dispose )
       {

@@ -13,14 +13,14 @@ Just like the synchronous `System.Collections.Generic.IEnumerator<T>` interface,
 There are two variations of `AsyncEnumerator` interface - with one generic type parameter, and with two generic type parameters.
 The variation with one generic type parameter is the most simple - the type parameter is the type of each item in the asynchronously fetched sequence of items.
 The second variation adds one additional generic type parameter, which is the type for `metadata` object.
-This metadata object can be e.g. SQL statement from which this enumerator was obtained.
+This metadata object can be anything that is passed to the factory method - e.g. SQL statement from which this enumerator was obtained.
 
 The members of `AsyncEnumerator` are listed below.
-* The `MoveNextAsync` method behaves just like the `MoveNext` method of the `System.Collections.Generic.IEnumerator<T>` interface - it will return `true` if next item is encountered, and `false` otherwise. Concurrent usage attempt will throw `InvalidOperationException`.
-* The `Current` read-only property will return the previously encountered item. It will never throw - if used outside normal scope, it will return the default value for item type (`null` for classes).
+* The `MoveNextAsync` method mimics the `MoveNext` method of the `System.Collections.Generic.IEnumerator<T>` interface - it will return one-time-use integer token if next item is encountered, and `null` otherwise.
+* The `OneTimeRetrieve` method will consume the integer token returned by `MoveNextAsync` and return the corresponding encountered item. Will return the `default` if the token is invalid or used up.
 * The `TryResetAsync` method will try to reset the enumerator to its initial state. It will return `false` if enumerator is already in its initial state, or if used concurrently.
 
-Note that generally, one shouldn't use `MoveNextAsync` directly, but instead use the `EnumerateAsync` extension methods defined for `AsyncEnumerator` interface.
+Note that generally, one shouldn't use `MoveNextAsync` directly, but instead use the `EnumerateSequentiallyAsync` and `EnumerateInParallelAsync` extension methods defined for `AsyncEnumerator` interface.
 
 # AsyncEnumeratorObservable
 Just like the `AsyncEnumerator`, there are two variations of `AsyncEnumeratorObservable` interface - with one generic type parameter, and with two generic type parameters.

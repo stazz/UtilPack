@@ -24,44 +24,15 @@ using UtilPack;
 
 using TAsyncPotentialToken = System.Nullable<System.Int64>;
 using TAsyncToken = System.Int64;
+using TSequentialCurrentInfoFactory = System.Func<System.Object, UtilPack.AsyncEnumeration.ResetAsyncDelegate, System.Object, System.Object>;
 
 namespace UtilPack.AsyncEnumeration
 {
+
+
    internal abstract class AsyncSequentialOnlyEnumeratorImpl<T> : AsyncEnumerator<T>
    {
-      // This will cause one heap allocation every time Current setter is called when type T is a struct.
-      // It is fine for now, since asynchronous enumerators for struct types will most likely be very rare.
-      internal sealed class CurrentInfo
-      {
-         private Object _current;
 
-         public CurrentInfo(
-            T current,
-            MoveNextAsyncDelegate<T> moveNext,
-            DisposeAsyncDelegate disposeDelegate
-            )
-         {
-            this.MoveNext = moveNext;
-            this.Current = current;
-            this.Dispose = disposeDelegate;
-         }
-
-         public TAsyncToken _token;
-
-         public MoveNextAsyncDelegate<T> MoveNext { get; }
-         public DisposeAsyncDelegate Dispose { get; }
-         public T Current
-         {
-            get
-            {
-               return (T) this._current;
-            }
-            set
-            {
-               Interlocked.Exchange( ref this._current, value );
-            }
-         }
-      }
 
       private const Int32 STATE_INITIAL = 0;
       private const Int32 MOVE_NEXT_STARTED = 1;
@@ -70,17 +41,22 @@ namespace UtilPack.AsyncEnumeration
       private const Int32 RESETTING = 4;
 
       private Int32 _state;
-      private CurrentInfo _current;
+      private SequentialEnumeratorCurrentInfo<T> _current;
       private readonly InitialMoveNextAsyncDelegate<T> _initialMoveNext;
+      private readonly TSequentialCurrentInfoFactory _currentFactory;
 
       public AsyncSequentialOnlyEnumeratorImpl(
-         InitialMoveNextAsyncDelegate<T> initialMoveNext
+         InitialMoveNextAsyncDelegate<T> initialMoveNext,
+         TSequentialCurrentInfoFactory currentFactory
          )
       {
          this._state = STATE_INITIAL;
          this._current = null;
          this._initialMoveNext = ArgumentValidator.ValidateNotNull( nameof( initialMoveNext ), initialMoveNext );
+         this._currentFactory = currentFactory;
       }
+
+      public Boolean IsParallelEnumerationSupported => false;
 
       public async ValueTask<TAsyncPotentialToken> MoveNextAsync( CancellationToken token )
       {
@@ -90,7 +66,7 @@ namespace UtilPack.AsyncEnumeration
          TAsyncPotentialToken retVal = null;
          if ( wasNotInitial || Interlocked.CompareExchange( ref this._state, MOVE_NEXT_STARTED, STATE_INITIAL ) == STATE_INITIAL )
          {
-            DisposeAsyncDelegate disposeDelegate = null;
+            ResetAsyncDelegate disposeDelegate = null;
 
             try
             {
@@ -119,7 +95,7 @@ namespace UtilPack.AsyncEnumeration
                   success = result.Item1;
                   if ( success )
                   {
-                     Interlocked.Exchange( ref this._current, new CurrentInfo( result.Item2, result.Item3, result.Item4 ) );
+                     Interlocked.Exchange( ref this._current, (SequentialEnumeratorCurrentInfo<T>) this._currentFactory?.Invoke( result.Item3, result.Item4, result.Item2 ) ?? new SequentialEnumeratorCurrentInfoWithObject<T>( result.Item3, result.Item4, result.Item2 ) );
                   }
                   else
                   {
@@ -163,16 +139,17 @@ namespace UtilPack.AsyncEnumeration
          else if ( this._state != STATE_ENDED )
          {
             // Re-entrancy or concurrent with Reset -> exception
+            // TODO -> Maybe use await + Interlocked.CompareExchange-loop to wait... ? Waiting is always prone to deadlocks though.
             throw new InvalidOperationException( "Tried to concurrently move to next or reset." );
          }
 
          return retVal;
       }
 
-      public T OneTimeRetrieve( TAsyncToken guid )
+      public T OneTimeRetrieve( TAsyncToken retrievalToken )
       {
-         CurrentInfo cur;
-         var success = ( cur = this._current ) != null && cur._token == guid;
+         SequentialEnumeratorCurrentInfo<T> cur;
+         var success = ( cur = this._current ) != null && cur._token == retrievalToken;
          return success ? cur.Current : default;
       }
 
@@ -217,7 +194,7 @@ namespace UtilPack.AsyncEnumeration
          return retVal;
       }
 
-      protected virtual async ValueTask<Boolean> PerformDispose( CancellationToken token, DisposeAsyncDelegate disposeDelegate = null )
+      protected virtual async ValueTask<Boolean> PerformDispose( CancellationToken token, ResetAsyncDelegate disposeDelegate = null )
       {
          var prev = Interlocked.Exchange( ref this._current, null );
          var retVal = false;
@@ -242,7 +219,7 @@ namespace UtilPack.AsyncEnumeration
          return retVal;
       }
 
-      protected virtual ValueTask<(Boolean, T, MoveNextAsyncDelegate<T>, DisposeAsyncDelegate)> CallInitialMoveNext( CancellationToken token, InitialMoveNextAsyncDelegate<T> initialMoveNext )
+      protected virtual ValueTask<(Boolean, T, MoveNextAsyncDelegate<T>, ResetAsyncDelegate)> CallInitialMoveNext( CancellationToken token, InitialMoveNextAsyncDelegate<T> initialMoveNext )
       {
          return initialMoveNext( token );
       }
@@ -254,12 +231,93 @@ namespace UtilPack.AsyncEnumeration
 
    }
 
+   internal abstract class SequentialEnumeratorCurrentInfo<T>
+   {
+      public SequentialEnumeratorCurrentInfo(
+         MoveNextAsyncDelegate<T> moveNext,
+         ResetAsyncDelegate disposeDelegate
+      )
+      {
+         this.MoveNext = moveNext;
+         this.Dispose = disposeDelegate;
+      }
+
+      public TAsyncToken _token;
+      public MoveNextAsyncDelegate<T> MoveNext { get; }
+      public ResetAsyncDelegate Dispose { get; }
+
+      public abstract T Current { get; set; }
+   }
+
+   internal sealed class SequentialEnumeratorCurrentInfoWithObject<T> : SequentialEnumeratorCurrentInfo<T>
+   {
+      private Object _current;
+
+      public SequentialEnumeratorCurrentInfoWithObject(
+         MoveNextAsyncDelegate<T> moveNext,
+         ResetAsyncDelegate disposeDelegate,
+         T current
+         ) : base( moveNext, disposeDelegate )
+      {
+         this.Current = current;
+      }
+
+      public override T Current
+      {
+         get => (T) this._current;
+         set => Interlocked.Exchange( ref this._current, value );
+      }
+   }
+
+   internal sealed class SequentialEnumeratorCurrentInfoWithInt32 : SequentialEnumeratorCurrentInfo<Int32>
+   {
+      private Int32 _current;
+
+      public SequentialEnumeratorCurrentInfoWithInt32(
+         MoveNextAsyncDelegate<Int32> moveNext,
+         ResetAsyncDelegate disposeDelegate,
+         Int32 current
+         ) : base( moveNext, disposeDelegate )
+      {
+         this.Current = current;
+      }
+
+      public override Int32 Current
+      {
+         get => this._current;
+         set => Interlocked.Exchange( ref this._current, value );
+      }
+   }
+
+   internal sealed class SequentialEnumeratorCurrentInfoWithInt64 : SequentialEnumeratorCurrentInfo<Int64>
+   {
+      private Int64 _current;
+
+      public SequentialEnumeratorCurrentInfoWithInt64(
+         MoveNextAsyncDelegate<Int64> moveNext,
+         ResetAsyncDelegate disposeDelegate,
+         Int64 current
+         ) : base( moveNext, disposeDelegate )
+      {
+         this.Current = current;
+      }
+
+      public override Int64 Current
+      {
+         get => Interlocked.Read( ref this._current );
+         set => Interlocked.Exchange( ref this._current, value );
+      }
+   }
+
+
+
    internal sealed class AsyncSequentialOnlyEnumeratorImplNonObservable<T, TMetadata> : AsyncSequentialOnlyEnumeratorImpl<T>, AsyncEnumerator<T, TMetadata>
    {
       public AsyncSequentialOnlyEnumeratorImplNonObservable(
          InitialMoveNextAsyncDelegate<T> initialMoveNext,
+         TSequentialCurrentInfoFactory currentFactory,
          TMetadata metadata
-         ) : base( initialMoveNext )
+         ) : base( initialMoveNext, currentFactory )
       {
          this.Metadata = metadata;
       }
@@ -270,8 +328,9 @@ namespace UtilPack.AsyncEnumeration
    internal sealed class AsyncSequentialOnlyEnumeratorImplNonObservable<T> : AsyncSequentialOnlyEnumeratorImpl<T>
    {
       public AsyncSequentialOnlyEnumeratorImplNonObservable(
-         InitialMoveNextAsyncDelegate<T> initialMoveNext
-         ) : base( initialMoveNext )
+         InitialMoveNextAsyncDelegate<T> initialMoveNext,
+         TSequentialCurrentInfoFactory currentFactory
+         ) : base( initialMoveNext, currentFactory )
       {
       }
    }
@@ -289,12 +348,13 @@ namespace UtilPack.AsyncEnumeration
 
       protected AsyncSequentialOnlyEnumeratorObservableImpl(
          InitialMoveNextAsyncDelegate<T> initialMoveNext,
+         TSequentialCurrentInfoFactory currentFactory,
          Func<GenericEventHandler<TStartedArgs>> getGlobalBeforeEnumerationExecutionStart,
          Func<GenericEventHandler<TStartedArgs>> getGlobalAfterEnumerationExecutionStart,
          Func<GenericEventHandler<TEndedArgs>> getGlobalBeforeEnumerationExecutionEnd,
          Func<GenericEventHandler<TEndedArgs>> getGlobalAfterEnumerationExecutionEnd,
          Func<GenericEventHandler<TItemArgs>> getGlobalAfterEnumerationExecutionItemEncountered
-         ) : base( initialMoveNext )
+         ) : base( initialMoveNext, currentFactory )
       {
          this._getGlobalBeforeEnumerationExecutionStart = getGlobalBeforeEnumerationExecutionStart;
          this._getGlobalAfterEnumerationExecutionStart = getGlobalAfterEnumerationExecutionStart;
@@ -311,7 +371,7 @@ namespace UtilPack.AsyncEnumeration
 
       public event GenericEventHandler<TItemArgs> AfterEnumerationItemEncountered;
 
-      protected override async ValueTask<(Boolean, T, MoveNextAsyncDelegate<T>, DisposeAsyncDelegate)> CallInitialMoveNext( CancellationToken token, InitialMoveNextAsyncDelegate<T> initialMoveNext )
+      protected override async ValueTask<(Boolean, T, MoveNextAsyncDelegate<T>, ResetAsyncDelegate)> CallInitialMoveNext( CancellationToken token, InitialMoveNextAsyncDelegate<T> initialMoveNext )
       {
          TStartedArgs args = null;
          this.BeforeEnumerationStart?.InvokeAllEventHandlers( evt => evt( ( args = this.CreateBeforeEnumerationStartedArgs() ) ), throwExceptions: false );
@@ -335,7 +395,7 @@ namespace UtilPack.AsyncEnumeration
          return base.AfterMoveNextSucessful( item );
       }
 
-      protected override ValueTask<Boolean> PerformDispose( CancellationToken token, DisposeAsyncDelegate disposeDelegate = null )
+      protected override ValueTask<Boolean> PerformDispose( CancellationToken token, ResetAsyncDelegate disposeDelegate = null )
       {
          TEndedArgs args = null;
          this.BeforeEnumerationEnd?.InvokeAllEventHandlers( evt => evt( ( args = this.CreateBeforeEnumerationEndedArgs() ) ), throwExceptions: false );
@@ -367,12 +427,13 @@ namespace UtilPack.AsyncEnumeration
    {
       public AsyncSequentialOnlyEnumeratorObservableImpl(
          InitialMoveNextAsyncDelegate<T> initialMoveNext,
+         TSequentialCurrentInfoFactory currentFactory,
          Func<GenericEventHandler<EnumerationStartedEventArgs>> getGlobalBeforeEnumerationExecutionStart,
          Func<GenericEventHandler<EnumerationStartedEventArgs>> getGlobalAfterEnumerationExecutionStart,
          Func<GenericEventHandler<EnumerationEndedEventArgs>> getGlobalBeforeEnumerationExecutionEnd,
          Func<GenericEventHandler<EnumerationEndedEventArgs>> getGlobalAfterEnumerationExecutionEnd,
          Func<GenericEventHandler<EnumerationItemEventArgs<T>>> getGlobalAfterEnumerationExecutionItemEncountered
-         ) : base( initialMoveNext, getGlobalBeforeEnumerationExecutionStart, getGlobalAfterEnumerationExecutionStart, getGlobalBeforeEnumerationExecutionEnd, getGlobalAfterEnumerationExecutionEnd, getGlobalAfterEnumerationExecutionItemEncountered )
+         ) : base( initialMoveNext, currentFactory, getGlobalBeforeEnumerationExecutionStart, getGlobalAfterEnumerationExecutionStart, getGlobalBeforeEnumerationExecutionEnd, getGlobalAfterEnumerationExecutionEnd, getGlobalAfterEnumerationExecutionItemEncountered )
       {
       }
 
@@ -407,13 +468,14 @@ namespace UtilPack.AsyncEnumeration
 
       public AsyncSequentialOnlyEnumeratorObservableImpl(
          InitialMoveNextAsyncDelegate<T> initialMoveNext,
+         TSequentialCurrentInfoFactory currentFactory,
          TMetadata metadata,
          Func<GenericEventHandler<EnumerationStartedEventArgs<TMetadata>>> getGlobalBeforeEnumerationExecutionStart,
          Func<GenericEventHandler<EnumerationStartedEventArgs<TMetadata>>> getGlobalAfterEnumerationExecutionStart,
          Func<GenericEventHandler<EnumerationEndedEventArgs<TMetadata>>> getGlobalBeforeEnumerationExecutionEnd,
          Func<GenericEventHandler<EnumerationEndedEventArgs<TMetadata>>> getGlobalAfterEnumerationExecutionEnd,
          Func<GenericEventHandler<EnumerationItemEventArgs<T, TMetadata>>> getGlobalAfterEnumerationExecutionItemEncountered
-         ) : base( initialMoveNext, getGlobalBeforeEnumerationExecutionStart, getGlobalAfterEnumerationExecutionStart, getGlobalBeforeEnumerationExecutionEnd, getGlobalAfterEnumerationExecutionEnd, getGlobalAfterEnumerationExecutionItemEncountered )
+         ) : base( initialMoveNext, currentFactory, getGlobalBeforeEnumerationExecutionStart, getGlobalAfterEnumerationExecutionStart, getGlobalBeforeEnumerationExecutionEnd, getGlobalAfterEnumerationExecutionEnd, getGlobalAfterEnumerationExecutionItemEncountered )
       {
          this.Metadata = metadata;
       }
@@ -510,106 +572,5 @@ namespace UtilPack.AsyncEnumeration
       }
    }
 
-   /// <summary>
-   /// This class provides default implementation for <see cref="EnumerationStartedEventArgs{TMetadata}"/>.
-   /// </summary>
-   /// <typeparam name="TMetadata">The type of metadata.</typeparam>
-   /// <seealso cref="ObjectWithMetadata{TMetadata}.Metadata"/>
-   /// <seealso cref="AsyncEnumerator{T, TMetadata}"/>
-   public class EnumerationStartedEventArgsImpl<TMetadata> : EnumerationStartedEventArgs<TMetadata>
-   {
-      /// <summary>
-      /// Creates a new instance of <see cref="EnumerationStartedEventArgsImpl{TMetadata}"/> with given metadata.
-      /// </summary>
-      /// <param name="metadata">The metadata.</param>
-      public EnumerationStartedEventArgsImpl(
-         TMetadata metadata
-         )
-      {
-         this.Metadata = metadata;
-      }
 
-      /// <summary>
-      /// Gets the metadata.
-      /// </summary>
-      /// <value>The metadata.</value>
-      public TMetadata Metadata { get; }
-   }
-
-   /// <summary>
-   /// This class provides default implementation for <see cref="EnumerationItemEventArgs{T}"/>.
-   /// </summary>
-   /// <typeparam name="T">The type of the items being enumerated.</typeparam>
-   /// <seealso cref="AsyncEnumerator{T}.MoveNextAsync(CancellationToken)"/>
-   /// <seealso cref="AsyncEnumerator{T}.OneTimeRetrieve"/>
-   public class EnumerationItemEventArgsImpl<T> : EnumerationItemEventArgs<T>
-   {
-      /// <summary>
-      /// Creates a new instance of <see cref="EnumerationItemEventArgsImpl{T}"/> with given item.
-      /// </summary>
-      /// <param name="item">The item that was encountered by <see cref="AsyncEnumerator{T}.MoveNextAsync(CancellationToken)"/>.</param>
-      public EnumerationItemEventArgsImpl(
-         T item
-         )
-      {
-         this.Item = item;
-      }
-
-      /// <summary>
-      /// Gets the item encountered by <see cref="AsyncEnumerator{T}.MoveNextAsync(CancellationToken)"/>.
-      /// </summary>
-      /// <value>The item encountered by <see cref="AsyncEnumerator{T}.MoveNextAsync(CancellationToken)"/>.</value>
-      public T Item { get; }
-   }
-
-   /// <summary>
-   /// This class provides default implementation for <see cref="EnumerationEndedEventArgs{TMetadata}"/>.
-   /// </summary>
-   /// <typeparam name="TMetadata">The type of metadata.</typeparam>
-   /// <seealso cref="ObjectWithMetadata{TMetadata}.Metadata"/>
-   /// <seealso cref="AsyncEnumerator{T, TMetadata}"/>
-   public class EnumerationEndedEventArgsImpl<TMetadata> : EnumerationStartedEventArgsImpl<TMetadata>, EnumerationEndedEventArgs<TMetadata>
-   {
-      /// <summary>
-      /// Creates a new instance of <see cref="EnumerationEndedEventArgsImpl{TMetadata}"/> with given metadata.
-      /// </summary>
-      /// <param name="metadata">The metadata.</param>
-      public EnumerationEndedEventArgsImpl(
-         TMetadata metadata
-         ) : base( metadata )
-      {
-      }
-   }
-
-   /// <summary>
-   /// This class provides default implementation for <see cref="EnumerationItemEventArgs{T, TMetadata}"/>.
-   /// </summary>
-   /// <typeparam name="T">The type of the items being enumerated.</typeparam>
-   /// <typeparam name="TMetadata">The type of metadata.</typeparam>
-   /// <seealso cref="AsyncEnumerator{T}.MoveNextAsync(CancellationToken)"/>
-   /// <seealso cref="AsyncEnumerator{T}.OneTimeRetrieve"/>
-   /// <seealso cref="ObjectWithMetadata{TMetadata}.Metadata"/>
-   /// <seealso cref="AsyncEnumerator{T, TMetadata}"/>
-   public class EnumerationItemEventArgsImpl<T, TMetadata> : EnumerationItemEventArgsImpl<T>, EnumerationItemEventArgs<T, TMetadata>
-   {
-      /// <summary>
-      /// Creates a new instance of <see cref="EnumerationItemEventArgsImpl{T, TMetadata}"/> with given item and metadata.
-      /// </summary>
-      /// <param name="item">The item that was encountered by <see cref="AsyncEnumerator{T}.MoveNextAsync(CancellationToken)"/></param>
-      /// <param name="metadata">The metadata.</param>
-      public EnumerationItemEventArgsImpl(
-         T item,
-         TMetadata metadata
-         )
-         : base( item )
-      {
-         this.Metadata = metadata;
-      }
-
-      /// <summary>
-      /// Gets the metadata.
-      /// </summary>
-      /// <value>The metadata.</value>
-      public TMetadata Metadata { get; }
-   }
 }

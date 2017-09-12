@@ -150,7 +150,7 @@ namespace UtilPack.AsyncEnumeration
       /// <typeparam name="TMoveNext">The type of the state to pass from <see cref="SynchronousMoveNextDelegate{T}"/> to <see cref="GetNextItemAsyncDelegate{T, TMoveNextResult}"/>.</typeparam>
       /// <param name="hasNext">The synchronous callback to check whether there are more items left.</param>
       /// <param name="getNext">The asynchronous callback to retrieve an item, given current retrieval token.</param>
-      /// <param name="dispose">The optional asynchronous callback to reset the returned <see cref="AsyncEnumerator{T}"/>.</param>
+      /// <param name="reset">The optional asynchronous callback to reset the returned <see cref="AsyncEnumerator{T}"/>.</param>
       /// <returns>A new <see cref="AsyncEnumerator{T}"/>.</returns>
       /// <exception cref="ArgumentNullException">If any of <paramref name="hasNext"/> or <paramref name="getNext"/> is <c>null</c>.</exception>
       /// <seealso cref="E_UtilPack.EnumerateSequentiallyAsync{T}(AsyncEnumerator{T}, Action{T}, CancellationToken)"/>
@@ -160,13 +160,13 @@ namespace UtilPack.AsyncEnumeration
       public static AsyncEnumerator<T> CreateParallelEnumerator<T, TMoveNext>(
          SynchronousMoveNextDelegate<TMoveNext> hasNext,
          GetNextItemAsyncDelegate<T, TMoveNext> getNext,
-         ResetAsyncDelegate dispose
+         ResetAsyncDelegate reset
          )
       {
          return new AsyncParallelEnumeratorImplSealed<T, TMoveNext>(
             hasNext,
             getNext,
-            dispose
+            reset
             );
       }
 
@@ -178,7 +178,7 @@ namespace UtilPack.AsyncEnumeration
       /// <typeparam name="TMetadata">The type of the metadata for <see cref="AsyncEnumerator{T, TMetadata}"/> to hold.</typeparam>
       /// <param name="hasNext">The synchronous callback to check whether there are more items left.</param>
       /// <param name="getNext">The asynchronous callback to retrieve an item, given current retrieval token.</param>
-      /// <param name="dispose">The optional asynchronous callback to reset the returned <see cref="AsyncEnumerator{T}"/>.</param>
+      /// <param name="reset">The optional asynchronous callback to reset the returned <see cref="AsyncEnumerator{T}"/>.</param>
       /// <param name="metadata">The metadata.</param>
       /// <returns>A new <see cref="AsyncEnumerator{T, TMetadata}"/>.</returns>
       /// <exception cref="ArgumentNullException">If any of <paramref name="hasNext"/> or <paramref name="getNext"/> is <c>null</c>.</exception>
@@ -189,15 +189,100 @@ namespace UtilPack.AsyncEnumeration
       public static AsyncEnumerator<T, TMetadata> CreateParallelEnumerator<T, TMoveNext, TMetadata>(
          SynchronousMoveNextDelegate<TMoveNext> hasNext,
          GetNextItemAsyncDelegate<T, TMoveNext> getNext,
-         ResetAsyncDelegate dispose,
+         ResetAsyncDelegate reset,
          TMetadata metadata
          )
       {
          return new AsyncParallelEnumeratorImpl<T, TMoveNext, TMetadata>(
             hasNext,
             getNext,
-            dispose,
+            reset,
             metadata
+            );
+      }
+
+      /// <summary>
+      /// Creates a new instance of <see cref="AsyncEnumeratorObservable{T}"/> which will support parallel enumeration.
+      /// </summary>
+      /// <typeparam name="T">The type of the items being enumerated.</typeparam>
+      /// <typeparam name="TMoveNext">The type of state passed between <see cref="SynchronousMoveNextDelegate{T}"/> and <see cref="GetNextItemAsyncDelegate{T, TMoveNextResult}"/>.</typeparam>
+      /// <param name="hasNext">The synchronous callback to check whether there is more items in enumeration.</param>
+      /// <param name="getNext">The potentially asynchronous callback to get the next item in enumeration.</param>
+      /// <param name="reset">The optional potentially asynchronous callback to reset enumerator.</param>
+      /// <param name="getGlobalBeforeEnumerationExecutionStart">The optional callback to get global-scope <see cref="AsyncEnumerationObservation{T}.BeforeEnumerationStart"/> event, which will be invoked after event of the returned enumerator.</param>
+      /// <param name="getGlobalAfterEnumerationExecutionStart">The optional callback to get global-scope <see cref="AsyncEnumerationObservation{T}.AfterEnumerationStart"/> event, which will be invoked after event of the returned enumerator.</param>
+      /// <param name="getGlobalBeforeEnumerationExecutionEnd">The optional callback to get global-scope <see cref="AsyncEnumerationObservation{T}.BeforeEnumerationEnd"/> event, which will be invoked after event of the returned enumerator.</param>
+      /// <param name="getGlobalAfterEnumerationExecutionEnd">The optional callback to get global-scope <see cref="AsyncEnumerationObservation{T}.AfterEnumerationEnd"/> event, which will be invoked after event of the returned enumerator.</param>
+      /// <param name="getGlobalAfterEnumerationExecutionItemEncountered">The optional callback to get global-scope <see cref="AsyncEnumerationObservation{T}.AfterEnumerationItemEncountered"/> event, which will be invoked after event of the returned enumerator.</param>
+      /// <returns>A new <see cref="AsyncEnumeratorObservable{T}"/>.</returns>
+      /// <exception cref="ArgumentNullException">If any of <paramref name="hasNext"/> or <paramref name="getNext"/> is <c>null</c>.</exception>
+      /// <remarks>
+      /// Both parallel enumeration by <see cref="E_UtilPack.EnumerateInParallelAsync{T}(AsyncEnumerator{T}, Action{T}, CancellationToken)"/> and <see cref="E_UtilPack.EnumerateInParallelAsync{T}(AsyncEnumerator{T}, Func{T, Task}, CancellationToken)"/>, and sequential enumeration by <see cref="E_UtilPack.EnumerateSequentiallyAsync{T}(AsyncEnumerator{T}, Action{T}, CancellationToken)"/> and <see cref="E_UtilPack.EnumerateSequentiallyAsync{T}(AsyncEnumerator{T}, Func{T, Task}, CancellationToken)"/> methods will be supported on returned <see cref="AsyncEnumerator{T}"/>.
+      /// </remarks>
+      public static AsyncEnumeratorObservable<T> CreateParallelObservableEnumerator<T, TMoveNext>(
+         SynchronousMoveNextDelegate<TMoveNext> hasNext,
+         GetNextItemAsyncDelegate<T, TMoveNext> getNext,
+         ResetAsyncDelegate reset,
+         Func<GenericEventHandler<EnumerationStartedEventArgs>> getGlobalBeforeEnumerationExecutionStart = null,
+         Func<GenericEventHandler<EnumerationStartedEventArgs>> getGlobalAfterEnumerationExecutionStart = null,
+         Func<GenericEventHandler<EnumerationEndedEventArgs>> getGlobalBeforeEnumerationExecutionEnd = null,
+         Func<GenericEventHandler<EnumerationEndedEventArgs>> getGlobalAfterEnumerationExecutionEnd = null,
+         Func<GenericEventHandler<EnumerationItemEventArgs<T>>> getGlobalAfterEnumerationExecutionItemEncountered = null
+         )
+      {
+         return new AsyncParallelEnumeratorObservableImpl<T, TMoveNext>(
+            hasNext,
+            getNext,
+            reset,
+            getGlobalBeforeEnumerationExecutionStart,
+            getGlobalAfterEnumerationExecutionStart,
+            getGlobalBeforeEnumerationExecutionEnd,
+            getGlobalAfterEnumerationExecutionEnd,
+            getGlobalAfterEnumerationExecutionItemEncountered
+            );
+      }
+
+      /// <summary>
+      /// Creates a new instance of <see cref="AsyncEnumeratorObservable{T, TMetadata}"/> which will support parallel enumeration.
+      /// </summary>
+      /// <typeparam name="T">The type of the items being enumerated.</typeparam>
+      /// <typeparam name="TMoveNext">The type of state passed between <see cref="SynchronousMoveNextDelegate{T}"/> and <see cref="GetNextItemAsyncDelegate{T, TMoveNextResult}"/>.</typeparam>
+      /// <typeparam name="TMetadata">The of the metadata.</typeparam>
+      /// <param name="hasNext">The synchronous callback to check whether there is more items in enumeration.</param>
+      /// <param name="getNext">The potentially asynchronous callback to get the next item in enumeration.</param>
+      /// <param name="reset">The optional potentially asynchronous callback to reset enumerator.</param>      /// <param name="metadata">The metadata.</param>
+      /// <param name="getGlobalBeforeEnumerationExecutionStart">The optional callback to get global-scope <see cref="AsyncEnumerationObservation{T, TMetadata}.BeforeEnumerationStart"/> event, which will be invoked after event of the returned enumerator.</param>
+      /// <param name="getGlobalAfterEnumerationExecutionStart">The optional callback to get global-scope <see cref="AsyncEnumerationObservation{T, TMetadata}.AfterEnumerationStart"/> event, which will be invoked after event of the returned enumerator.</param>
+      /// <param name="getGlobalBeforeEnumerationExecutionEnd">The optional callback to get global-scope <see cref="AsyncEnumerationObservation{T, TMetadata}.BeforeEnumerationEnd"/> event, which will be invoked after event of the returned enumerator.</param>
+      /// <param name="getGlobalAfterEnumerationExecutionEnd">The optional callback to get global-scope <see cref="AsyncEnumerationObservation{T, TMetadata}.AfterEnumerationEnd"/> event, which will be invoked after event of the returned enumerator.</param>
+      /// <param name="getGlobalAfterEnumerationExecutionItemEncountered">The optional callback to get global-scope <see cref="AsyncEnumerationObservation{T, TMetadata}.AfterEnumerationItemEncountered"/> event, which will be invoked after event of the returned enumerator.</param>
+      /// <returns>A new <see cref="AsyncEnumeratorObservable{T, TMetadata}"/>.</returns>
+      /// <exception cref="ArgumentNullException">If any of <paramref name="hasNext"/> or <paramref name="getNext"/> is <c>null</c>..</exception>
+      /// <remarks>
+      /// Both parallel enumeration by <see cref="E_UtilPack.EnumerateInParallelAsync{T}(AsyncEnumerator{T}, Action{T}, CancellationToken)"/> and <see cref="E_UtilPack.EnumerateInParallelAsync{T}(AsyncEnumerator{T}, Func{T, Task}, CancellationToken)"/>, and sequential enumeration by <see cref="E_UtilPack.EnumerateSequentiallyAsync{T}(AsyncEnumerator{T}, Action{T}, CancellationToken)"/> and <see cref="E_UtilPack.EnumerateSequentiallyAsync{T}(AsyncEnumerator{T}, Func{T, Task}, CancellationToken)"/> methods will be supported on returned <see cref="AsyncEnumerator{T}"/>.
+      /// </remarks>
+      public static AsyncEnumeratorObservable<T, TMetadata> CreateParallelObservableEnumerator<T, TMoveNext, TMetadata>(
+         SynchronousMoveNextDelegate<TMoveNext> hasNext,
+         GetNextItemAsyncDelegate<T, TMoveNext> getNext,
+         ResetAsyncDelegate reset,
+         TMetadata metadata,
+         Func<GenericEventHandler<EnumerationStartedEventArgs<TMetadata>>> getGlobalBeforeEnumerationExecutionStart = null,
+         Func<GenericEventHandler<EnumerationStartedEventArgs<TMetadata>>> getGlobalAfterEnumerationExecutionStart = null,
+         Func<GenericEventHandler<EnumerationEndedEventArgs<TMetadata>>> getGlobalBeforeEnumerationExecutionEnd = null,
+         Func<GenericEventHandler<EnumerationEndedEventArgs<TMetadata>>> getGlobalAfterEnumerationExecutionEnd = null,
+         Func<GenericEventHandler<EnumerationItemEventArgs<T, TMetadata>>> getGlobalAfterEnumerationExecutionItemEncountered = null
+         )
+      {
+         return new AsyncParallelEnumeratorObservableImpl<T, TMoveNext, TMetadata>(
+            hasNext,
+            getNext,
+            reset,
+            metadata,
+            getGlobalBeforeEnumerationExecutionStart,
+            getGlobalAfterEnumerationExecutionStart,
+            getGlobalBeforeEnumerationExecutionEnd,
+            getGlobalAfterEnumerationExecutionEnd,
+            getGlobalAfterEnumerationExecutionItemEncountered
             );
       }
 

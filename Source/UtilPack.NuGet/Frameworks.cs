@@ -50,22 +50,20 @@ namespace UtilPack.NuGet
       /// <returns>Best matched assembly path, or <c>null</c>.</returns>
       public static String GetAssemblyPathFromNuGetAssemblies(
          String[] assemblyPaths,
-         String packageExpandedPath,
-         String optionalGivenAssemblyPath
+         String optionalGivenAssemblyPath,
+         Func<String, Boolean> suitableAssemblyPathChecker
          )
       {
          String assemblyPath = null;
          if ( assemblyPaths.Length == 1 || (
                assemblyPaths.Length > 1 // There is more than 1 possible assembly
                && !String.IsNullOrEmpty( ( assemblyPath = optionalGivenAssemblyPath ) ) // AssemblyPath task property was given
-               && ( assemblyPath = Path.GetFullPath( ( Path.Combine( packageExpandedPath, assemblyPath ) ) ) ).StartsWith( packageExpandedPath ) // The given assembly path truly resides in the package folder
                ) )
          {
-            // TODO maybe check that assembly path is in possibleAssemblies array?
-            if ( assemblyPath == null )
-            {
-               assemblyPath = assemblyPaths[0];
-            }
+            assemblyPath = assemblyPaths
+               .Select( ap => new KeyValuePair<String, String>( ap, Path.GetFullPath( Path.Combine( Path.GetDirectoryName( ap ), assemblyPath ) ) ) )
+               .FirstOrDefault( kvp => kvp.Value.StartsWith( kvp.Key ) && ( suitableAssemblyPathChecker?.Invoke( kvp.Value ) ?? true ) )
+               .Value;
          }
          return assemblyPath;
       }
@@ -183,6 +181,9 @@ namespace UtilPack.NuGet
                                  retVal = null;
                                  break;
                            }
+                           break;
+                        case 2:
+                           retVal = "2.0.0";
                            break;
                         default:
                            retVal = null;

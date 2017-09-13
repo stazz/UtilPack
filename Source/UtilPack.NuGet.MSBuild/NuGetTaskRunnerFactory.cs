@@ -235,8 +235,8 @@ namespace UtilPack.NuGet.MSBuild
                   )[packageID];
                var assemblyPath = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
                   taskAssemblies.Assemblies,
-                  taskAssemblies.PackageDirectory,
-                  taskBodyElement.ElementAnyNS( ASSEMBLY_PATH )?.Value
+                  taskBodyElement.ElementAnyNS( ASSEMBLY_PATH )?.Value,
+                  ap => File.Exists( ap )
                   );
                if ( !String.IsNullOrEmpty( assemblyPath ) )
                {

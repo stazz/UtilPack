@@ -611,8 +611,8 @@ namespace UtilPack.NuGet.AssemblyLoading
                   {
                      var assemblyPath = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
                         possibleAssemblyPaths.Assemblies,
-                        possibleAssemblyPaths.PackageDirectory,
-                        assemblyPaths[i]
+                        assemblyPaths[i],
+                        ap => File.Exists( ap )
                         );
                      if ( !String.IsNullOrEmpty( assemblyPath ) )
                      {

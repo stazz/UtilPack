@@ -23,7 +23,7 @@ using System.Threading.Tasks;
 
 using TAsyncPotentialToken = System.Nullable<System.Int64>;
 using TAsyncToken = System.Int64;
-using TSequentialCurrentInfoFactory = System.Func<System.Object, UtilPack.AsyncEnumeration.ResetAsyncDelegate, System.Object, System.Object>;
+using TSequentialCurrentInfoFactory = System.Func<System.Object, UtilPack.AsyncEnumeration.EnumerationEndedDelegate, System.Object, System.Object>;
 
 namespace UtilPack.AsyncEnumeration
 {
@@ -160,7 +160,7 @@ namespace UtilPack.AsyncEnumeration
       public static AsyncEnumerator<T> CreateParallelEnumerator<T, TMoveNext>(
          SynchronousMoveNextDelegate<TMoveNext> hasNext,
          GetNextItemAsyncDelegate<T, TMoveNext> getNext,
-         ResetAsyncDelegate reset
+         EnumerationEndedDelegate reset
          )
       {
          return new AsyncParallelEnumeratorImplSealed<T, TMoveNext>(
@@ -189,7 +189,7 @@ namespace UtilPack.AsyncEnumeration
       public static AsyncEnumerator<T, TMetadata> CreateParallelEnumerator<T, TMoveNext, TMetadata>(
          SynchronousMoveNextDelegate<TMoveNext> hasNext,
          GetNextItemAsyncDelegate<T, TMoveNext> getNext,
-         ResetAsyncDelegate reset,
+         EnumerationEndedDelegate reset,
          TMetadata metadata
          )
       {
@@ -222,7 +222,7 @@ namespace UtilPack.AsyncEnumeration
       public static AsyncEnumeratorObservable<T> CreateParallelObservableEnumerator<T, TMoveNext>(
          SynchronousMoveNextDelegate<TMoveNext> hasNext,
          GetNextItemAsyncDelegate<T, TMoveNext> getNext,
-         ResetAsyncDelegate reset,
+         EnumerationEndedDelegate reset,
          Func<GenericEventHandler<EnumerationStartedEventArgs>> getGlobalBeforeEnumerationExecutionStart = null,
          Func<GenericEventHandler<EnumerationStartedEventArgs>> getGlobalAfterEnumerationExecutionStart = null,
          Func<GenericEventHandler<EnumerationEndedEventArgs>> getGlobalBeforeEnumerationExecutionEnd = null,
@@ -264,7 +264,7 @@ namespace UtilPack.AsyncEnumeration
       public static AsyncEnumeratorObservable<T, TMetadata> CreateParallelObservableEnumerator<T, TMoveNext, TMetadata>(
          SynchronousMoveNextDelegate<TMoveNext> hasNext,
          GetNextItemAsyncDelegate<T, TMoveNext> getNext,
-         ResetAsyncDelegate reset,
+         EnumerationEndedDelegate reset,
          TMetadata metadata,
          Func<GenericEventHandler<EnumerationStartedEventArgs<TMetadata>>> getGlobalBeforeEnumerationExecutionStart = null,
          Func<GenericEventHandler<EnumerationStartedEventArgs<TMetadata>>> getGlobalAfterEnumerationExecutionStart = null,
@@ -316,18 +316,18 @@ namespace UtilPack.AsyncEnumeration
    /// <item><term><see cref="System.Boolean"/></term><description>Whether initial fetch was a success. Empty enumerable should return <c>false</c> here.</description></item>
    /// <item><term><typeparamref name="T"/></term><description>The item fetched.</description></item>
    /// <item><term><see cref="MoveNextAsyncDelegate{T}"/></term><description>The callback to fetch next item. Will only be used if initial fetch is a success.</description></item>
-   /// <item><term><see cref="ResetAsyncDelegate"/></term><description>The callback to call after enumerable has been enumerated. This will be called even if initial fetch is not success.</description></item>
+   /// <item><term><see cref="EnumerationEndedDelegate"/></term><description>The callback to call after enumerable has been enumerated. This will be called even if initial fetch is not success.</description></item>
    /// </list>
    /// </remarks>
    /// <seealso cref="AsyncEnumeratorFactory.CreateSequentialEnumerator{T, TMetadata}(InitialMoveNextAsyncDelegate{T}, TMetadata)"/>
    /// <seealso cref="AsyncEnumeratorFactory.CreateSequentialEnumerator{T}(InitialMoveNextAsyncDelegate{T})"/>
-   public delegate ValueTask<(Boolean, T, MoveNextAsyncDelegate<T>, ResetAsyncDelegate)> InitialMoveNextAsyncDelegate<T>( CancellationToken token );
+   public delegate ValueTask<(Boolean, T, MoveNextAsyncDelegate<T>, EnumerationEndedDelegate)> InitialMoveNextAsyncDelegate<T>( CancellationToken token );
 
    /// <summary>
-   /// This delegate will be used by the sequential version of the <see cref="AsyncEnumerator{T}.MoveNextAsync"/> and <see cref="AsyncEnumerator{T}.TryResetAsync(CancellationToken)"/> methods.
+   /// This delegate will be used by the sequential version of the <see cref="AsyncEnumerator{T}.MoveNextAsync"/> and <see cref="AsyncEnumerator{T}.EnumerationEnded(CancellationToken)"/> methods.
    /// </summary>
    /// <typeparam name="T">The type of the items being enumerated.</typeparam>
-   /// <param name="token">The cancellation token which was passed to <see cref="AsyncEnumerator{T}.MoveNextAsync"/> or <see cref="AsyncEnumerator{T}.TryResetAsync(CancellationToken)"/> method.</param>
+   /// <param name="token">The cancellation token which was passed to <see cref="AsyncEnumerator{T}.MoveNextAsync"/> or <see cref="AsyncEnumerator{T}.EnumerationEnded(CancellationToken)"/> method.</param>
    /// <returns>A value task with information about next item fetched.</returns>
    /// <remarks>
    /// The information is a tuple, where the elements are interpreted as following:
@@ -341,15 +341,16 @@ namespace UtilPack.AsyncEnumeration
    public delegate ValueTask<(Boolean, T)> MoveNextAsyncDelegate<T>( CancellationToken token );
 
    /// <summary>
-   /// This delegate will be used by the sequential version of the <see cref="AsyncEnumerator{T}.MoveNextAsync"/> and all versions of <see cref="AsyncEnumerator{T}.TryResetAsync(CancellationToken)"/> methods when enumeration end is encountered.
+   /// This delegate will be used by <see cref="AsyncEnumerator{T}.EnumerationEnded(CancellationToken)"/> methods when enumeration end is encountered.
    /// </summary>
-   /// <param name="token">The cancellation token which was passed to <see cref="AsyncEnumerator{T}.MoveNextAsync"/> or <see cref="AsyncEnumerator{T}.TryResetAsync(CancellationToken)"/> method.</param>
+   /// <param name="moveNextEnded">Whether enumeration saw the <see cref="AsyncEnumerator{T}.MoveNextAsync"/> return <c>null</c>.</param>
+   /// <param name="token">The cancellation token which was passed to <see cref="AsyncEnumerator{T}.MoveNextAsync"/> or <see cref="AsyncEnumerator{T}.EnumerationEnded(CancellationToken)"/> method.</param>
    /// <returns>A task to perform asynchronous disposing. If no asynchronous disposing is needed, this delegate can return <c>null</c>.</returns>
    /// <seealso cref="AsyncEnumeratorFactory.CreateSequentialEnumerator{T, TMetadata}(InitialMoveNextAsyncDelegate{T}, TMetadata)"/>
    /// <seealso cref="AsyncEnumeratorFactory.CreateSequentialEnumerator{T}(InitialMoveNextAsyncDelegate{T})"/>
-   /// <seealso cref="AsyncEnumeratorFactory.CreateParallelEnumerator{T, TMoveNext}(SynchronousMoveNextDelegate{TMoveNext}, GetNextItemAsyncDelegate{T, TMoveNext}, ResetAsyncDelegate)"/>
-   /// <seealso cref="AsyncEnumeratorFactory.CreateParallelEnumerator{T, TMoveNext, TMetadata}(SynchronousMoveNextDelegate{TMoveNext}, GetNextItemAsyncDelegate{T, TMoveNext}, ResetAsyncDelegate, TMetadata)"/>
-   public delegate Task ResetAsyncDelegate( CancellationToken token );
+   /// <seealso cref="AsyncEnumeratorFactory.CreateParallelEnumerator{T, TMoveNext}(SynchronousMoveNextDelegate{TMoveNext}, GetNextItemAsyncDelegate{T, TMoveNext}, EnumerationEndedDelegate)"/>
+   /// <seealso cref="AsyncEnumeratorFactory.CreateParallelEnumerator{T, TMoveNext, TMetadata}(SynchronousMoveNextDelegate{TMoveNext}, GetNextItemAsyncDelegate{T, TMoveNext}, EnumerationEndedDelegate, TMetadata)"/>
+   public delegate Task EnumerationEndedDelegate( Boolean moveNextEnded, CancellationToken token );
 
    /// <summary>
    /// This delegate is used by parallel version of the <see cref="AsyncEnumerator{T}.MoveNextAsync"/> method.
@@ -363,8 +364,8 @@ namespace UtilPack.AsyncEnumeration
    /// <item><term><typeparamref name="T"/></term><description>The state to pass to <see cref="GetNextItemAsyncDelegate{T, TMoveNextResult}"/>.</description></item>
    /// </list>
    /// </remarks>
-   /// <seealso cref="AsyncEnumeratorFactory.CreateParallelEnumerator{T, TMoveNext}(SynchronousMoveNextDelegate{TMoveNext}, GetNextItemAsyncDelegate{T, TMoveNext}, ResetAsyncDelegate)"/>
-   /// <seealso cref="AsyncEnumeratorFactory.CreateParallelEnumerator{T, TMoveNext, TMetadata}(SynchronousMoveNextDelegate{TMoveNext}, GetNextItemAsyncDelegate{T, TMoveNext}, ResetAsyncDelegate, TMetadata)"/>
+   /// <seealso cref="AsyncEnumeratorFactory.CreateParallelEnumerator{T, TMoveNext}(SynchronousMoveNextDelegate{TMoveNext}, GetNextItemAsyncDelegate{T, TMoveNext}, EnumerationEndedDelegate)"/>
+   /// <seealso cref="AsyncEnumeratorFactory.CreateParallelEnumerator{T, TMoveNext, TMetadata}(SynchronousMoveNextDelegate{TMoveNext}, GetNextItemAsyncDelegate{T, TMoveNext}, EnumerationEndedDelegate, TMetadata)"/>
    public delegate (Boolean, T) SynchronousMoveNextDelegate<T>();
 
    /// <summary>
@@ -375,7 +376,7 @@ namespace UtilPack.AsyncEnumeration
    /// <param name="moveNextResult">The state component of the result of the <see cref="SynchronousMoveNextDelegate{T}"/> call.</param>
    /// <param name="token">The current cancellation token.</param>
    /// <returns>A task to potentially asycnhronously fetch the next item.</returns>
-   /// <seealso cref="AsyncEnumeratorFactory.CreateParallelEnumerator{T, TMoveNext}(SynchronousMoveNextDelegate{TMoveNext}, GetNextItemAsyncDelegate{T, TMoveNext}, ResetAsyncDelegate)"/>
-   /// <seealso cref="AsyncEnumeratorFactory.CreateParallelEnumerator{T, TMoveNext, TMetadata}(SynchronousMoveNextDelegate{TMoveNext}, GetNextItemAsyncDelegate{T, TMoveNext}, ResetAsyncDelegate, TMetadata)"/>
+   /// <seealso cref="AsyncEnumeratorFactory.CreateParallelEnumerator{T, TMoveNext}(SynchronousMoveNextDelegate{TMoveNext}, GetNextItemAsyncDelegate{T, TMoveNext}, EnumerationEndedDelegate)"/>
+   /// <seealso cref="AsyncEnumeratorFactory.CreateParallelEnumerator{T, TMoveNext, TMetadata}(SynchronousMoveNextDelegate{TMoveNext}, GetNextItemAsyncDelegate{T, TMoveNext}, EnumerationEndedDelegate, TMetadata)"/>
    public delegate ValueTask<T> GetNextItemAsyncDelegate<T, in TMoveNextResult>( TMoveNextResult moveNextResult, CancellationToken token );
 }

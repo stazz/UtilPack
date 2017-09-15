@@ -604,7 +604,7 @@ namespace UtilPack
          {
             try
             {
-               var curRead = this._innerStreamReadRemains;
+               var curRead = Interlocked.Read( ref this._innerStreamReadRemains );
                if ( curRead > this._buffer.CurrentMaxCapacity )
                {
                   this._buffer.CurrentMaxCapacity = Min( curRead, this._chunkSize );
@@ -617,7 +617,7 @@ namespace UtilPack
                   curRead -= lastReadCount;
                } while ( lastReadCount > 0 && curRead > 0 );
 
-               this.ReadCompletedAsynchronously( 0, this._innerStreamReadRemains );
+               this.ReadCompletedAsynchronously( 0, Interlocked.Read( ref this._innerStreamReadRemains ) );
                Interlocked.Exchange( ref this._innerStreamReadRemains, 0 );
                Interlocked.Exchange( ref this._bytesInBufferUsedUp, 0 );
                Interlocked.Exchange( ref this._bytesInBuffer, 0 );
@@ -742,23 +742,23 @@ namespace UtilPack
 
       public Int64 TotalByteCount { get; }
 
-      public Int64 BytesLeft => this._bytesLeft;
+      public Int64 BytesLeft => Interlocked.Read( ref this._bytesLeft );
 
-      protected override Int32 CheckByteCountForBufferRead( Int32 givenCount ) => Min( this._bytesLeft, givenCount );
+      protected override Int32 CheckByteCountForBufferRead( Int32 givenCount ) => Min( Interlocked.Read( ref this._bytesLeft ), givenCount );
 
-      protected override Int64 CheckByteCountForNewLimitedStream( Int64 byteCount ) => Math.Min( this._bytesLeft, byteCount );
+      protected override Int64 CheckByteCountForNewLimitedStream( Int64 byteCount ) => Math.Min( Interlocked.Read( ref this._bytesLeft ), byteCount );
 
       protected override void ReadCompletedAsynchronously( Int64 count, Int64 streamReadCount )
       {
          this.ReadCompletedSynchronously( count );
-         System.Diagnostics.Debug.Assert( this._streamBytesLeftToRead - streamReadCount >= 0 );
-         Interlocked.Exchange( ref this._streamBytesLeftToRead, this._streamBytesLeftToRead - streamReadCount );
+         System.Diagnostics.Debug.Assert( Interlocked.Read( ref this._streamBytesLeftToRead ) - streamReadCount >= 0 );
+         Interlocked.Exchange( ref this._streamBytesLeftToRead, Interlocked.Read( ref this._streamBytesLeftToRead ) - streamReadCount );
       }
 
       protected override void ReadCompletedSynchronously( Int64 count )
       {
-         System.Diagnostics.Debug.Assert( this._bytesLeft - count >= 0 );
-         Interlocked.Exchange( ref this._bytesLeft, this._bytesLeft - count );
+         System.Diagnostics.Debug.Assert( Interlocked.Read( ref this._bytesLeft ) - count >= 0 );
+         Interlocked.Exchange( ref this._bytesLeft, Interlocked.Read( ref this._bytesLeft ) - count );
       }
 
 

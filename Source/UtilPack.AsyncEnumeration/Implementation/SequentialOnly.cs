@@ -24,7 +24,7 @@ using UtilPack;
 
 using TAsyncPotentialToken = System.Nullable<System.Int64>;
 using TAsyncToken = System.Int64;
-using TSequentialCurrentInfoFactory = System.Func<System.Object, UtilPack.AsyncEnumeration.ResetAsyncDelegate, System.Object, System.Object>;
+using TSequentialCurrentInfoFactory = System.Func<System.Object, UtilPack.AsyncEnumeration.EnumerationEndedDelegate, System.Object, System.Object>;
 
 namespace UtilPack.AsyncEnumeration
 {
@@ -66,8 +66,6 @@ namespace UtilPack.AsyncEnumeration
          TAsyncPotentialToken retVal = null;
          if ( wasNotInitial || Interlocked.CompareExchange( ref this._state, MOVE_NEXT_STARTED, STATE_INITIAL ) == STATE_INITIAL )
          {
-            ResetAsyncDelegate disposeDelegate = null;
-
             try
             {
 
@@ -97,10 +95,6 @@ namespace UtilPack.AsyncEnumeration
                   {
                      Interlocked.Exchange( ref this._current, (SequentialEnumeratorCurrentInfo<T>) this._currentFactory?.Invoke( result.Item3, result.Item4, result.Item2 ) ?? new SequentialEnumeratorCurrentInfoWithObject<T>( result.Item3, result.Item4, result.Item2 ) );
                   }
-                  else
-                  {
-                     disposeDelegate = result.Item4;
-                  }
                }
             }
             finally
@@ -115,10 +109,6 @@ namespace UtilPack.AsyncEnumeration
                         await t;
                      }
                   }
-                  else
-                  {
-                     await this.PerformDispose( token, disposeDelegate );
-                  }
                }
                catch
                {
@@ -128,10 +118,6 @@ namespace UtilPack.AsyncEnumeration
                if ( success )
                {
                   retVal = Interlocked.Increment( ref this._current._token );
-               }
-               else
-               {
-                  Interlocked.Exchange( ref this._current, null );
                }
                Interlocked.Exchange( ref this._state, success ? MOVE_NEXT_ENDED : STATE_ENDED );
             }
@@ -153,28 +139,30 @@ namespace UtilPack.AsyncEnumeration
          return success ? cur.Current : default;
       }
 
-      public async ValueTask<Boolean> TryResetAsync( CancellationToken token )
+      public async ValueTask<Boolean> EnumerationEnded( CancellationToken token )
       {
          // We can reset from MOVE_NEXT_STARTED and STATE_ENDED states
          var retVal = false;
-         if (
-            Interlocked.CompareExchange( ref this._state, RESETTING, MOVE_NEXT_STARTED ) == MOVE_NEXT_STARTED
-            || Interlocked.CompareExchange( ref this._state, RESETTING, STATE_ENDED ) == STATE_ENDED
-            )
+         var prevState = Interlocked.CompareExchange( ref this._state, RESETTING, MOVE_NEXT_STARTED );
+         var endedAbruptly = prevState == MOVE_NEXT_STARTED;
+         if ( endedAbruptly || ( prevState = Interlocked.CompareExchange( ref this._state, RESETTING, STATE_ENDED ) ) == STATE_ENDED )
          {
             try
             {
-               var moveNext = this._current?.MoveNext;
-               if ( moveNext != null )
+               if ( endedAbruptly )
                {
-                  while ( ( await moveNext( token ) ).Item1 ) ;
+                  var moveNext = this._current?.MoveNext;
+                  if ( moveNext != null )
+                  {
+                     while ( ( await moveNext( token ) ).Item1 ) ;
+                  }
                }
             }
             finally
             {
                try
                {
-                  await this.PerformDispose( token );
+                  await this.PerformDispose( !endedAbruptly, token );
                }
                catch
                {
@@ -185,41 +173,33 @@ namespace UtilPack.AsyncEnumeration
                retVal = true;
             }
          }
-         //else if ( this._state != STATE_INITIAL )
-         //{
-         //   // Re-entrancy or concurrent with move next -> exception
-         //   throw new InvalidOperationException( "Tried to concurrently reset or move to next." );
-         //}
-
+         else if ( prevState != STATE_INITIAL )
+         {
+            throw new InvalidOperationException( "Concurrent enumeration ended call." );
+         }
          return retVal;
       }
 
-      protected virtual async ValueTask<Boolean> PerformDispose( CancellationToken token, ResetAsyncDelegate disposeDelegate = null )
+      protected virtual async ValueTask<Boolean> PerformDispose( Boolean endSeen, CancellationToken token )
       {
          var prev = Interlocked.Exchange( ref this._current, null );
+         var disposeDelegate = prev?.Dispose;
          var retVal = false;
-         if ( prev != null || disposeDelegate != null )
-         {
-            if ( disposeDelegate == null )
-            {
-               disposeDelegate = prev.Dispose;
-            }
 
-            if ( disposeDelegate != null )
+         if ( disposeDelegate != null )
+         {
+            var taskToAwait = disposeDelegate( endSeen, token );
+            if ( taskToAwait != null )
             {
-               var taskToAwait = disposeDelegate( token );
-               if ( taskToAwait != null )
-               {
-                  await taskToAwait;
-               }
-               retVal = true;
+               await taskToAwait;
             }
+            retVal = true;
          }
 
          return retVal;
       }
 
-      protected virtual ValueTask<(Boolean, T, MoveNextAsyncDelegate<T>, ResetAsyncDelegate)> CallInitialMoveNext( CancellationToken token, InitialMoveNextAsyncDelegate<T> initialMoveNext )
+      protected virtual ValueTask<(Boolean, T, MoveNextAsyncDelegate<T>, EnumerationEndedDelegate)> CallInitialMoveNext( CancellationToken token, InitialMoveNextAsyncDelegate<T> initialMoveNext )
       {
          return initialMoveNext( token );
       }
@@ -235,7 +215,7 @@ namespace UtilPack.AsyncEnumeration
    {
       public SequentialEnumeratorCurrentInfo(
          MoveNextAsyncDelegate<T> moveNext,
-         ResetAsyncDelegate disposeDelegate
+         EnumerationEndedDelegate disposeDelegate
       )
       {
          this.MoveNext = moveNext;
@@ -244,7 +224,7 @@ namespace UtilPack.AsyncEnumeration
 
       public TAsyncToken _token;
       public MoveNextAsyncDelegate<T> MoveNext { get; }
-      public ResetAsyncDelegate Dispose { get; }
+      public EnumerationEndedDelegate Dispose { get; }
 
       public abstract T Current { get; set; }
    }
@@ -255,7 +235,7 @@ namespace UtilPack.AsyncEnumeration
 
       public SequentialEnumeratorCurrentInfoWithObject(
          MoveNextAsyncDelegate<T> moveNext,
-         ResetAsyncDelegate disposeDelegate,
+         EnumerationEndedDelegate disposeDelegate,
          T current
          ) : base( moveNext, disposeDelegate )
       {
@@ -275,7 +255,7 @@ namespace UtilPack.AsyncEnumeration
 
       public SequentialEnumeratorCurrentInfoWithInt32(
          MoveNextAsyncDelegate<Int32> moveNext,
-         ResetAsyncDelegate disposeDelegate,
+         EnumerationEndedDelegate disposeDelegate,
          Int32 current
          ) : base( moveNext, disposeDelegate )
       {
@@ -295,7 +275,7 @@ namespace UtilPack.AsyncEnumeration
 
       public SequentialEnumeratorCurrentInfoWithInt64(
          MoveNextAsyncDelegate<Int64> moveNext,
-         ResetAsyncDelegate disposeDelegate,
+         EnumerationEndedDelegate disposeDelegate,
          Int64 current
          ) : base( moveNext, disposeDelegate )
       {
@@ -371,7 +351,7 @@ namespace UtilPack.AsyncEnumeration
 
       public event GenericEventHandler<TItemArgs> AfterEnumerationItemEncountered;
 
-      protected override async ValueTask<(Boolean, T, MoveNextAsyncDelegate<T>, ResetAsyncDelegate)> CallInitialMoveNext( CancellationToken token, InitialMoveNextAsyncDelegate<T> initialMoveNext )
+      protected override async ValueTask<(Boolean, T, MoveNextAsyncDelegate<T>, EnumerationEndedDelegate)> CallInitialMoveNext( CancellationToken token, InitialMoveNextAsyncDelegate<T> initialMoveNext )
       {
          TStartedArgs args = null;
          this.BeforeEnumerationStart?.InvokeAllEventHandlers( evt => evt( ( args = this.CreateBeforeEnumerationStartedArgs() ) ), throwExceptions: false );
@@ -395,14 +375,14 @@ namespace UtilPack.AsyncEnumeration
          return base.AfterMoveNextSucessful( item );
       }
 
-      protected override ValueTask<Boolean> PerformDispose( CancellationToken token, ResetAsyncDelegate disposeDelegate = null )
+      protected override ValueTask<Boolean> PerformDispose( Boolean endSeen, CancellationToken token )
       {
          TEndedArgs args = null;
          this.BeforeEnumerationEnd?.InvokeAllEventHandlers( evt => evt( ( args = this.CreateBeforeEnumerationEndedArgs() ) ), throwExceptions: false );
          this._getGlobalBeforeEnumerationExecutionEnd?.Invoke()?.InvokeAllEventHandlers( evt => evt( args ?? ( args = this.CreateBeforeEnumerationEndedArgs() ) ), throwExceptions: false );
          try
          {
-            return base.PerformDispose( token, disposeDelegate );
+            return base.PerformDispose( endSeen, token );
          }
          finally
          {

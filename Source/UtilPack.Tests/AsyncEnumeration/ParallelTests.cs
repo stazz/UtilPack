@@ -120,5 +120,40 @@ namespace UtilPack.Tests.AsyncEnumeration
          Assert.AreEqual( itemsEncounteredTask.Result, completionState.Length );
          Assert.IsTrue( completionState.All( s => s == 1 ) );
       }
+
+      [TestMethod]
+      public async Task TestParallelEnumeratorGetsEndedCalled()
+      {
+         var start = MAX_ITEMS;
+         var completionState = new Int32[start];
+         var r = new Random();
+         var endCalled = false;
+         var enumerator = AsyncEnumeratorFactory.CreateParallelEnumerator(
+            () =>
+            {
+               var decremented = Interlocked.Decrement( ref start );
+               return (decremented >= 0, decremented + 1);
+            },
+            async ( idx, token ) =>
+            {
+               await Task.Delay( r.Next( 100, 500 ) );
+               return completionState.Length - idx;
+            },
+            async ( endSeen, token ) =>
+            {
+               Assert.IsTrue( endSeen );
+               Assert.IsTrue( completionState.All( s => s == 1 ) );
+               await Task.Delay( r.Next( 100, 500 ) );
+               endCalled = true;
+            }
+            );
+
+         var itemsEncountered = await enumerator.EnumerateInParallelAsync( cur =>
+         {
+            Interlocked.Increment( ref completionState[cur] );
+         } );
+         Assert.AreEqual( true, endCalled );
+         Assert.AreEqual( itemsEncountered, completionState.Length );
+      }
    }
 }

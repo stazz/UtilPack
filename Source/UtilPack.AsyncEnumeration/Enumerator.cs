@@ -66,7 +66,7 @@ namespace UtilPack.AsyncEnumeration
       /// <remarks>
       /// Note that unlike <see cref="MoveNextAsync"/>, this method will not throw when invoked concurrently. Instead, it will just return <c>false</c>.
       /// </remarks>
-      ValueTask<Boolean> TryResetAsync( CancellationToken token = default );
+      ValueTask<Boolean> EnumerationEnded( CancellationToken token = default );
    }
 
 }

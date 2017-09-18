@@ -233,9 +233,10 @@ namespace UtilPack.NuGet.MSBuild
                   getFiles,
                   sdkPackages
                   )[packageID];
+               var assemblyPathHint = taskBodyElement.ElementAnyNS( ASSEMBLY_PATH )?.Value;
                var assemblyPath = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
                   taskAssemblies.Assemblies,
-                  taskBodyElement.ElementAnyNS( ASSEMBLY_PATH )?.Value,
+                  assemblyPathHint,
                   ap => File.Exists( ap )
                   );
                if ( !String.IsNullOrEmpty( assemblyPath ) )
@@ -273,6 +274,7 @@ namespace UtilPack.NuGet.MSBuild
                }
                else
                {
+                  nugetResolver.LogAssemblyPathResolveError( packageID, taskAssemblies.Assemblies, assemblyPathHint );
                   taskFactoryLoggingHost.LogErrorEvent(
                      new BuildErrorEventArgs(
                         "Task factory error",
@@ -1092,28 +1094,6 @@ namespace UtilPack.NuGet.MSBuild
    internal static class CommonHelpers
    {
       internal const String MBF = "Microsoft.Build.Framework.";
-
-      public static String GetAssemblyPathFromNuGetAssemblies(
-         String[] assemblyPaths,
-         String packageExpandedPath,
-         String optionalGivenAssemblyPath
-         )
-      {
-         String assemblyPath = null;
-         if ( assemblyPaths.Length == 1 || (
-               assemblyPaths.Length > 1 // There is more than 1 possible assembly
-               && !String.IsNullOrEmpty( ( assemblyPath = optionalGivenAssemblyPath ) ) // AssemblyPath task property was given
-               && ( assemblyPath = Path.GetFullPath( ( Path.Combine( packageExpandedPath, assemblyPath ) ) ) ).StartsWith( packageExpandedPath ) // The given assembly path truly resides in the package folder
-               ) )
-         {
-            // TODO maybe check that assembly path is in possibleAssemblies array?
-            if ( assemblyPath == null )
-            {
-               assemblyPath = assemblyPaths[0];
-            }
-         }
-         return assemblyPath;
-      }
 
       public static IDictionary<String, TPropertyInfo> GetPropertyInfoFromType(
          Type type,

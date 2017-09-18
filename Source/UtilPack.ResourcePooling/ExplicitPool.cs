@@ -23,29 +23,78 @@ using System.Threading.Tasks;
 
 namespace UtilPack.ResourcePooling
 {
+   /// <summary>
+   /// This interface extends <see cref="AsyncResourcePool{TResource}"/> to provide explicit control of taking resource from the pool and returning it back.
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource.</typeparam>
+   /// <remarks>
+   /// Because of the signatures of the methods this interface contains, the <typeparamref name="TResource"/> is not longer <c>out</c> covariant.
+   /// </remarks>
    public interface ExplicitAsyncResourcePool<TResource> : AsyncResourcePool<TResource>
    {
-      ValueTask<ExplicitResourceAcquireInfo<TResource>> TakeResourceAsync( CancellationToken token );
+      /// <summary>
+      /// Potentially asynchronously obtains a resource this pool.
+      /// </summary>
+      /// <param name="token">The optional cancellation token to use when obtaining the resource.</param>
+      /// <returns>An instance of <see cref="ExplicitResourceAcquireInfo{TResource}"/> which holds the resource, and should be passed to <see cref="ReturnResource"/> method once resource usage is over.</returns>
+      ValueTask<ExplicitResourceAcquireInfo<TResource>> TakeResourceAsync( CancellationToken token = default );
+
+      /// <summary>
+      /// Returns the resource obtained from <see cref="TakeResourceAsync"/> method back to this pool.
+      /// </summary>
+      /// <param name="resourceInfo">The <see cref="ExplicitResourceAcquireInfo{TResource}"/> obtained from <see cref="TakeResourceAsync"/> method.</param>
+      /// <returns>A task which completes once resource has been returned to the pool.</returns>
       ValueTask<Boolean> ReturnResource( ExplicitResourceAcquireInfo<TResource> resourceInfo );
    }
 
+   /// <summary>
+   /// This interface augments the <see cref="AsyncResourcePoolObservable{TResource}"/> with explicit resource management of <see cref="ExplicitAsyncResourcePool{TResource}"/>.
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource.</typeparam>
+   /// <remarks>
+   /// Because of the signatures of the methods this interface contains, the <typeparamref name="TResource"/> is not longer <c>out</c> covariant.
+   /// </remarks>
    public interface ExplicitAsyncResourcePoolObservable<TResource> : ExplicitAsyncResourcePool<TResource>, AsyncResourcePoolObservable<TResource>
    {
 
    }
 
-   public interface ExplicitAsyncResourcePool<TResource, in TCleanupParameter> : ExplicitAsyncResourcePool<TResource>, AsyncResourcePool<TResource, TCleanupParameter>
+   /// <summary>
+   /// This interface augments the <see cref="AsyncResourcePool{TResource, TCleanUpParameters}"/> with explicit resource management of <see cref="ExplicitAsyncResourcePool{TResource}"/>.
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource.</typeparam>
+   /// <typeparam name="TCleanUpParameter">The type of parameter for <see cref="AsyncResourcePoolCleanUp{TCleanUpParameter}.CleanUpAsync"/> method.</typeparam>
+   /// <remarks>
+   /// Because of the signatures of the methods this interface contains, the <typeparamref name="TResource"/> is not longer <c>out</c> covariant.
+   /// </remarks>
+   public interface ExplicitAsyncResourcePool<TResource, in TCleanUpParameter> : ExplicitAsyncResourcePool<TResource>, AsyncResourcePool<TResource, TCleanUpParameter>
    {
 
    }
 
-   public interface ExplicitAsyncResourcePoolObservable<TResource, in TCleanupParameter> : ExplicitAsyncResourcePool<TResource, TCleanupParameter>, ExplicitAsyncResourcePoolObservable<TResource>, AsyncResourcePoolObservable<TResource, TCleanupParameter>
+   /// <summary>
+   /// This interface augments the <see cref="AsyncResourcePoolObservable{TResource, TCleanUpParameter}"/> with explicit resource management of <see cref="ExplicitAsyncResourcePool{TResource}"/>.
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource.</typeparam>
+   /// <typeparam name="TCleanUpParameter">The type of parameter for <see cref="AsyncResourcePoolCleanUp{TCleanUpParameter}.CleanUpAsync"/> method.</typeparam>
+   /// <remarks>
+   /// Because of the signatures of the methods this interface contains, the <typeparamref name="TResource"/> is not longer <c>out</c> covariant.
+   /// </remarks>
+   public interface ExplicitAsyncResourcePoolObservable<TResource, in TCleanUpParameter> : ExplicitAsyncResourcePool<TResource, TCleanUpParameter>, ExplicitAsyncResourcePoolObservable<TResource>, AsyncResourcePoolObservable<TResource, TCleanUpParameter>
    {
 
    }
 
+   /// <summary>
+   /// This interface provides the getter to get the resource after calling <see cref="ExplicitAsyncResourcePool{TResource}.TakeResourceAsync"/> method.
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource.</typeparam>
    public interface ExplicitResourceAcquireInfo<out TResource>
    {
+      /// <summary>
+      /// Gets the resource to be used.
+      /// </summary>
+      /// <value>The resource to be used.</value>
       TResource Resource { get; }
    }
 }

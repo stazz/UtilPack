@@ -25,197 +25,28 @@ using UtilPack.ResourcePooling;
 
 namespace UtilPack.ResourcePooling
 {
+   /// <summary>
+   /// This delegate can be used to customize what exactly happens when taking the resource from <see cref="AsyncResourcePool{TResource}"/> which caches resources.
+   /// </summary>
+   /// <typeparam name="TInstance">The type of objects stored in <see cref="LocklessInstancePoolForClassesNoHeapAllocations{TInstance}"/> used by <see cref="AsyncResourcePool{TResource}"/>.</typeparam>
+   /// <param name="pool">The <see cref="LocklessInstancePoolForClassesNoHeapAllocations{TInstance}"/> pool where to acquire the instance.</param>
+   /// <param name="token">The cancellation token to use.</param>
+   /// <returns>Potentially asynchronously returns instance from <paramref name="pool"/>.</returns>
    public delegate ValueTask<TInstance> TakeFromInstancePoolDelegate<TInstance>( LocklessInstancePoolForClassesNoHeapAllocations<TInstance> pool, CancellationToken token )
       where TInstance : class, InstanceWithNextInfo<TInstance>;
 
+   /// <summary>
+   /// This delegate can be used to cusomize what exactly happens when returning the resource to <see cref="AsyncResourcePool{TResource}"/> which caches instances.
+   /// </summary>
+   /// <typeparam name="TInstance">The type of objects stored in <see cref="LocklessInstancePoolForClassesNoHeapAllocations{TInstance}"/> used by <see cref="AsyncResourcePool{TResource}"/>.</typeparam>
+   /// <param name="pool">The <see cref="LocklessInstancePoolForClassesNoHeapAllocations{TInstance}"/> pool where to acquire the instance.</param>
+   /// <param name="token">The cancellation token to use.</param>
+   /// <param name="instance">The instance to return to <paramref name="pool"/>.</param>
+   /// <returns>Potentially asynchronously returns value indicating whether <paramref name="instance"/> was returned to <paramref name="pool"/>.</returns>
    public delegate ValueTask<Boolean> ReturnToInstancePoolDelegate<TInstance>( LocklessInstancePoolForClassesNoHeapAllocations<TInstance> pool, CancellationToken token, TInstance instance )
       where TInstance : class, InstanceWithNextInfo<TInstance>;
-}
 
-public static partial class E_UtilPack
-{
-   public static AsyncResourcePoolObservable<TResource> CreateOneTimeUseResourcePool<TResource, TResourceCreationParameters>(
-      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
-      TResourceCreationParameters creationParameters
-      )
-   {
-      return new AsyncResourcePoolWrapper<TResource>( factory.CreateExplicitOneTimeUseResourcePool( creationParameters ) );
-   }
-
-   public static ExplicitAsyncResourcePoolObservable<TResource> CreateExplicitOneTimeUseResourcePool<TResource, TResourceCreationParameters>(
-      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
-      TResourceCreationParameters creationParameters
-      )
-   {
-      return new OneTimeUseAsyncResourcePool<TResource, AsyncResourceAcquireInfo<TResource>, TResourceCreationParameters>(
-         factory,
-         creationParameters,
-         instance => instance,
-         acquireInfo => acquireInfo
-         );
-   }
-
-   public static AsyncResourcePoolObservable<TResource, TimeSpan> CreateTimeoutingResourcePool<TResource, TResourceCreationParameters>(
-      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
-      TResourceCreationParameters creationParameters
-      )
-   {
-      return new CleanUpAsyncResourcePoolWrapper<TResource, TimeSpan>( factory.CreateExplicitTimeoutingResourcePool( creationParameters ) );
-   }
-
-   public static ExplicitAsyncResourcePoolObservable<TResource, TimeSpan> CreateExplicitTimeoutingResourcePool<TResource, TResourceCreationParameters>(
-      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
-      TResourceCreationParameters creationParameters
-      )
-   {
-      return new CachingAsyncResourcePoolWithTimeout<TResource, TResourceCreationParameters>(
-         factory,
-         creationParameters,
-         null,
-         null
-         );
-   }
-
-   public static AsyncResourcePoolObservable<TResource> CreateLimitedResourcePool<TResource, TResourceCreationParameters>(
-      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
-      TResourceCreationParameters creationParameters,
-      Func<Int32> getMaximumConcurrentlyUsedResources
-      )
-   {
-      return new AsyncResourcePoolWrapper<TResource>( factory.CreateExplicitLimitedResourcePool( creationParameters, getMaximumConcurrentlyUsedResources ) );
-   }
-
-   public static ExplicitAsyncResourcePoolObservable<TResource> CreateExplicitLimitedResourcePool<TResource, TResourceCreationParameters>(
-      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
-      TResourceCreationParameters creationParameters,
-      Func<Int32> getMaximumConcurrentlyUsedResources
-      )
-   {
-      var state = new PoolLimitState( getMaximumConcurrentlyUsedResources );
-      return factory.CreateExplicitGenericCachingResourcePool(
-         creationParameters,
-         ( pool, token ) => GetFromPoolLimited( pool, token, state ),
-         ( pool, token, instance ) => ReturnToPoolLimited( pool, token, instance, state )
-         );
-   }
-
-   public static AsyncResourcePoolObservable<TResource, TimeSpan> CreateTimeoutingAndLimitedResourcePool<TResource, TResourceCreationParameters>(
-      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
-      TResourceCreationParameters creationParameters,
-      Func<Int32> getMaximumConcurrentlyUsedResources
-      )
-   {
-      return new CleanUpAsyncResourcePoolWrapper<TResource, TimeSpan>( factory.CreateExplicitTimeoutingAndLimitedResourcePool( creationParameters, getMaximumConcurrentlyUsedResources ) );
-   }
-
-   public static ExplicitAsyncResourcePoolObservable<TResource, TimeSpan> CreateExplicitTimeoutingAndLimitedResourcePool<TResource, TResourceCreationParameters>(
-      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
-      TResourceCreationParameters creationParameters,
-      Func<Int32> getMaximumConcurrentlyUsedResources
-      )
-   {
-      var state = new PoolLimitState( getMaximumConcurrentlyUsedResources );
-      return factory.CreateExplicitGenericTimeoutingResourcePool(
-         creationParameters,
-         ( pool, token ) => GetFromPoolLimited( pool, token, state ),
-         ( pool, token, instance ) => ReturnToPoolLimited( pool, token, instance, state )
-         );
-   }
-
-   public static AsyncResourcePoolObservable<TResource> CreateLimitedResourcePool<TResource, TResourceCreationParameters>(
-      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
-      TResourceCreationParameters creationParameters,
-      Int32 maximumConcurrentlyUsedResources
-   )
-   {
-      return factory.CreateLimitedResourcePool( creationParameters, () => maximumConcurrentlyUsedResources );
-   }
-
-   public static ExplicitAsyncResourcePoolObservable<TResource> CreateExplicitLimitedResourcePool<TResource, TResourceCreationParameters>(
-      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
-      TResourceCreationParameters creationParameters,
-      Int32 maximumConcurrentlyUsedResources
-      )
-   {
-      return factory.CreateExplicitLimitedResourcePool( creationParameters, () => maximumConcurrentlyUsedResources );
-   }
-
-   public static AsyncResourcePoolObservable<TResource, TimeSpan> CreateTimeoutingAndLimitedResourcePool<TResource, TResourceCreationParameters>(
-      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
-      TResourceCreationParameters creationParameters,
-      Int32 maximumConcurrentlyUsedResources
-      )
-   {
-      return factory.CreateTimeoutingAndLimitedResourcePool( creationParameters, () => maximumConcurrentlyUsedResources );
-   }
-
-   public static ExplicitAsyncResourcePoolObservable<TResource, TimeSpan> CreateExplicitTimeoutingAndLimitedResourcePool<TResource, TResourceCreationParameters>(
-      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
-      TResourceCreationParameters creationParameters,
-      Int32 maximumConcurrentlyUsedResources
-      )
-   {
-      return factory.CreateExplicitTimeoutingAndLimitedResourcePool( creationParameters, () => maximumConcurrentlyUsedResources );
-   }
-
-   public static AsyncResourcePoolObservable<TResource> CreateGenericCachingResourcePool<TResource, TResourceCreationParameters>(
-      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
-      TResourceCreationParameters creationParameters,
-      TakeFromInstancePoolDelegate<InstanceHolder<AsyncResourceAcquireInfo<TResource>>> takeFromPool,
-      ReturnToInstancePoolDelegate<InstanceHolder<AsyncResourceAcquireInfo<TResource>>> returnToPool
-      )
-   {
-      return new AsyncResourcePoolWrapper<TResource>( factory.CreateExplicitGenericCachingResourcePool( creationParameters, takeFromPool, returnToPool ) );
-   }
-
-   public static ExplicitAsyncResourcePoolObservable<TResource> CreateExplicitGenericCachingResourcePool<TResource, TResourceCreationParameters>(
-      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
-      TResourceCreationParameters creationParameters,
-      TakeFromInstancePoolDelegate<InstanceHolder<AsyncResourceAcquireInfo<TResource>>> takeFromPool,
-      ReturnToInstancePoolDelegate<InstanceHolder<AsyncResourceAcquireInfo<TResource>>> returnToPool
-      )
-   {
-      return new CachingAsyncResourcePool<TResource, InstanceHolder<AsyncResourceAcquireInfo<TResource>>, TResourceCreationParameters>(
-         factory,
-         creationParameters,
-         holder => holder.Instance,
-         info => new InstanceHolder<AsyncResourceAcquireInfo<TResource>>( info ),
-         takeFromPool,
-         returnToPool
-         );
-   }
-
-   public static AsyncResourcePoolObservable<TResource, TimeSpan> CreateGenericTimeoutingResourcePool<TResource, TResourceCreationParameters>(
-      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
-      TResourceCreationParameters creationParameters,
-      TakeFromInstancePoolDelegate<InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>>> takeFromPool,
-      ReturnToInstancePoolDelegate<InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>>> returnToPool
-      )
-   {
-      return new CleanUpAsyncResourcePoolWrapper<TResource, TimeSpan>( factory.CreateExplicitGenericTimeoutingResourcePool(
-         creationParameters,
-         takeFromPool,
-         returnToPool
-         ) );
-   }
-
-   public static ExplicitAsyncResourcePoolObservable<TResource, TimeSpan> CreateExplicitGenericTimeoutingResourcePool<TResource, TResourceCreationParameters>(
-      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
-      TResourceCreationParameters creationParameters,
-      TakeFromInstancePoolDelegate<InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>>> takeFromPool,
-      ReturnToInstancePoolDelegate<InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>>> returnToPool
-      )
-   {
-      return new CachingAsyncResourcePoolWithTimeout<TResource, TResourceCreationParameters>(
-         factory,
-         creationParameters,
-         takeFromPool,
-         returnToPool
-         );
-   }
-
-
-   private sealed class PoolLimitState
+   internal sealed class PoolLimitState
    {
       private const Int32 DEFAULT_TICK = 100;
 
@@ -231,65 +62,261 @@ public static partial class E_UtilPack
          this.maxGetter = ArgumentValidator.ValidateNotNull( nameof( getMaximumConcurrentlyUsedResources ), getMaximumConcurrentlyUsedResources );
          this.tick = TimeSpan.FromTicks( Math.Max( waitTick, DEFAULT_TICK ) );
       }
-   }
 
-   private static async ValueTask<TInstance> GetFromPoolLimited<TInstance>(
-      LocklessInstancePoolForClassesNoHeapAllocations<TInstance> pool,
-      CancellationToken token,
-      PoolLimitState state
+      internal async ValueTask<TInstance> GetFromPoolLimited<TInstance>(
+         LocklessInstancePoolForClassesNoHeapAllocations<TInstance> pool,
+         CancellationToken token
       )
-      where TInstance : class, InstanceWithNextInfo<TInstance>
-   {
-      TInstance instance = null;
-      var acquired = false;
-      do
+         where TInstance : class, InstanceWithNextInfo<TInstance>
       {
-         var seenMax = state.maxGetter();
-         var seenCurrent = state.currentlyUsedUpResources;
-         if ( seenCurrent >= seenMax )
+         TInstance instance = null;
+         var acquired = false;
+         do
          {
-            await
+            var seenMax = this.maxGetter();
+            var seenCurrent = this.currentlyUsedUpResources;
+            if ( seenCurrent >= seenMax )
+            {
+               await
 #if NET40
                TaskEx
 #else
                Task
 #endif
-               .Delay( state.tick, token );
-         }
-         else if ( Interlocked.CompareExchange( ref state.currentlyUsedUpResources, seenCurrent + 1, seenCurrent ) == seenCurrent )
-         {
-            acquired = true;
-            instance = pool.TakeInstance();
-         }
-      } while ( !acquired && !token.IsCancellationRequested );
+               .Delay( this.tick, token );
+            }
+            else if ( Interlocked.CompareExchange( ref this.currentlyUsedUpResources, seenCurrent + 1, seenCurrent ) == seenCurrent )
+            {
+               acquired = true;
+               instance = pool.TakeInstance();
+            }
+         } while ( !acquired && !token.IsCancellationRequested );
 
-      return instance;
-   }
-
-   private static ValueTask<Boolean> ReturnToPoolLimited<TInstance>(
-      LocklessInstancePoolForClassesNoHeapAllocations<TInstance> pool,
-      CancellationToken token,
-      TInstance instance,
-      PoolLimitState state
-      )
-      where TInstance : class, InstanceWithNextInfo<TInstance>
-   {
-      var retVal = instance != null;
-      if ( retVal )
-      {
-         try
-         {
-            pool.ReturnInstance( instance );
-         }
-         finally
-         {
-            Interlocked.Decrement( ref state.currentlyUsedUpResources );
-         }
+         return instance;
       }
-      return new ValueTask<Boolean>( retVal );
+
+      internal ValueTask<Boolean> ReturnToPoolLimited<TInstance>(
+         LocklessInstancePoolForClassesNoHeapAllocations<TInstance> pool,
+         CancellationToken token,
+         TInstance instance
+         )
+         where TInstance : class, InstanceWithNextInfo<TInstance>
+      {
+         var retVal = instance != null;
+         if ( retVal )
+         {
+            try
+            {
+               pool.ReturnInstance( instance );
+            }
+            finally
+            {
+               Interlocked.Decrement( ref this.currentlyUsedUpResources );
+            }
+         }
+         return new ValueTask<Boolean>( retVal );
+      }
+   }
+}
+
+public static partial class E_UtilPack
+{
+
+   /// <summary>
+   /// Binds the given creation parameters and creates a <see cref="ExplicitAsyncResourcePoolObservable{TResource}"/> which will always create new instance of resource when invoking <see cref="AsyncResourcePool{TResource}.UseResourceAsync"/> and <see cref="ExplicitAsyncResourcePool{TResource}.TakeResourceAsync"/> methods.
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource.</typeparam>
+   /// <typeparam name="TResourceCreationParameters">The type of parameters used to create a resource.</typeparam>
+   /// <param name="factory">This <see cref="AsyncResourceFactory{TResource, TParams}"/>.</param>
+   /// <param name="creationParameters">The creation parameters for returned factory to use when calling <see cref="AsyncResourceFactory{TResource, TParams}.AcquireResourceAsync"/>.</param>
+   /// <returns>An <see cref="ExplicitAsyncResourcePoolObservable{TResource}"/> using this <see cref="AsyncResourceFactory{TResource, TParams}"/> to create new resources.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncResourceFactory{TResource, TParams}"/> is <c>null</c>.</exception>
+   /// <seealso cref="WithoutExplicitAPI{TResource}(ExplicitAsyncResourcePoolObservable{TResource})"/>
+   public static ExplicitAsyncResourcePoolObservable<TResource> CreateOneTimeUseResourcePool<TResource, TResourceCreationParameters>(
+      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
+      TResourceCreationParameters creationParameters
+      ) => new OneTimeUseAsyncResourcePool<TResource, AsyncResourceAcquireInfo<TResource>, TResourceCreationParameters>(
+         ArgumentValidator.ValidateNotNullReference( factory ),
+         creationParameters,
+         instance => instance,
+         acquireInfo => acquireInfo
+         );
+
+   /// <summary>
+   /// Binds the given creation parameters and creates a <see cref="ExplicitAsyncResourcePoolObservable{TResource, TCleanUpParameter}"/> which will cache the resources it manages, but will not have upper bound on how many resources it caches. By calling <see cref="AsyncResourcePoolCleanUp{TCleanUpParameter}.CleanUpAsync"/> method it will close all resources which have been opened for too long.
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource.</typeparam>
+   /// <typeparam name="TResourceCreationParameters">The type of parameters used to create a resource.</typeparam>
+   /// <param name="factory">This <see cref="AsyncResourceFactory{TResource, TParams}"/>.</param>
+   /// <param name="creationParameters">The creation parameters for returned factory to use when calling <see cref="AsyncResourceFactory{TResource, TParams}.AcquireResourceAsync"/>.</param>
+   /// <returns>An <see cref="ExplicitAsyncResourcePoolObservable{TResource, TCleanUp}"/> using this <see cref="AsyncResourceFactory{TResource, TParams}"/> to create new resources.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncResourceFactory{TResource, TParams}"/> is <c>null</c>.</exception>
+   /// <seealso cref="WithoutExplicitAPI{TResource, TCleanUp}(ExplicitAsyncResourcePoolObservable{TResource, TCleanUp})"/>
+   public static ExplicitAsyncResourcePoolObservable<TResource, TimeSpan> CreateTimeoutingResourcePool<TResource, TResourceCreationParameters>(
+     this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
+     TResourceCreationParameters creationParameters
+     ) => factory.CreateGenericTimeoutingResourcePool( creationParameters, null, null );
+
+   /// <summary>
+   /// Binds the given creation parameters and creates a <see cref="ExplicitAsyncResourcePoolObservable{TResource}"/> which will create up to given dynamic maximum of resources when invoking <see cref="AsyncResourcePool{TResource}.UseResourceAsync"/> and <see cref="ExplicitAsyncResourcePool{TResource}.TakeResourceAsync"/> methods, but will never release them.
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource.</typeparam>
+   /// <typeparam name="TResourceCreationParameters">The type of parameters used to create a resource.</typeparam>
+   /// <param name="factory">This <see cref="AsyncResourceFactory{TResource, TParams}"/>.</param>
+   /// <param name="creationParameters">The creation parameters for returned factory to use when calling <see cref="AsyncResourceFactory{TResource, TParams}.AcquireResourceAsync"/>.</param>
+   /// <param name="getMaximumConcurrentlyUsedResources">The callback to get maximum amount of resources that can be concurrently in use.</param>
+   /// <returns>An <see cref="ExplicitAsyncResourcePoolObservable{TResource}"/> using this <see cref="AsyncResourceFactory{TResource, TParams}"/> to create new resources.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncResourceFactory{TResource, TParams}"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="getMaximumConcurrentlyUsedResources"/> is <c>null</c>.</exception>
+   /// <seealso cref="WithoutExplicitAPI{TResource}(ExplicitAsyncResourcePoolObservable{TResource})"/>
+   public static ExplicitAsyncResourcePoolObservable<TResource> CreateExplicitLimitedResourcePool<TResource, TResourceCreationParameters>(
+      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
+      TResourceCreationParameters creationParameters,
+      Func<Int32> getMaximumConcurrentlyUsedResources
+      )
+   {
+      ArgumentValidator.ValidateNotNullReference( factory );
+      var state = new PoolLimitState( getMaximumConcurrentlyUsedResources );
+      return factory.CreateGenericCachingResourcePool(
+         creationParameters,
+         state.GetFromPoolLimited,
+         state.ReturnToPoolLimited
+         );
    }
 
+   /// <summary>
+   /// Binds the given creation parameters and creates a <see cref="ExplicitAsyncResourcePoolObservable{TResource, TCleanUpParameter}"/> which will cache the resources it manages, and also will have a dynamic upper bound on how many resources it caches. By calling <see cref="AsyncResourcePoolCleanUp{TCleanUpParameter}.CleanUpAsync"/> method it will close all resources which have been opened for too long.
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource.</typeparam>
+   /// <typeparam name="TResourceCreationParameters">The type of parameters used to create a resource.</typeparam>
+   /// <param name="factory">This <see cref="AsyncResourceFactory{TResource, TParams}"/>.</param>
+   /// <param name="creationParameters">The creation parameters for returned factory to use when calling <see cref="AsyncResourceFactory{TResource, TParams}.AcquireResourceAsync"/>.</param>
+   /// <param name="getMaximumConcurrentlyUsedResources">The callback to get maximum amount of resources that can be concurrently in use.</param>
+   /// <returns>An <see cref="ExplicitAsyncResourcePoolObservable{TResource, TCleanUp}"/> using this <see cref="AsyncResourceFactory{TResource, TParams}"/> to create new resources.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncResourceFactory{TResource, TParams}"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="getMaximumConcurrentlyUsedResources"/> is <c>null</c>.</exception>
+   /// <seealso cref="WithoutExplicitAPI{TResource, TCleanUp}(ExplicitAsyncResourcePoolObservable{TResource, TCleanUp})"/>
+   public static ExplicitAsyncResourcePoolObservable<TResource, TimeSpan> CreateTimeoutingAndLimitedResourcePool<TResource, TResourceCreationParameters>(
+      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
+      TResourceCreationParameters creationParameters,
+      Func<Int32> getMaximumConcurrentlyUsedResources
+      )
+   {
+      ArgumentValidator.ValidateNotNullReference( factory );
+      var state = new PoolLimitState( getMaximumConcurrentlyUsedResources );
+      return factory.CreateGenericTimeoutingResourcePool(
+         creationParameters,
+         state.GetFromPoolLimited,
+         state.ReturnToPoolLimited
+         );
+   }
 
-   // TODO "Upper-bound-limited" caching pools, with configurable max amount of concurrently opened resources (passing somethign else than two nulls as last parameters)
+   /// <summary>
+   /// Binds the given creation parameters and creates a <see cref="ExplicitAsyncResourcePoolObservable{TResource}"/> which will create up to given static maximum of resources when invoking <see cref="AsyncResourcePool{TResource}.UseResourceAsync"/> and <see cref="ExplicitAsyncResourcePool{TResource}.TakeResourceAsync"/> methods.
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource.</typeparam>
+   /// <typeparam name="TResourceCreationParameters">The type of parameters used to create a resource.</typeparam>
+   /// <param name="factory">This <see cref="AsyncResourceFactory{TResource, TParams}"/>.</param>
+   /// <param name="creationParameters">The creation parameters for returned factory to use when calling <see cref="AsyncResourceFactory{TResource, TParams}.AcquireResourceAsync"/>.</param>
+   /// <param name="maximumConcurrentlyUsedResources">The static integer indicating the maximum amount of resources that can be concurrently in use.</param>
+   /// <returns>An <see cref="ExplicitAsyncResourcePoolObservable{TResource}"/> using this <see cref="AsyncResourceFactory{TResource, TParams}"/> to create new resources.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncResourceFactory{TResource, TParams}"/> is <c>null</c>.</exception>
+   /// <seealso cref="WithoutExplicitAPI{TResource}(ExplicitAsyncResourcePoolObservable{TResource})"/>
+   public static ExplicitAsyncResourcePoolObservable<TResource> CreateLimitedResourcePool<TResource, TResourceCreationParameters>(
+      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
+      TResourceCreationParameters creationParameters,
+      Int32 maximumConcurrentlyUsedResources
+      ) => factory.CreateExplicitLimitedResourcePool( creationParameters, () => maximumConcurrentlyUsedResources );
 
+   /// <summary>
+   /// Binds the given creation parameters and creates a <see cref="ExplicitAsyncResourcePoolObservable{TResource, TCleanUpParameter}"/> which will cache the resources it manages, and also will have a static upper bound on how many resources it caches. By calling <see cref="AsyncResourcePoolCleanUp{TCleanUpParameter}.CleanUpAsync"/> method it will close all resources which have been opened for too long.
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource.</typeparam>
+   /// <typeparam name="TResourceCreationParameters">The type of parameters used to create a resource.</typeparam>
+   /// <param name="factory">This <see cref="AsyncResourceFactory{TResource, TParams}"/>.</param>
+   /// <param name="creationParameters">The creation parameters for returned factory to use when calling <see cref="AsyncResourceFactory{TResource, TParams}.AcquireResourceAsync"/>.</param>
+   /// <param name="maximumConcurrentlyUsedResources">The static integer indicating the maximum amount of resources that can be concurrently in use.</param>
+   /// <returns>An <see cref="ExplicitAsyncResourcePoolObservable{TResource, TCleanUp}"/> using this <see cref="AsyncResourceFactory{TResource, TParams}"/> to create new resources.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncResourceFactory{TResource, TParams}"/> is <c>null</c>.</exception>
+   /// <seealso cref="WithoutExplicitAPI{TResource, TCleanUp}(ExplicitAsyncResourcePoolObservable{TResource, TCleanUp})"/>
+   public static ExplicitAsyncResourcePoolObservable<TResource, TimeSpan> CreateTimeoutingAndLimitedResourcePool<TResource, TResourceCreationParameters>(
+      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
+      TResourceCreationParameters creationParameters,
+      Int32 maximumConcurrentlyUsedResources
+      ) => factory.CreateTimeoutingAndLimitedResourcePool( creationParameters, () => maximumConcurrentlyUsedResources );
+
+   /// <summary>
+   /// Binds the given creation parameters and creates a <see cref="ExplicitAsyncResourcePoolObservable{TResource}"/> which will call given callbacks when invoking <see cref="AsyncResourcePool{TResource}.UseResourceAsync"/>, <see cref="ExplicitAsyncResourcePool{TResource}.TakeResourceAsync"/> and <see cref="ExplicitAsyncResourcePool{TResource}.ReturnResource"/> methods.
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource.</typeparam>
+   /// <typeparam name="TResourceCreationParameters">The type of parameters used to create a resource.</typeparam>
+   /// <param name="factory">This <see cref="AsyncResourceFactory{TResource, TParams}"/>.</param>
+   /// <param name="creationParameters">The creation parameters for returned factory to use when calling <see cref="AsyncResourceFactory{TResource, TParams}.AcquireResourceAsync"/>.</param>
+   /// <param name="takeFromPool">The callback to call when taking the resource from the pool.</param>
+   /// <param name="returnToPool">The callback to call when resource to the pool.</param>
+   /// <returns>An <see cref="ExplicitAsyncResourcePoolObservable{TResource}"/> using this <see cref="AsyncResourceFactory{TResource, TParams}"/> to create new resources.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncResourceFactory{TResource, TParams}"/> is <c>null</c>.</exception>
+   /// <seealso cref="WithoutExplicitAPI{TResource}(ExplicitAsyncResourcePoolObservable{TResource})"/>
+   /// <seealso cref="TakeFromInstancePoolDelegate{TInstance}"/>
+   /// <seealso cref="ReturnToInstancePoolDelegate{TInstance}"/>
+   public static ExplicitAsyncResourcePoolObservable<TResource> CreateGenericCachingResourcePool<TResource, TResourceCreationParameters>(
+      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
+      TResourceCreationParameters creationParameters,
+      TakeFromInstancePoolDelegate<InstanceHolder<AsyncResourceAcquireInfo<TResource>>> takeFromPool,
+      ReturnToInstancePoolDelegate<InstanceHolder<AsyncResourceAcquireInfo<TResource>>> returnToPool
+      ) => new CachingAsyncResourcePool<TResource, InstanceHolder<AsyncResourceAcquireInfo<TResource>>, TResourceCreationParameters>(
+         ArgumentValidator.ValidateNotNullReference( factory ),
+         creationParameters,
+         holder => holder.Instance,
+         info => new InstanceHolder<AsyncResourceAcquireInfo<TResource>>( info ),
+         takeFromPool,
+         returnToPool
+         );
+
+   /// <summary>
+   /// Binds the given creation parameters and creates a <see cref="ExplicitAsyncResourcePoolObservable{TResource, TCleanUp}"/> which will cache the resources, and call given callbacks when invoking <see cref="AsyncResourcePool{TResource}.UseResourceAsync"/>, <see cref="ExplicitAsyncResourcePool{TResource}.TakeResourceAsync"/> and <see cref="ExplicitAsyncResourcePool{TResource}.ReturnResource"/> methods. By calling <see cref="AsyncResourcePoolCleanUp{TCleanUpParameter}.CleanUpAsync"/> method it will close all resources which have been opened for too long.
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource.</typeparam>
+   /// <typeparam name="TResourceCreationParameters">The type of parameters used to create a resource.</typeparam>
+   /// <param name="factory">This <see cref="AsyncResourceFactory{TResource, TParams}"/>.</param>
+   /// <param name="creationParameters">The creation parameters for returned factory to use when calling <see cref="AsyncResourceFactory{TResource, TParams}.AcquireResourceAsync"/>.</param>
+   /// <param name="takeFromPool">The callback to call when taking the resource from the pool.</param>
+   /// <param name="returnToPool">The callback to call when resource to the pool.</param>
+   /// <returns>An <see cref="ExplicitAsyncResourcePoolObservable{TResource, TCleanUp}"/> using this <see cref="AsyncResourceFactory{TResource, TParams}"/> to create new resources.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncResourceFactory{TResource, TParams}"/> is <c>null</c>.</exception>
+   /// <seealso cref="WithoutExplicitAPI{TResource, TCleanUp}(ExplicitAsyncResourcePoolObservable{TResource, TCleanUp})"/>
+   /// <seealso cref="TakeFromInstancePoolDelegate{TInstance}"/>
+   /// <seealso cref="ReturnToInstancePoolDelegate{TInstance}"/>
+   public static ExplicitAsyncResourcePoolObservable<TResource, TimeSpan> CreateGenericTimeoutingResourcePool<TResource, TResourceCreationParameters>(
+      this AsyncResourceFactory<TResource, TResourceCreationParameters> factory,
+      TResourceCreationParameters creationParameters,
+      TakeFromInstancePoolDelegate<InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>>> takeFromPool,
+      ReturnToInstancePoolDelegate<InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>>> returnToPool
+      ) => new CachingAsyncResourcePoolWithTimeout<TResource, TResourceCreationParameters>(
+         ArgumentValidator.ValidateNotNullReference( factory ),
+         creationParameters,
+         takeFromPool,
+         returnToPool
+         );
+
+   /// <summary>
+   /// This helper method will create a wrapper around this <see cref="ExplicitAsyncResourcePoolObservable{TResource}"/> which will expose only <see cref="AsyncResourcePoolObservable{TResource}"/> portion of its API.
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource.</typeparam>
+   /// <param name="explicitPool">This <see cref="ExplicitAsyncResourcePoolObservable{TResource}"/>.</param>
+   /// <returns>An <see cref="AsyncResourcePoolObservable{TResource}"/> which will delegate the calls to this <see cref="ExplicitAsyncResourcePoolObservable{TResource}"/>.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="ExplicitAsyncResourcePoolObservable{TResource}"/> is <c>null</c>.</exception>
+   public static AsyncResourcePoolObservable<TResource> WithoutExplicitAPI<TResource>( this ExplicitAsyncResourcePoolObservable<TResource> explicitPool )
+       => new AsyncResourcePoolWrapper<TResource>( ArgumentValidator.ValidateNotNullReference( explicitPool ) );
+
+   /// <summary>
+   /// This helper method will create a wrapper around this <see cref="ExplicitAsyncResourcePoolObservable{TResource, TCleanUp}"/> which will expose only <see cref="AsyncResourcePoolObservable{TResource, TCleanUp}"/> portion of its API.
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource.</typeparam>
+   /// <typeparam name="TCleanUp">The type of parameter for <see cref="AsyncResourcePoolCleanUp{TCleanUpParameter}.CleanUpAsync"/> method.</typeparam>
+   /// <param name="explicitPool">This <see cref="ExplicitAsyncResourcePoolObservable{TResource, TCleanUp}"/>.</param>
+   /// <returns>An <see cref="AsyncResourcePoolObservable{TResource, TCleanUp}"/> which will delegate the calls to this <see cref="ExplicitAsyncResourcePoolObservable{TResource, TCleanUp}"/>.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="ExplicitAsyncResourcePoolObservable{TResource, TCleanUp}"/> is <c>null</c>.</exception>
+   public static AsyncResourcePoolObservable<TResource, TCleanUp> WithoutExplicitAPI<TResource, TCleanUp>( this ExplicitAsyncResourcePoolObservable<TResource, TCleanUp> explicitPool )
+      => new CleanUpAsyncResourcePoolWrapper<TResource, TCleanUp>( ArgumentValidator.ValidateNotNullReference( explicitPool ) );
 }

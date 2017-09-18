@@ -82,6 +82,7 @@ There is an example of using ```UtilPack.NuGet.MSBuild``` in [here](../UtilPack.
 ## Overview
 There are no special constraints when developing the MSBuild task that will be executed by ```UtilPack.NuGet.MSBuild``` package.
 No certain class is required to be extended, and no dependencies (other than to MSBuild assemblies) are required.
+If your task uses framework assemblies and other NuGet packages only (the majority of the cases), the `CopyLocalLockFileAssemblies` build property is not required - the task factory will take care of restoring and loading the dependant assemblies from their corresponding NuGet packages.
 Developing for .NET 4.5+, .NET Standard 1.3+ and .NET Core 1.0+ is supported - indeed, it is enough to target .NET Standard 1.3, and your task will be executable by both desktop and .NET Core MSBuild.
 Referencing third-party NuGet packages is supported, as long as the dependencies are visible in ```.nuspec``` file.
 The assemblies may reside in ```lib``` or ```build``` folders of the package, both are supported.

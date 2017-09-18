@@ -31,8 +31,8 @@
         <PackageID>SQLGenerator.MSBuild</PackageID>
         <!-- Optionally specify the version. By default, newest will be used. Note that leaving this out will cause NuGet restore to always scan all sources. -->
         <PackageVersion>1.0.0-RC2</PackageVersion>
-        <!-- Optionally specify the assembly path of the task DLL -->
-        <!--<AssemblyPath>lib/netstandard1.3/X.Y.dll</AssemblyPath>-->
+        <!-- Optionally specify the assembly path of the task DLL (this path is from within the target framework folder (e.g. lib/net45), not the top-level package home directory) -->
+        <!--<AssemblyPath>SomeOtherAssembly.dll</AssemblyPath>-->
         <!-- Optionally specify NuGet configuration file -->
         <!-- <NuGetConfigurationFile>path/to/nuget.config</NuGetConfigurationFile> -->
         <!-- Optionally specify the full type name of the task class. By default, the value of TaskName attribute of UsingTask element will be used. -->

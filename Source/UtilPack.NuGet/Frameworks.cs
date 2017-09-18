@@ -61,7 +61,11 @@ namespace UtilPack.NuGet
                ) )
          {
             assemblyPath = assemblyPaths
-               .Select( ap => new KeyValuePair<String, String>( ap, Path.GetFullPath( Path.Combine( Path.GetDirectoryName( ap ), assemblyPath ) ) ) )
+               .Select( ap =>
+               {
+                  var dir = Path.GetDirectoryName( ap );
+                  return new KeyValuePair<String, String>( Path.GetFullPath( dir ), Path.GetFullPath( Path.Combine( dir, assemblyPath ) ) );
+               } )
                .FirstOrDefault( kvp => kvp.Value.StartsWith( kvp.Key ) && ( suitableAssemblyPathChecker?.Invoke( kvp.Value ) ?? true ) )
                .Value;
          }

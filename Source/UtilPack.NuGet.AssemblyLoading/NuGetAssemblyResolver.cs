@@ -619,6 +619,15 @@ namespace UtilPack.NuGet.AssemblyLoading
                         var name = assemblyNames[assemblyPath].Value;
                         retVal[i] = this._assemblies[name].Assembly;
                      }
+                     else
+                     {
+                        this._resolver
+#if !NET45
+                           .Resolver
+#endif
+
+                           .LogAssemblyPathResolveError( packageIDs[i], possibleAssemblyPaths.Assemblies, assemblyPaths[i] );
+                     }
                   }
                }
             }
@@ -771,6 +780,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          MarshaledResultSetter<TResolveResult> setter
          )
       {
+
          var task = this.Resolver.RestoreIfNeeded( packageID.Select( ( pID, idx ) => (pID, packageVersion[idx]) ).ToArray() );
          task.ContinueWith( prevTask =>
          {
@@ -785,6 +795,9 @@ namespace UtilPack.NuGet.AssemblyLoading
             }
          } );
       }
+
+      internal void LogAssemblyPathResolveError( String packageID, String[] possiblePaths, String pathHint ) =>
+         this.Resolver.LogAssemblyPathResolveError( packageID, possiblePaths, pathHint );
 #endif
 
 #if NET45
@@ -902,4 +915,8 @@ public static partial class E_UtilPack
    {
       return paths?.Where( p => !p.EndsWith( "_._" ) );
    }
+
+   internal static void LogAssemblyPathResolveError( this BoundRestoreCommandUser restorer, String packageID, String[] possiblePaths, String pathHint )
+      => restorer.NuGetLogger.LogError( $"Failed to resolve assemblies for \"{packageID}\", considered {String.Join( ";", possiblePaths.Select( pp => "\"" + pp + "\"" ) )}, with path hint of \"{pathHint}\"." );
+
 }

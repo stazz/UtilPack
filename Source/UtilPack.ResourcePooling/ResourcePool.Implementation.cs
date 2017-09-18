@@ -310,14 +310,14 @@ namespace UtilPack.ResourcePooling
       private readonly TakeFromInstancePoolDelegate<TCachedResource> _takeFromPool;
       private readonly ReturnToInstancePoolDelegate<TCachedResource> _returnToPool;
 
-      /// <summary>
-      /// Creates a new instance of <see cref="CachingAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}"/> with given parameters.
-      /// </summary>
-      /// <param name="factory">The <see cref="AsyncResourceFactory{TResource, TParams}"/> to use for creation of new resources.</param>
-      /// <param name="factoryParameters">The parameters to passe to <see cref="AsyncResourceFactory{TResource, TParams}"/> when creating new instances of resources.</param>
-      /// <param name="resourceExtractor">The callback to extract <see cref="AsyncResourceAcquireInfo{TResource}"/> from instances of <typeparamref name="TCachedResource"/>.</param>
-      /// <param name="instanceCreator">The callback to create a new instance of <typeparamref name="TCachedResource"/> from existing <see cref="AsyncResourceAcquireInfo{TResource}"/>.</param>
-      /// <exception cref="ArgumentNullException">If any of <paramref name="factory"/>, <paramref name="resourceExtractor"/>, or <paramref name="instanceCreator"/> is <c>null</c>.</exception>
+      ///// <summary>
+      ///// Creates a new instance of <see cref="CachingAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}"/> with given parameters.
+      ///// </summary>
+      ///// <param name="factory">The <see cref="AsyncResourceFactory{TResource, TParams}"/> to use for creation of new resources.</param>
+      ///// <param name="factoryParameters">The parameters to passe to <see cref="AsyncResourceFactory{TResource, TParams}"/> when creating new instances of resources.</param>
+      ///// <param name="resourceExtractor">The callback to extract <see cref="AsyncResourceAcquireInfo{TResource}"/> from instances of <typeparamref name="TCachedResource"/>.</param>
+      ///// <param name="instanceCreator">The callback to create a new instance of <typeparamref name="TCachedResource"/> from existing <see cref="AsyncResourceAcquireInfo{TResource}"/>.</param>
+      ///// <exception cref="ArgumentNullException">If any of <paramref name="factory"/>, <paramref name="resourceExtractor"/>, or <paramref name="instanceCreator"/> is <c>null</c>.</exception>
       public CachingAsyncResourcePool(
          AsyncResourceFactory<TResource, TResourceCreationParams> factory,
          TResourceCreationParams factoryParameters,
@@ -460,12 +460,12 @@ namespace UtilPack.ResourcePooling
    /// <typeparam name="TResourceCreationParams">The type of parameters used to create a new instance of <see cref="InstanceHolderWithTimestamp{TResource}"/>.</typeparam>
    internal class CachingAsyncResourcePoolWithTimeout<TResource, TResourceCreationParams> : CachingAsyncResourcePool<TResource, InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>>, TResourceCreationParams>, ExplicitAsyncResourcePoolObservable<TResource, TimeSpan>
    {
-      /// <summary>
-      /// Creates a new instance of <see cref="CachingAsyncResourcePoolWithTimeout{TResource, TResourceCreationParams}"/> with given parameters.
-      /// </summary>
-      /// <param name="factory">The <see cref="AsyncResourceFactory{TResource, TParams}"/> to use when needed to create new instances of resource.</param>
-      /// <param name="factoryParameters">The parameters to pass when using <see cref="AsyncResourceFactory{TResource, TParams}.AcquireResourceAsync(TParams, CancellationToken)"/> of <paramref name="factory"/>.</param>
-      /// <exception cref="ArgumentNullException">If <paramref name="factory"/> is <c>null</c>.</exception>
+      ///// <summary>
+      ///// Creates a new instance of <see cref="CachingAsyncResourcePoolWithTimeout{TResource, TResourceCreationParams}"/> with given parameters.
+      ///// </summary>
+      ///// <param name="factory">The <see cref="AsyncResourceFactory{TResource, TParams}"/> to use when needed to create new instances of resource.</param>
+      ///// <param name="factoryParameters">The parameters to pass when using <see cref="AsyncResourceFactory{TResource, TParams}.AcquireResourceAsync(TParams, CancellationToken)"/> of <paramref name="factory"/>.</param>
+      ///// <exception cref="ArgumentNullException">If <paramref name="factory"/> is <c>null</c>.</exception>
       public CachingAsyncResourcePoolWithTimeout(
          AsyncResourceFactory<TResource, TResourceCreationParams> factory,
          TResourceCreationParams factoryParameters,
@@ -607,7 +607,7 @@ namespace UtilPack.ResourcePooling
       internal CancellationToken Token { get; }
    }
 
-   public class AsyncResourcePoolWrapper<TResource> : AsyncResourcePoolObservable<TResource>
+   internal class AsyncResourcePoolWrapper<TResource> : AsyncResourcePoolObservable<TResource>
    {
       private readonly AsyncResourcePoolObservable<TResource> _actual;
 
@@ -679,7 +679,7 @@ namespace UtilPack.ResourcePooling
       }
    }
 
-   public class CleanUpAsyncResourcePoolWrapper<TResource, TCleanUpParameter> : AsyncResourcePoolWrapper<TResource>, AsyncResourcePoolObservable<TResource, TCleanUpParameter>
+   internal sealed class CleanUpAsyncResourcePoolWrapper<TResource, TCleanUpParameter> : AsyncResourcePoolWrapper<TResource>, AsyncResourcePoolObservable<TResource, TCleanUpParameter>
    {
       private readonly AsyncResourcePoolObservable<TResource, TCleanUpParameter> _actual;
 

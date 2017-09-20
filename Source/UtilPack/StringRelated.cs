@@ -427,6 +427,33 @@ namespace UtilPack
                throw new InvalidOperationException( $"Could not create default encoding info for {encoding}." );
          }
       }
+
+      /// <summary>
+      /// Helper method to count how many times the given string appears in this string.
+      /// </summary>
+      /// <param name="str">This <see cref="String"/>.</param>
+      /// <param name="substring">The string to search. May be <c>null</c>, in which case result is <c>0</c>.</param>
+      /// <param name="comparison">The <see cref="StringComparison"/> to use.</param>
+      /// <returns>The amount of times <paramref name="substring"/> appears in this <see cref="String"/>.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="String"/> is <c>null</c>.</exception>
+      public static Int32 CountOccurrances( this String str, String substring, StringComparison comparison )
+      {
+         ArgumentValidator.ValidateNotNullReference( str );
+
+         var count = 0;
+
+         if ( !String.IsNullOrEmpty( substring ) )
+         {
+            var idx = 0;
+            while ( ( idx = str.IndexOf( substring, idx, comparison ) ) != -1 )
+            {
+               idx += substring.Length;
+               ++count;
+            }
+         }
+
+         return count;
+      }
    }
 
 }

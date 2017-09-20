@@ -163,7 +163,130 @@ namespace UtilPack
             }
          }
       }
+
+      /// <summary>
+      /// Helper method to create a callback which will repeat this item the given amount of times.
+      /// </summary>
+      /// <typeparam name="T">The type of this item.</typeparam>
+      /// <param name="item">This item.</param>
+      /// <param name="count">The amount of times to repeat this item.</param>
+      /// <returns>A callback which will return this item for the first <paramref name="count"/> invocations, and then will return <c>null</c> for all subsequent invocations.</returns>
+      /// <remarks>
+      /// The returned callback is safe to use concurrently.
+      /// </remarks>
+      public static Func<T> CreateRepeater<T>( this T item, Int64 count )
+         where T : class
+      {
+         return () =>
+         {
+            var returnItem = Interlocked.Read( ref count ) > 0 && Interlocked.Decrement( ref count ) >= 0;
+            return returnItem ? item : default;
+         };
+      }
+
+      /// <summary>
+      /// Helper method to create a callback which will delegate the call to given amount of times.
+      /// </summary>
+      /// <typeparam name="T">The type of the item to return.</typeparam>
+      /// <param name="generator">The callback to invoke. It will receive argument integer as <c>0</c>, <c>1</c>, ..., <c><paramref name="count"/> - 1</c>.</param>
+      /// <param name="count">The amount of times to invoke this callback.</param>
+      /// <returns>A callback which will return the result of this callback for the first <paramref name="count"/> invocations, and then will return <c>null</c> for all subsequent invocations.</returns>
+      /// <remarks>
+      /// The returned callback is safe to use concurrently.
+      /// </remarks>
+      public static Func<T> CreateDelegatingRepeater<T>( this Func<Int64, T> generator, Int64 count )
+         where T : class
+      {
+         var amount = count;
+         return () =>
+         {
+            T retVal = default;
+            Int64 decremented;
+            if ( Interlocked.Read( ref count ) > 0 && ( decremented = Interlocked.Decrement( ref count ) ) >= 0 )
+            {
+               retVal = generator( amount - decremented - 1 );
+            }
+
+            return retVal;
+         };
+      }
+
+      /// <summary>
+      /// Helper method to create a callback which will repeat this item the given amount of times.
+      /// </summary>
+      /// <typeparam name="T">The type of this item.</typeparam>
+      /// <param name="item">This item.</param>
+      /// <param name="count">The amount of times to repeat this item.</param>
+      /// <returns>A callback which will return this item and <c>true</c> as tuple for the first <paramref name="count"/> invocations, and then will return <c>default</c> and <c>false</c> as tuple for all subsequent invocations.</returns>
+      /// <remarks>
+      /// The returned callback is safe to use concurrently.
+      /// </remarks>
+      public static Func<(T, Boolean)> CreateRepeaterForStruct<T>( this T item, Int64 count )
+         where T : struct
+      {
+         return () =>
+         {
+            var returnItem = Interlocked.Read( ref count ) > 0 && Interlocked.Decrement( ref count ) >= 0;
+            return (returnItem ? item : default, returnItem);
+         };
+      }
+
+      /// <summary>
+      /// Helper method to create a callback which will delegate the call to given amount of times.
+      /// </summary>
+      /// <typeparam name="T">The type of the item to return.</typeparam>
+      /// <param name="generator">The callback to invoke. It will receive argument integer as <c>0</c>, <c>1</c>, ..., <c><paramref name="count"/> - 1</c>.</param>
+      /// <param name="count">The amount of times to invoke this callback.</param>
+      /// <returns>A callback which will return the result of this callback and <c>true</c> as tuple for the first <paramref name="count"/> invocations, and then will return <c>default</c> and <c>false</c> as tuple for all subsequent invocations.</returns>
+      /// <remarks>
+      /// The returned callback is safe to use concurrently.
+      /// </remarks>
+      public static Func<(T, Boolean)> CreateDelegatingRepeaterForStruct<T>( this Func<Int64, T> generator, Int64 count )
+         where T : struct
+      {
+         var amount = count;
+         return () =>
+         {
+            T retVal = default;
+            Int64 decremented = -1;
+            var useGenerator = Interlocked.Read( ref count ) > 0 && ( decremented = Interlocked.Decrement( ref count ) ) >= 0;
+            if ( useGenerator )
+            {
+               retVal = generator( amount - decremented - 1 );
+            }
+
+            return (retVal, useGenerator);
+         };
+      }
+
+
    }
+
+#if NET40
+   /// <summary>
+   /// This class contains missing async methods from <see cref="System.Net.Dns"/> class in .NET 4.0.
+   /// </summary>
+   public static class DnsEx
+   {
+      // Theraot does not have this (yet)
+
+      /// <summary>
+      /// Asynchronously invokes <see cref="System.Net.Dns.GetHostAddresses(string)"/>.
+      /// </summary>
+      /// <param name="hostName">The host name to resolve.</param>
+      /// <returns>Asynchronously returns resolved <see cref="System.Net.IPAddress"/> objects.</returns>
+      public static Task<System.Net.IPAddress[]> GetHostAddressesAsync( String hostName ) //, CancellationToken token )
+      {
+         return Task.Factory.FromAsync(
+           ( hName, cb, state ) => System.Net.Dns.BeginGetHostAddresses( hName, cb, state ),
+           ( result ) => System.Net.Dns.EndGetHostAddresses( result ),
+           hostName,
+           null
+           );
+      }
+
+   }
+#endif
 
    /// <summary>
    /// This class holds reference to <see cref="Func{T, TResult}"/> which directly returns the given argument, i.e. identity function.

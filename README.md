@@ -2,8 +2,8 @@
 Home of UtilPack - library with various useful and generic stuff for .NET Desktop and Core, and also for managing NuGet packages and assemblies.
 
 ## Projects
-There are currently 20 projects in UtilPack repository, with 1 being project for (currently small amount of) tests.
-Each of the remaining 19 projects is its own NuGet package, with the NuGet package ID being the project assembly name.
+There are currently 21 projects in UtilPack repository, with 1 being project for (currently small amount of) tests.
+Each of the remaining 20 projects is its own NuGet package, with the NuGet package ID being the project assembly name.
 The amount of projects to handle infrastructure and various assembly-loading aspects when working with NuGet packages is 8 (all of UtilPack.NuGet.* projects).
 The rest of the projects fall under the broad "miscellaneous" category.
 
@@ -56,6 +56,11 @@ This package contains API and implementation for pooling and using the pool of a
 This package contains abstract task type acting as a bridge between UtilPack.ResourcePooling project and custom MSBuild tasks.
 
 [Read More ->](./Source/UtilPack.ResourcePooling.MSBuild)
+
+### UtilPack.ResourcePooling.NetworkStream
+This package contains factory and configuration for async resource pools serving `System.IO.Stream` operating on `System.Net.Sockets.Socket`, with out-of-the-box configurable SSL functionality.
+
+[Read More ->](./Source/UtilPack.ResourcePooling.NetworkStream)
 
 ### UtilPack.TabularData
 This package contains API and skeleton implementation for data which is in tabular format, meaning it has rows and columns.

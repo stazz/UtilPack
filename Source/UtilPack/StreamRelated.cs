@@ -1193,19 +1193,43 @@ namespace UtilPack
       }
    }
 
-#if NET40
-   // Theraot.Core does not provide (yet?) extension methods for async write/read for streams
+#if NET40 || NET45
+
 
    public static partial class UtilPackExtensions
    {
+      /// <summary>
+      /// This method will asynchronously invoke <see cref="System.Net.Sockets.Socket.Connect(System.Net.EndPoint)"/>.
+      /// </summary>
+      /// <param name="socket">This <see cref="System.Net.Sockets.Socket"/>.</param>
+      /// <param name="remoteEndPoint">The <see cref="System.Net.EndPoint"/> to connect to.</param>
+      /// <returns>Asynchronously completing operation.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="System.Net.Sockets.Socket"/> is <c>null</c>.</exception>
+      public static Task ConnectAsync( this System.Net.Sockets.Socket socket, System.Net.EndPoint remoteEndPoint )
+      {
+         //token.ThrowIfCancellationRequested();
+         var connectArgs = (socket, remoteEndPoint);
+         return Task.Factory.FromAsync(
+           ( cArgs, cb, state ) => cArgs.Item1.BeginConnect( cArgs.Item2, cb, state ),
+           ( result ) => ( (System.Net.Sockets.Socket) result.AsyncState ).EndConnect( result ),
+           connectArgs,
+           socket
+           );
+      }
+
+
+#if NET40
+
+      // Theraot.Core does not provide (yet?) extension methods for async write/read for streams
+
       /// <todo />
       public static Task<Int32> ReadAsync( this Stream stream, Byte[] buffer, Int32 offset, Int32 count, CancellationToken token )
       {
          token.ThrowIfCancellationRequested();
          var readArgs = (stream, buffer, offset, count);
          return Task.Factory.FromAsync(
-           (rArgs, cb, state) => rArgs.Item1.BeginRead( rArgs.Item2, rArgs.Item3, rArgs.Item4, cb, state ),
-           (result) => ((Stream)result.AsyncState).EndRead( result ),
+           ( rArgs, cb, state ) => rArgs.Item1.BeginRead( rArgs.Item2, rArgs.Item3, rArgs.Item4, cb, state ),
+           ( result ) => ( (Stream) result.AsyncState ).EndRead( result ),
            readArgs,
            stream
            );
@@ -1217,20 +1241,42 @@ namespace UtilPack
          token.ThrowIfCancellationRequested();
          var writeArgs = (stream, buffer, offset, count);
          return Task.Factory.FromAsync(
-           (wArgs, cb, state) => wArgs.Item1.BeginWrite( wArgs.Item2, wArgs.Item3, wArgs.Item4, cb, state),
-           (result) => ((Stream)result.AsyncState).EndWrite( result ),
+           ( wArgs, cb, state ) => wArgs.Item1.BeginWrite( wArgs.Item2, wArgs.Item3, wArgs.Item4, cb, state ),
+           ( result ) => ( (Stream) result.AsyncState ).EndWrite( result ),
            writeArgs,
            stream
            );
       }
-      
+
       /// <todo />
       public static Task FlushAsync( this Stream stream, CancellationToken token )
       {
-         return TaskEx.Run(() => stream.Flush(), token);
+         return TaskEx.Run( () => stream.Flush(), token );
       }
-   }
+
+      /// <todo />
+      public static Task AuthenticateAsClientAsync(
+         this System.Net.Security.SslStream stream,
+         String targetHost,
+         System.Security.Cryptography.X509Certificates.X509CertificateCollection clientCertificates,
+         System.Security.Authentication.SslProtocols enabledSslProtocols,
+         Boolean checkCertificateRevocation
+         )
+      {
+         var authArgs = (stream, targetHost, clientCertificates, enabledSslProtocols, checkCertificateRevocation);
+         return Task.Factory.FromAsync(
+            ( aArgs, cb, state ) => aArgs.stream.BeginAuthenticateAsClient( aArgs.targetHost, aArgs.clientCertificates, aArgs.enabledSslProtocols, aArgs.checkCertificateRevocation, cb, state ),
+            result => ( (System.Net.Security.SslStream) result.AsyncState ).EndAuthenticateAsClient( result ),
+            authArgs,
+            stream
+            );
+      }
 #endif
+
+   }
+
+#endif
+
 }
 
 

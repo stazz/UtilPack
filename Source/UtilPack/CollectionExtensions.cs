@@ -490,6 +490,97 @@ namespace UtilPack
       }
 
       /// <summary>
+      /// Helper method to get non-zero lower bounds integers for this array.
+      /// </summary>
+      /// <param name="array">This <see cref="Array"/>.</param>
+      /// <returns>Will return <c>null</c> if all lower-bounds for this array are <c>0</c>, otherwise will return array of integers containing lower bounds of this array.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="Array"/> is <c>null</c>.</exception>
+      public static Int32[] GetLowerBounds( this Array array )
+      {
+         var rank = array.Rank;
+         Int32[] retVal = null;
+         for ( var i = 0; i < rank; ++i )
+         {
+            var lobo = array.GetLowerBound( i );
+            if ( lobo != 0 )
+            {
+               if ( retVal == null )
+               {
+                  retVal = new Int32[rank];
+               }
+               retVal[i] = lobo;
+            }
+         }
+
+         return retVal;
+      }
+
+      /// <summary>
+      /// Helper method to get all lengths of the dimensions of this array.
+      /// </summary>
+      /// <param name="array">This <see cref="Array"/>.</param>
+      /// <returns>An array of integers containing lengths of dimensions of this array.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="Array"/> is <c>null</c>.</exception>
+      public static Int32[] GetLengths( this Array array )
+      {
+         var rank = array.Rank;
+         var retVal = new Int32[rank];
+         for ( var i = 0; i < rank; ++i )
+         {
+            retVal[i] = array.GetLength( i );
+         }
+
+         return retVal;
+      }
+
+      /// <summary>
+      /// Helper method to check whether this array is not <c>null</c> and given array index is legal (0 ≤ <paramref name="index"/> &lt; array length).
+      /// </summary>
+      /// <param name="array">This <see cref="Array"/>. May be <c>null</c>.</param>
+      /// <param name="index">The array index.</param>
+      /// <returns><c>true</c> if this <see cref="Array"/> is not <c>null</c> and 0 ≤ <paramref name="index"/> &lt; array length; <c>false</c> otherwise.</returns>
+      /// <seealso cref="CheckArrayIndexOrThrow"/>
+      /// <seealso cref="CheckArrayIndexAndReturnOrThrow"/>
+      public static Boolean CheckArrayIndex( this Array array, Int32 index )
+      {
+         return array != null && index >= 0 && index < array.Length;
+      }
+
+      /// <summary>
+      /// Helper method to check whether this array is not <c>null</c> and given array index is legal (0 ≤ <paramref name="index"/> &lt; array length), and throw an exception if these conditions are not satisfied.
+      /// </summary>
+      /// <param name="array">This <see cref="Array"/>.</param>
+      /// <param name="index">The array index.</param>
+      /// <param name="indexParameterName">The name of the parameter passed as <paramref name="index"/>, if any.</param>
+      /// <exception cref="ArgumentException">If this <see cref="Array"/> is <c>null</c>, or <paramref name="index"/> is not 0 ≤ <paramref name="index"/> &lt; array length.</exception>
+      /// <seealso cref="CheckArrayIndex"/>
+      /// <seealso cref="CheckArrayIndexAndReturnOrThrow"/>
+      public static void CheckArrayIndexOrThrow( this Array array, Int32 index, String indexParameterName = null )
+      {
+         if ( !array.CheckArrayIndex( index ) )
+         {
+            throw new ArgumentException( String.IsNullOrEmpty( indexParameterName ) ? "array index" : indexParameterName );
+         }
+      }
+
+      /// <summary>
+      /// Helper method to check whether this array is not <c>null</c> and given array index is legal (0 ≤ <paramref name="index"/> &lt; array length), and throw an exception if these conditions are not satisfied, and otherwise return this array.
+      /// </summary>
+      /// <typeparam name="T">The type of array elements.</typeparam>
+      /// <param name="array">This <see cref="Array"/>.</param>
+      /// <param name="index">The array index.</param>
+      /// <param name="indexParameterName">The name of the parameter passed as <paramref name="index"/>, if any.</param>
+      /// <returns>This <see cref="Array"/>.</returns>
+      /// <exception cref="ArgumentException">If this <see cref="Array"/> is <c>null</c>, or <paramref name="index"/> is not 0 ≤ <paramref name="index"/> &lt; array length.</exception>
+      /// <seealso cref="CheckArrayIndex"/>
+      /// <seealso cref="CheckArrayIndexOrThrow"/>
+      public static T[] CheckArrayIndexAndReturnOrThrow<T>( this T[] array, Int32 index, String indexParameterName = null )
+      {
+         array.CheckArrayIndexOrThrow( index, indexParameterName );
+         return array;
+      }
+
+      /// <summary>
       /// Changes a single element into a enumerable containing only that element.
       /// </summary>
       /// <typeparam name="T">The type of the element.</typeparam>

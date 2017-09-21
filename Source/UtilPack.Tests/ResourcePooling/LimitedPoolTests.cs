@@ -33,8 +33,10 @@ namespace UtilPack.Tests.ResourcePooling
       public async Task TestCachingLimitedPool()
       {
          var random = new Random();
-         var factory = new AsyncTestResourceFactory();
-         var pool = factory.CreateLimitedResourcePool( () => random.Next( 100, 200 ), 10 );
+         var factory = new DefaultAsyncResourceFactory<TestResource, Func<Int32>>( p => new AsyncTestResourceFactory( p ) )
+            .BindCreationParameters( () => random.Next( 100, 200 ) );
+
+         var pool = factory.CreateLimitedResourcePool( 10 );
          await Task.WhenAll( Enumerable
             .Repeat( 0, 20 )
             .Select( unused => pool.UseResourceAsync( async resource =>
@@ -49,13 +51,20 @@ namespace UtilPack.Tests.ResourcePooling
       }
    }
 
-   public class AsyncTestResourceFactory : AsyncResourceFactory<TestResource, Func<Int32>>
+   public class AsyncTestResourceFactory : AsyncResourceFactory<TestResource>
    {
       private Int32 _id;
 
-      public async ValueTask<AsyncResourceAcquireInfo<TestResource>> AcquireResourceAsync( Func<Int32> parameters, CancellationToken token )
+      private readonly Func<Int32> _config;
+
+      public AsyncTestResourceFactory( Func<Int32> config )
       {
-         await Task.Delay( parameters(), token );
+         this._config = ArgumentValidator.ValidateNotNull( nameof( config ), config );
+      }
+
+      public async ValueTask<AsyncResourceAcquireInfo<TestResource>> AcquireResourceAsync( CancellationToken token )
+      {
+         await Task.Delay( this._config(), token );
 
          return new TestResourceAcquireInfo( new TestResource( Interlocked.Increment( ref this._id ) ) );
       }

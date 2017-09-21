@@ -30,31 +30,28 @@ namespace UtilPack.ResourcePooling
    /// </summary>
    /// <typeparam name="TResource">The type of resource.</typeparam>
    /// <typeparam name="TResourceInstance">The type of instance holding the resource.</typeparam>
-   /// <typeparam name="TResourceCreationParams">The type of parameters used to create a new instance of <typeparamref name="TResourceInstance"/>.</typeparam>
    /// <remarks>
-   /// While this class is useful in simple scenarios, e.g. testing, the actual production environments most likely will want to use <see cref="CachingAsyncResourcePoolWithTimeout{TResource, TResourceCreationParams}"/> which is inherited from this class.
+   /// While this class is useful in simple scenarios, e.g. testing, the actual production environments most likely will want to use <see cref="CachingAsyncResourcePoolWithTimeout{TResource}"/> which is inherited from this class.
    /// </remarks>
-   /// <seealso cref="CachingAsyncResourcePoolWithTimeout{TResource, TResourceCreationParams}"/>
-   /// <seealso cref="CachingAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}"/>
-   internal class OneTimeUseAsyncResourcePool<TResource, TResourceInstance, TResourceCreationParams> : ExplicitAsyncResourcePoolObservable<TResource>
+   /// <seealso cref="CachingAsyncResourcePoolWithTimeout{TResource}"/>
+   /// <seealso cref="CachingAsyncResourcePool{TResource, TResourceInstance}"/>
+   internal class OneTimeUseAsyncResourcePool<TResource, TResourceInstance> : ExplicitAsyncResourcePoolObservable<TResource>
    {
 
       /// <summary>
-      /// Creates a new instance of <see cref="OneTimeUseAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}"/>
+      /// Creates a new instance of <see cref="OneTimeUseAsyncResourcePool{TResource, TResourceInstance}"/>
       /// </summary>
       /// <param name="factory">The <see cref="AsyncResourceFactory{TResource, TParams}"/> to use for creation of new resources.</param>
-      /// <param name="factoryParameters">The parameters to passe to <see cref="AsyncResourceFactory{TResource, TParams}"/> when creating new instances of resources.</param>
       /// <param name="resourceExtractor">The callback to extract <see cref="AsyncResourceAcquireInfo{TResource}"/> from instances of <typeparamref name="TResourceInstance"/>.</param>
       /// <param name="instanceCreator">The callback to create a new instance of <typeparamref name="TResourceInstance"/> from existing <see cref="AsyncResourceAcquireInfo{TResource}"/>.</param>
       /// <exception cref="ArgumentNullException">If any of <paramref name="factory"/>, <paramref name="resourceExtractor"/>, or <paramref name="instanceCreator"/> is <c>null</c>.</exception>
       public OneTimeUseAsyncResourcePool(
-         AsyncResourceFactory<TResource, TResourceCreationParams> factory,
-         TResourceCreationParams factoryParameters,
+         AsyncResourceFactory<TResource> factory,
          Func<TResourceInstance, AsyncResourceAcquireInfo<TResource>> resourceExtractor,
          Func<AsyncResourceAcquireInfo<TResource>, TResourceInstance> instanceCreator
       )
       {
-         this.FactoryParameters = factoryParameters;
+         //this.FactoryParameters = factoryParameters;
          this.Factory = ArgumentValidator.ValidateNotNull( nameof( factory ), factory );
          this.ResourceExtractor = ArgumentValidator.ValidateNotNull( nameof( resourceExtractor ), resourceExtractor );
          this.InstanceCreator = ArgumentValidator.ValidateNotNull( nameof( instanceCreator ), instanceCreator );
@@ -64,13 +61,7 @@ namespace UtilPack.ResourcePooling
       /// Gets the <see cref="AsyncResourceFactory{TResource, TParams}"/> used to create new instances of resources.
       /// </summary>
       /// <value>The <see cref="AsyncResourceFactory{TResource, TParams}"/> used to create new instances of resources.</value>
-      protected AsyncResourceFactory<TResource, TResourceCreationParams> Factory { get; }
-
-      /// <summary>
-      /// Gets the parameters passed to <see cref="AsyncResourceFactory{TResource, TParams}.AcquireResourceAsync(TParams, CancellationToken)"/> to create new instances of resources.
-      /// </summary>
-      /// <value>The parameters passed to <see cref="AsyncResourceFactory{TResource, TParams}.AcquireResourceAsync(TParams, CancellationToken)"/> to create new instances of resources.</value>
-      protected TResourceCreationParams FactoryParameters { get; }
+      protected AsyncResourceFactory<TResource> Factory { get; }
 
       /// <summary>
       /// Gets the callback to extract <see cref="AsyncResourceAcquireInfo{TResource}"/> from instances of <typeparamref name="TResourceInstance"/>.
@@ -182,13 +173,13 @@ namespace UtilPack.ResourcePooling
 
       /// <summary>
       /// This method is called by <see cref="UseResourceAsync(Func{TResource, Task}, CancellationToken)"/> before invoking the given asynchronous callback.
-      /// The implementation in this class always uses <see cref="AsyncResourceFactory{TResource, TParams}.AcquireResourceAsync(TParams, CancellationToken)"/> method of this <see cref="Factory"/>, but derived classes may override this method to cache previously used resources into a pool.
+      /// The implementation in this class always uses <see cref="AsyncResourceFactory{TResource}.AcquireResourceAsync"/> method of this <see cref="Factory"/>, but derived classes may override this method to cache previously used resources into a pool.
       /// </summary>
       /// <param name="token">The <see cref="CancellationToken"/> to use.</param>
       /// <returns>A task which will have instance of <typeparamref name="TResourceInstance"/> upon completion.</returns>
       protected virtual async ValueTask<TResourceInstance> AcquireResourceAsync( CancellationToken token )
       {
-         var connAcquireInfo = await this.Factory.AcquireResourceAsync( this.FactoryParameters, token );
+         var connAcquireInfo = await this.Factory.AcquireResourceAsync( token );
          var creationEvent = this.AfterResourceCreationEvent;
          var acquireEvent = this.AfterResourceAcquiringEvent;
          if ( creationEvent != null || acquireEvent != null )
@@ -262,7 +253,7 @@ namespace UtilPack.ResourcePooling
    }
 
    /// <summary>
-   /// This enumeration controls how <see cref="OneTimeUseAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}.PerformDisposeResourceAsync(TResourceInstance, CancellationToken, ResourceDisposeKind)"/> method will behave.
+   /// This enumeration controls how <see cref="OneTimeUseAsyncResourcePool{TResource, TResourceInstance}.PerformDisposeResourceAsync(TResourceInstance, CancellationToken, ResourceDisposeKind)"/> method will behave.
    /// </summary>
    public enum ResourceDisposeKind
    {
@@ -287,19 +278,18 @@ namespace UtilPack.ResourcePooling
    }
 
    /// <summary>
-   /// This class extends <see cref="OneTimeUseAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}"/> and implements rudimentary pooling for resource instances.
+   /// This class extends <see cref="OneTimeUseAsyncResourcePool{TResource, TResourceInstance}"/> and implements rudimentary pooling for resource instances.
    /// The pool is never cleared by this class though, since this class does not define any logic for how to perform clean-up operation for the pool.
-   /// The <see cref="CachingAsyncResourcePoolWithTimeout{TResource, TResourceCreationParams}"/> extends this class and defines exactly that.
+   /// The <see cref="CachingAsyncResourcePoolWithTimeout{TResource}"/> extends this class and defines exactly that.
    /// </summary>
    /// <typeparam name="TResource">The type of resource.</typeparam>
    /// <typeparam name="TCachedResource">The type of instance holding the resource. This will be the type for <see cref="LocklessInstancePoolForClassesNoHeapAllocations{TInstance}"/> object used to pool resource instances.</typeparam>
-   /// <typeparam name="TResourceCreationParams">The type of parameters used to create a new instance of <typeparamref name="TCachedResource"/>.</typeparam>
    /// <remarks>
    /// This class is not very useful by itself - instead it provides some common implementation for pooling resource instances.
-   /// End-users will find <see cref="CachingAsyncResourcePoolWithTimeout{TResource, TResourceCreationParams}"/> much more useful.
+   /// End-users will find <see cref="CachingAsyncResourcePoolWithTimeout{TResource}"/> much more useful.
    /// </remarks>
-   /// <seealso cref="CachingAsyncResourcePoolWithTimeout{TResource, TResourceCreationParams}"/>
-   internal class CachingAsyncResourcePool<TResource, TCachedResource, TResourceCreationParams> : OneTimeUseAsyncResourcePool<TResource, TCachedResource, TResourceCreationParams>, IAsyncDisposable, IDisposable
+   /// <seealso cref="CachingAsyncResourcePoolWithTimeout{TResource}"/>
+   internal class CachingAsyncResourcePool<TResource, TCachedResource> : OneTimeUseAsyncResourcePool<TResource, TCachedResource>, IAsyncDisposable, IDisposable
       where TCachedResource : class, InstanceWithNextInfo<TCachedResource>
    {
       private const Int32 NOT_DISPOSED = 0;
@@ -319,13 +309,12 @@ namespace UtilPack.ResourcePooling
       ///// <param name="instanceCreator">The callback to create a new instance of <typeparamref name="TCachedResource"/> from existing <see cref="AsyncResourceAcquireInfo{TResource}"/>.</param>
       ///// <exception cref="ArgumentNullException">If any of <paramref name="factory"/>, <paramref name="resourceExtractor"/>, or <paramref name="instanceCreator"/> is <c>null</c>.</exception>
       public CachingAsyncResourcePool(
-         AsyncResourceFactory<TResource, TResourceCreationParams> factory,
-         TResourceCreationParams factoryParameters,
+         AsyncResourceFactory<TResource> factory,
          Func<TCachedResource, AsyncResourceAcquireInfo<TResource>> resourceExtractor,
          Func<AsyncResourceAcquireInfo<TResource>, TCachedResource> instanceCreator,
          TakeFromInstancePoolDelegate<TCachedResource> takeFromPool,
          ReturnToInstancePoolDelegate<TCachedResource> returnToPool
-         ) : base( factory, factoryParameters, resourceExtractor, instanceCreator )
+         ) : base( factory, resourceExtractor, instanceCreator )
       {
          this.Pool = new LocklessInstancePoolForClassesNoHeapAllocations<TCachedResource>();
          this._takeFromPool = takeFromPool ?? ( ( p, t ) => new ValueTask<TCachedResource>( p.TakeInstance() ) );
@@ -333,9 +322,9 @@ namespace UtilPack.ResourcePooling
       }
 
       /// <summary>
-      /// Gets the actual instance-caching pool used by this <see cref="CachingAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}"/>.
+      /// Gets the actual instance-caching pool used by this <see cref="CachingAsyncResourcePool{TResource, TResourceInstance}"/>.
       /// </summary>
-      /// <value>The actual instance-caching pool used by this <see cref="CachingAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}"/>.</value>
+      /// <value>The actual instance-caching pool used by this <see cref="CachingAsyncResourcePool{TResource, TResourceInstance}"/>.</value>
       /// <seealso cref="LocklessInstancePoolForClassesNoHeapAllocations{TInstance}"/>
       protected LocklessInstancePoolForClassesNoHeapAllocations<TCachedResource> Pool { get; }
 
@@ -387,13 +376,13 @@ namespace UtilPack.ResourcePooling
       }
 
       /// <summary>
-      /// This property checks whether this <see cref="CachingAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}"/> is disposed, or being in process of disposing.
+      /// This property checks whether this <see cref="CachingAsyncResourcePool{TResource, TResourceInstance}"/> is disposed, or being in process of disposing.
       /// </summary>
-      /// <value><c>true</c> if this <see cref="CachingAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}"/> is disposed, or being in process of disposing; <c>false</c> otherwise.</value>
+      /// <value><c>true</c> if this <see cref="CachingAsyncResourcePool{TResource, TResourceInstance}"/> is disposed, or being in process of disposing; <c>false</c> otherwise.</value>
       public Boolean Disposed => this._disposed != NOT_DISPOSED;
 
       /// <summary>
-      /// This method overrides <see cref="OneTimeUseAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}.AcquireResourceAsync(CancellationToken)"/> to implement logic where instead of always using <see cref="AsyncResourceFactory{TResource, TParams}"/>, the existing resource instance may be acquired from this <see cref="Pool"/>.
+      /// This method overrides <see cref="OneTimeUseAsyncResourcePool{TResource, TResourceInstance}.AcquireResourceAsync(CancellationToken)"/> to implement logic where instead of always using <see cref="AsyncResourceFactory{TResource, TParams}"/>, the existing resource instance may be acquired from this <see cref="Pool"/>.
       /// </summary>
       /// <param name="token">The <see cref="CancellationToken"/> to use when acquiring new resource from <see cref="AsyncResourceFactory{TResource, TParams}"/>.</param>
       /// <returns>A task which completes when the resource has been acquired.</returns>
@@ -427,7 +416,7 @@ namespace UtilPack.ResourcePooling
       }
 
       /// <summary>
-      /// This method overrides <see cref="OneTimeUseAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}.DisposeResourceAsync(TResourceInstance, CancellationToken)"/> in order to return the resource to this <see cref="Pool"/>, if it is returnable back to the pool as specified by <see cref="AbstractResourceAcquireInfo.IsResourceReturnableToPool"/>.
+      /// This method overrides <see cref="OneTimeUseAsyncResourcePool{TResource, TResourceInstance}.DisposeResourceAsync(TResourceInstance, CancellationToken)"/> in order to return the resource to this <see cref="Pool"/>, if it is returnable back to the pool as specified by <see cref="AbstractResourceAcquireInfo.IsResourceReturnableToPool"/>.
       /// </summary>
       /// <param name="instance">The resource instance to dispose or to return to the <see cref="Pool"/>.</param>
       /// <param name="token">The <see cref="CancellationToken"/> to use when disposing asynchronously.</param>
@@ -455,11 +444,10 @@ namespace UtilPack.ResourcePooling
    }
 
    /// <summary>
-   /// This class extends <see cref="CachingAsyncResourcePool{TResource, TCachedResource, TResourceCreationParams}"/> to add information when the resource was returned to the pool, in order to be able to clean it up later using <see cref="CleanUpAsync(TimeSpan, CancellationToken)"/> method.
+   /// This class extends <see cref="CachingAsyncResourcePool{TResource, TCachedResource}"/> to add information when the resource was returned to the pool, in order to be able to clean it up later using <see cref="CleanUpAsync(TimeSpan, CancellationToken)"/> method.
    /// </summary>
    /// <typeparam name="TResource">The type of resource exposed to public.</typeparam>
-   /// <typeparam name="TResourceCreationParams">The type of parameters used to create a new instance of <see cref="InstanceHolderWithTimestamp{TResource}"/>.</typeparam>
-   internal class CachingAsyncResourcePoolWithTimeout<TResource, TResourceCreationParams> : CachingAsyncResourcePool<TResource, InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>>, TResourceCreationParams>, ExplicitAsyncResourcePoolObservable<TResource, TimeSpan>
+   internal class CachingAsyncResourcePoolWithTimeout<TResource> : CachingAsyncResourcePool<TResource, InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>>>, ExplicitAsyncResourcePoolObservable<TResource, TimeSpan>
    {
       ///// <summary>
       ///// Creates a new instance of <see cref="CachingAsyncResourcePoolWithTimeout{TResource, TResourceCreationParams}"/> with given parameters.
@@ -468,21 +456,20 @@ namespace UtilPack.ResourcePooling
       ///// <param name="factoryParameters">The parameters to pass when using <see cref="AsyncResourceFactory{TResource, TParams}.AcquireResourceAsync(TParams, CancellationToken)"/> of <paramref name="factory"/>.</param>
       ///// <exception cref="ArgumentNullException">If <paramref name="factory"/> is <c>null</c>.</exception>
       public CachingAsyncResourcePoolWithTimeout(
-         AsyncResourceFactory<TResource, TResourceCreationParams> factory,
-         TResourceCreationParams factoryParameters,
+         AsyncResourceFactory<TResource> factory,
          TakeFromInstancePoolDelegate<InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>>> takeFromPool,
          ReturnToInstancePoolDelegate<InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>>> returnToPool
          )
-         : base( factory, factoryParameters, instance => instance.Instance, resource => new InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>>( resource ), takeFromPool, returnToPool )
+         : base( factory, /*factoryParameters,*/ instance => instance.Instance, resource => new InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>>( resource ), takeFromPool, returnToPool )
       {
       }
 
       /// <summary>
-      /// This method overrides <see cref="CachingAsyncResourcePool{TResource, TCachedResource, TResourceCreationParams}.DisposeResourceAsync(TCachedResource, CancellationToken)"/> to register return time of the resource.
+      /// This method overrides <see cref="CachingAsyncResourcePool{TResource, TCachedResource}.DisposeResourceAsync(TCachedResource, CancellationToken)"/> to register return time of the resource.
       /// </summary>
-      /// <param name="instance">The resource instance to dispose or to return to the <see cref="CachingAsyncResourcePool{TResource, TCachedResource, TResourceCreationParams}.Pool"/>.</param>
+      /// <param name="instance">The resource instance to dispose or to return to the <see cref="CachingAsyncResourcePool{TResource, TCachedResource}.Pool"/>.</param>
       /// <param name="token">The <see cref="CancellationToken"/> to use when disposing asynchronously.</param>
-      /// <returns>A task which completes once all events have been invoked and resource either disposed of or returned to this <see cref="CachingAsyncResourcePool{TResource, TCachedResource, TResourceCreationParams}.Pool"/>.</returns>
+      /// <returns>A task which completes once all events have been invoked and resource either disposed of or returned to this <see cref="CachingAsyncResourcePool{TResource, TCachedResource}.Pool"/>.</returns>
       protected override async Task DisposeResourceAsync( InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>> instance, CancellationToken token )
       {
          instance.JustBeforePuttingBackToPool();
@@ -491,12 +478,12 @@ namespace UtilPack.ResourcePooling
 
       /// <summary>
       /// This method implements <see cref="AsyncResourcePoolCleanUp{TCleanUpParameter}.CleanUpAsync(TCleanUpParameter, CancellationToken)"/> with <see cref="TimeSpan"/> as clean-up parameter.
-      /// The <paramref name="maxResourceIdleTime"/> will serve as limit: this method will dispose all resource instances which have been idle in the <see cref="CachingAsyncResourcePool{TResource, TCachedResource, TResourceCreationParams}.Pool"/> for longer than the limit.
-      /// During this method execution, this <see cref="CachingAsyncResourcePoolWithTimeout{TResource, TResourceCreationParams}"/> will continue to be usable as normally.
+      /// The <paramref name="maxResourceIdleTime"/> will serve as limit: this method will dispose all resource instances which have been idle in the <see cref="CachingAsyncResourcePool{TResource, TCachedResource}.Pool"/> for longer than the limit.
+      /// During this method execution, this <see cref="CachingAsyncResourcePoolWithTimeout{TResource}"/> will continue to be usable as normally.
       /// </summary>
-      /// <param name="maxResourceIdleTime">The maximum idle time for resource in the <see cref="CachingAsyncResourcePool{TResource, TCachedResource, TResourceCreationParams}.Pool"/> for it to be returned back to the pool. If idle time is longer than (operator <c>&gt;</c>) this parameter, then the resource will be disposed.</param>
+      /// <param name="maxResourceIdleTime">The maximum idle time for resource in the <see cref="CachingAsyncResourcePool{TResource, TCachedResource}.Pool"/> for it to be returned back to the pool. If idle time is longer than (operator <c>&gt;</c>) this parameter, then the resource will be disposed.</param>
       /// <param name="token">The <see cref="CancellationToken"/> to use when disposing.</param>
-      /// <returns>A task which will be complete when all of the resource instances of <see cref="CachingAsyncResourcePool{TResource, TCachedResource, TResourceCreationParams}.Pool"/> have been checked and resource eligible for clean-up will be disposed of.</returns>
+      /// <returns>A task which will be complete when all of the resource instances of <see cref="CachingAsyncResourcePool{TResource, TCachedResource}.Pool"/> have been checked and resource eligible for clean-up will be disposed of.</returns>
       public async Task CleanUpAsync( TimeSpan maxResourceIdleTime, CancellationToken token )
       {
          InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>> instance;
@@ -524,7 +511,7 @@ namespace UtilPack.ResourcePooling
    }
 
    /// <summary>
-   /// This class is used by <see cref="CachingAsyncResourcePoolWithTimeout{TResource, TResourceCreationParams}"/> to capture the time when resource instance was returned to the <see cref="CachingAsyncResourcePool{TResource, TCachedResource, TResourceCreationParams}.Pool"/>.
+   /// This class is used by <see cref="CachingAsyncResourcePoolWithTimeout{TResource}"/> to capture the time when resource instance was returned to the <see cref="CachingAsyncResourcePool{TResource, TCachedResource}.Pool"/>.
    /// </summary>
    /// <typeparam name="TResource">The type of resource.</typeparam>
    public sealed class InstanceHolderWithTimestamp<TResource> : InstanceWithNextInfo<InstanceHolderWithTimestamp<TResource>>

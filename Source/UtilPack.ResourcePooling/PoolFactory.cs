@@ -107,7 +107,7 @@ namespace UtilPack.ResourcePooling
          {
             try
             {
-               pool.ReturnInstance( instance );
+               pool?.ReturnInstance( instance );
             }
             finally
             {

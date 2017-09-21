@@ -48,7 +48,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Added ExplicitResourcePool which allows to take and return resources manually. Added factory extension methods for various pools. Added ability for caching pools to have maximum limit for amount of concurrently-in-use resources.</PackageReleaseNotes>
+    <PackageReleaseNotes>Fixing a typo which caused caching pools always to think they are disposed.</PackageReleaseNotes>
     <PackageTags>utility async resource pool</PackageTags>
     <Title>Resource Pooling Support</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

@@ -329,7 +329,7 @@ namespace UtilPack.ResourcePooling
       {
          this.Pool = new LocklessInstancePoolForClassesNoHeapAllocations<TCachedResource>();
          this._takeFromPool = takeFromPool ?? ( ( p, t ) => new ValueTask<TCachedResource>( p.TakeInstance() ) );
-         this._returnToPool = returnToPool ?? ( ( p, t, i ) => { p.ReturnInstance( i ); return new ValueTask<Boolean>( true ); } );
+         this._returnToPool = returnToPool ?? ( ( p, t, i ) => { p?.ReturnInstance( i ); return new ValueTask<Boolean>( p != null && i != null ); } );
       }
 
       /// <summary>
@@ -390,7 +390,7 @@ namespace UtilPack.ResourcePooling
       /// This property checks whether this <see cref="CachingAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}"/> is disposed, or being in process of disposing.
       /// </summary>
       /// <value><c>true</c> if this <see cref="CachingAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}"/> is disposed, or being in process of disposing; <c>false</c> otherwise.</value>
-      public Boolean Disposed => this._disposed == NOT_DISPOSED;
+      public Boolean Disposed => this._disposed != NOT_DISPOSED;
 
       /// <summary>
       /// This method overrides <see cref="OneTimeUseAsyncResourcePool{TResource, TResourceInstance, TResourceCreationParams}.AcquireResourceAsync(CancellationToken)"/> to implement logic where instead of always using <see cref="AsyncResourceFactory{TResource, TParams}"/>, the existing resource instance may be acquired from this <see cref="Pool"/>.
@@ -448,6 +448,7 @@ namespace UtilPack.ResourcePooling
          }
          else
          {
+            await this._returnToPool( null, token, instance );
             await info.DisposeAsyncSafely( token );
          }
       }

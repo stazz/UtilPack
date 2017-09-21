@@ -478,8 +478,8 @@ public static partial class E_UtilPack
       AddToExceptionList( ref exceptions, task.Exception );
 
       if (
-         moveNextSuccess == MOVE_NEXT_ENDED // The synchronous loop ended before we arrived here
-         && Interlocked.Decrement( ref tasksStarted ) == 0 // This is the last async invocation
+         Interlocked.Decrement( ref tasksStarted ) == 0 // This is the last async invocation
+         && moveNextSuccess == MOVE_NEXT_ENDED // The synchronous loop ended before we arrived here
          )
       {
          Exception endException = null;

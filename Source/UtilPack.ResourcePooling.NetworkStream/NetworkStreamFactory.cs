@@ -34,8 +34,28 @@ namespace UtilPack.ResourcePooling.NetworkStream
    /// This is abstract base class for <see cref="NetworkStreamFactory"/> and <see cref="NetworkStreamFactory{TState}"/>.
    /// </summary>
    /// <typeparam name="TConfiguration">The type of configuration. Typically <see cref="NetworkStreamFactoryConfiguration"/> or <see cref="NetworkStreamFactoryConfiguration{TState}"/>.</typeparam>
-   public abstract class AbstractNetworkStreamFactory<TConfiguration> : AsyncResourceFactory<Stream, TConfiguration>
+   public abstract class AbstractNetworkStreamFactory<TConfiguration> : DefaultAsyncResourceFactory<Stream, TConfiguration>
    {
+      /// <summary>
+      /// Initializes a new instance of <see cref="AbstractNetworkStreamFactory{TConfiguration}"/> with given callback to create <see cref="Socket"/> and <see cref="Stream"/> from given configuration.
+      /// </summary>
+      /// <param name="factory">The callback to create <see cref="Socket"/> and <see cref="Stream"/> from given configuration.</param>
+      /// <exception cref="ArgumentNullException">If <paramref name="factory"/> is <c>null</c>.</exception>
+      public AbstractNetworkStreamFactory(
+         Func<TConfiguration, CancellationToken, ValueTask<(Socket, Stream)>> factory
+         ) : base( CreateCallback( factory ) )
+      {
+
+      }
+
+      private static Func<TConfiguration, AsyncResourceFactory<Stream>> CreateCallback(
+         Func<TConfiguration, CancellationToken, ValueTask<(Socket, Stream)>> factory
+         )
+      {
+         ArgumentValidator.ValidateNotNull( nameof( factory ), factory );
+         return config => new StatelessBoundAsyncResourceFactory<Stream, TConfiguration>( config, async ( config2, token ) => new StreamAcquireInfo( await factory( config2, token ) ) );
+      }
+
       private sealed class StreamAcquireInfo : AsyncResourceAcquireInfoImpl<Stream, Socket>
       {
          public StreamAcquireInfo(
@@ -62,35 +82,6 @@ namespace UtilPack.ResourcePooling.NetworkStream
             return this.Channel.Connected;
          }
       }
-
-      /// <summary>
-      /// Implements <see cref="AsyncResourceFactory{TResource, TParams}.AcquireResourceAsync"/> by calling <see cref="AcquireStreamAndSocket(TConfiguration, CancellationToken)"/> and returning <see cref="AsyncResourceAcquireInfo{TResource}"/> capturing the result.
-      /// </summary>
-      /// <param name="parameters">The creation parameters.</param>
-      /// <param name="token">The cancellation token.</param>
-      /// <returns>A new <see cref="AsyncResourceAcquireInfo{TResource}"/> capturing result of <see cref="AcquireStreamAndSocket(TConfiguration, CancellationToken)"/>.</returns>
-      /// <seealso cref="AcquireStreamAndSocket(TConfiguration, CancellationToken)"/>
-      public async ValueTask<AsyncResourceAcquireInfo<Stream>> AcquireResourceAsync( TConfiguration parameters, CancellationToken token )
-      {
-         return new StreamAcquireInfo( await this.AcquireStreamAndSocket( parameters, token ) );
-
-      }
-
-      /// <summary>
-      /// Implements <see cref="ResourceFactoryInformation.ResetFactoryState"/>, currently does nothing since there is nothing to reset.
-      /// </summary>
-      public void ResetFactoryState()
-      {
-         // Nothing to do
-      }
-
-      /// <summary>
-      /// Derived classes should implement this method to perform actual logic of connecting to remote endpoint and return <see cref="Socket"/> and <see cref="Stream"/> operating on that socket.
-      /// </summary>
-      /// <param name="parameters">The parameters holding all necessary information to connect and initialize the connection.</param>
-      /// <param name="token">The cancellation token.</param>
-      /// <returns>Potentially asynchronously returns <see cref="Socket"/> and <see cref="Stream"/> operating on the socket.</returns>
-      protected abstract ValueTask<(Socket, Stream)> AcquireStreamAndSocket( TConfiguration parameters, CancellationToken token );
    }
 
    /// <summary>
@@ -100,16 +91,32 @@ namespace UtilPack.ResourcePooling.NetworkStream
    public class NetworkStreamFactory : AbstractNetworkStreamFactory<NetworkStreamFactoryConfiguration>
    {
       /// <summary>
-      /// Implements <see cref="AbstractNetworkStreamFactory{TConfiguration}.AcquireStreamAndSocket"/> by connecting to remote endpoint using only information in <see cref="NetworkStreamFactoryConfiguration"/>.
+      /// Creates a new instance of <see cref="NetworkStreamFactory"/>.
       /// </summary>
-      /// <param name="parameters">The <see cref="NetworkStreamFactoryConfiguration"/> to use.</param>
-      /// <param name="token">The cancellation token to use.</param>
-      /// <returns>Acquired socket and stream.</returns>
-      /// <seealso cref="NetworkStreamFactoryConfiguration"/>
-      protected override async ValueTask<(Socket, Stream)> AcquireStreamAndSocket( NetworkStreamFactoryConfiguration parameters, CancellationToken token )
+      public NetworkStreamFactory()
+         : base( async ( config, token ) =>
+          {
+             var tuple = await NetworkStreamFactory<Object>.AcquireNetworkStreamFromConfiguration(
+                config.AsStateful<Object>(),
+                token
+                );
+             return (tuple.Item1, tuple.Item2);
+          } )
       {
-         return await AcquireNetworkStreamFromConfiguration( parameters, token );
+
       }
+
+      ///// <summary>
+      ///// Implements <see cref="AbstractNetworkStreamFactory{TConfiguration}.AcquireStreamAndSocket"/> by connecting to remote endpoint using only information in <see cref="NetworkStreamFactoryConfiguration"/>.
+      ///// </summary>
+      ///// <param name="parameters">The <see cref="NetworkStreamFactoryConfiguration"/> to use.</param>
+      ///// <param name="token">The cancellation token to use.</param>
+      ///// <returns>Acquired socket and stream.</returns>
+      ///// <seealso cref="NetworkStreamFactoryConfiguration"/>
+      //protected override async ValueTask<(Socket, Stream)> AcquireStreamAndSocket( NetworkStreamFactoryConfiguration parameters, CancellationToken token )
+      //{
+      //   return await AcquireNetworkStreamFromConfiguration( parameters, token );
+      //}
 
       /// <summary>
       /// Acquires the <see cref="Socket"/>, <see cref="Stream"/> when given <see cref="NetworkStreamFactoryConfiguration"/> and <see cref="CancellationToken"/>.
@@ -142,18 +149,31 @@ namespace UtilPack.ResourcePooling.NetworkStream
    public class NetworkStreamFactory<TState> : AbstractNetworkStreamFactory<NetworkStreamFactoryConfiguration<TState>>
    {
       /// <summary>
-      /// Implements <see cref="AbstractNetworkStreamFactory{TConfiguration}.AcquireStreamAndSocket"/> by connecting to remote endpoing using only information in <see cref="NetworkStreamFactoryConfiguration{TState}"/>.
+      /// Creates a new instance of <see cref="NetworkStreamFactory{TState}"/>.
       /// </summary>
-      /// <param name="parameters">The <see cref="NetworkStreamFactoryConfiguration{TState}"/> to use.</param>
-      /// <param name="token">The cancellation token to use.</param>
-      /// <returns>Acquired socket and stream.</returns>
-      /// <seealso cref="NetworkStreamFactoryConfiguration{TState}"/>
-      /// <seealso cref="AcquireNetworkStreamFromConfiguration"/>
-      protected override async ValueTask<(Socket, Stream)> AcquireStreamAndSocket( NetworkStreamFactoryConfiguration<TState> parameters, CancellationToken token )
+      public NetworkStreamFactory()
+         : base( async ( config, token ) =>
+          {
+             var tuple = await AcquireNetworkStreamFromConfiguration( config, token );
+             return (tuple.Item1, tuple.Item2);
+          } )
       {
-         var tuple = await AcquireNetworkStreamFromConfiguration( parameters, token );
-         return (tuple.Item1, tuple.Item2);
+
       }
+
+      ///// <summary>
+      ///// Implements <see cref="AbstractNetworkStreamFactory{TConfiguration}.AcquireStreamAndSocket"/> by connecting to remote endpoing using only information in <see cref="NetworkStreamFactoryConfiguration{TState}"/>.
+      ///// </summary>
+      ///// <param name="parameters">The <see cref="NetworkStreamFactoryConfiguration{TState}"/> to use.</param>
+      ///// <param name="token">The cancellation token to use.</param>
+      ///// <returns>Acquired socket and stream.</returns>
+      ///// <seealso cref="NetworkStreamFactoryConfiguration{TState}"/>
+      ///// <seealso cref="AcquireNetworkStreamFromConfiguration"/>
+      //protected override async ValueTask<(Socket, Stream)> AcquireStreamAndSocket( NetworkStreamFactoryConfiguration<TState> parameters, CancellationToken token )
+      //{
+      //   var tuple = await AcquireNetworkStreamFromConfiguration( parameters, token );
+      //   return (tuple.Item1, tuple.Item2);
+      //}
 
       /// <summary>
       /// Acquires the <see cref="Socket"/>, <see cref="Stream"/> and <typeparamref name="TState"/> given <see cref="NetworkStreamFactoryConfiguration{TState}"/> and <see cref="CancellationToken"/>.
@@ -505,7 +525,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// </summary>
       /// <value>The callback to get <see cref="NetworkStream.ConnectionSSLMode"/>.</value>
       /// <remarks>
-      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}.AcquireStreamAndSocket"/> will default to <see cref="NetworkStream.ConnectionSSLMode.NotRequired"/>.
+      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will default to <see cref="NetworkStream.ConnectionSSLMode.NotRequired"/>.
       /// </remarks>
       public Func<ConnectionSSLMode> ConnectionSSLMode { get; set; }
 
@@ -514,7 +534,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// </summary>
       /// <value>The callback to check whether SSL is possible.</value>
       /// <remarks>
-      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}.AcquireStreamAndSocket"/> will assume SSL is not possible.
+      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will assume SSL is not possible.
       /// </remarks>
       public Func<Boolean> IsSSLPossible { get; set; }
 
@@ -523,7 +543,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// </summary>
       /// <value>The callback to get <see cref="System.Security.Authentication.SslProtocols"/> when authenticating as client over SSL stream.</value>
       /// <remarks>
-      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}.AcquireStreamAndSocket"/> will use default value, which varies based on platform.
+      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will use default value, which varies based on platform.
       /// </remarks>
       public Func<System.Security.Authentication.SslProtocols> GetSSLProtocols { get; set; }
 
@@ -532,7 +552,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// </summary>
       /// <value>The callback to get host name when authenticating as client over SSL stream.</value>
       /// <remarks>
-      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}.AcquireStreamAndSocket"/> will throw <see cref="ArgumentException"/>.
+      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will throw <see cref="ArgumentException"/>.
       /// </remarks>
       public Func<String> ProvideSSLHost { get; set; }
    }
@@ -557,7 +577,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// </summary>
       /// <value>The callback to get <see cref="NetworkStream.ConnectionSSLMode"/>.</value>
       /// <remarks>
-      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}.AcquireStreamAndSocket"/> will default to <see cref="NetworkStream.ConnectionSSLMode.NotRequired"/>.
+      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will default to <see cref="NetworkStream.ConnectionSSLMode.NotRequired"/>.
       /// </remarks>
       public Func<TState, ConnectionSSLMode> ConnectionSSLMode { get; set; }
 
@@ -566,7 +586,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// </summary>
       /// <value>The callback to check whether SSL is possible.</value>
       /// <remarks>
-      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}.AcquireStreamAndSocket"/> will assume SSL is not possible.
+      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will assume SSL is not possible.
       /// </remarks>
       public Func<TState, ValueTask<Boolean>> IsSSLPossible { get; set; }
 
@@ -575,7 +595,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// </summary>
       /// <value>The callback to get <see cref="System.Security.Authentication.SslProtocols"/> when authenticating as client over SSL stream.</value>
       /// <remarks>
-      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}.AcquireStreamAndSocket"/> will use default value, which varies based on platform.
+      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will use default value, which varies based on platform.
       /// </remarks>
       public Func<TState, System.Security.Authentication.SslProtocols> GetSSLProtocols { get; set; }
 
@@ -584,7 +604,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// </summary>
       /// <value>The callback to get host name when authenticating as client over SSL stream.</value>
       /// <remarks>
-      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}.AcquireStreamAndSocket"/> will throw <see cref="ArgumentException"/>.
+      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will throw <see cref="ArgumentException"/>.
       /// </remarks>
       public Func<TState, String> ProvideSSLHost { get; set; }
    }

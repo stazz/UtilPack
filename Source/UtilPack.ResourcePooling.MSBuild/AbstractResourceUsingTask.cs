@@ -200,7 +200,7 @@ namespace UtilPack.ResourcePooling.MSBuild
          )
       {
          return new ValueTask<AsyncResourcePool<TResource>>( poolProvider.UseFactoryToCreatePool<TResource, AsyncResourcePoolObservable<TResource>>(
-            ( factory, creationParameter ) => factory.CreateOneTimeUseResourcePool( creationParameter ).WithoutExplicitAPI(),
+            ( factory ) => factory.CreateOneTimeUseResourcePool().WithoutExplicitAPI(),
             poolCreationArgs ) );
       }
 

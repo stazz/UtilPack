@@ -18,7 +18,7 @@ This metadata object can be anything that is passed to the factory method - e.g.
 The members of `AsyncEnumerator` are listed below.
 * The `MoveNextAsync` method mimics the `MoveNext` method of the `System.Collections.Generic.IEnumerator<T>` interface - it will return one-time-use integer token if next item is encountered, and `null` otherwise.
 * The `OneTimeRetrieve` method will consume the integer token returned by `MoveNextAsync` and return the corresponding encountered item. Will return the `default` if the token is invalid or used up.
-* The `TryResetAsync` method will try to reset the enumerator to its initial state. It will return `false` if enumerator is already in its initial state, or if used concurrently.
+* The `EnumerationEnded` method will be invoked when enumeration has ended - either successfully or with an error.
 
 Note that generally, one shouldn't use `MoveNextAsync` directly, but instead use the `EnumerateSequentiallyAsync` and `EnumerateInParallelAsync` extension methods defined for `AsyncEnumerator` interface.
 

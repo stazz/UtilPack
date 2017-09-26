@@ -46,8 +46,6 @@ namespace UtilPack.Tests.ResourcePooling
             )
             .ToArray()
             );
-
-
       }
    }
 

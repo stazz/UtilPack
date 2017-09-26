@@ -21,9 +21,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using TAsyncPotentialToken = System.Nullable<System.Int64>;
-using TAsyncToken = System.Int64;
-using TSequentialCurrentInfoFactory = System.Func<System.Object, UtilPack.AsyncEnumeration.EnumerationEndedDelegate, System.Object, System.Object>;
+using TSequentialCurrentInfoFactory = System.Func<System.Object, UtilPack.AsyncEnumeration.EnumerationEndedDelegate, System.Object>;
 
 namespace UtilPack.AsyncEnumeration
 {
@@ -292,8 +290,10 @@ namespace UtilPack.AsyncEnumeration
    {
       private static readonly Dictionary<Type, TSequentialCurrentInfoFactory> CustomFactories = new Dictionary<Type, TSequentialCurrentInfoFactory>()
       {
-         { typeof(Int32), (moveNext, disposeAsync, current) => new SequentialEnumeratorCurrentInfoWithInt32((MoveNextAsyncDelegate<Int32>)moveNext, disposeAsync, (Int32) current ) },
-         { typeof(Int64), (moveNext, disposeAsync, current) => new SequentialEnumeratorCurrentInfoWithInt64((MoveNextAsyncDelegate<Int64>)moveNext, disposeAsync, (Int64)current ) }
+         { typeof(Int32), (moveNext, disposeAsync) => new SequentialEnumeratorCurrentInfoWithInt32((MoveNextAsyncDelegate<Int32>)moveNext, disposeAsync ) },
+         { typeof(Int64), (moveNext, disposeAsync) => new SequentialEnumeratorCurrentInfoWithInt64((MoveNextAsyncDelegate<Int64>)moveNext, disposeAsync ) },
+         { typeof(Single), (moveNext, disposeAsync) => new SequentialEnumeratorCurrentInfoWithFloat32((MoveNextAsyncDelegate<Single>)moveNext, disposeAsync ) },
+         { typeof(Double), (moveNext, disposeAsync) => new SequentialEnumeratorCurrentInfoWithFloat64((MoveNextAsyncDelegate<Double>)moveNext, disposeAsync ) }
       };
 
       internal static TSequentialCurrentInfoFactory Get( Type type )

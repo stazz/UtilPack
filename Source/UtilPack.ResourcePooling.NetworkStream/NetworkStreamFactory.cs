@@ -91,9 +91,15 @@ namespace UtilPack.ResourcePooling.NetworkStream
    public class NetworkStreamFactory : AbstractNetworkStreamFactory<NetworkStreamFactoryConfiguration>
    {
       /// <summary>
+      /// Gets the static stateless instance of <see cref="NetworkStreamFactory"/>.
+      /// </summary>
+      /// <value>The static stateless instance of <see cref="NetworkStreamFactory"/>.</value>
+      public static NetworkStreamFactory Instance { get; } = new NetworkStreamFactory();
+
+      /// <summary>
       /// Creates a new instance of <see cref="NetworkStreamFactory"/>.
       /// </summary>
-      public NetworkStreamFactory()
+      protected NetworkStreamFactory()
          : base( async ( config, token ) =>
           {
              var tuple = await NetworkStreamFactory<Object>.AcquireNetworkStreamFromConfiguration(
@@ -149,9 +155,15 @@ namespace UtilPack.ResourcePooling.NetworkStream
    public class NetworkStreamFactory<TState> : AbstractNetworkStreamFactory<NetworkStreamFactoryConfiguration<TState>>
    {
       /// <summary>
+      /// Gets the static stateless instance of <see cref="NetworkStreamFactory{TState}"/>.
+      /// </summary>
+      /// <value>The static stateless instance of <see cref="NetworkStreamFactory{TState}"/>.</value>
+      public static NetworkStreamFactory<TState> Instance { get; } = new NetworkStreamFactory<TState>();
+
+      /// <summary>
       /// Creates a new instance of <see cref="NetworkStreamFactory{TState}"/>.
       /// </summary>
-      public NetworkStreamFactory()
+      protected NetworkStreamFactory()
          : base( async ( config, token ) =>
           {
              var tuple = await AcquireNetworkStreamFromConfiguration( config, token );

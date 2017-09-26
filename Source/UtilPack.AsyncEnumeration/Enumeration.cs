@@ -24,8 +24,6 @@ using System.Threading.Tasks;
 using UtilPack;
 using UtilPack.AsyncEnumeration;
 
-using TAsyncPotentialToken = System.Nullable<System.Int64>;
-using TAsyncToken = System.Int64;
 using TConcurrentExceptionList = System.Collections.
 #if NETSTANDARD1_0
    Generic.List
@@ -59,11 +57,18 @@ public static partial class E_UtilPack
       try
       {
          var retVal = 0L;
-         TAsyncPotentialToken retrievalToken;
-         while ( ( retrievalToken = await enumerator.MoveNextAsync() ).HasValue )
+         while ( await enumerator.WaitForNextAsync( token ) )
          {
-            ++retVal;
-            action?.Invoke( enumerator.OneTimeRetrieve( retrievalToken.Value ) );
+            Boolean success;
+            do
+            {
+               var item = enumerator.TryGetNext( out success );
+               if ( success )
+               {
+                  ++retVal;
+                  action?.Invoke( item );
+               }
+            } while ( success );
          }
          gracefulEnd = true;
          return retVal;
@@ -95,15 +100,22 @@ public static partial class E_UtilPack
       try
       {
          var retVal = 0L;
-         TAsyncPotentialToken retrievalToken;
-         while ( ( retrievalToken = await enumerator.MoveNextAsync( token ) ).HasValue )
+         while ( await enumerator.WaitForNextAsync( token ) )
          {
-            ++retVal;
-            Task task;
-            if ( asyncAction != null && ( task = asyncAction( enumerator.OneTimeRetrieve( retrievalToken.Value ) ) ) != null )
+            Boolean success;
+            do
             {
-               await task;
-            }
+               var item = enumerator.TryGetNext( out success );
+               if ( success )
+               {
+                  ++retVal;
+                  var task = asyncAction?.Invoke( item );
+                  if ( task != null )
+                  {
+                     await task;
+                  }
+               }
+            } while ( success );
          }
          gracefulEnd = true;
          return retVal;
@@ -168,23 +180,30 @@ public static partial class E_UtilPack
          var tasksStarted = 0L;
          var moveNextSuccess = MOVE_NEXT_SUCCESS;
 
-         void InvokeAction( TAsyncPotentialToken retrievalToken )
+         void InvokeAction( Boolean moveNextResult )
          {
-            if ( retrievalToken.HasValue )
+            if ( moveNextResult )
             {
-               Interlocked.Increment( ref itemsEncountered );
-               action?.Invoke( enumerator.OneTimeRetrieve( retrievalToken.Value ) );
+               Boolean success;
+               do
+               {
+                  var item = enumerator.TryGetNext( out success );
+                  if ( success )
+                  {
+                     Interlocked.Increment( ref itemsEncountered );
+                     action?.Invoke( item );
+                  }
+               } while ( success );
             }
             else
             {
                Interlocked.CompareExchange( ref moveNextSuccess, MOVE_NEXT_ENDED, MOVE_NEXT_SUCCESS );
             }
-
          }
 
          do
          {
-            var task = enumerator.MoveNextAsync();
+            var task = enumerator.WaitForNextAsync( token );
             if ( task.IsCompleted )
             {
                // We completed synchronously
@@ -200,7 +219,7 @@ public static partial class E_UtilPack
 
                Interlocked.Increment( ref tasksStarted );
 
-               task.AsTask().ContinueWith( t =>
+               task.ContinueWith( t =>
                {
                   Exception catched = null;
                   try
@@ -229,32 +248,6 @@ public static partial class E_UtilPack
          synchronousCatched = exc;
          throw;
       }
-      //catch ( Exception exc )
-      //{
-      //   var rethrow = true;
-      //   try
-      //   {
-      //      var resetTask = enumerator.EnumerationEnded( token );
-      //      rethrow = src == null || resetTask.IsCompleted;
-      //      if ( !rethrow )
-      //      {
-      //         if ( src == null )
-      //         {
-      //            src = new TaskCompletionSource<Int64>();
-      //         }
-      //         src.SetException( exc );
-      //      }
-      //   }
-      //   catch
-      //   {
-      //      // Ignore
-      //   }
-
-      //   if ( rethrow )
-      //   {
-      //      throw;
-      //   }
-      //}
       finally
       {
          if ( src == null )
@@ -264,7 +257,7 @@ public static partial class E_UtilPack
             if ( !endTask.IsCompleted )
             {
                // Enumeration ending is asynchronous
-               src = new TaskCompletionSource<TAsyncToken>();
+               src = new TaskCompletionSource<Int64>();
                endTask.AsTask().ContinueWith( t =>
                {
                   PerformTaskCompletion( t, src, exceptions, itemsEncountered );
@@ -312,8 +305,6 @@ public static partial class E_UtilPack
    /// </remarks>
    public static ValueTask<Int64> EnumerateInParallelAsync<T>( this AsyncEnumerator<T> enumerator, Func<T, Task> asyncAction, CancellationToken token = default )
    {
-      // TODO we actually need to run dispose-delegate only after all of actions have been run...
-
       ArgumentValidator.ValidateNotNullReference( enumerator );
       TaskCompletionSource<Int64> src = null;
       TConcurrentExceptionList exceptions = null;
@@ -325,20 +316,28 @@ public static partial class E_UtilPack
          var tasksStarted = 0L;
          var moveNextSuccess = MOVE_NEXT_SUCCESS;
 
-         void InvokeAction( TAsyncPotentialToken retrievalToken )
+         void InvokeAction( Boolean moveNextResult )
          {
-            if ( retrievalToken.HasValue )
+            if ( moveNextResult )
             {
-               Interlocked.Increment( ref itemsEncountered );
-               var actionTask = asyncAction?.Invoke( enumerator.OneTimeRetrieve( retrievalToken.Value ) );
-               if ( actionTask != null && !actionTask.IsCompleted )
+               Boolean success;
+               do
                {
-                  Interlocked.Increment( ref tasksStarted );
-                  actionTask.ContinueWith( t =>
+                  var item = enumerator.TryGetNext( out success );
+                  if ( success )
                   {
-                     ParallelTaskContinuation( enumerator, token, t, src, null, ref exceptions, ref moveNextSuccess, ref tasksStarted, ref itemsEncountered );
-                  }, TaskContinuationOptions.ExecuteSynchronously );
-               }
+                     Interlocked.Increment( ref itemsEncountered );
+                     var actionTask = asyncAction?.Invoke( item );
+                     if ( actionTask != null && !actionTask.IsCompleted )
+                     {
+                        Interlocked.Increment( ref tasksStarted );
+                        actionTask.ContinueWith( t =>
+                        {
+                           ParallelTaskContinuation( enumerator, token, t, src, null, ref exceptions, ref moveNextSuccess, ref tasksStarted, ref itemsEncountered );
+                        }, TaskContinuationOptions.ExecuteSynchronously );
+                     }
+                  }
+               } while ( success );
             }
             else
             {
@@ -349,7 +348,7 @@ public static partial class E_UtilPack
 
          do
          {
-            var task = enumerator.MoveNextAsync();
+            var task = enumerator.WaitForNextAsync();
 
             if ( task.IsCompleted )
             {
@@ -366,7 +365,7 @@ public static partial class E_UtilPack
 
                Interlocked.Increment( ref tasksStarted );
 
-               task.AsTask().ContinueWith( t =>
+               task.ContinueWith( t =>
                {
                   Exception catched = null;
                   try
@@ -396,32 +395,6 @@ public static partial class E_UtilPack
          synchronousCatched = exc;
          throw;
       }
-      //catch ( Exception exc )
-      //{
-      //   var rethrow = true;
-      //   try
-      //   {
-      //      var resetTask = enumerator.EnumerationEnded( token );
-      //      rethrow = src == null || resetTask.IsCompleted;
-      //      if ( !rethrow )
-      //      {
-      //         if ( src == null )
-      //         {
-      //            src = new TaskCompletionSource<Int64>();
-      //         }
-      //         src.SetException( exc );
-      //      }
-      //   }
-      //   catch
-      //   {
-      //      // Ignore
-      //   }
-
-      //   if ( rethrow )
-      //   {
-      //      throw;
-      //   }
-      //}
       finally
       {
          if ( src == null )
@@ -431,7 +404,7 @@ public static partial class E_UtilPack
             if ( !endTask.IsCompleted )
             {
                // Enumeration ending is asynchronous
-               src = new TaskCompletionSource<TAsyncToken>();
+               src = new TaskCompletionSource<Int64>();
                endTask.AsTask().ContinueWith( t =>
                {
                   PerformTaskCompletion( t, src, exceptions, itemsEncountered );
@@ -519,7 +492,7 @@ public static partial class E_UtilPack
          lock ( allExceptions )
          {
 #endif
-            allExceptions.Add( exception );
+         allExceptions.Add( exception );
 #if NETSTANDARD1_0
          }
 #endif

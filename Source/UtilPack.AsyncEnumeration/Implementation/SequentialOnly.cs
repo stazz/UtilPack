@@ -22,9 +22,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
 
-using TAsyncPotentialToken = System.Nullable<System.Int64>;
-using TAsyncToken = System.Int64;
-using TSequentialCurrentInfoFactory = System.Func<System.Object, UtilPack.AsyncEnumeration.EnumerationEndedDelegate, System.Object, System.Object>;
+using TSequentialCurrentInfoFactory = System.Func<System.Object, UtilPack.AsyncEnumeration.EnumerationEndedDelegate, System.Object>;
 
 namespace UtilPack.AsyncEnumeration
 {
@@ -39,6 +37,9 @@ namespace UtilPack.AsyncEnumeration
       private const Int32 MOVE_NEXT_ENDED = 2;
       private const Int32 STATE_ENDED = 3;
       private const Int32 RESETTING = 4;
+
+      private const Int32 MOVE_NEXT_STARTED_CURRENT_NOT_READ = 5;
+      private const Int32 MOVE_NEXT_STARTED_CURRENT_READING = 6;
 
       private Int32 _state;
       private SequentialEnumeratorCurrentInfo<T> _current;
@@ -58,14 +59,15 @@ namespace UtilPack.AsyncEnumeration
 
       public Boolean IsParallelEnumerationSupported => false;
 
-      public async ValueTask<TAsyncPotentialToken> MoveNextAsync( CancellationToken token )
+      public async Task<Boolean> WaitForNextAsync( CancellationToken token )
       {
          // We can call move next only in initial state, or after we have called it once
          Boolean success = false;
-         var wasNotInitial = Interlocked.CompareExchange( ref this._state, MOVE_NEXT_STARTED, MOVE_NEXT_ENDED ) == MOVE_NEXT_ENDED;
-         TAsyncPotentialToken retVal = null;
+         var wasNotInitial = Interlocked.CompareExchange( ref this._state, MOVE_NEXT_STARTED, MOVE_NEXT_ENDED ) == MOVE_NEXT_ENDED
+            || Interlocked.CompareExchange( ref this._state, MOVE_NEXT_STARTED, MOVE_NEXT_STARTED_CURRENT_NOT_READ ) == MOVE_NEXT_STARTED_CURRENT_NOT_READ;
          if ( wasNotInitial || Interlocked.CompareExchange( ref this._state, MOVE_NEXT_STARTED, STATE_INITIAL ) == STATE_INITIAL )
          {
+            T current = default;
             try
             {
 
@@ -78,7 +80,6 @@ namespace UtilPack.AsyncEnumeration
                   }
                   else
                   {
-                     T current;
                      (success, current) = await moveNext( token );
                      if ( success )
                      {
@@ -93,7 +94,9 @@ namespace UtilPack.AsyncEnumeration
                   success = result.Item1;
                   if ( success )
                   {
-                     Interlocked.Exchange( ref this._current, (SequentialEnumeratorCurrentInfo<T>) this._currentFactory?.Invoke( result.Item3, result.Item4, result.Item2 ) ?? new SequentialEnumeratorCurrentInfoWithObject<T>( result.Item3, result.Item4, result.Item2 ) );
+                     var currentWrapper = (SequentialEnumeratorCurrentInfo<T>) this._currentFactory?.Invoke( result.Item3, result.Item4 ) ?? new SequentialEnumeratorCurrentInfoWithObject<T>( result.Item3, result.Item4 );
+                     currentWrapper.Current = result.Item2;
+                     Interlocked.Exchange( ref this._current, currentWrapper );
                   }
                }
             }
@@ -103,7 +106,7 @@ namespace UtilPack.AsyncEnumeration
                {
                   if ( success )
                   {
-                     var t = this.AfterMoveNextSucessful( this._current.Current );
+                     var t = this.AfterMoveNextSucessful( current );
                      if ( t != null )
                      {
                         await t;
@@ -115,11 +118,7 @@ namespace UtilPack.AsyncEnumeration
                   // Ignore.
                }
 
-               if ( success )
-               {
-                  retVal = Interlocked.Increment( ref this._current._token );
-               }
-               Interlocked.Exchange( ref this._state, success ? MOVE_NEXT_ENDED : STATE_ENDED );
+               Interlocked.Exchange( ref this._state, success ? MOVE_NEXT_STARTED_CURRENT_NOT_READ : STATE_ENDED );
             }
          }
          else if ( this._state != STATE_ENDED )
@@ -129,14 +128,29 @@ namespace UtilPack.AsyncEnumeration
             throw new InvalidOperationException( "Tried to concurrently move to next or reset." );
          }
 
-         return retVal;
+         return success;
       }
 
-      public T OneTimeRetrieve( TAsyncToken retrievalToken )
+      public T TryGetNext( out Boolean success )
       {
-         SequentialEnumeratorCurrentInfo<T> cur;
-         var success = ( cur = this._current ) != null && cur._token == retrievalToken;
-         return success ? cur.Current : default;
+         var cur = this._current;
+         success = Interlocked.CompareExchange( ref this._state, MOVE_NEXT_STARTED_CURRENT_READING, MOVE_NEXT_STARTED_CURRENT_NOT_READ ) == MOVE_NEXT_STARTED_CURRENT_NOT_READ;
+         if ( success )
+         {
+            try
+            {
+               return cur.Current;
+            }
+            finally
+            {
+               Interlocked.Exchange( ref this._state, MOVE_NEXT_ENDED );
+            }
+         }
+         else
+         {
+            return default;
+         }
+
       }
 
       public async ValueTask<Boolean> EnumerationEnded( CancellationToken token )
@@ -144,7 +158,8 @@ namespace UtilPack.AsyncEnumeration
          // We can reset from MOVE_NEXT_STARTED and STATE_ENDED states
          var retVal = false;
          var prevState = Interlocked.CompareExchange( ref this._state, RESETTING, MOVE_NEXT_STARTED );
-         var endedAbruptly = prevState == MOVE_NEXT_STARTED;
+         var endedAbruptly = prevState == MOVE_NEXT_STARTED
+            || ( prevState = Interlocked.CompareExchange( ref this._state, RESETTING, MOVE_NEXT_STARTED_CURRENT_NOT_READ ) ) == MOVE_NEXT_STARTED_CURRENT_NOT_READ;
          if ( endedAbruptly || ( prevState = Interlocked.CompareExchange( ref this._state, RESETTING, STATE_ENDED ) ) == STATE_ENDED )
          {
             try
@@ -222,7 +237,6 @@ namespace UtilPack.AsyncEnumeration
          this.Dispose = disposeDelegate;
       }
 
-      public TAsyncToken _token;
       public MoveNextAsyncDelegate<T> MoveNext { get; }
       public EnumerationEndedDelegate Dispose { get; }
 
@@ -235,11 +249,9 @@ namespace UtilPack.AsyncEnumeration
 
       public SequentialEnumeratorCurrentInfoWithObject(
          MoveNextAsyncDelegate<T> moveNext,
-         EnumerationEndedDelegate disposeDelegate,
-         T current
+         EnumerationEndedDelegate disposeDelegate
          ) : base( moveNext, disposeDelegate )
       {
-         this.Current = current;
       }
 
       public override T Current
@@ -247,6 +259,7 @@ namespace UtilPack.AsyncEnumeration
          get => (T) this._current;
          set => Interlocked.Exchange( ref this._current, value );
       }
+
    }
 
    internal sealed class SequentialEnumeratorCurrentInfoWithInt32 : SequentialEnumeratorCurrentInfo<Int32>
@@ -255,11 +268,9 @@ namespace UtilPack.AsyncEnumeration
 
       public SequentialEnumeratorCurrentInfoWithInt32(
          MoveNextAsyncDelegate<Int32> moveNext,
-         EnumerationEndedDelegate disposeDelegate,
-         Int32 current
+         EnumerationEndedDelegate disposeDelegate
          ) : base( moveNext, disposeDelegate )
       {
-         this.Current = current;
       }
 
       public override Int32 Current
@@ -275,17 +286,51 @@ namespace UtilPack.AsyncEnumeration
 
       public SequentialEnumeratorCurrentInfoWithInt64(
          MoveNextAsyncDelegate<Int64> moveNext,
-         EnumerationEndedDelegate disposeDelegate,
-         Int64 current
+         EnumerationEndedDelegate disposeDelegate
          ) : base( moveNext, disposeDelegate )
       {
-         this.Current = current;
       }
 
       public override Int64 Current
       {
          get => Interlocked.Read( ref this._current );
          set => Interlocked.Exchange( ref this._current, value );
+      }
+   }
+
+   internal sealed class SequentialEnumeratorCurrentInfoWithFloat32 : SequentialEnumeratorCurrentInfo<Single>
+   {
+      private Single _current;
+
+      public SequentialEnumeratorCurrentInfoWithFloat32(
+         MoveNextAsyncDelegate<Single> moveNext,
+         EnumerationEndedDelegate disposeDelegate
+         ) : base( moveNext, disposeDelegate )
+      {
+      }
+
+      public override Single Current
+      {
+         get => this._current;
+         set => Interlocked.Exchange( ref this._current, value );
+      }
+   }
+
+   internal sealed class SequentialEnumeratorCurrentInfoWithFloat64 : SequentialEnumeratorCurrentInfo<Double>
+   {
+      private Int64 _current;
+
+      public SequentialEnumeratorCurrentInfoWithFloat64(
+         MoveNextAsyncDelegate<Double> moveNext,
+         EnumerationEndedDelegate disposeDelegate
+         ) : base( moveNext, disposeDelegate )
+      {
+      }
+
+      public override Double Current
+      {
+         get => BitConverter.Int64BitsToDouble( Interlocked.Read( ref this._current ) );
+         set => Interlocked.Exchange( ref this._current, BitConverter.DoubleToInt64Bits( value ) );
       }
    }
 

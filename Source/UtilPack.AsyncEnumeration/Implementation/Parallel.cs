@@ -21,9 +21,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using TAsyncPotentialToken = System.Nullable<System.Int64>;
-using TAsyncToken = System.Int64;
-
 namespace UtilPack.AsyncEnumeration
 {
    internal class AsyncParallelEnumeratorImpl<T, TMoveNext> : AsyncEnumerator<T>
@@ -35,16 +32,14 @@ namespace UtilPack.AsyncEnumeration
 
       protected readonly
 #if NETSTANDARD1_0
-         Dictionary
+         List
 #else
-         System.Collections.Concurrent.ConcurrentDictionary
+         System.Collections.Concurrent.ConcurrentStack
 #endif 
-         <TAsyncToken, T> _seenByMoveNext;
+         <T> _seenByMoveNext;
       private readonly SynchronousMoveNextDelegate<TMoveNext> _hasNext;
       private readonly GetNextItemAsyncDelegate<T, TMoveNext> _next;
       private readonly EnumerationEndedDelegate _dispose;
-
-      private TAsyncToken _curToken;
 
       private Int32 _state;
 
@@ -59,44 +54,37 @@ namespace UtilPack.AsyncEnumeration
          this._dispose = dispose;
          this._seenByMoveNext = new
 #if NETSTANDARD1_0
-            Dictionary
+            List
 #else
-            System.Collections.Concurrent.ConcurrentDictionary
+            System.Collections.Concurrent.ConcurrentStack
 #endif
-            <TAsyncToken, T>();
+            <T>();
       }
 
       public Boolean IsParallelEnumerationSupported => true;
 
-      public virtual async ValueTask<TAsyncPotentialToken> MoveNextAsync( CancellationToken token )
+      public virtual async Task<Boolean> WaitForNextAsync( CancellationToken token )
       {
          var prev = Interlocked.CompareExchange( ref this._state, ENUMERATING, INITIAL );
          if ( prev == INITIAL || prev == ENUMERATING )
          {
-            TAsyncPotentialToken retVal;
             (var hasNext, var moveNextResult) = this._hasNext();
             if ( hasNext )
             {
-               retVal = Interlocked.Increment( ref this._curToken ); // Guid.NewGuid();
-               if ( !this._seenByMoveNext.
+               this._seenByMoveNext.
 #if NETSTANDARD1_0
-               TryAddWithLocking
+               AddWithLocking
 #else
-               TryAdd
+               Push
 #endif
-               ( retVal.Value, await this._next( moveNextResult, token ) )
-                  )
-               {
-                  throw new InvalidOperationException( "Duplicate retrieval token?" );
-               }
+               ( await this.CallNext( this._next, moveNextResult, token ) );
             }
             else
             {
                Interlocked.Exchange( ref this._state, END_SEEN );
-               retVal = null;
             }
 
-            return retVal;
+            return hasNext;
          }
          else
          {
@@ -104,21 +92,26 @@ namespace UtilPack.AsyncEnumeration
          }
       }
 
-      public T OneTimeRetrieve( TAsyncToken guid )
+      public T TryGetNext( out Boolean success )
       {
-         this._seenByMoveNext.
+         success = this._seenByMoveNext.
 #if NETSTANDARD1_0
             TryRemoveWithLocking
 #else
-            TryRemove
+            TryPop
 #endif
-            ( guid, out var retVal );
+            ( out var retVal );
          return retVal;
       }
 
       public ValueTask<Boolean> EnumerationEnded( CancellationToken token )
       {
          return this.PerformDispose( token );
+      }
+
+      protected virtual ValueTask<T> CallNext( GetNextItemAsyncDelegate<T, TMoveNext> next, TMoveNext state, CancellationToken token )
+      {
+         return next( state, token );
       }
 
       protected virtual async ValueTask<Boolean> PerformDispose( CancellationToken token )
@@ -128,12 +121,11 @@ namespace UtilPack.AsyncEnumeration
          var endedAbruptly = prevState == ENUMERATING;
          if ( endedAbruptly || ( prevState = Interlocked.CompareExchange( ref this._state, ENDING, END_SEEN ) ) == END_SEEN )
          {
-            Interlocked.Exchange( ref this._curToken, 0 );
             this._seenByMoveNext.
 #if NETSTANDARD1_0
                ClearWithLocking()
 #else
-               Clear()
+                Clear()
 #endif
                ;
 
@@ -228,9 +220,9 @@ namespace UtilPack.AsyncEnumeration
       public event GenericEventHandler<TEndedArgs> BeforeEnumerationEnd;
       public event GenericEventHandler<TEndedArgs> AfterEnumerationEnd;
 
-      public override async ValueTask<TAsyncPotentialToken> MoveNextAsync( CancellationToken token )
+      public override async Task<Boolean> WaitForNextAsync( CancellationToken token )
       {
-         TAsyncPotentialToken retVal;
+         Boolean retVal;
          if ( Interlocked.CompareExchange( ref this._enumerationState, INITIALIZING, INITIAL ) == INITIAL )
          {
             TStartedArgs args = null;
@@ -239,7 +231,7 @@ namespace UtilPack.AsyncEnumeration
                this.BeforeEnumerationStart?.InvokeAllEventHandlers( evt => evt( ( args = this.CreateBeforeEnumerationStartedArgs() ) ), throwExceptions: false );
                this._getGlobalBeforeEnumerationExecutionStart?.Invoke()?.InvokeAllEventHandlers( evt => evt( args ?? ( args = this.CreateBeforeEnumerationStartedArgs() ) ), throwExceptions: false );
 
-               retVal = await base.MoveNextAsync( token );
+               retVal = await base.WaitForNextAsync( token );
             }
             finally
             {
@@ -251,18 +243,19 @@ namespace UtilPack.AsyncEnumeration
          }
          else
          {
-            retVal = await base.MoveNextAsync( token );
-         }
-
-         if ( retVal.HasValue )
-         {
-            TItemArgs args = null;
-            var item = this._seenByMoveNext[retVal.Value];
-            this.AfterEnumerationItemEncountered?.InvokeAllEventHandlers( evt => evt( ( args = this.CreateEnumerationItemArgs( item ) ) ), throwExceptions: false );
-            this._getGlobalAfterEnumerationExecutionItemEncountered?.Invoke()?.InvokeAllEventHandlers( evt => evt( args ?? this.CreateEnumerationItemArgs( item ) ), throwExceptions: false );
+            retVal = await base.WaitForNextAsync( token );
          }
 
          return retVal;
+      }
+
+      protected override async ValueTask<T> CallNext( GetNextItemAsyncDelegate<T, TMoveNext> next, TMoveNext state, CancellationToken token )
+      {
+         TItemArgs args = null;
+         var item = await base.CallNext( next, state, token );
+         this.AfterEnumerationItemEncountered?.InvokeAllEventHandlers( evt => evt( ( args = this.CreateEnumerationItemArgs( item ) ) ), throwExceptions: false );
+         this._getGlobalAfterEnumerationExecutionItemEncountered?.Invoke()?.InvokeAllEventHandlers( evt => evt( args ?? this.CreateEnumerationItemArgs( item ) ), throwExceptions: false );
+         return item;
       }
 
       protected override ValueTask<Boolean> PerformDispose( CancellationToken token )
@@ -470,7 +463,28 @@ namespace UtilPack.AsyncEnumeration
          }
       }
 
-      public static void ClearWithLocking<TKey, TValue>( this IDictionary<TKey, TValue> dictionary, Object lockObject = null )
+      public static void AddWithLocking<TValue>( this IList<TValue> list, TValue item, Object lockObject = null )
+      {
+         lock ( lockObject ?? list )
+         {
+            list.Add( item );
+         }
+      }
+
+      public static Boolean TryRemoveWithLocking<TValue>( this IList<TValue> list, out TValue value, Object lockObject = null )
+      {
+         lock ( lockObject ?? list )
+         {
+            var count = list.Count;
+            var retVal = list.Count > 0;
+
+            value = retVal ? list[count - 1] : default;
+            list.RemoveAt( count - 1 );
+            return retVal;
+         }
+      }
+
+      public static void ClearWithLocking<TValue>( this ICollection<TValue> dictionary, Object lockObject = null )
       {
          lock ( lockObject ?? dictionary )
          {

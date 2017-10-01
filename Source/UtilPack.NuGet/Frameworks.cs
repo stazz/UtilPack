@@ -54,21 +54,28 @@ namespace UtilPack.NuGet
          Func<String, Boolean> suitableAssemblyPathChecker
          )
       {
-         String assemblyPath = null;
-         if ( assemblyPaths.Length == 1 || (
-               assemblyPaths.Length > 1 // There is more than 1 possible assembly
-               && !String.IsNullOrEmpty( ( assemblyPath = optionalGivenAssemblyPath ) ) // AssemblyPath task property was given
-               ) )
+         String assemblyPath;
+         if ( assemblyPaths.Length == 1 )
+         {
+            assemblyPath = assemblyPaths[0];
+            if ( suitableAssemblyPathChecker != null && !suitableAssemblyPathChecker( assemblyPath ) )
+            {
+               assemblyPath = null;
+            }
+         }
+         else if (
+          assemblyPaths.Length > 1
+          && !String.IsNullOrEmpty( ( assemblyPath = optionalGivenAssemblyPath ) ) // AssemblyPath task property was given
+          )
          {
             assemblyPath = assemblyPaths
-               .Select( ap =>
-               {
-                  var dir = Path.GetDirectoryName( ap );
-                  return new KeyValuePair<String, String>( Path.GetFullPath( dir ), Path.GetFullPath( Path.Combine( dir, assemblyPath ) ) );
-               } )
-               .FirstOrDefault( kvp => kvp.Value.StartsWith( kvp.Key ) && ( suitableAssemblyPathChecker?.Invoke( kvp.Value ) ?? true ) )
-               .Value;
+               .FirstOrDefault( ap => String.Equals( Path.GetFullPath( ap ), Path.GetFullPath( Path.Combine( Path.GetDirectoryName( ap ), assemblyPath ) ) ) );
          }
+         else
+         {
+            assemblyPath = null;
+         }
+
          return assemblyPath;
       }
 

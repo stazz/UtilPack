@@ -258,8 +258,6 @@ namespace UtilPack
             return (retVal, useGenerator);
          };
       }
-
-
    }
 
 #if NET40
@@ -478,155 +476,8 @@ namespace UtilPack
       }
    }
 
-   /// <summary>
-   /// This interface adds a way to add an awaitable object.
-   /// Once event is invoked, the event caller may wait for all the awaitables.
-   /// This way the <c>async void</c> methods can be avoided.
-   /// </summary>
-   /// <typeparam name="TAwaitable">The type of the awaitable.</typeparam>
-   /// <remarks>
-   /// Because of how <c>public async void</c> methods behave, they only make sense when they are run in UI thread or similar (otherwise, they will cause hard crash, <see href="https://msdn.microsoft.com/en-us/magazine/jj991977.aspx"/>).
-   /// </remarks>
-   public interface EventArgsWithAsyncContext<in TAwaitable>
-   {
-      /// <summary>
-      /// Adds an awaitable object to the current list of awaitables of this <see cref="EventArgsWithAsyncContext{TAwaitable}"/>.
-      /// </summary>
-      /// <param name="awaitable">The awaitable to be added.</param>
-      void AddAwaitable( TAwaitable awaitable );
-   }
-
-   /// <summary>
-   /// This class restricts the type argument of <see cref="EventArgsWithAsyncContext{TAwaitable}"/> to <see cref="System.Threading.Tasks.Task"/>.
-   /// </summary>
-   public interface EventArgsWithAsyncContext : EventArgsWithAsyncContext<System.Threading.Tasks.Task>
-   {
-
-   }
 
 
-   /// <summary>
-   /// This class provides default implementation for <see cref="EventArgsWithAsyncContext{TAwaitable}"/>
-   /// </summary>
-   /// <typeparam name="TAwaitable">The type of the awaitable.</typeparam>
-   /// <remarks>
-   /// Because of how <c>public async void</c> methods behave, they only make sense when they are run in UI thread or similar (otherwise, they will cause hard crash, <see href="https://msdn.microsoft.com/en-us/magazine/jj991977.aspx"/>).
-   /// </remarks>
-   public class EventArgsWithAsyncContextImpl<TAwaitable> : EventArgsWithAsyncContext<TAwaitable>
-   {
-      private List<TAwaitable> _awaitables;
-
-      /// <summary>
-      /// Creates a new instance of <see cref="EventArgsWithAsyncContext{TAwaitable}"/>
-      /// </summary>
-      public EventArgsWithAsyncContextImpl()
-      {
-         this._awaitables = null;
-      }
-
-      /// <summary>
-      /// Adds the given awaitable to the list of awaitables.
-      /// </summary>
-      public void AddAwaitable( TAwaitable awaitable )
-      {
-         if ( this._awaitables == null )
-         {
-            this._awaitables = new List<TAwaitable>();
-         }
-         this._awaitables.Add( awaitable );
-      }
-
-      /// <summary>
-      /// Gets the array of awaitables added to the list of awaitables, or <c>null</c> if no awaitables have been added.
-      /// </summary>
-      /// <returns>The array of awaitables added to the list of awaitables, or <c>null</c> if no awaitables have been added.</returns>
-      public TAwaitable[] GetAwaitableArray()
-      {
-         var list = this._awaitables;
-         return ( list?.Count ?? 0 ) > 0 ? list.ToArray() : null;
-      }
-   }
-
-   /// <summary>
-   /// This class restricts the type argument of <see cref="EventArgsWithAsyncContextImpl{TAwaitable}"/> to <see cref="System.Threading.Tasks.Task"/>.
-   /// </summary>
-   public class EventArgsWithAsyncContextImpl : EventArgsWithAsyncContextImpl<System.Threading.Tasks.Task>
-   {
-
-   }
-
-   /// <summary>
-   /// The .NET Standard library does not have Task.CompletedTask property (at least for all versions).
-   /// Hence, this class provides it.
-   /// </summary>
-   public static class TaskUtils
-   {
-      /// <summary>
-      /// Gets the task which is completed.
-      /// </summary>
-      public static System.Threading.Tasks.Task CompletedTask { get; }
-
-
-      static TaskUtils()
-      {
-         var src = new System.Threading.Tasks.TaskCompletionSource<Object>();
-         src.SetResult( null );
-
-         CompletedTask = src.Task;
-      }
-
-      // We can't put these two methods in #if , since then library targeting netstandard 1.0 and loaded in .net core app would fail with missingmethodexception
-
-      /// <summary>
-      /// Creates a new instance of <see cref="Task"/> which has already been canceled.
-      /// </summary>
-      /// <param name="token">The <see cref="CancellationToken"/>.</param>
-      /// <returns>A new instance of <see cref="Task"/> which has already been canceled.</returns>
-      /// <exception cref="ArgumentException">If <see cref="CancellationToken.IsCancellationRequested"/> of given <paramref name="token"/> returns <c>false</c>.</exception>
-      /// <remarks>
-      /// Due to limitations of public async API, the private state bits of returned task will be slightly different than the ones returned by framework's own corresponding method.
-      /// </remarks>
-      public static Task FromCanceled( CancellationToken token )
-      {
-         if ( !token.IsCancellationRequested )
-         {
-            throw new ArgumentException( nameof( token ) );
-         }
-         return new Task( () => { }, token, TaskCreationOptions.None );
-      }
-
-      /// <summary>
-      /// Creates a new instance of <see cref="Task{T}"/> which has already been canceled.
-      /// </summary>
-      /// <typeparam name="T">The type of task result.</typeparam>
-      /// <param name="token">The <see cref="CancellationToken"/>.</param>
-      /// <returns>A new instance of <see cref="Task{T}"/> which has already been canceled.</returns>
-      /// <exception cref="ArgumentException">If <see cref="CancellationToken.IsCancellationRequested"/> of given <paramref name="token"/> returns <c>false</c>.</exception>
-      /// <remarks>
-      /// Due to limitations of public async API, the private state bits of returned task will be slightly different than the ones returned by framework's own corresponding method.
-      /// </remarks>
-      public static Task<T> FromCanceled<T>( CancellationToken token )
-      {
-         if ( !token.IsCancellationRequested )
-         {
-            throw new ArgumentException( nameof( token ) );
-         }
-         return new Task<T>( () => default( T ), token, TaskCreationOptions.None );
-      }
-   }
-
-   /// <summary>
-   /// This interface provides a method which performs disposing of some resource asynchronously.
-   /// </summary>
-   public interface IAsyncDisposable
-   {
-      /// <summary>
-      /// Performs the disposing of some resource asynchrnonously, with given optional <see cref="CancellationToken"/>.
-      /// </summary>
-      /// <param name="token">The optional <see cref="CancellationToken"/>.</param>
-      /// <returns>The task to await for.</returns>
-      System.Threading.Tasks.Task DisposeAsync( CancellationToken token = default( CancellationToken ) );
-   }
 
    /// <summary>
    /// Provides support for asynchronous lazy initialization. This type is fully threadsafe.
@@ -977,31 +828,13 @@ namespace UtilPack
 
 }
 
+
 public static partial class E_UtilPack
 {
    private const Int32 NO_TIMEOUT = -1;
    private const Int32 DEFAULT_TICK = 50;
 
-   /// <summary>
-   /// Helper method to call <see cref="IAsyncDisposable.DisposeAsync(CancellationToken)"/> method and ignore any exception thrown.
-   /// </summary>
-   /// <param name="disposable">The <see cref="IAsyncDisposable"/>. May be <c>null</c>.</param>
-   /// <param name="token">The optional cancellation token to pass to <see cref="IAsyncDisposable.DisposeAsync(CancellationToken)"/>.</param>
-   /// <returns>The task to await for <see cref="IAsyncDisposable.DisposeAsync(CancellationToken)"/> to end.</returns>
-   public static async System.Threading.Tasks.Task DisposeAsyncSafely( this IAsyncDisposable disposable, CancellationToken token = default( CancellationToken ) )
-   {
-      if ( disposable != null )
-      {
-         try
-         {
-            await ( disposable.DisposeAsync( token ) ?? TaskUtils.CompletedTask );
-         }
-         catch
-         {
-            // Ignore
-         }
-      }
-   }
+
 
    /// <summary>
    /// Checks whether this <see cref="Transformable{T1, T2}"/> is in middle of asynchronous transition.
@@ -1526,36 +1359,5 @@ public static partial class E_UtilPack
       return type != null && type.IsArray && ( type.GetArrayRank() > 1 || ( ( name = type.Name ).EndsWith( "]" ) && name[name.Length - 2] != '[' ) );
    }
 
-   /// <summary>
-   /// Helper method to invoke the event and then wait for any awaitables stored to the list of <see cref="EventArgsWithAsyncContextImpl"/>.
-   /// </summary>
-   /// <typeparam name="TEventArgs">The declared type of event args, must implement <see cref="EventArgsWithAsyncContext"/>.</typeparam>
-   /// <typeparam name="TActualEventArgs">The actual type of event args, must inherit <see cref="EventArgsWithAsyncContextImpl"/> and <typeparamref name="TEventArgs"/>.</typeparam>
-   /// <param name="evt">The event, may be <c>null</c>.</param>
-   /// <param name="args">The event arguments to be passed to event.</param>
-   /// <returns>The task to await for.</returns>
-#if !NET40
-   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
-#endif
-   public static async Task InvokeAndWaitForAwaitables<TEventArgs, TActualEventArgs>( this GenericEventHandler<TEventArgs> evt, TActualEventArgs args )
-      where TEventArgs : EventArgsWithAsyncContext
-      where TActualEventArgs : EventArgsWithAsyncContextImpl, TEventArgs
-   {
-      if ( evt != null )
-      {
-         evt( args );
-         System.Threading.Tasks.Task[] awaitables;
-         if ( ( awaitables = args?.GetAwaitableArray() ) != null )
-         {
 
-            await
-#if NET40
-               TaskEx
-#else
-               Task
-#endif
-               .WhenAll( awaitables );
-         }
-      }
-   }
 }

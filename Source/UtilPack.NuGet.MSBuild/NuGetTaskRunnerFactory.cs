@@ -90,6 +90,7 @@ namespace UtilPack.NuGet.MSBuild
       }
 
       private const String PACKAGE_ID = "PackageID";
+      private const String PACKAGE_ID_IS_SELF = "PackageIDIsSelf";
       private const String PACKAGE_VERSION = "PackageVersion";
       private const String ASSEMBLY_PATH = "AssemblyPath";
       private const String NUGET_FW = "NuGetFramework";
@@ -204,20 +205,21 @@ namespace UtilPack.NuGet.MSBuild
 
             // Restore task package
             // TODO cancellation token source + cancel on Ctrl-C (since Inititalize method offers no support for asynchrony/cancellation)
-            String packageID;
-            var restoreResult = nugetResolver.RestoreIfNeeded(
-               ( packageID = taskBodyElement.ElementAnyNS( PACKAGE_ID )?.Value ),
-               taskBodyElement.ElementAnyNS( PACKAGE_VERSION )?.Value
-               ).GetAwaiter().GetResult();
-            String packageVersion;
-            if ( restoreResult != null
-               && !String.IsNullOrEmpty( ( packageVersion = restoreResult.Libraries.Where( lib => String.Equals( lib.Name, packageID ) ).FirstOrDefault()?.Version?.ToNormalizedString() ) )
-               )
+            (var packageID, var packageVersion) = GetPackageIDAndVersion( taskFactoryLoggingHost, taskBodyElement, nugetResolver );
+            if ( !String.IsNullOrEmpty( packageID ) )
             {
-               GetFileItemsDelegate getFiles = ( rid, lib, libs ) => GetSuitableFiles( thisFW, rid, lib, libs );
-               // On Desktop we must always load everything, since it's possible to have assemblies compiled against .NET Standard having references to e.g. System.IO.FileSystem.dll, which is not present in GAC
+               var restoreResult = nugetResolver.RestoreIfNeeded(
+                  packageID,
+                  packageVersion
+                  ).GetAwaiter().GetResult();
+               if ( restoreResult != null
+                  && !String.IsNullOrEmpty( ( packageVersion = restoreResult.Libraries.Where( lib => String.Equals( lib.Name, packageID ) ).FirstOrDefault()?.Version?.ToNormalizedString() ) )
+                  )
+               {
+                  GetFileItemsDelegate getFiles = ( rid, lib, libs ) => GetSuitableFiles( thisFW, rid, lib, libs );
+                  // On Desktop we must always load everything, since it's possible to have assemblies compiled against .NET Standard having references to e.g. System.IO.FileSystem.dll, which is not present in GAC
 #if NET45
-               String[] sdkPackages = null;
+                  String[] sdkPackages = null;
 #else
 
                var sdkPackageID = thisFW.GetSDKPackageID( taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_ID )?.Value );
@@ -228,85 +230,86 @@ namespace UtilPack.NuGet.MSBuild
                var sdkPackages = sdkRestoreResult.Libraries.Select( lib => lib.Name ).ToArray();
 #endif
 
-               var taskAssemblies = nugetResolver.ExtractAssemblyPaths(
-                  restoreResult,
-                  getFiles,
-                  sdkPackages
-                  )[packageID];
-               var assemblyPathHint = taskBodyElement.ElementAnyNS( ASSEMBLY_PATH )?.Value;
-               var assemblyPath = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
-                  taskAssemblies.Assemblies,
-                  assemblyPathHint,
-                  ap => File.Exists( ap )
-                  );
-               if ( !String.IsNullOrEmpty( assemblyPath ) )
-               {
-                  taskName = this.ProcessTaskName( taskBodyElement, taskName );
-                  this._helper = LazyFactory.NewReadOnlyResettableLazy( () =>
+                  var taskAssemblies = nugetResolver.ExtractAssemblyPaths(
+                     restoreResult,
+                     getFiles,
+                     sdkPackages
+                     )[packageID];
+                  var assemblyPathHint = taskBodyElement.ElementAnyNS( ASSEMBLY_PATH )?.Value;
+                  var assemblyPath = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
+                     taskAssemblies.Assemblies,
+                     assemblyPathHint,
+                     ap => File.Exists( ap )
+                     );
+                  if ( !String.IsNullOrEmpty( assemblyPath ) )
                   {
-                     try
+                     taskName = this.ProcessTaskName( taskBodyElement, taskName );
+                     this._helper = LazyFactory.NewReadOnlyResettableLazy( () =>
                      {
-                        var tempFolder = Path.Combine( Path.GetTempPath(), "NuGetAssemblies_" + packageID + "_" + packageVersion + "_" + ( Guid.NewGuid().ToString() ) );
-                        Directory.CreateDirectory( tempFolder );
+                        try
+                        {
+                           var tempFolder = Path.Combine( Path.GetTempPath(), "NuGetAssemblies_" + packageID + "_" + packageVersion + "_" + ( Guid.NewGuid().ToString() ) );
+                           Directory.CreateDirectory( tempFolder );
 
-                        return this.CreateExecutionHelper(
-                           taskName,
-                           taskBodyElement,
-                           packageID,
-                           packageVersion,
-                           assemblyPath,
-                           nugetResolver,
-                           new ResolverLogger( nugetLogger ),
-                           getFiles,
-                           tempFolder
+                           return this.CreateExecutionHelper(
+                              taskName,
+                              taskBodyElement,
+                              packageID,
+                              packageVersion,
+                              assemblyPath,
+                              nugetResolver,
+                              new ResolverLogger( nugetLogger ),
+                              getFiles,
+                              tempFolder
 #if !NET45
                      , sdkRestoreResult
 #endif
                    );
-                     }
-                     catch ( Exception exc )
-                     {
-                        Console.Error.WriteLine( "Exception when creating task: " + exc );
-                        throw;
-                     }
-                  }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
-                  retVal = true;
+                        }
+                        catch ( Exception exc )
+                        {
+                           Console.Error.WriteLine( "Exception when creating task: " + exc );
+                           throw;
+                        }
+                     }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
+                     retVal = true;
+                  }
+                  else
+                  {
+                     nugetResolver.LogAssemblyPathResolveError( packageID, taskAssemblies.Assemblies, assemblyPathHint );
+                     taskFactoryLoggingHost.LogErrorEvent(
+                        new BuildErrorEventArgs(
+                           "Task factory error",
+                           "NMSBT004",
+                           null,
+                           -1,
+                           -1,
+                           -1,
+                           -1,
+                           $"Failed to find suitable assembly in {packageID}@{packageVersion}.",
+                           null,
+                           this.FactoryName
+                        )
+                     );
+                  }
                }
                else
                {
-                  nugetResolver.LogAssemblyPathResolveError( packageID, taskAssemblies.Assemblies, assemblyPathHint );
                   taskFactoryLoggingHost.LogErrorEvent(
                      new BuildErrorEventArgs(
                         "Task factory error",
-                        "NMSBT003",
+                        "NMSBT009",
                         null,
                         -1,
                         -1,
                         -1,
                         -1,
-                        $"Failed to find suitable assembly in {packageID}@{packageVersion}.",
+                        $"Failed to find main package {packageID}@{packageVersion}.",
                         null,
                         this.FactoryName
                      )
                   );
                }
-            }
-            else
-            {
-               taskFactoryLoggingHost.LogErrorEvent(
-                  new BuildErrorEventArgs(
-                     "Task factory error",
-                     "NMSBT002",
-                     null,
-                     -1,
-                     -1,
-                     -1,
-                     -1,
-                     $"Failed to find main package, check that you have suitable {PACKAGE_ID} element in task body and that package is installed.",
-                     null,
-                     this.FactoryName
-                  )
-               );
             }
          }
          catch ( Exception exc )
@@ -324,7 +327,222 @@ namespace UtilPack.NuGet.MSBuild
                this.FactoryName
                ) );
          }
+
          return retVal;
+      }
+
+      private (String, String) GetPackageIDAndVersion(
+         IBuildEngine taskFactoryLoggingHost,
+         XElement taskBodyElement,
+         BoundRestoreCommandUser restorer
+         )
+      {
+         const String SELF = "self";
+
+         var packageID = taskBodyElement.ElementAnyNS( PACKAGE_ID )?.Value;
+         var stringWasSelf = false;
+         global::NuGet.Packaging.Core.PackageIdentity selfPackageIdentity = null;
+         var projectFile = taskFactoryLoggingHost.ProjectFileOfTaskNode;
+         var packageIDWasSelfValue = taskBodyElement.ElementAnyNS( PACKAGE_ID_IS_SELF )?.Value;
+         if ( String.IsNullOrEmpty( packageID ) )
+         {
+            stringWasSelf = packageIDWasSelfValue?.ParseAsBooleanSafe() ?? false;
+            if ( stringWasSelf )
+            {
+               // Package ID was specified as self
+               if ( String.IsNullOrEmpty( projectFile ) )
+               {
+                  taskFactoryLoggingHost.LogErrorEvent(
+                     new BuildErrorEventArgs(
+                        "Task factory error",
+                        "NMSBT005",
+                        null,
+                        -1,
+                        -1,
+                        -1,
+                        -1,
+                        $"The \"{PACKAGE_ID_IS_SELF}\" element is not supported when the caller file of this task factory is not known.",
+                        null,
+                        this.FactoryName
+                     )
+                  );
+               }
+               else
+               {
+                  projectFile = Path.GetFullPath( projectFile );
+                  // The usage of this task factory comes from the package itself, deduce the package ID
+                  var localRepo = restorer.LocalRepositories.FirstOrDefault( kvp => projectFile.StartsWith( Path.GetFullPath( kvp.Key ) ) ).Value;
+                  if ( localRepo == null )
+                  {
+                     taskFactoryLoggingHost.LogErrorEvent(
+                        new BuildErrorEventArgs(
+                           "Task factory error",
+                           "NMSBT006",
+                           null,
+                           -1,
+                           -1,
+                           -1,
+                           -1,
+                           $"The \"{SELF}\" package ID is not supported when the caller file of this task factory is not in local repositories: { String.Join( ",", restorer.LocalRepositories.Keys ) }.",
+                           null,
+                           this.FactoryName
+                        )
+                     );
+                  }
+                  else
+                  {
+                     // Search directories, and in each directory, search for manifest file
+                     var cur = localRepo.RepositoryRoot.Length;
+                     var projectDir = Path.GetDirectoryName( projectFile );
+                     var separator = Path.DirectorySeparatorChar;
+                     while ( cur < projectDir.Length && projectDir[cur] == separator )
+                     {
+                        ++cur;
+                     }
+                     var prev = cur;
+                     var fileFilter = "*" + PackagingConstants.ManifestExtension;
+                     for ( ; cur < projectDir.Length && selfPackageIdentity == null; ++cur )
+                     {
+                        var isLast = cur == projectDir.Length - 1;
+                        if ( projectDir[cur] == separator || isLast )
+                        {
+                           if ( isLast )
+                           {
+                              ++cur;
+                           }
+                           if ( cur > prev )
+                           {
+                              var nuSpecFile = new DirectoryInfo( projectDir.Substring( 0, cur ) )
+                                 .EnumerateFiles( fileFilter, SearchOption.TopDirectoryOnly )
+                                 .FirstOrDefault();
+                              if ( nuSpecFile != null )
+                              {
+                                 // We've found .nuspec file
+                                 selfPackageIdentity = new NuspecReader( nuSpecFile.FullName ).GetIdentity();
+                              }
+                           }
+
+                           if ( selfPackageIdentity == null )
+                           {
+                              prev = cur + 1;
+                           }
+                        }
+                     }
+
+                     if ( selfPackageIdentity == null )
+                     {
+                        // Failed to deduce this package ID
+                        // No PackageID element and no PackageIDIsSelf element either
+                        taskFactoryLoggingHost.LogErrorEvent(
+                           new BuildErrorEventArgs(
+                              "Task factory error",
+                              "NMSBT007",
+                              null,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              $"Failed to deduce self package ID from file {projectFile}.",
+                              null,
+                              this.FactoryName
+                           )
+                        );
+                     }
+                     else
+                     {
+                        packageID = selfPackageIdentity.Id;
+                     }
+                  }
+
+               }
+            }
+            else
+            {
+               // No PackageID element and no PackageIDIsSelf element either
+               taskFactoryLoggingHost.LogErrorEvent(
+                     new BuildErrorEventArgs(
+                        "Task factory error",
+                        "NMSBT002",
+                        null,
+                        -1,
+                        -1,
+                        -1,
+                        -1,
+                        $"Failed to find main package, check that you have suitable \"{PACKAGE_ID}\" or \"{PACKAGE_ID_IS_SELF}\" element in task body.",
+                        null,
+                        this.FactoryName
+                     )
+                  );
+            }
+         }
+         else if ( !String.IsNullOrEmpty( packageIDWasSelfValue ) )
+         {
+            packageID = null;
+            taskFactoryLoggingHost.LogErrorEvent(
+               new BuildErrorEventArgs(
+                  "Task factory error",
+                  "NMSBT008",
+                  null,
+                  -1,
+                  -1,
+                  -1,
+                  -1,
+                  $"The parameters \"{PACKAGE_ID}\" and \"{PACKAGE_ID_IS_SELF}\" are mutually exclusive, please specify exactly one of them.",
+                  null,
+                  this.FactoryName
+               )
+            );
+         }
+
+         String packageVersion = null;
+         if ( !String.IsNullOrEmpty( packageID ) )
+         {
+
+            packageVersion = taskBodyElement.ElementAnyNS( PACKAGE_VERSION )?.Value;
+            if ( ( String.IsNullOrEmpty( packageVersion ) && stringWasSelf ) || ( stringWasSelf = String.Equals( packageVersion, SELF, StringComparison.OrdinalIgnoreCase ) ) )
+            {
+               // Instead of floating version, we need to deduce our version
+               NuGetVersion deducedVersion = null;
+               if ( selfPackageIdentity == null )
+               {
+                  // <PackageID> was specified normally, and <PackageVersion> was self
+                  var localPackage = restorer.LocalRepositories.Values
+                     .SelectMany( lr => lr.FindPackagesById( packageID ) )
+                     .Where( lp => projectFile.StartsWith( lp.ExpandedPath ) )
+                     .FirstOrDefault();
+                  if ( localPackage == null )
+                  {
+                     taskFactoryLoggingHost.LogErrorEvent(
+                        new BuildErrorEventArgs(
+                           "Task factory error",
+                           "NMSBT008",
+                           null,
+                           -1,
+                           -1,
+                           -1,
+                           -1,
+                           $"Failed to find any package with ID {packageID} which would have {projectFile} stored within it.",
+                           null,
+                           this.FactoryName
+                        )
+                     );
+                  }
+                  else
+                  {
+                     deducedVersion = localPackage.Version;
+                  }
+               }
+               else
+               {
+                  // <PackageIDIsSelf> was specified, and no version was specified
+                  deducedVersion = selfPackageIdentity.Version;
+               }
+
+               packageVersion = deducedVersion?.ToNormalizedString();
+            }
+         }
+
+         return (packageID, packageVersion);
       }
 
       private static IEnumerable<String> GetSuitableFiles(

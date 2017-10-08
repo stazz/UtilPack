@@ -18,7 +18,7 @@ This template project provides an easy way to generate and handle those necessar
 
 # Usage
 After initial build, you can freely pack and distribute your package.
-The `.csproj` file contains all the necessary instructions to properly name the `.targets` and `.props` file and put them in such folder that consumer project will pick up the build hooks.
+The `.csproj` file contains all the necessary commands to properly name the `.targets` and `.props` file and put them in such folder that consumer project will pick up the build hooks.
 
 # Consumer projects
 Notice that currently, because of NuGet/Home#4125 issue, the consumer projects must manually add `PrivateAssets="all"` attribute to their `PackageReference` elements.

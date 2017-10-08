@@ -1,0 +1,213 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard1.3</TargetFramework>
+  </PropertyGroup>
+
+   <PropertyGroup>
+      <!-- General properties related to compiling -->
+      <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+      <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+      <TreatSpecificWarningsAsErrors />
+      <!-- Notice that setting CopyLocalLockFileAssemblies property is not required and is even discouraged - the UtilPack.NuGet.MSBuild task factory will take care of loading all the dependent assemblies.
+           Setting CopyLocalLockFileAssemblies to true will cause unnecessary bloating of the resulting NuGet package. -->
+   </PropertyGroup>
+   
+   <ItemGroup>
+      <!-- Any NuGet packages this project depends on. The Microsoft.Build.Utilities.Core is typical dependency, and any other (3rd party) NuGet package dependency may be freely added. -->
+      <PackageReference Include="Microsoft.Build.Utilities.Core" Version="15.1.548" />
+   </ItemGroup>
+
+   <PropertyGroup>
+      <!-- Properties related to .targets files on every build and/or packing. -->
+      <PackageId>$(AssemblyName)</PackageId>
+      <TargetsFilePathCommon_Package>build/</TargetsFilePathCommon_Package>
+      <TargetsFilePathFunctionality_PackageDir>functionality/</TargetsFilePathFunctionality_PackageDir>
+      <TargetsFilePathInfrastructure>$(MSBuildThisFileDirectory)Infrastructure.targets</TargetsFilePathInfrastructure>
+      <TargetsFilePathInfrastructure_Package>$(PackageId).targets</TargetsFilePathInfrastructure_Package>
+      <TargetsFilePathFunctionality>$(MSBuildThisFileDirectory)Functionality.targets</TargetsFilePathFunctionality>
+      <TargetsFilePathFunctionality_Package>Functionality.targets</TargetsFilePathFunctionality_Package>
+      <PropsFilePathCommon_Package>build/</PropsFilePathCommon_Package>
+      <PropsFileBuildHook>$(MSBuildThisFileDirectory)BuildHook.props</PropsFileBuildHook>
+      <PropsFileBuildHook_Package>$(PackageId).BuildHook.props</PropsFileBuildHook_Package>
+   </PropertyGroup>
+
+   <PropertyGroup>
+      <!-- Properties related to .targets files when building for a first time. -->
+      <SourceFilePathTask>$(MSBuildThisFileDirectory)Task.cs</SourceFilePathTask>
+      <PackageElementPrefix>$(PackageId.Replace('.', ''))</PackageElementPrefix>
+      <BuildHookTargetName>$(PackageElementPrefix)_BuildHook</BuildHookTargetName>
+      <PackageFunctionalityTargetName>$(PackageElementPrefix)_Functionality</PackageFunctionalityTargetName>
+      <TaskFactoryPackageVersion>1.1.4</TaskFactoryPackageVersion>
+      <TaskClass_Namespace>$(PackageId)</TaskClass_Namespace>
+      <TaskClass_Name>BuildHookTask</TaskClass_Name>
+      <TaskClass_FullNameInTargetsFile>$(TaskClass_Namespace).$(TaskClass_Name)</TaskClass_FullNameInTargetsFile>
+   </PropertyGroup>
+
+   <ItemGroup>
+      <None Update="$(TargetsFilePathInfrastructure)">
+         <Pack>true</Pack>
+         <PackagePath>$(TargetsFilePathCommon_Package)$(TargetsFilePathInfrastructure_Package)</PackagePath>
+      </None>
+      <None Update="$(TargetsFilePathFunctionality)">
+         <Pack>true</Pack>
+         <PackagePath>$(TargetsFilePathCommon_Package)$(TargetsFilePathFunctionality_PackageDir)$(TargetsFilePathFunctionality_Package)</PackagePath>
+      </None>
+      <None Update="$(PropsFileBuildHook)">
+         <Pack>true</Pack>
+         <PackagePath>$(PropsFilePathCommon_Package)$(PropsFileBuildHook_Package)</PackagePath>
+      </None>
+   </ItemGroup>
+
+   <Target Name="GenerateTargetsFile" BeforeTargets="BeforeBuild">
+      <CallTarget Targets="GeneratePropsFile_BuildHook" Condition="!Exists('$(PropsFileBuildHook)')" />
+      <CallTarget Targets="GenerateTargetsFile_Infrastructure" Condition="!Exists('$(TargetsFilePathInfrastructure)')" />
+      <CallTarget Targets="GenerateTargetsFile_Functionality" Condition="!Exists('$(TargetsFilePathFunctionality)')" />
+   </Target>
+
+   <Target Name="GeneratePropsFile_BuildHook">
+      <PropertyGroup>
+         <PropsFileBuildHookContents><![CDATA[<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Hook into build process of consumer package. The exact logic for this varies depending on what kind of functionality this package provides, but this is a good starting point. -->
+  <PropertyGroup>
+    <BuildDependsOn>
+      $(BuildHookTargetName)%3B
+      %24(BuildDependsOn)%3B
+    </BuildDependsOn>
+  </PropertyGroup>
+</Project>]]></PropsFileBuildHookContents>
+      </PropertyGroup>
+      <WriteLinesToFile File="$(PropsFileBuildHook)" Lines="$(PropsFileBuildHookContents)" />
+      <CallTarget Targets="GenerateSourceFile_Task" Condition="!Exists('$(SourceFilePathTask)')" />
+   </Target>
+
+   <Target Name="GenerateTargetsFile_Infrastructure">
+      <PropertyGroup>
+         <TargetsFileInfrastructureContents><![CDATA[<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  
+  <!-- Import build hook file. -->
+  <ImportGroup>
+    <Import Project="%24(MSBuildThisFileDirectory)$(PropsFileBuildHook_Package)"/>
+  </ImportGroup>
+  
+  <!-- Properties containing paths to functionality files and directories. -->
+  <PropertyGroup>
+    <$(PackageElementPrefix)_FunctionalityDir>%24(MSBuildThisFileDirectory)$(TargetsFilePathFunctionality_PackageDir)</$(PackageElementPrefix)_FunctionalityDir>
+    <$(PackageElementPrefix)_FunctionalityFile>%24($(PackageElementPrefix)_FunctionalityDir)Functionality.targets</$(PackageElementPrefix)_FunctionalityFile>
+    <$(PackageElementPrefix)_FunctionalityObjFolder>%24($(PackageElementPrefix)_FunctionalityDir)obj/</$(PackageElementPrefix)_FunctionalityObjFolder>
+  </PropertyGroup>
+
+  
+  <!-- This target gets called when consumer project is built. -->
+  <Target Name="$(BuildHookTargetName)">
+    <!-- Restore infrastructure stuff, if not done already. -->
+    <CallTarget
+      Condition="!Exists('%24($(PackageElementPrefix)_FunctionalityObjFolder)')"
+      Targets="$(PackageElementPrefix)_RestoreInfrastructure"
+      />
+      
+    <!-- Now do actual stuff. -->
+    <CallTarget
+      Targets="$(PackageElementPrefix)_CallFunctionality"
+      />
+  </Target>
+  
+  <!-- This target gets called by $(BuildHookTargetName), if necessary -->
+  <Target Name="$(PackageElementPrefix)_RestoreInfrastructure">
+    <!-- We are going to call MSBuild via Exec (because doing this directly via DependsOn/CallTarget/MSBuild/Import mechanisms does not (yet?) work properly) -->
+    <PropertyGroup Condition=" '%24(MSBuildExecCMD)' == '' ">
+      <MSBuildExecCMD Condition=" '%24(MSBuildRuntimeType)' == 'Core' ">dotnet msbuild</MSBuildExecCMD>
+      <MSBuildExecCMD Condition=" '%24(MSBuildRuntimeType)' != 'Core' ">"%24(MSBuildBinPath)\MSBuild.exe"</MSBuildExecCMD>
+    </PropertyGroup>
+    
+    <!-- Restore Functionality.targets file. 
+         We must use Exec, since just running MSBuild will not make this MSBuild see the UtilPackNuGetMSBuildAssemblyPath property defined in UtilPack.NuGet.MSBuild project's .targets file.
+         -->
+    <Exec
+      Command="%24(MSBuildExecCMD) /t:Restore &quot%3B%24($(PackageElementPrefix)_FunctionalityFile)&quot%3B"
+      />
+  </Target>
+  
+  <!-- This target gets called by $(BuildHookTargetName), always. -->
+  <Target Name="$(PackageElementPrefix)_CallFunctionality">
+    <!-- The $(TargetsFilePathFunctionality_PackageDir)Functionality.targets file is now restored, so we can call MSBuild directly on it. -->
+    <MSBuild
+      Projects="%24($(PackageElementPrefix)_FunctionalityFile)"
+      Targets="$(PackageFunctionalityTargetName)"
+      UnloadProjectsOnCompletion="true"
+      />
+  </Target>
+</Project>]]></TargetsFileInfrastructureContents>
+      </PropertyGroup>
+      <WriteLinesToFile File="$(TargetsFilePathInfrastructure)" Lines="$(TargetsFileInfrastructureContents)" />
+      <CallTarget Targets="GenerateSourceFile_Task" Condition="!Exists('$(SourceFilePathTask)')" />
+   </Target>
+   
+   <Target Name="GenerateTargetsFile_Functionality">
+      <PropertyGroup>
+         <TargetsFileFunctionalityContents><![CDATA[<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- This is required, otherwise MSBuild will end up in error. -->
+    <TargetFramework>netstandard1.0</TargetFramework>
+  </PropertyGroup>
+  
+  <!-- A reference to UtilPack.NuGet.MSBuild task factory. -->
+  <ItemGroup>
+    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="$(TaskFactoryPackageVersion)" />
+  </ItemGroup>
+  
+  <!-- UsingTask directive. -->
+  <UsingTask
+    Condition=" '%24(UtilPackNuGetMSBuildAssemblyPath)' != '' "
+    TaskFactory="UtilPack.NuGet.MSBuild.NuGetTaskRunnerFactory"
+    AssemblyFile="%24(UtilPackNuGetMSBuildAssemblyPath)"
+    TaskName="$(TaskClass_FullNameInTargetsFile)"
+  >
+    <Task>
+      <NuGetTaskInfo>
+        <PackageIDIsSelf>true</PackageIDIsSelf>
+      </NuGetTaskInfo>
+    </Task>
+  </UsingTask>
+  
+  <Target Name="$(PackageFunctionalityTargetName)">
+    <!-- This target will get called by $(TargetsFilePathCommon_Package)$(TargetsFilePathInfrastructure_Package) file. -->
+    <!-- Execute our custom task. -->
+     <$(TaskClass_FullNameInTargetsFile)
+       Prefix="Hello from $(PackageId)"
+      />
+  </Target>
+</Project>]]></TargetsFileFunctionalityContents>
+      </PropertyGroup>
+      <WriteLinesToFile File="$(TargetsFilePathFunctionality)" Lines="$(TargetsFileFunctionalityContents)" />
+      <CallTarget Targets="GenerateSourceFile_Task" Condition="!Exists('$(SourceFilePathTask)')" />
+   </Target>
+
+   <Target Name="GenerateSourceFile_Task">
+      <PropertyGroup>
+         <SourceFileTaskContents>
+   <![CDATA[///////////////////////////////////////////////////////////////////////////////
+// This is the source file of the task called by Functionality.targets file. //
+///////////////////////////////////////////////////////////////////////////////
+
+using System%3B
+using Microsoft.Build.Framework%3B
+
+namespace $(PackageId)
+{
+   public class $(TaskClass_Name) : Microsoft.Build.Utilities.Task
+   {
+      public override Boolean Execute()
+      {
+         this.Log.LogMessage( MessageImportance.High, this.Prefix + ", world!" )%3B
+         return true%3B
+      }
+
+      public String Prefix { get%3B set%3B }
+   }
+}]]></SourceFileTaskContents>
+      </PropertyGroup>
+      <WriteLinesToFile File="$(SourceFilePathTask)" Lines="$(SourceFileTaskContents)" />
+   </Target>
+   
+</Project>

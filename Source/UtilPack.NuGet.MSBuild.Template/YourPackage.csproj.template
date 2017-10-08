@@ -39,7 +39,7 @@
       <PackageElementPrefix>$(PackageId.Replace('.', ''))</PackageElementPrefix>
       <BuildHookTargetName>$(PackageElementPrefix)_BuildHook</BuildHookTargetName>
       <PackageFunctionalityTargetName>$(PackageElementPrefix)_Functionality</PackageFunctionalityTargetName>
-      <TaskFactoryPackageVersion>1.1.4</TaskFactoryPackageVersion>
+      <TaskFactoryPackageVersion>1.2.0</TaskFactoryPackageVersion>
       <TaskClass_Namespace>$(PackageId)</TaskClass_Namespace>
       <TaskClass_Name>BuildHookTask</TaskClass_Name>
       <TaskClass_FullNameInTargetsFile>$(TaskClass_Namespace).$(TaskClass_Name)</TaskClass_FullNameInTargetsFile>

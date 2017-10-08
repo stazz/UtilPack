@@ -6,6 +6,7 @@
 
    <PropertyGroup>
       <!-- General properties related to compiling -->
+      <DevelopmentDependency>True</DevelopmentDependency>
       <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
       <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
       <TreatSpecificWarningsAsErrors />

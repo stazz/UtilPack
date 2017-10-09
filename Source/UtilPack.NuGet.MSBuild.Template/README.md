@@ -11,6 +11,7 @@ This template project provides an easy way to generate and handle those necessar
 2. Run the build for the new `.csproj` file once, either via `dotnet msbuild /t:Restore;Build MyCustomTask.csproj` command, or via Visual Studio IDE. Doing so successfully should generate four files:
     - `BuildHook.props` - the `.props` file containing skeleton implementation for the hook into the build process of the consumer project. Feel free to modify this file for your needs.
     - `Functionality.targets` - the `.targets` file containing the call to your custom MSBuild task, written in C#/VB.NET/F#. Typically you'll need only to modify the `TaskName` property of `UsingTask` directive, and the contents (but not the `Name` attribute) of the `Target` element.
+    - `Functionality.proxy.targets` the `.targets` file containing some plumbing code when invoking the task indirectly. This will happen if `PackageReference` to `UtilPack.NuGet.MSBuild` file is removed from the `MyCustomTask.csproj` file.
     - `Infrastructure.targets` - the `.targets` file containing the necessary things mentioned above. In most cases, you won't need to modify anything in this file.
     - `Task.cs` - the C# file containing skeleton for your custom MSBuild task. Feel free to modify the contents and the file name as needed. Remember to make corresponding changes to `Functionality.targets` when adding/removing task properties, or task class name.
 

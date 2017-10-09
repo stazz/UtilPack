@@ -17,6 +17,7 @@
    <ItemGroup>
       <!-- Any NuGet packages this project depends on. The Microsoft.Build.Utilities.Core is typical dependency, and any other (3rd party) NuGet package dependency may be freely added. -->
       <PackageReference Include="Microsoft.Build.Utilities.Core" Version="15.1.548" />
+      <PackageReference Include="UtilPack.NuGet.MSBuild" Version="1.2.0" PrivateAssets="all" />
    </ItemGroup>
 
    <PropertyGroup>
@@ -28,6 +29,8 @@
       <TargetsFilePathInfrastructure_Package>$(PackageId).targets</TargetsFilePathInfrastructure_Package>
       <TargetsFilePathFunctionality>$(MSBuildThisFileDirectory)Functionality.targets</TargetsFilePathFunctionality>
       <TargetsFilePathFunctionality_Package>Functionality.targets</TargetsFilePathFunctionality_Package>
+      <TargetsFilePathFunctionalityProxy>$(MSBuildThisFileDirectory)Functionality.proxy.targets</TargetsFilePathFunctionalityProxy>
+      <TargetsFilePathFunctionalityProxy_Package>Functionality.proxy.targets</TargetsFilePathFunctionalityProxy_Package>
       <PropsFilePathCommon_Package>build/</PropsFilePathCommon_Package>
       <PropsFileBuildHook>$(MSBuildThisFileDirectory)BuildHook.props</PropsFileBuildHook>
       <PropsFileBuildHook_Package>$(PackageId).BuildHook.props</PropsFileBuildHook_Package>
@@ -54,16 +57,21 @@
          <Pack>true</Pack>
          <PackagePath>$(TargetsFilePathCommon_Package)$(TargetsFilePathFunctionality_PackageDir)$(TargetsFilePathFunctionality_Package)</PackagePath>
       </None>
+      <None Update="$(TargetsFilePathFunctionalityProxy)">
+        <Pack>true</Pack>
+        <PackagePath>$(TargetsFilePathCommon_Package)$(TargetsFilePathFunctionality_PackageDir)$(TargetsFilePathFunctionalityProxy_Package)</PackagePath>
+      </None>
       <None Update="$(PropsFileBuildHook)">
          <Pack>true</Pack>
          <PackagePath>$(PropsFilePathCommon_Package)$(PropsFileBuildHook_Package)</PackagePath>
       </None>
    </ItemGroup>
 
-   <Target Name="GenerateTargetsFile" BeforeTargets="BeforeBuild">
+   <Target Name="GenerateTemplateFiles" BeforeTargets="BeforeBuild">
       <CallTarget Targets="GeneratePropsFile_BuildHook" Condition="!Exists('$(PropsFileBuildHook)')" />
       <CallTarget Targets="GenerateTargetsFile_Infrastructure" Condition="!Exists('$(TargetsFilePathInfrastructure)')" />
       <CallTarget Targets="GenerateTargetsFile_Functionality" Condition="!Exists('$(TargetsFilePathFunctionality)')" />
+      <CallTarget Targets="GenerateTargetsFile_FunctionalityProxy" Condition="!Exists('$(TargetsFilePathFunctionalityProxy)')" />
    </Target>
 
    <Target Name="GeneratePropsFile_BuildHook">
@@ -90,17 +98,48 @@
   <ImportGroup>
     <Import Project="%24(MSBuildThisFileDirectory)$(PropsFileBuildHook_Package)"/>
   </ImportGroup>
-  
+    
   <!-- Properties containing paths to functionality files and directories. -->
   <PropertyGroup>
     <$(PackageElementPrefix)_FunctionalityDir>%24(MSBuildThisFileDirectory)$(TargetsFilePathFunctionality_PackageDir)</$(PackageElementPrefix)_FunctionalityDir>
     <$(PackageElementPrefix)_FunctionalityFile>%24($(PackageElementPrefix)_FunctionalityDir)Functionality.targets</$(PackageElementPrefix)_FunctionalityFile>
+    <$(PackageElementPrefix)_FunctionalityProxyFile>%24($(PackageElementPrefix)_FunctionalityDir)Functionality.proxy.targets</$(PackageElementPrefix)_FunctionalityProxyFile>
     <$(PackageElementPrefix)_FunctionalityObjFolder>%24($(PackageElementPrefix)_FunctionalityDir)obj/</$(PackageElementPrefix)_FunctionalityObjFolder>
   </PropertyGroup>
 
+  <PropertyGroup Condition=" '%24(UtilPackNuGetMSBuildAssemblyPath)' == ''">
+    <UtilPackNuGetMSBuildPropsPath Condition=" '%24(UtilPackNuGetMSBuildPropsPath)' == ''">%24(MSBuildThisFileDirectory)../../../utilpack.nuget.msbuild/$(TaskFactoryPackageVersion)/build/UtilPack.NuGet.MSBuild.props</UtilPackNuGetMSBuildPropsPath>
+    <UtilPackNuGetMSBuildPropsAbsolutePath>%24([System.IO.Path]::GetFullPath('%24(UtilPackNuGetMSBuildPropsPath)'))</UtilPackNuGetMSBuildPropsAbsolutePath>
+    <!-- Set absolute path to empty string if automatic deduction failed. -->
+    <UtilPackNuGetMSBuildPropsAbsolutePath Condition=" '%24(UtilPackNuGetMSBuildPropsAbsolutePath)' == '' or !Exists('%24(UtilPackNuGetMSBuildPropsAbsolutePath)') "></UtilPackNuGetMSBuildPropsAbsolutePath>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <$(PackageElementPrefix)_CanCallDirectly Condition=" '%24(UtilPackNuGetMSBuildAssemblyPath)' != '' or '%24(UtilPackNuGetMSBuildPropsAbsolutePath)' != '' ">true</$(PackageElementPrefix)_CanCallDirectly>
+  </PropertyGroup>
+
+  <!-- Import the UtilPack.NuGet.MSBuild props file directly, if we managed to deduce it. -->
+  <ImportGroup>
+    <Import Condition=" '%24(UtilPackNuGetMSBuildAssemblyPath)' == '' and '%24(UtilPackNuGetMSBuildPropsAbsolutePath)' != '' " Project="%24(UtilPackNuGetMSBuildPropsAbsolutePath)" />
+    <Import Condition=" '%24($(PackageElementPrefix)_CanCallDirectly)' == 'true' " Project="%24($(PackageElementPrefix)_FunctionalityFile)"/>
+  </ImportGroup>
   
   <!-- This target gets called when consumer project is built. -->
   <Target Name="$(BuildHookTargetName)">
+    <!-- Just call our target directly if we imported the functionality targets file. -->
+    <CallTarget
+      Condition=" '%24($(PackageElementPrefix)_CanCallDirectly)' == 'true' "
+      Targets="$(PackageFunctionalityTargetName)"
+      />
+      
+    <!-- Do separate restore & MSBuild-call if the functionality targets file was not imported. -->
+    <CallTarget
+      Condition=" '%24($(PackageElementPrefix)_CanCallDirectly)' != 'true' "
+      Targets="$(BuildHookTargetName)_Indirect"
+      />
+  </Target>
+  
+  <Target Name="$(BuildHookTargetName)_Indirect">
     <!-- Restore infrastructure stuff, if not done already. -->
     <CallTarget
       Condition="!Exists('%24($(PackageElementPrefix)_FunctionalityObjFolder)')"
@@ -125,15 +164,15 @@
          We must use Exec, since just running MSBuild will not make this MSBuild see the UtilPackNuGetMSBuildAssemblyPath property defined in UtilPack.NuGet.MSBuild project's .targets file.
          -->
     <Exec
-      Command="%24(MSBuildExecCMD) /t:Restore &quot%3B%24($(PackageElementPrefix)_FunctionalityFile)&quot%3B"
+      Command="%24(MSBuildExecCMD) /t:Restore &quot%3B%24($(PackageElementPrefix)_FunctionalityProxyFile)&quot%3B"
       />
   </Target>
   
   <!-- This target gets called by $(BuildHookTargetName), always. -->
   <Target Name="$(PackageElementPrefix)_CallFunctionality">
-    <!-- The $(TargetsFilePathFunctionality_PackageDir)Functionality.targets file is now restored, so we can call MSBuild directly on it. -->
+    <!-- The $(TargetsFilePathFunctionality_PackageDir)Functionality.proxy.targets file is now restored, so we can call MSBuild directly on it. -->
     <MSBuild
-      Projects="%24($(PackageElementPrefix)_FunctionalityFile)"
+      Projects="%24($(PackageElementPrefix)_FunctionalityProxyFile)"
       Targets="$(PackageFunctionalityTargetName)"
       UnloadProjectsOnCompletion="true"
       />
@@ -144,9 +183,9 @@
       <CallTarget Targets="GenerateSourceFile_Task" Condition="!Exists('$(SourceFilePathTask)')" />
    </Target>
    
-   <Target Name="GenerateTargetsFile_Functionality">
-      <PropertyGroup>
-         <TargetsFileFunctionalityContents><![CDATA[<Project Sdk="Microsoft.NET.Sdk">
+   <Target Name="GenerateTargetsFile_FunctionalityProxy">
+     <PropertyGroup>
+       <TargetsFileFunctionalityProxyContents><![CDATA[<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <!-- This is required, otherwise MSBuild will end up in error. -->
     <TargetFramework>netstandard1.0</TargetFramework>
@@ -157,6 +196,16 @@
     <PackageReference Include="UtilPack.NuGet.MSBuild" Version="$(TaskFactoryPackageVersion)" />
   </ItemGroup>
   
+  <Import Project="%24(MSBuildThisFileDirectory)Functionality.targets"/>
+</Project>]]></TargetsFileFunctionalityProxyContents>
+     </PropertyGroup>
+      <WriteLinesToFile File="$(TargetsFilePathFunctionalityProxy)" Lines="$(TargetsFileFunctionalityProxyContents)" />
+      <CallTarget Targets="GenerateSourceFile_Task" Condition="!Exists('$(SourceFilePathTask)')" />
+   </Target>
+   
+   <Target Name="GenerateTargetsFile_Functionality">
+      <PropertyGroup>
+         <TargetsFileFunctionalityContents><![CDATA[<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"> 
   <!-- UsingTask directive. -->
   <UsingTask
     Condition=" '%24(UtilPackNuGetMSBuildAssemblyPath)' != '' "

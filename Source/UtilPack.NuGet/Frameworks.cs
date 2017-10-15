@@ -49,6 +49,7 @@ namespace UtilPack.NuGet
       /// <param name="optionalGivenAssemblyPath">Optional assembly path from "outside world", e.g. configuration.</param>
       /// <returns>Best matched assembly path, or <c>null</c>.</returns>
       public static String GetAssemblyPathFromNuGetAssemblies(
+         String packageID,
          String[] assemblyPaths,
          String optionalGivenAssemblyPath,
          Func<String, Boolean> suitableAssemblyPathChecker
@@ -65,7 +66,7 @@ namespace UtilPack.NuGet
          }
          else if (
           assemblyPaths.Length > 1
-          && !String.IsNullOrEmpty( ( assemblyPath = optionalGivenAssemblyPath ) ) // AssemblyPath task property was given
+          && !String.IsNullOrEmpty( ( assemblyPath = ( optionalGivenAssemblyPath ?? ( packageID + ".dll" ) ) ) ) // AssemblyPath task property was given
           )
          {
             assemblyPath = assemblyPaths

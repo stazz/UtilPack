@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
     <id>UtilPack.NuGet.MSBuild</id>
-    <version>1.2.0</version>
+    <version>1.2.1</version>
     <title>MSBuild Task Factory for NuGet-Oriented MSBuild Tasks</title>
     <authors>Stanislav Muhametsin</authors>
     <owners>Stanislav Muhametsin</owners>
@@ -11,7 +11,7 @@
     <repository url="https://github.com/CometaSolutions/UtilPack" />
     <projectUrl>https://github.com/CometaSolutions/UtilPack/tree/develop/Source/UtilPack.NuGet.MSBuild</projectUrl>
     <description>Provides easy way to execute NuGet-based MSBuild tasks.</description>
-    <releaseNotes>The task factory now can be parametrized to automatically deduct the package ID and version of the target task, if run from within that package.</releaseNotes>
+    <releaseNotes>The AssemblyPath parameter is now the ID of the package by default, so that it would make life easier. The non-array ITaskItem types are now supported as well. Fixed a bug causing nullref exception for non-strong-name-signed assemblies in .NET Core environment.</releaseNotes>
     <copyright>Stanislav Muhametsin</copyright>
     <tags>utility nuget extensions msbuild task package resolve</tags>
     <developmentDependency>true</developmentDependency>

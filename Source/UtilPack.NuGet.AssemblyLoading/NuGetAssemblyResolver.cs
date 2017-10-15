@@ -284,7 +284,10 @@ namespace UtilPack.NuGet.AssemblyLoading
          this._defaultLoadContext = GetLoadContext( this.GetType().GetTypeInfo().Assembly );
          this._loadedAssemblies = new ConcurrentDictionary<AssemblyName, Lazy<Assembly>>(
             ComparerFromFunctions.NewEqualityComparer<AssemblyName>(
-               ( x, y ) => String.Equals( x.Name, y.Name ) && String.Equals( x.CultureName, y.CultureName ) && x.Version.Equals( y.Version ) && ArrayEqualityComparer<Byte>.ArrayEquality( x.GetPublicKeyToken(), y.GetPublicKeyToken() ),
+               ( x, y ) => String.Equals( x.Name, y.Name )
+                  && String.Equals( x.CultureName, y.CultureName )
+                  && x.Version.Equals( y.Version )
+                  && NuGetAssemblyResolverImpl.AssemblyNameComparer.SafeEqualsWhenNullsAreEmptyArrays( x.GetPublicKeyToken(), y.GetPublicKeyToken() ),
                x => x.Name.GetHashCode()
                )
             );
@@ -342,7 +345,7 @@ namespace UtilPack.NuGet.AssemblyLoading
 
       NuGetAssemblyResolver, IDisposable
    {
-      private sealed class AssemblyNameComparer : IEqualityComparer<AssemblyName>
+      internal sealed class AssemblyNameComparer : IEqualityComparer<AssemblyName>
       {
 
          private AssemblyNameComparer()
@@ -352,27 +355,10 @@ namespace UtilPack.NuGet.AssemblyLoading
          bool IEqualityComparer<AssemblyName>.Equals( AssemblyName x, AssemblyName y )
          {
             // Compare just name + public key, as we might get different version assembly
-            Boolean AllMatch( Byte[] first, Byte[] second )
-            {
-               var len = first.Length;
-               for ( var i = 0; i < len; ++i )
-               {
-                  if ( first[i] != second[i] )
-                  {
-                     return false;
-                  }
-               }
-
-               return true;
-            }
-
             var retVal = String.Equals( x?.Name, y?.Name );
             if ( retVal && x != null && y != null )
             {
-               var xpk = x.GetPublicKeyToken();
-               var ypk = y.GetPublicKeyToken();
-               retVal = ( ( xpk == null || xpk.Length == 0 ) && ( ypk == null || ypk.Length == 0 ) )
-                  || ( xpk != null && ypk != null && xpk.Length == ypk.Length && AllMatch( xpk, ypk ) );
+               retVal = SafeEqualsWhenNullsAreEmptyArrays( x.GetPublicKeyToken(), y.GetPublicKeyToken() );
             }
 
             return retVal;
@@ -384,6 +370,9 @@ namespace UtilPack.NuGet.AssemblyLoading
          }
 
          internal static readonly IEqualityComparer<AssemblyName> Instance = new AssemblyNameComparer();
+
+         internal static Boolean SafeEqualsWhenNullsAreEmptyArrays( Byte[] x, Byte[] y ) =>
+            ArrayEqualityComparer<Byte>.ArrayEquality( x ?? Empty<Byte>.Array, y ?? Empty<Byte>.Array );
       }
 
       private sealed class AssemblyInformation
@@ -607,9 +596,11 @@ namespace UtilPack.NuGet.AssemblyLoading
 
                for ( var i = 0; i < packageIDs.Length; ++i )
                {
-                  if ( assemblyInfos.TryGetValue( packageIDs[i], out var possibleAssemblyPaths ) )
+                  var packageID = packageIDs[i];
+                  if ( assemblyInfos.TryGetValue( packageID, out var possibleAssemblyPaths ) )
                   {
                      var assemblyPath = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
+                        packageID,
                         possibleAssemblyPaths.Assemblies,
                         assemblyPaths[i],
                         ap => File.Exists( ap )
@@ -626,7 +617,7 @@ namespace UtilPack.NuGet.AssemblyLoading
                            .Resolver
 #endif
 
-                           .LogAssemblyPathResolveError( packageIDs[i], possibleAssemblyPaths.Assemblies, assemblyPaths[i] );
+                           .LogAssemblyPathResolveError( packageID, possibleAssemblyPaths.Assemblies, assemblyPaths[i] );
                      }
                   }
                }

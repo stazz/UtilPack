@@ -27,7 +27,7 @@ using NuGet.Versioning;
 using System.Reflection;
 using NuGet.Frameworks;
 
-using TPropertyInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyInfo, System.Reflection.PropertyInfo>;
+using TPropertyInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyTypeModifier, UtilPack.NuGet.MSBuild.WrappedPropertyInfo, System.Reflection.PropertyInfo>;
 using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
 using TNuGetPackagesResolverCallback = System.Func<System.String[], System.String[], System.String[], System.Threading.Tasks.Task<System.Reflection.Assembly[]>>;
 using TAssemblyByPathResolverCallback = System.Func<System.String, System.Reflection.Assembly>;
@@ -43,8 +43,7 @@ using TResolveResult = System.Collections.Generic.IDictionary<System.String, Uti
 using System.Reflection.Emit;
 using System.Threading;
 
-using TTaskTypeGenerationParameters = System.ValueTuple<System.Boolean, System.Collections.Generic.IDictionary<System.String, System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyInfo>>>;
-using TTaskInstanceCreationInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.TaskReferenceHolder, UtilPack.NuGet.MSBuild.ResolverLogger>;
+using TTaskPropertyInfoDictionary = System.Collections.Generic.IDictionary<System.String, System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyTypeModifier, UtilPack.NuGet.MSBuild.WrappedPropertyInfo>>;
 using System.Threading.Tasks;
 using UtilPack.NuGet;
 using UtilPack.NuGet.MSBuild;
@@ -54,6 +53,8 @@ using UtilPack.NuGet.Common.MSBuild;
 
 namespace UtilPack.NuGet.MSBuild
 {
+   using TTaskTypeGenerationParameters = System.ValueTuple<System.Boolean, TTaskPropertyInfoDictionary>;
+
    // On first task create the task type is dynamically generated, and app domain initialized
    // On cleanup, app domain will be unloaded, but task type kept
    // On subsequent uses, app-domain will be re-initialized and unloaded again, but the generated type prevails.
@@ -62,7 +63,7 @@ namespace UtilPack.NuGet.MSBuild
 
       private sealed class TaskReferenceHolderInfo : IDisposable
       {
-         private readonly Lazy<IDictionary<String, (WrappedPropertyKind, WrappedPropertyInfo)>> _propertyInfo;
+         private readonly Lazy<TTaskPropertyInfoDictionary> _propertyInfo;
          private readonly Action _dispose;
 
          public TaskReferenceHolderInfo(
@@ -74,14 +75,14 @@ namespace UtilPack.NuGet.MSBuild
             this.TaskReference = taskRef;
             this.Logger = resolverLogger;
             this._dispose = dispose;
-            this._propertyInfo = new Lazy<IDictionary<string, (WrappedPropertyKind, WrappedPropertyInfo)>>( () => taskRef.GetPropertyInfo().ToDictionary( kvp => kvp.Key, kvp => TaskReferenceHolder.DecodeKindAndInfo( kvp.Value ) ) );
+            this._propertyInfo = new Lazy<TTaskPropertyInfoDictionary>( () => taskRef.GetPropertyInfo().ToDictionary( kvp => kvp.Key, kvp => TaskReferenceHolder.DecodeKindAndInfo( kvp.Value ) ) );
          }
 
          public TaskReferenceHolder TaskReference { get; }
 
          public ResolverLogger Logger { get; }
 
-         public IDictionary<String, (WrappedPropertyKind, WrappedPropertyInfo)> PropertyInfo => this._propertyInfo.Value;
+         public TTaskPropertyInfoDictionary PropertyInfo => this._propertyInfo.Value;
 
          public void Dispose()
          {
@@ -158,8 +159,8 @@ namespace UtilPack.NuGet.MSBuild
          return this._helper.Value.PropertyInfo
             .Select( kvp =>
             {
-               var propType = GetPropertyType( kvp.Value.Item1 );
-               var info = kvp.Value.Item2;
+               var propType = GetPropertyType( kvp.Value.Item1, kvp.Value.Item2 );
+               var info = kvp.Value.Item3;
                return propType == null ?
                   null :
                   new Microsoft.Build.Framework.TaskPropertyInfo( kvp.Key, propType, info == WrappedPropertyInfo.Out, info == WrappedPropertyInfo.Required );
@@ -237,6 +238,7 @@ namespace UtilPack.NuGet.MSBuild
                      )[packageID];
                   var assemblyPathHint = taskBodyElement.ElementAnyNS( ASSEMBLY_PATH )?.Value;
                   var assemblyPath = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
+                     packageID,
                      taskAssemblies.Assemblies,
                      assemblyPathHint,
                      ap => File.Exists( ap )
@@ -680,41 +682,13 @@ namespace UtilPack.NuGet.MSBuild
 
          il.Emit( OpCodes.Ret );
          // Properties
-         var taskRefGetter = typeof( TaskReferenceHolder ).GetMethod( nameof( TaskReferenceHolder.GetProperty ) );
-         var taskRefSetter = typeof( TaskReferenceHolder ).GetMethod( nameof( TaskReferenceHolder.SetProperty ) );
-         var toStringCall = typeof( Convert ).GetMethod( nameof( Convert.ToString ), new Type[] { typeof( Object ) } );
-         var requiredAttribute = typeof( RequiredAttribute ).GetConstructor( new Type[] { } );
-         var outAttribute = typeof( OutputAttribute ).GetConstructor( new Type[] { } );
-         var beSetter = typeof( ResolverLogger ).GetMethod( nameof( ResolverLogger.TaskBuildEngineSet ) );
-         var beReady = typeof( ResolverLogger ).GetMethod( nameof( ResolverLogger.TaskBuildEngineIsReady ) );
-         if ( taskRefGetter == null )
-         {
-            throw new Exception( "Internal error: no property getter." );
-         }
-         else if ( taskRefSetter == null )
-         {
-            throw new Exception( "Internal error: no property getter." );
-         }
-         else if ( toStringCall == null )
-         {
-            throw new Exception( "Internal error: no Convert.ToString." );
-         }
-         else if ( requiredAttribute == null )
-         {
-            throw new Exception( "Internal error: no Required attribute constructor." );
-         }
-         else if ( outAttribute == null )
-         {
-            throw new Exception( "Internal error: no Out attribute constructor." );
-         }
-         else if ( beSetter == null )
-         {
-            throw new Exception( "Internal error: no log setter." );
-         }
-         else if ( beReady == null )
-         {
-            throw new Exception( "Internal error: no log state updater." );
-         }
+         var taskRefGetter = typeof( TaskReferenceHolder ).GetMethod( nameof( TaskReferenceHolder.GetProperty ) ) ?? throw new Exception( "Internal error: no property getter." );
+         var taskRefSetter = typeof( TaskReferenceHolder ).GetMethod( nameof( TaskReferenceHolder.SetProperty ) ) ?? throw new Exception( "Internal error: no property getter." );
+         var toStringCall = typeof( Convert ).GetMethod( nameof( Convert.ToString ), new Type[] { typeof( Object ) } ) ?? throw new Exception( "Internal error: no Convert.ToString." ); ;
+         var requiredAttribute = typeof( RequiredAttribute ).GetConstructor( new Type[] { } ) ?? throw new Exception( "Internal error: no Required attribute constructor." ); ;
+         var outAttribute = typeof( OutputAttribute ).GetConstructor( new Type[] { } ) ?? throw new Exception( "Internal error: no Out attribute constructor." ); ;
+         var beSetter = typeof( ResolverLogger ).GetMethod( nameof( ResolverLogger.TaskBuildEngineSet ) ) ?? throw new Exception( "Internal error: no log setter." );
+         var beReady = typeof( ResolverLogger ).GetMethod( nameof( ResolverLogger.TaskBuildEngineIsReady ) ) ?? throw new Exception( "Internal error: no log state updater." ); ;
 
          var outPropertyInfos = new List<(String, WrappedPropertyKind, Type, FieldBuilder)>();
          void EmitPropertyConversionCode( ILGenerator curIL, WrappedPropertyKind curKind, Type curPropType )
@@ -736,8 +710,8 @@ namespace UtilPack.NuGet.MSBuild
          }
          foreach ( var kvp in propertyInfos )
          {
-            (var kind, var info) = kvp.Value;
-            var propType = GetPropertyType( kind );
+            (var kind, var typeMod, var info) = kvp.Value;
+            var propType = GetPropertyType( kind, typeMod );
             if ( propType == null )
             {
                switch ( kind )
@@ -920,20 +894,37 @@ namespace UtilPack.NuGet.MSBuild
 
       }
 
-      private static Type GetPropertyType( WrappedPropertyKind kind )
+      private static Type GetPropertyType( WrappedPropertyKind kind, WrappedPropertyTypeModifier modifier )
       {
+         Type retVal;
          switch ( kind )
          {
             case WrappedPropertyKind.String:
             case WrappedPropertyKind.StringNoConversion:
-               return typeof( String );
+               retVal = typeof( String );
+               break;
             case WrappedPropertyKind.TaskItem:
-               return typeof( Microsoft.Build.Framework.ITaskItem[] );
+               retVal = typeof( Microsoft.Build.Framework.ITaskItem );
+               break;
             case WrappedPropertyKind.TaskItem2:
-               return typeof( Microsoft.Build.Framework.ITaskItem2[] );
+               retVal = typeof( Microsoft.Build.Framework.ITaskItem2 );
+               break;
             default:
-               return null;
+               retVal = null;
+               break;
          }
+
+         if ( retVal != null )
+         {
+            switch ( modifier )
+            {
+               case WrappedPropertyTypeModifier.Array:
+                  retVal = retVal.MakeArrayType();
+                  break;
+            }
+         }
+
+         return retVal;
       }
 
       internal static void LoadTaskType(
@@ -1084,13 +1075,15 @@ namespace UtilPack.NuGet.MSBuild
       {
          public TaskPropertyInfo(
             WrappedPropertyKind wrappedPropertyKind,
+            WrappedPropertyTypeModifier typeMod,
             WrappedPropertyInfo wrappedPropertyInfo,
             Func<Object> getter,
             Action<Object> setter,
-            Func<String, Object> converter
+            Func<Object, Object> converter
             )
          {
             this.WrappedPropertyKind = wrappedPropertyKind;
+            this.WrappedPropertyTypeModifier = typeMod;
             this.WrappedPropertyInfo = wrappedPropertyInfo;
             this.Getter = getter;
             this.Setter = setter;
@@ -1098,10 +1091,11 @@ namespace UtilPack.NuGet.MSBuild
          }
 
          public WrappedPropertyKind WrappedPropertyKind { get; }
+         public WrappedPropertyTypeModifier WrappedPropertyTypeModifier { get; }
          public WrappedPropertyInfo WrappedPropertyInfo { get; }
          public Func<Object> Getter { get; }
          public Action<Object> Setter { get; }
-         public Func<String, Object> Converter { get; }
+         public Func<Object, Object> Converter { get; }
       }
 
       private readonly Object _task;
@@ -1113,20 +1107,29 @@ namespace UtilPack.NuGet.MSBuild
       {
          this._task = task ?? throw new Exception( "Failed to create the task object." );
          this.TaskUsesDynamicLoading = taskUsesDynamicLoading;
-         var mbfInterfaces = this._task.GetType().GetInterfaces()
+         var taskType = this._task.GetType();
+         var mbfInterfaces = taskType.GetInterfaces()
             .Where( iFace => iFace
 #if !NET45
             .GetTypeInfo()
 #endif
             .Assembly.GetName().FullName.Equals( msbuildFrameworkAssemblyName ) )
             .ToArray();
-         // TODO explicit implementations
-         this._executeMethod = mbfInterfaces
+         var iTask = mbfInterfaces
             .Where( iFace => iFace.FullName.Equals( CommonHelpers.MBF + nameof( Microsoft.Build.Framework.ITask ) ) )
-            .First().GetMethods().First( m => m.Name.Equals( nameof( Microsoft.Build.Framework.ITask.Execute ) ) && m.GetParameters().Length == 0 && m.ReturnType.FullName.Equals( typeof( Boolean ).FullName ) );
+            .FirstOrDefault() ?? throw new ArgumentException( $"The task \"{taskType.FullName}\" does not seem to implement \"{nameof( Microsoft.Build.Framework.ITask )}\" interface." );
+
+         // TODO explicit implementations
+         this._executeMethod = iTask.GetMethods()
+            .FirstOrDefault( m =>
+               m.Name.Equals( nameof( Microsoft.Build.Framework.ITask.Execute ) )
+               && m.GetParameters().Length == 0
+               && m.ReturnType.FullName.Equals( typeof( Boolean ).FullName )
+               ) ?? throw new ArgumentException( $"The task \"{taskType.FullName}\" does not seem to have implicit implementation of \"{nameof( Microsoft.Build.Framework.ITask.Execute )}\" method." );
+
          this._cancelMethod = mbfInterfaces
             .FirstOrDefault( iFace => iFace.FullName.Equals( CommonHelpers.MBF + nameof( Microsoft.Build.Framework.ICancelableTask ) ) )
-            ?.GetMethods()?.First( m => m.Name.Equals( nameof( Microsoft.Build.Framework.ICancelableTask.Cancel ) ) && m.GetParameters().Length == 0 );
+            ?.GetMethods()?.FirstOrDefault( m => m.Name.Equals( nameof( Microsoft.Build.Framework.ICancelableTask.Cancel ) ) && m.GetParameters().Length == 0 );
 
          this._propertyInfos = CommonHelpers.GetPropertyInfoFromType(
             task.GetType(),
@@ -1135,14 +1138,36 @@ namespace UtilPack.NuGet.MSBuild
                kvp => kvp.Key,
                kvp =>
                {
-                  var curProperty = kvp.Value.Item3;
+                  var curProperty = kvp.Value.Item4;
                   var propType = curProperty.PropertyType;
+                  var isArray = kvp.Value.Item2 == WrappedPropertyTypeModifier.Array;
+                  if ( isArray )
+                  {
+                     propType = propType.GetElementType();
+                  }
                   var converter = kvp.Value.Item1 == WrappedPropertyKind.String ?
-                     ( propType.GetTypeInfo().IsEnum ? (Func<String, Object>) ( str => Enum.Parse( propType, str, true ) ) : ( str => Convert.ChangeType( str, propType ) ) ) :
-                     (Func<String, Object>) null;
+                     ( propType.GetTypeInfo().IsEnum ? (Func<Object, Object>) ( str => Enum.Parse( propType, (String) str, true ) ) : ( str => Convert.ChangeType( (String) str, propType ) ) ) :
+                     (Func<Object, Object>) null;
+                  if ( converter != null && isArray )
+                  {
+                     var itemConverter = converter;
+                     converter = arrayObj =>
+                     {
+                        var array = (Array) arrayObj;
+                        var retValArray = Array.CreateInstance( propType, array.Length );
+                        for ( var i = 0; i < array.Length; ++i )
+                        {
+                           retValArray.SetValue( itemConverter( array.GetValue( i ) ), i );
+                        }
+
+                        return retValArray;
+                     };
+                  }
+
                   return new TaskPropertyInfo(
                      kvp.Value.Item1,
                      kvp.Value.Item2,
+                     kvp.Value.Item3,
                      () => curProperty.GetMethod.Invoke( this._task, null ),
                      val => curProperty.SetMethod.Invoke( this._task, new[] { val } ),
                      converter
@@ -1154,7 +1179,7 @@ namespace UtilPack.NuGet.MSBuild
       // Passing value tuples thru appdomain boundaries is errorprone, so just use normal integers here
       internal IDictionary<String, Int32> GetPropertyInfo()
       {
-         return this._propertyInfos.ToDictionary( kvp => kvp.Key, kvp => EncodeKindAndInfo( kvp.Value.WrappedPropertyKind, kvp.Value.WrappedPropertyInfo ) );
+         return this._propertyInfos.ToDictionary( kvp => kvp.Key, kvp => EncodeKindAndInfo( kvp.Value.WrappedPropertyKind, kvp.Value.WrappedPropertyTypeModifier, kvp.Value.WrappedPropertyInfo ) );
       }
 
       internal Boolean IsCancelable => this._cancelMethod != null;
@@ -1202,16 +1227,15 @@ namespace UtilPack.NuGet.MSBuild
          return (Boolean) this._executeMethod.Invoke( this._task, null );
       }
 
-      internal static Int32 EncodeKindAndInfo( WrappedPropertyKind kind, WrappedPropertyInfo info )
+      internal static Int32 EncodeKindAndInfo( WrappedPropertyKind kind, WrappedPropertyTypeModifier typeMod, WrappedPropertyInfo info )
       {
-         // 3 lowest bits to info and all upper bits to kind
-         return ( ( (Int32) kind ) << 3 ) | ( ( (Int32) info ) & 0x03 );
+         // 2 lowest bits to info, then 1 bit to type mod, and remaining bits to kind
+         return ( ( (Int32) kind ) << 3 ) | ( ( ( (Int32) typeMod ) & 0x01 ) << 2 ) | ( ( (Int32) info ) & 0x03 );
       }
 
-      internal static (WrappedPropertyKind, WrappedPropertyInfo) DecodeKindAndInfo( Int32 encoded )
+      internal static (WrappedPropertyKind, WrappedPropertyTypeModifier, WrappedPropertyInfo) DecodeKindAndInfo( Int32 encoded )
       {
-         return ((WrappedPropertyKind) ( ( encoded & 0xF8 ) >> 3 ), (WrappedPropertyInfo) ( ( encoded & 0x03 ) ));
-
+         return ((WrappedPropertyKind) ( ( encoded & 0xF8 ) >> 3 ), (WrappedPropertyTypeModifier) ( ( encoded & 0x04 ) >> 2 ), (WrappedPropertyInfo) ( ( encoded & 0x03 ) ));
       }
 
    }
@@ -1330,9 +1354,11 @@ namespace UtilPack.NuGet.MSBuild
             var curProperty = property;
             var propertyType = curProperty.PropertyType;
             var actualType = propertyType;
+            var typeMod = WrappedPropertyTypeModifier.None;
             if ( actualType.IsArray )
             {
                actualType = actualType.GetElementType();
+               typeMod = WrappedPropertyTypeModifier.Array;
             }
             WrappedPropertyKind? kind;
             switch ( Type.GetTypeCode( actualType ) )
@@ -1399,7 +1425,7 @@ namespace UtilPack.NuGet.MSBuild
                   info = WrappedPropertyInfo.None;
                }
 
-               retVal.Add( curProperty.Name, (kind.Value, info, curProperty) );
+               retVal.Add( curProperty.Name, (kind.Value, typeMod, info, curProperty) );
             }
          }
 
@@ -1428,6 +1454,12 @@ namespace UtilPack.NuGet.MSBuild
       TaskItem2,
       BuildEngine,
       TaskHost
+   }
+
+   internal enum WrappedPropertyTypeModifier
+   {
+      None,
+      Array
    }
 
    internal enum WrappedPropertyInfo

@@ -222,6 +222,7 @@ namespace UtilPack.NuGet.Deployment
                {
                   var possibleAssemblyPaths = possibleAssemblies.Select( tuple => tuple.Item2 ).ToArray();
                   var matchingAssembly = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
+                     packageID.Id,
                      possibleAssemblyPaths,
                      config.ProcessAssemblyPath,
                      p => File.Exists( p )

@@ -284,11 +284,12 @@ namespace UtilPack.NuGet.AssemblyLoading
          this._defaultLoadContext = GetLoadContext( this.GetType().GetTypeInfo().Assembly );
          this._loadedAssemblies = new ConcurrentDictionary<AssemblyName, Lazy<Assembly>>(
             ComparerFromFunctions.NewEqualityComparer<AssemblyName>(
-               ( x, y ) => String.Equals( x.Name, y.Name )
+               ( x, y ) => ReferenceEquals( x, y ) || ( x != null && y != null && String.Equals( x.Name, y.Name )
                   && String.Equals( x.CultureName, y.CultureName )
-                  && x.Version.Equals( y.Version )
-                  && NuGetAssemblyResolverImpl.AssemblyNameComparer.SafeEqualsWhenNullsAreEmptyArrays( x.GetPublicKeyToken(), y.GetPublicKeyToken() ),
-               x => x.Name.GetHashCode()
+                  && ( ReferenceEquals( x.Version, y.Version ) || ( x.Version != null && y.Version != null && x.Version.Equals( y.Version ) ) )
+                  && NuGetAssemblyResolverImpl.AssemblyNameComparer.SafeEqualsWhenNullsAreEmptyArrays( x.GetPublicKeyToken(), y.GetPublicKeyToken() )
+                  ),
+               x => x?.Name?.GetHashCode() ?? 0
                )
             );
          // .NET Core is package-based framework, so we need to find out which packages are part of framework, and which ones are actually client ones.
@@ -577,21 +578,37 @@ namespace UtilPack.NuGet.AssemblyLoading
                   .ToDictionary(
                      p => p,
                      p => this._assemblyNames.GetOrAdd( p, pp => new Lazy<AssemblyName>( () =>
+                     {
+                        AssemblyName an = null;
+                        try
+                        {
 #if !NET45
-               System.Runtime.Loader.AssemblyLoadContext
+                           an = System.Runtime.Loader.AssemblyLoadContext
 #else
                AssemblyName
 #endif
-               .GetAssemblyName( pp ), System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) )
+               .GetAssemblyName( pp );
+                        }
+                        catch
+                        {
+                           // Ignore
+                        }
+
+                        return an;
+                     }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) )
                      );
 
                foreach ( var kvp in assemblyNames )
                {
                   var curPath = kvp.Key;
-                  this._assemblies.TryAdd(
-                     kvp.Value.Value,
-                     new AssemblyInformation( curPath, this )
-                     );
+                  var assembly = kvp.Value.Value;
+                  if ( assembly != null )
+                  {
+                     this._assemblies.TryAdd(
+                        assembly,
+                        new AssemblyInformation( curPath, this )
+                        );
+                  }
                }
 
                for ( var i = 0; i < packageIDs.Length; ++i )

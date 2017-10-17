@@ -223,12 +223,12 @@ namespace UtilPack.NuGet.MSBuild
                   String[] sdkPackages = null;
 #else
 
-               var sdkPackageID = thisFW.GetSDKPackageID( taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_ID )?.Value );
-               var sdkRestoreResult = nugetResolver.RestoreIfNeeded(
-                     sdkPackageID,
-                     thisFW.GetSDKPackageVersion( sdkPackageID, taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_VERSION )?.Value )
-                     ).GetAwaiter().GetResult();
-               var sdkPackages = sdkRestoreResult.Libraries.Select( lib => lib.Name ).ToArray();
+                  var sdkPackageID = thisFW.GetSDKPackageID( taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_ID )?.Value );
+                  var sdkRestoreResult = nugetResolver.RestoreIfNeeded(
+                        sdkPackageID,
+                        thisFW.GetSDKPackageVersion( sdkPackageID, taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_VERSION )?.Value )
+                        ).GetAwaiter().GetResult();
+                  var sdkPackages = sdkRestoreResult.Libraries.Select( lib => lib.Name ).ToArray();
 #endif
 
                   var taskAssemblies = nugetResolver.ExtractAssemblyPaths(
@@ -1117,7 +1117,7 @@ namespace UtilPack.NuGet.MSBuild
             .ToArray();
          var iTask = mbfInterfaces
             .Where( iFace => iFace.FullName.Equals( CommonHelpers.MBF + nameof( Microsoft.Build.Framework.ITask ) ) )
-            .FirstOrDefault() ?? throw new ArgumentException( $"The task \"{taskType.FullName}\" does not seem to implement \"{nameof( Microsoft.Build.Framework.ITask )}\" interface." );
+            .FirstOrDefault() ?? throw new ArgumentException( $"The task \"{taskType.FullName}\" does not seem to implement \"{nameof( Microsoft.Build.Framework.ITask )}\" interface. Seen interfaces: {String.Join( ",", taskType.GetInterfaces().Select( i => i.FullName ) )}. Seen MBF interfaces: {String.Join( ",", mbfInterfaces.Select( i => i.FullName ) )}. MBF assembly name: \"{msbuildFrameworkAssemblyName}\"." );
 
          // TODO explicit implementations
          this._executeMethod = iTask.GetMethods()

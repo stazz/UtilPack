@@ -83,6 +83,8 @@ namespace UtilPack.NuGet.AssemblyLoading
       /// </summary>
       /// <seealso cref="AssemblyLoadFailedEventArgs"/>
       event Action<AssemblyLoadFailedEventArgs> OnAssemblyLoadFail;
+
+      Assembly TryResolveFromPreviouslyLoaded( AssemblyName assemblyName );
    }
 
    /// <summary>
@@ -216,6 +218,9 @@ namespace UtilPack.NuGet.AssemblyLoading
 #endif
          GetFileItemsDelegate defaultGetFiles = null,
          Func<String, String> pathProcessor = null
+#if !NET45
+         , OtherLoadersRegistration loadersRegistration = OtherLoadersRegistration.None
+#endif
          )
       {
          if ( defaultGetFiles == null )
@@ -255,7 +260,7 @@ namespace UtilPack.NuGet.AssemblyLoading
                null
             );
 #else
-         var loader = new NuGetAssemblyLoadContext( restorer, thisFrameworkRestoreResult, additionalCheckForDefaultLoader );
+         var loader = new NuGetAssemblyLoadContext( restorer, thisFrameworkRestoreResult, additionalCheckForDefaultLoader, loadersRegistration );
          retVal = loader.SetResolver( new NuGetAssemblyResolverImpl( resolver, loader, pathProcessor ) );
          createdLoader = loader;
 #endif
@@ -266,10 +271,19 @@ namespace UtilPack.NuGet.AssemblyLoading
    }
 
 #if !NET45
-   internal sealed class NuGetAssemblyLoadContext : System.Runtime.Loader.AssemblyLoadContext
+
+   [Flags]
+   public enum OtherLoadersRegistration
+   {
+      None = 0,
+      Default = 1,
+      Current = 2
+   }
+
+   internal sealed class NuGetAssemblyLoadContext : System.Runtime.Loader.AssemblyLoadContext, IDisposable
    {
       private readonly ISet<String> _frameworkAssemblySimpleNames;
-      private readonly System.Runtime.Loader.AssemblyLoadContext _defaultLoadContext;
+      private readonly System.Runtime.Loader.AssemblyLoadContext _parentLoadContext;
       private readonly ConcurrentDictionary<AssemblyName, Lazy<Assembly>> _loadedAssemblies; // We will get multiple request for same assembly name, so let's cache them
       private readonly Func<AssemblyName, Boolean> _additionalCheckForDefaultLoader;
       private NuGetAssemblyResolverImpl _resolver;
@@ -278,10 +292,12 @@ namespace UtilPack.NuGet.AssemblyLoading
       public NuGetAssemblyLoadContext(
          BoundRestoreCommandUser restorer,
          LockFile thisFrameworkRestoreResult,
-         Func<AssemblyName, Boolean> additionalCheckForDefaultLoader
+         Func<AssemblyName, Boolean> additionalCheckForDefaultLoader,
+         OtherLoadersRegistration loadersRegistration
          )
       {
-         this._defaultLoadContext = GetLoadContext( this.GetType().GetTypeInfo().Assembly );
+         var parentLoader = GetLoadContext( this.GetType().GetTypeInfo().Assembly );
+         this._parentLoadContext = parentLoader;
          this._loadedAssemblies = new ConcurrentDictionary<AssemblyName, Lazy<Assembly>>(
             ComparerFromFunctions.NewEqualityComparer<AssemblyName>(
                ( x, y ) => ReferenceEquals( x, y ) || ( x != null && y != null && String.Equals( x.Name, y.Name )
@@ -303,6 +319,28 @@ namespace UtilPack.NuGet.AssemblyLoading
                .Select( p => Path.GetFileNameWithoutExtension( p ) ) // For framework assemblies, we can assume that file name without extension = assembly name
             );
          this._additionalCheckForDefaultLoader = additionalCheckForDefaultLoader;
+
+         // We do this to catch scenarios like using Type.GetType(String) method.
+         var defaultLoader = Default;
+         if ( loadersRegistration.HasFlag( OtherLoadersRegistration.Default ) )
+         {
+            defaultLoader.Resolving += this.OtherResolving;
+         }
+         if ( loadersRegistration.HasFlag( OtherLoadersRegistration.Current ) && !ReferenceEquals( parentLoader, defaultLoader ) )
+         {
+            parentLoader.Resolving += this.OtherResolving;
+         }
+      }
+
+      private Assembly OtherResolving( System.Runtime.Loader.AssemblyLoadContext loadContext, AssemblyName assemblyName )
+      {
+         return this._resolver?.TryResolveFromPreviouslyLoaded( assemblyName );
+      }
+
+      public void Dispose()
+      {
+         Default.Resolving -= this.OtherResolving;
+         this._parentLoadContext.Resolving -= this.OtherResolving;
       }
 
       internal NuGetAssemblyResolver SetResolver( NuGetAssemblyResolverImpl resolver )
@@ -319,19 +357,19 @@ namespace UtilPack.NuGet.AssemblyLoading
          return this._loadedAssemblies.GetOrAdd( assemblyName, an => new Lazy<Assembly>( () =>
          {
             Assembly retVal = null;
-            if ( this._frameworkAssemblySimpleNames.Contains( an.Name ) || ( this._additionalCheckForDefaultLoader?.Invoke( assemblyName ) ?? false ) )
+            if ( this._frameworkAssemblySimpleNames.Contains( an.Name ) || ( this._additionalCheckForDefaultLoader?.Invoke( an ) ?? false ) )
             {
                // We use default loader for framework assemblies, in order to avoid loading from different path for same assembly name.
                try
                {
-                  retVal = this._defaultLoadContext.LoadFromAssemblyName( assemblyName );
+                  retVal = this._parentLoadContext.LoadFromAssemblyName( an );
                }
                catch
                {
                   // Ignore
                }
             }
-            return retVal ?? this._resolver.PerformAssemblyResolve( an );
+            return retVal ?? this._resolver.TryResolveFromPreviouslyLoaded( an );
          }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) ).Value;
       }
    }
@@ -344,7 +382,7 @@ namespace UtilPack.NuGet.AssemblyLoading
       MarshalByRefObject,
 #endif
 
-      NuGetAssemblyResolver, IDisposable
+   NuGetAssemblyResolver, IDisposable
    {
       internal sealed class AssemblyNameComparer : IEqualityComparer<AssemblyName>
       {
@@ -444,6 +482,8 @@ namespace UtilPack.NuGet.AssemblyLoading
       private readonly Func<String, String> _pathProcessor;
 #if NET45
       private readonly CallbackWrapper _callbackWrapper;
+#else
+      private readonly NuGetAssemblyLoadContext _loader;
 #endif
 
       public NuGetAssemblyResolverImpl(
@@ -456,7 +496,7 @@ namespace UtilPack.NuGet.AssemblyLoading
 #if NET45
          Object callbackWrapper,
 #else
-         System.Runtime.Loader.AssemblyLoadContext loader,
+         NuGetAssemblyLoadContext loader,
 #endif
 #if NET45
          Object
@@ -472,7 +512,7 @@ namespace UtilPack.NuGet.AssemblyLoading
 #endif
 
 #if !NET45
-         ArgumentValidator.ValidateNotNull( nameof( loader ), loader );
+         this._loader = ArgumentValidator.ValidateNotNull( nameof( loader ), loader );
 #endif
          this._fromPathLoader =
 #if NET45
@@ -526,7 +566,7 @@ namespace UtilPack.NuGet.AssemblyLoading
             }
             else
             {
-               retVal = this.PerformAssemblyResolve( name ); // this._fromNameLoader( name );
+               retVal = this.TryResolveFromPreviouslyLoaded( name ); // this._fromNameLoader( name );
             }
          }
          return retVal;
@@ -538,6 +578,8 @@ namespace UtilPack.NuGet.AssemblyLoading
       {
 #if NET45
          AppDomain.CurrentDomain.AssemblyResolve -= this.CurrentDomain_AssemblyResolve;
+#else
+         this._loader.DisposeSafely();
 #endif
          this._assemblies.Clear();
       }
@@ -585,7 +627,7 @@ namespace UtilPack.NuGet.AssemblyLoading
 #if !NET45
                            an = System.Runtime.Loader.AssemblyLoadContext
 #else
-               AssemblyName
+                           AssemblyName
 #endif
                .GetAssemblyName( pp );
                         }
@@ -674,10 +716,14 @@ namespace UtilPack.NuGet.AssemblyLoading
       public event Action<AssemblyLoadSuccessEventArgs> OnAssemblyLoadSuccess;
       public event Action<AssemblyLoadFailedEventArgs> OnAssemblyLoadFail;
 
-      internal Assembly PerformAssemblyResolve( AssemblyName assemblyName )
+      public Assembly TryResolveFromPreviouslyLoaded( AssemblyName assemblyName )
       {
          Assembly retVal;
-         if ( this._assemblies.TryGetValue( assemblyName, out var assemblyInfo ) )
+         if (
+            assemblyName != null
+            && ( this._assemblies.TryGetValue( assemblyName, out var assemblyInfo ) // We already have directly matching assembly loaded
+            || ( CanIgnoreVersionAndToken( assemblyName ) && ( assemblyInfo = this._assemblies.FirstOrDefault( kvp => String.Equals( kvp.Key.Name, assemblyName.Name ) ).Value ) != null ) // We already have indirectly matching assembly loaded.
+            ) )
          {
             try
             {
@@ -706,7 +752,17 @@ namespace UtilPack.NuGet.AssemblyLoading
          return retVal;
       }
 
-
+      private static Boolean CanIgnoreVersionAndToken( AssemblyName assemblyName )
+      {
+         return assemblyName.Flags.HasFlag(
+#if NETSTANDARD1_5 || NET45
+            AssemblyNameFlags
+#else
+            AssemblyFlags
+#endif
+            .Retargetable ) // retargetable referenace
+            || ( assemblyName.Version == null && assemblyName.GetPublicKeyToken().IsNullOrEmpty() ); // Version and token not specified
+      }
 
 
 #if NET45
@@ -917,6 +973,42 @@ public static partial class E_UtilPack
          packageInfo.Select( p => p.PackageID ).ToArray(),
          packageInfo.Select( p => p.PackageVersion ).ToArray(),
          packageInfo.Select( p => p.AssemblyPath ).ToArray() );
+   }
+
+   public static Type TryLoadTypeFromPreviouslyLoadedAssemblies( this NuGetAssemblyResolver resolver, String typeName )
+   {
+      if ( resolver == null )
+      {
+         throw new NullReferenceException();
+      }
+
+      Type retVal = null;
+      if ( !String.IsNullOrEmpty( typeName ) )
+      {
+         var separator = typeName.IndexOf( ", " );
+         if ( separator > 0 && separator < typeName.Length - 1 )
+         {
+            // There is room for both type name and assembly name
+            // Assembly name is what follows after ", "
+            Assembly assembly = null;
+            try
+            {
+               assembly = resolver.TryResolveFromPreviouslyLoaded( new AssemblyName( typeName.Substring( separator + 2 ) ) );
+            }
+            catch
+            {
+               // Ignore
+            }
+
+            if ( assembly != null )
+            {
+               // Now try load type
+               retVal = assembly.GetType( typeName.Substring( 0, separator ), false, false );
+            }
+         }
+      }
+
+      return retVal;
    }
 
    internal static IEnumerable<String> FilterUnderscores( this IEnumerable<String> paths )

@@ -45,6 +45,25 @@ namespace UtilPack.Tests.NuGet
    public class NuGetAssemblyResolveTest
    {
 
+      [TestMethod]
+      public async Task TestThatTypeGetTypeWorks()
+      {
+         var nugetSettings = UtilPackNuGetUtility.GetNuGetSettingsWithDefaultRootDirectory( null );
+         var restorer = new BoundRestoreCommandUser( nugetSettings );
+         var assemblyResolver = NuGetAssemblyResolverFactory.NewNuGetAssemblyResolver(
+            restorer,
+            await restorer.RestoreIfNeeded( "Microsoft.NETCore.App", "1.1.2" ),
+            out var loader,
+            loadersRegistration: OtherLoadersRegistration.Default
+            );
+         var pushAssembly = await assemblyResolver.LoadNuGetAssembly( "UtilPack.NuGet.Push.MSBuild", "1.2.0" );
+         const String PUSH_TASK = "UtilPack.NuGet.Push.MSBuild.PushTask";
+         var taskType = Type.GetType( PUSH_TASK + ", " + pushAssembly.FullName );
+         Assert.IsNotNull( taskType );
+         Assert.IsTrue( ReferenceEquals( taskType, pushAssembly.GetType( PUSH_TASK ) ) );
+         Assert.IsTrue( ReferenceEquals( taskType, Type.GetType( PUSH_TASK + ", " + pushAssembly.GetName().Name ) ) );
+      }
+
       //[TestMethod]
       //public async Task TestThatNoUtilPackAssembliesLoadedByAssemblyResolver()
       //{

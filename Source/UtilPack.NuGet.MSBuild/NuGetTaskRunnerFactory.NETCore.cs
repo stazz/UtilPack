@@ -39,6 +39,8 @@ namespace UtilPack.NuGet.MSBuild
 {
    partial class NuGetTaskRunnerFactory
    {
+      private const String OTHER_LOADERS_REGISTRATION = "OtherLoadersRegistration";
+
       private TaskReferenceHolderInfo CreateExecutionHelper(
          String taskName,
          XElement taskBodyElement,
@@ -52,6 +54,12 @@ namespace UtilPack.NuGet.MSBuild
          global::NuGet.ProjectModel.LockFile thisFrameworkRestoreResult
          )
       {
+         var otherLoadersRegistrationString = taskBodyElement.ElementAnyNS( OTHER_LOADERS_REGISTRATION )?.Value;
+         var otherLoadersRegistration = OtherLoadersRegistration.Default | OtherLoadersRegistration.Current;
+         if ( !String.IsNullOrEmpty( otherLoadersRegistrationString ) )
+         {
+            Enum.TryParse( otherLoadersRegistrationString, out otherLoadersRegistration );
+         }
 
          var thisLoader = NuGetAssemblyResolverFactory.NewNuGetAssemblyResolver(
             restorer,
@@ -59,7 +67,8 @@ namespace UtilPack.NuGet.MSBuild
             out var assemblyLoader,
             defaultGetFiles: getFiles,
             additionalCheckForDefaultLoader: IsMBFAssembly, // Use default loader for Microsoft.Build assemblies
-            pathProcessor: CreatePathProcessor( assemblyCopyTargetFolder )
+            pathProcessor: CreatePathProcessor( assemblyCopyTargetFolder ),
+            loadersRegistration: otherLoadersRegistration
             );
          RegisterToResolverEvents( thisLoader, resolverLogger );
 

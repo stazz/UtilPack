@@ -31,6 +31,9 @@ using TPropertyInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKi
 using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
 using TNuGetPackagesResolverCallback = System.Func<System.String[], System.String[], System.String[], System.Threading.Tasks.Task<System.Reflection.Assembly[]>>;
 using TAssemblyByPathResolverCallback = System.Func<System.String, System.Reflection.Assembly>;
+using TAssemblyNameResolverCallback = System.Func<System.Reflection.AssemblyName, System.Reflection.Assembly>;
+using TTypeStringResolverCallback = System.Func<System.String, System.Type>;
+
 using System.Collections.Concurrent;
 using NuGet.Configuration;
 using NuGet.ProjectModel;
@@ -963,84 +966,35 @@ namespace UtilPack.NuGet.MSBuild
             .GetConstructors();
          matchingCtor = null;
          ctorParams = null;
-         if ( ctors.Length > 0 )
+         if ( ctors.Length == 1 )
          {
-            var ctorInfo = new Dictionary<Int32, IDictionary<ISet<Type>, ConstructorInfo>>();
-            foreach ( var ctor in ctors )
+            if ( ctors[0].GetParameters().Length == 0 )
             {
-               var paramz = ctor.GetParameters();
-               ctorInfo
-                  .GetOrAdd_NotThreadSafe( paramz.Length, pl => new Dictionary<ISet<Type>, ConstructorInfo>( SetEqualityComparer<Type>.DefaultEqualityComparer ) )
-                  .Add( new HashSet<Type>( paramz.Select( p => p.ParameterType ) ), ctor );
+               // Default parameterless constructor
+               matchingCtor = ctors[0];
             }
-
+         }
+         else
+         {
             TNuGetPackageResolverCallback nugetResolveCallback = ( packageID, packageVersion, assemblyPath ) => resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath );
             TNuGetPackagesResolverCallback nugetsResolveCallback = ( packageIDs, packageVersions, assemblyPaths ) => resolver.LoadNuGetAssemblies( packageIDs, packageVersions, assemblyPaths );
             TAssemblyByPathResolverCallback pathResolveCallback = ( assemblyPath ) => resolver.LoadOtherAssembly( assemblyPath );
+            TAssemblyNameResolverCallback assemblyResolveCallback = ( assemblyName ) => resolver.TryResolveFromPreviouslyLoaded( assemblyName );
+            TTypeStringResolverCallback typeStringResolveCallback = ( typeString ) => resolver.TryLoadTypeFromPreviouslyLoadedAssemblies( typeString );
 
-            if (
-               ctorInfo.TryGetValue( 3, out var curInfo )
-               && curInfo.TryGetValue( new HashSet<Type>() { typeof( TNuGetPackageResolverCallback ), typeof( TNuGetPackagesResolverCallback ), typeof( TAssemblyByPathResolverCallback ) }, out matchingCtor )
-               )
-            {
-               ctorParams = new Object[3];
-               ctorParams[Array.FindIndex( matchingCtor.GetParameters(), p => p.ParameterType.Equals( typeof( TNuGetPackageResolverCallback ) ) )] = nugetResolveCallback;
-               ctorParams[Array.FindIndex( matchingCtor.GetParameters(), p => p.ParameterType.Equals( typeof( TNuGetPackagesResolverCallback ) ) )] = nugetsResolveCallback;
-               ctorParams[Array.FindIndex( matchingCtor.GetParameters(), p => p.ParameterType.Equals( typeof( TAssemblyByPathResolverCallback ) ) )] = pathResolveCallback;
-            }
-
-            if (
-               matchingCtor == null
-               && ctorInfo.TryGetValue( 2, out curInfo )
-               )
-            {
-               if ( curInfo.TryGetValue( new HashSet<Type>() { typeof( TNuGetPackagesResolverCallback ), typeof( TNuGetPackageResolverCallback ) }, out matchingCtor )
-                  || curInfo.TryGetValue( new HashSet<Type>() { typeof( TNuGetPackagesResolverCallback ), typeof( TAssemblyByPathResolverCallback ) }, out matchingCtor )
-                  || curInfo.TryGetValue( new HashSet<Type>() { typeof( TNuGetPackageResolverCallback ), typeof( TAssemblyByPathResolverCallback ) }, out matchingCtor ) )
+            MatchConstructorToParameters(
+               ctors,
+               new Dictionary<Type, Object>()
                {
-                  ctorParams = new Object[2];
-                  Int32 idx;
-                  if ( ( idx = Array.FindIndex( matchingCtor.GetParameters(), p => p.ParameterType.Equals( typeof( TNuGetPackagesResolverCallback ) ) ) ) >= 0 )
-                  {
-                     ctorParams[idx] = nugetsResolveCallback;
-                  }
-                  if ( ( idx = Array.FindIndex( matchingCtor.GetParameters(), p => p.ParameterType.Equals( typeof( TNuGetPackageResolverCallback ) ) ) ) >= 0 )
-                  {
-                     ctorParams[idx] = nugetResolveCallback;
-                  }
-                  if ( ( idx = Array.FindIndex( matchingCtor.GetParameters(), p => p.ParameterType.Equals( typeof( TAssemblyByPathResolverCallback ) ) ) ) >= 0 )
-                  {
-                     ctorParams[idx] = pathResolveCallback;
-                  }
-               }
-            }
-
-            if (
-               matchingCtor == null
-               && ctorInfo.TryGetValue( 1, out curInfo )
-               )
-            {
-               if ( curInfo.TryGetValue( new HashSet<Type>( typeof( TNuGetPackagesResolverCallback ).Singleton() ), out matchingCtor ) )
-               {
-                  ctorParams = new Object[] { nugetsResolveCallback };
-               }
-               else if ( curInfo.TryGetValue( new HashSet<Type>( typeof( TNuGetPackageResolverCallback ).Singleton() ), out matchingCtor ) )
-               {
-                  ctorParams = new Object[] { nugetResolveCallback };
-               }
-               else if ( curInfo.TryGetValue( new HashSet<Type>( typeof( TAssemblyByPathResolverCallback ).Singleton() ), out matchingCtor ) )
-               {
-                  ctorParams = new Object[] { pathResolveCallback };
-               }
-            }
-
-            if (
-               matchingCtor == null
-               && ctorInfo.TryGetValue( 0, out curInfo )
-               )
-            {
-               matchingCtor = curInfo.Values.First();
-            }
+                  { typeof(TNuGetPackageResolverCallback), nugetResolveCallback },
+                  { typeof(TNuGetPackagesResolverCallback), nugetsResolveCallback },
+                  { typeof(TAssemblyByPathResolverCallback), pathResolveCallback },
+                  { typeof(TAssemblyNameResolverCallback), assemblyResolveCallback },
+                  { typeof(TTypeStringResolverCallback), typeStringResolveCallback }
+               },
+               ref matchingCtor,
+               ref ctorParams
+               );
          }
 
          if ( matchingCtor == null )
@@ -1048,6 +1002,34 @@ namespace UtilPack.NuGet.MSBuild
             throw new Exception( $"No public suitable constructors found for type {type.AssemblyQualifiedName}." );
          }
 
+      }
+
+      private static void MatchConstructorToParameters(
+         ConstructorInfo[] ctors,
+         IDictionary<Type, Object> allPossibleParameters,
+         ref ConstructorInfo matchingCtor,
+         ref Object[] ctorParams
+         )
+      {
+         // Find public constructor with maximum amount of parameters which has all required types, in any order
+         var ctorsAndParams = ctors
+            .Select( ctor => new KeyValuePair<ConstructorInfo, ParameterInfo[]>( ctor, ctor.GetParameters() ) )
+            .Where( info => info.Value.Select( p => p.ParameterType ).Distinct().Count() == info.Value.Length ) // All types must be unique
+            .ToArray();
+
+         // Sort descending
+         Array.Sort( ctorsAndParams, ( left, right ) => right.Value.Length.CompareTo( left.Value.Length ) );
+         // Get the first one which matches
+         var matching = ctorsAndParams.FirstOrDefault( info => info.Value.All( p => allPossibleParameters.ContainsKey( p.ParameterType ) ) );
+         if ( matching.Key != null )
+         {
+            matchingCtor = matching.Key;
+            ctorParams = new Object[matching.Value.Length];
+            for ( var i = 0; i < ctorParams.Length; ++i )
+            {
+               ctorParams[i] = allPossibleParameters[matching.Value[i].ParameterType];
+            }
+         }
       }
 
       private static Boolean IsMBFAssembly( AssemblyName an )

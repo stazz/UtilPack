@@ -183,11 +183,11 @@ namespace UtilPack.ResourcePooling
 
    /// <summary>
    /// This interface provides information about resource which has been created by <see cref="AsyncResourceFactory{TResource, TParams}"/>.
-   /// Use <see cref="IAsyncDisposable.DisposeAsync(CancellationToken)"/> when it is ok to wait for proper resource disposal.
+   /// Use <see cref="IAsyncDisposableWithToken.DisposeAsync"/> when it is ok to wait for proper resource disposal.
    /// Use <see cref="IDisposable.Dispose"/> method only when it is necessary to immediately close underlying resources.
    /// </summary>
    /// <typeparam name="TResource">The type of resource.</typeparam>
-   public interface AsyncResourceAcquireInfo<out TResource> : AbstractResourceAcquireInfo, IAsyncDisposable
+   public interface AsyncResourceAcquireInfo<out TResource> : AbstractResourceAcquireInfo, IAsyncDisposableWithToken
    {
       /// <summary>
       /// Gets the <see cref="ResourceUsageInfo{TResource}"/> to use a resource in association with given <see cref="CancellationToken"/>.
@@ -197,8 +197,6 @@ namespace UtilPack.ResourcePooling
       /// <seealso cref="AsyncResourceAcquireInfoImpl{TPublicResource, TPrivateResource}"/>
       /// <seealso cref="CancelableResourceUsageInfo{TResource}"/>
       ResourceUsageInfo<TResource> GetResourceUsageForToken( CancellationToken token );
-
-
    }
 
    /// <summary>
@@ -255,7 +253,7 @@ namespace UtilPack.ResourcePooling
       public Boolean IsResourceReturnableToPool => this._cancellationState == NOT_CANCELED && this.PublicResourceCanBeReturnedToPool();
 
       /// <summary>
-      /// This method implements <see cref="IAsyncDisposable.DisposeAsync(CancellationToken)"/> and will invoke <see cref="DisposeBeforeClosingChannel(CancellationToken)"/> before disposing this <see cref="Channel"/>.
+      /// This method implements <see cref="IAsyncDisposableWithToken.DisposeAsync"/> and will invoke <see cref="DisposeBeforeClosingChannel(CancellationToken)"/> before disposing this <see cref="Channel"/>.
       /// </summary>
       /// <param name="token">The <see cref="CancellationToken"/> to use when disposing.</param>
       /// <returns>A task which will complete once asynchronous diposing routine is done and this <see cref="Channel"/> is closed.</returns>
@@ -270,6 +268,12 @@ namespace UtilPack.ResourcePooling
             this.Dispose( true );
          }
       }
+
+      /// <summary>
+      /// This method implements <see cref="IAsyncDisposable.DisposeAsync"/>  and will invoke this <see cref="DisposeAsync(CancellationToken)"/> with non-cancelable token.
+      /// </summary>
+      /// <returns>A task which will complete once asynchronous diposing routine is done and this <see cref="Channel"/> is closed.</returns>
+      public Task DisposeAsync() => this.DisposeAsync( default );
 
       /// <summary>
       /// Returns a new <see cref="ResourceUsageInfo{TResource}"/> in order to start logical scope of using resource, typically at the start of <see cref="AsyncResourcePool{TResource}.UseResourceAsync(Func{TResource, Task}, CancellationToken)"/> method.

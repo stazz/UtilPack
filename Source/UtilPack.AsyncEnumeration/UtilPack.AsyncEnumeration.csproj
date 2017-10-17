@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <!-- We must use package reference in debug mode, since we are using .InvokeAllEventHandlers extension method written in IL code, which is not available in MSVS when using direct project reference. -->
-    <PackageReference Condition=" '$(Configuration)' == 'Debug' " Include="UtilPack" Version="1.2.0" />
+    <PackageReference Condition=" '$(Configuration)' == 'Debug' " Include="UtilPack" Version="1.3.0" />
     
     <!-- Release mode compilation is always done via command-line, so we can use normal project reference there. -->
     <ProjectReference Condition=" '$(Configuration)' != 'Debug' " Include="../UtilPack/UtilPack.csproj" />

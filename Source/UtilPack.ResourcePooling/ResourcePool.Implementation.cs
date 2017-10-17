@@ -244,7 +244,7 @@ namespace UtilPack.ResourcePooling
 
          if ( isResourceClosed )
          {
-            await this.ResourceExtractor( resource ).DisposeAsyncSafely( token );
+            await this.ResourceExtractor( resource ).DisposeAsyncSafely();
          }
       }
 
@@ -289,7 +289,7 @@ namespace UtilPack.ResourcePooling
    /// End-users will find <see cref="CachingAsyncResourcePoolWithTimeout{TResource}"/> much more useful.
    /// </remarks>
    /// <seealso cref="CachingAsyncResourcePoolWithTimeout{TResource}"/>
-   internal class CachingAsyncResourcePool<TResource, TCachedResource> : OneTimeUseAsyncResourcePool<TResource, TCachedResource>, IAsyncDisposable, IDisposable
+   internal class CachingAsyncResourcePool<TResource, TCachedResource> : OneTimeUseAsyncResourcePool<TResource, TCachedResource>, IAsyncDisposableWithToken, IDisposable
       where TCachedResource : class, InstanceWithNextInfo<TCachedResource>
    {
       private const Int32 NOT_DISPOSED = 0;
@@ -329,7 +329,7 @@ namespace UtilPack.ResourcePooling
       protected LocklessInstancePoolForClassesNoHeapAllocations<TCachedResource> Pool { get; }
 
       /// <summary>
-      /// Implements <see cref="IAsyncDisposable.DisposeAsync(CancellationToken)"/> method to empty the <see cref="Pool"/> from all resources and dispose them asynchronously.
+      /// Implements <see cref="IAsyncDisposableWithToken.DisposeAsync"/> method to empty the <see cref="Pool"/> from all resources and dispose them asynchronously.
       /// </summary>
       /// <param name="token">The cancellation token to use.</param>
       /// <returns>A task which will be completed when all resource instances in <see cref="Pool"/> are asynchronously disposed.</returns>
@@ -351,6 +351,8 @@ namespace UtilPack.ResourcePooling
             }
          }
       }
+
+      public Task DisposeAsync() => this.DisposeAsync( default );
 
       /// <summary>
       /// Implements <see cref="IDisposable.Dispose"/> to empty the <see cref="Pool"/> from all resources and dispose them synchronously.

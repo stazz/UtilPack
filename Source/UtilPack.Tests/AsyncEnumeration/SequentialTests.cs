@@ -17,6 +17,7 @@
  */
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -31,63 +32,110 @@ namespace UtilPack.Tests.AsyncEnumeration
    {
       const Int32 MAX_ITEMS = 10;
 
-      [TestMethod]
-      public async Task TestSequentialEnumeratorAsync()
+      [DataTestMethod,
+         DataRow( false ),
+         DataRow( true ),
+         ]
+      public async Task TestSequentialEnumeratorAsync(
+         Boolean useConcurrentWrapper
+         )
       {
          var start = MAX_ITEMS;
          var completionState = new Int32[start];
          var r = new Random();
-         MoveNextAsyncDelegate<Int32> moveNext = async token =>
+         MoveNextAsyncDelegate<Int32> moveNext = async () =>
          {
             var decremented = Interlocked.Decrement( ref start );
             await Task.Delay( r.Next( 100, 500 ) );
             return (decremented >= 0, MAX_ITEMS - decremented - 1);
          };
 
-         var enumerator = AsyncEnumeratorFactory.CreateSequentialEnumerator<Int32>(
-            async token =>
-            {
-               (var success, var item) = await moveNext( token );
-               return (success, item, moveNext, null);
-            }
-            );
-         var itemsEncountered = await enumerator.EnumerateSequentiallyAsync( idx =>
+         var enumerable = AsyncEnumerationFactory.CreateSequentialEnumerable( () => AsyncEnumerationFactory.CreateSequentialStartInfo(
+            moveNext,
+            null
+            ) );
+         Func<Int32, Task> callback = async idx =>
          {
-            Assert.IsTrue( completionState.Take( idx ).All( s => s == 1 ) );
+            await Task.Delay( r.Next( 100, 900 ) );
+            if ( !useConcurrentWrapper )
+            {
+               Assert.IsTrue( completionState.Take( idx ).All( s => s == 1 ) );
+            }
             Interlocked.Increment( ref completionState[idx] );
-         } );
+         };
+         var itemsEncountered = await ( useConcurrentWrapper ?
+            enumerable.AsConcurrentEnumerable().EnumerateConcurrentlyAsync( callback ) :
+            enumerable.EnumerateSequentiallyAsync( callback )
+            );
          Assert.AreEqual( itemsEncountered, completionState.Length );
          Assert.IsTrue( completionState.All( s => s == 1 ) );
       }
 
-      [TestMethod]
-      public void TestSequentialEnumeratorCompletelySync()
+      [DataTestMethod,
+         DataRow( false ),
+         DataRow( true )
+         ]
+      public Task TestSequentialEnumeratorCompletelySync(
+          Boolean useConcurrentWrapper
+         )
       {
          var start = MAX_ITEMS;
          var completionState = new Int32[start];
          var r = new Random();
-         MoveNextAsyncDelegate<Int32> moveNext = token =>
+         MoveNextAsyncDelegate<Int32> moveNext = () =>
          {
             var decremented = Interlocked.Decrement( ref start );
             return new ValueTask<(Boolean, Int32)>( (decremented >= 0, MAX_ITEMS - decremented - 1) );
          };
 
-         var enumerator = AsyncEnumeratorFactory.CreateSequentialEnumerator<Int32>(
-            async token =>
-            {
-               (var success, var item) = await moveNext( token );
-               return (success, item, moveNext, null);
-            }
-            );
-         var itemsEncounteredTask = enumerator.EnumerateSequentiallyAsync( idx =>
+         var enumerable = AsyncEnumerationFactory.CreateSequentialEnumerable( () => AsyncEnumerationFactory.CreateSequentialStartInfo(
+            moveNext,
+            null
+            ) );
+         Action<Int32> callback = idx =>
          {
-            Assert.IsTrue( completionState.Take( idx ).All( s => s == 1 ) );
+            System.Diagnostics.Trace.WriteLine( $"CALLBACK CALLED {useConcurrentWrapper}, {idx}." );
+            if ( !useConcurrentWrapper )
+            {
+               Assert.IsTrue( completionState.Take( idx ).All( s => s == 1 ) );
+            }
             Interlocked.Increment( ref completionState[idx] );
-         } );
-         Assert.IsTrue( itemsEncounteredTask.IsCompleted );
-         var itemsEncountered = itemsEncounteredTask.Result;
+         };
+         var itemsEncounteredTask = useConcurrentWrapper ?
+            enumerable.AsConcurrentEnumerable().EnumerateConcurrentlyAsync( callback ) :
+            enumerable.EnumerateSequentiallyAsync( callback );
+
+         // We will always start a new task when concurrently enumerating async enumerable
+         Assert.AreEqual( !useConcurrentWrapper, itemsEncounteredTask.IsCompleted );
+
+         Task retVal;
+         if ( useConcurrentWrapper )
+         {
+            retVal = TestSequentialEnumeratorCompletelySync_ConcurrentCompletion( itemsEncounteredTask.AsTask(), completionState );
+         }
+         else
+         {
+            TestSequentialEnumeratorCompletelySync_Completion( itemsEncounteredTask.Result, completionState );
+            retVal = Task.CompletedTask;
+         }
+         return retVal;
+      }
+
+      private static void TestSequentialEnumeratorCompletelySync_Completion(
+         Int64 itemsEncountered,
+         Int32[] completionState
+         )
+      {
          Assert.AreEqual( itemsEncountered, completionState.Length );
          Assert.IsTrue( completionState.All( s => s == 1 ) );
+      }
+
+      private static async Task TestSequentialEnumeratorCompletelySync_ConcurrentCompletion(
+         Task<Int64> enumerationTask,
+         Int32[] completionState
+         )
+      {
+         TestSequentialEnumeratorCompletelySync_Completion( await enumerationTask, completionState );
       }
 
       [TestMethod]
@@ -97,21 +145,21 @@ namespace UtilPack.Tests.AsyncEnumeration
          var start = MAX_ITEMS;
          var completionState = new Int32[start];
          var r = new Random();
-         var enumerator = AsyncEnumeratorFactory.CreateParallelEnumerator(
+         var enumerable = AsyncEnumerationFactory.CreateConcurrentEnumerable( () => AsyncEnumerationFactory.CreateConcurrentStartInfo(
             () =>
             {
                var decremented = Interlocked.Decrement( ref start );
                return (decremented >= 0, decremented + 1);
             },
-            async ( idx, token ) =>
+            async ( idx ) =>
             {
                await Task.Delay( r.Next( 100, 500 ) );
                return completionState.Length - idx;
             },
             null
-            );
+            ) );
 
-         var itemsEncountered = await enumerator.EnumerateSequentiallyAsync( cur =>
+         var itemsEncountered = await enumerable.EnumerateSequentiallyAsync( cur =>
          {
             Interlocked.Increment( ref completionState[cur] );
          } );
@@ -127,21 +175,21 @@ namespace UtilPack.Tests.AsyncEnumeration
          var start = MAX_ITEMS;
          var completionState = new Int32[start];
          var r = new Random();
-         var enumerator = AsyncEnumeratorFactory.CreateParallelEnumerator(
-            () =>
+         var enumerable = AsyncEnumerationFactory.CreateConcurrentEnumerable( () => AsyncEnumerationFactory.CreateConcurrentStartInfo(
+             () =>
             {
                var decremented = Interlocked.Decrement( ref start );
                return (decremented >= 0, decremented + 1);
             },
-            async ( idx, token ) =>
+            async ( idx ) =>
             {
                await Task.Delay( r.Next( 100, 500 ) );
                return completionState.Length - idx;
             },
             null
-            );
+            ) );
 
-         var itemsEncountered = await enumerator.EnumerateSequentiallyAsync( async cur =>
+         var itemsEncountered = await enumerable.EnumerateSequentiallyAsync( async cur =>
          {
             await Task.Delay( r.Next( 100, 500 ) );
             Interlocked.Increment( ref completionState[cur] );
@@ -157,20 +205,20 @@ namespace UtilPack.Tests.AsyncEnumeration
          var start = MAX_ITEMS * 100000;
          var completionState = new Int32[start];
          var r = new Random();
-         var enumerator = AsyncEnumeratorFactory.CreateParallelEnumerator(
-            () =>
+         var enumerable = AsyncEnumerationFactory.CreateConcurrentEnumerable( () => AsyncEnumerationFactory.CreateConcurrentStartInfo(
+             () =>
             {
                var decremented = Interlocked.Decrement( ref start );
                return (decremented >= 0, decremented + 1);
             },
-            ( idx, token ) =>
+            ( idx ) =>
             {
                return new ValueTask<Int32>( completionState.Length - idx );
             },
             null
-            );
+            ) );
 
-         var itemsEncounteredTask = enumerator.EnumerateSequentiallyAsync( cur =>
+         var itemsEncounteredTask = enumerable.EnumerateSequentiallyAsync( cur =>
          {
             Interlocked.Increment( ref completionState[cur] );
          } );
@@ -178,6 +226,23 @@ namespace UtilPack.Tests.AsyncEnumeration
          Assert.IsTrue( itemsEncounteredTask.IsCompleted );
          Assert.AreEqual( itemsEncounteredTask.Result, completionState.Length );
          Assert.IsTrue( completionState.All( s => s == 1 ) );
+      }
+
+      [TestMethod]
+      public async Task TestAsyncLINQ()
+      {
+         var array = Enumerable.Range( 0, 10 ).ToArray();
+         var enumerable = array.AsAsyncEnumerable();
+         var array2 = await enumerable.ToArray();
+         Assert.IsTrue( ArrayEqualityComparer<Int32>.ArrayEquality( array, array2 ) );
+
+         var sequentialList = new List<Int32>();
+         var itemsEncountered2 = await enumerable.Where( x => x >= 5 ).EnumerateSequentiallyAsync( async cur =>
+         {
+            await Task.Delay( new Random().Next( 300, 500 ) );
+            sequentialList.Add( cur );
+         } );
+         Assert.IsTrue( ArrayEqualityComparer<Int32>.ArrayEquality( array.Where( x => x >= 5 ).ToArray(), sequentialList.ToArray() ) );
       }
    }
 }

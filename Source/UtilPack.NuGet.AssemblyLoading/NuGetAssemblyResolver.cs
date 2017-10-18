@@ -618,6 +618,7 @@ namespace UtilPack.NuGet.AssemblyLoading
             {
                var assemblyNames = assemblyInfos.Values
                   .SelectMany( v => v.Assemblies )
+                  .Where( p => !String.IsNullOrEmpty( p ) )
                   .Distinct()
                   .ToDictionary(
                      p => p,
@@ -666,9 +667,9 @@ namespace UtilPack.NuGet.AssemblyLoading
                         assemblyPaths[i],
                         ap => File.Exists( ap )
                         );
-                     if ( !String.IsNullOrEmpty( assemblyPath ) )
+                     AssemblyName name;
+                     if ( !String.IsNullOrEmpty( assemblyPath ) && ( name = assemblyNames[assemblyPath].Value ) != null )
                      {
-                        var name = assemblyNames[assemblyPath].Value;
                         retVal[i] = this._assemblies[name].Assembly;
                      }
                      else
@@ -756,13 +757,7 @@ namespace UtilPack.NuGet.AssemblyLoading
 
       private static Boolean CanIgnoreVersionAndToken( AssemblyName assemblyName )
       {
-         return assemblyName.Flags.HasFlag(
-#if NETSTANDARD1_5 || NET45
-            AssemblyNameFlags
-#else
-            AssemblyFlags
-#endif
-            .Retargetable ) // retargetable referenace
+         return assemblyName.Flags.HasFlag( AssemblyNameFlags.Retargetable ) // retargetable referenace
             || ( assemblyName.Version == null && assemblyName.GetPublicKeyToken().IsNullOrEmpty() ); // Version and token not specified
       }
 

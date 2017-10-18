@@ -56,7 +56,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Removed cancellation token from IAsyncDisposable.DisposeAsync.</PackageReleaseNotes>
+    <PackageReleaseNotes>Removed cancellation token from IAsyncDisposable.DisposeAsync, and created IAsyncDisposableWithToken interface holding the variant with cancellation token.</PackageReleaseNotes>
     <PackageTags>bcl utility binary serialization collection extensions</PackageTags>
     <Title>Utility Package for CLR</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

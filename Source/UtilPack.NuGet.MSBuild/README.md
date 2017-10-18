@@ -20,7 +20,7 @@ The task factory is used from the project file in the following way:
     This reference is needed in order to use the task factory.
     The UtilPack.NuGet.MSBuild has no dependencies and no lib folder, so it should be very transparent.
     -->
-    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="1.2.0"/>
+    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="2.0.0"/>
   </ItemGroup>
 
   <!-- 
@@ -75,6 +75,11 @@ The following information is optional:
 * `NuGetFrameworkVersion`: The string containing platform framework version, e.g. `1.1`. Should be parseable by Parse method of [Version](https://docs.microsoft.com/en-us/dotnet/api/system.version) class.
 * `NuGetFrameworkPackageID`: This is used __only__ in package-based frameworks, e.g. .NET Core. If automatic detection fails, this element can be used to specify the platform framework package. For .NET Core, it is `Microsoft.NETCore.App`.
 * `NuGetFrameworkPackageVersion`: This is used __only__ in package-based frameworks, e.g. .NET Core. If automatic detection fails, this element can be used to specify the version for `NuGetFrameworkPackageID` element.
+* `OtherLoadersRegistration`: This is used __only__ in .NET Core environment. It controls how assembly load context registers itself to [`Resolving`](https://docs.microsoft.com/en-gb/dotnet/api/system.runtime.loader.assemblyloadcontext.resolving) event of other [`AssemblyLoadContext`s](https://docs.microsoft.com/en-gb/dotnet/api/system.runtime.loader.assemblyloadcontext). It can have the following values:
+    * `None`: The `Resolving` event handlers will not be registered at all. This effectively makes [`Type.GetType`](https://docs.microsoft.com/en-gb/dotnet/api/system.type.gettype?view=netcore-2.0#System_Type_GetType_System_String_) fail when trying to resolve type located in one of the loaded NuGet packages by string.
+    * `Default`: The `Resolving` event handler is registered to [`AssemblyLoadContext.Default`](https://docs.microsoft.com/en-gb/dotnet/api/system.runtime.loader.assemblyloadcontext.default). This makes [`Type.GetType`](https://docs.microsoft.com/en-gb/dotnet/api/system.type.gettype?view=netcore-2.0#System_Type_GetType_System_String_) work.
+    * `Current`: The `Resolving` event handler is registered to the [`AssemblyLoadContext`](https://docs.microsoft.com/en-gb/dotnet/api/system.runtime.loader.assemblyloadcontext) that loaded the task factory.
+    * `Default,Current`: This is the __default value__. It behaves like the combination of `Default` and `Current`, but it doesn't register the handler twice to the same event.
 
 ### Example
 There is an example of explicitly using `UtilPack.NuGet.MSBuild` in [here](../UtilPack.NuGet.MSBuild.TestProject).
@@ -88,15 +93,19 @@ Developing for .NET 4.5+, .NET Standard 1.3+ and .NET Core 1.0+ is supported - i
 Referencing third-party NuGet packages is supported, as long as the dependencies are visible in `.nuspec` file.
 The assemblies may reside in `lib` or `build` folders of the package, both are supported.
 
+Some caution needs to be excercised when using dynamic loading of assemblies or types, discussed in next section.
+
 ## Advanced
-Sometimes the task may need to dynamically load a NuGet package assembly, or another assembly by path.
+Sometimes the task may need to dynamically load a NuGet package assembly, or another assembly by path, or a type based on type string.
 Since code related to both usecases is already implemented in `UtilPack.NuGet.MSBuild` task factory, there is no point duplicating it in your task.
 Furthermore, assembly loading is radically different .NET Desktop and .NET Core.
 
 This is why the task executed by `UtilPack.NuGet.MSBuild` task factory may declare a constructor which takes one or some or all of the following arguments, in no specific order:
 * `Func<String[], String[], String[], Task<Assembly[]>>`: The callback to asynchronously load assemblies from multiple NuGet packages,
-* `Func<String, String, String, Task<Assembly>>`: The callback to asynchronously load single assembly from single NuGet package, and
-* `Func<String, Assembly>`: The callback to load assembly from path.
+* `Func<String, String, String, Task<Assembly>>`: The callback to asynchronously load single assembly from single NuGet package,
+* `Func<String, Assembly>`: The callback to load assembly from path,
+* `Func<AssemblyName, Assembly>`: The callback to load assembly located in previously restored NuGet packages based on the [`AssemblyName`](https://docs.microsoft.com/dotnet/api/system.reflection.assemblyname) of the assembly, and
+* `Func<String, Type>`: The callback to load type from assembly located in previously restored NuGet packages based on assembly-name-qualified type string. This callback is alternative to [`Type.GetType`](https://docs.microsoft.com/en-gb/dotnet/api/system.type.gettype?view=netcore-2.0#System_Type_GetType_System_String_), if for some reason `OtherLoadersRegistration` task factory parameter is set to value which does not register to [`Resolving`](https://docs.microsoft.com/en-gb/dotnet/api/system.runtime.loader.assemblyloadcontext.resolving) event of other [`AssemblyLoadContext`s](https://docs.microsoft.com/en-gb/dotnet/api/system.runtime.loader.assemblyloadcontext).
 
 The NuGet package loader callback has the following parameters, in the following order (the callback to load from multiple NuGet packages has the same parameters, but each type is an array, the meaning still the same):
 * `String packageID`: The NuGet package ID, required.

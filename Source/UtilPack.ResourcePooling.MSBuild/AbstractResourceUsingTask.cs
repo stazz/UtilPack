@@ -40,7 +40,6 @@ namespace UtilPack.ResourcePooling.MSBuild
    /// </remarks>
    public abstract class AbstractResourceUsingTask<TResource> : Microsoft.Build.Utilities.Task, ICancelableTask
    {
-      private readonly CancellationTokenSource _cancellationSource;
       private readonly TNuGetPackageResolverCallback _nugetPackageResolver;
 
       /// <summary>
@@ -54,7 +53,7 @@ namespace UtilPack.ResourcePooling.MSBuild
       /// </remarks>
       public AbstractResourceUsingTask( TNuGetPackageResolverCallback nugetAssemblyLoader )
       {
-         this._cancellationSource = new CancellationTokenSource();
+         this.CancellationTokenSource = new CancellationTokenSource();
          this._nugetPackageResolver = nugetAssemblyLoader;
       }
 
@@ -105,7 +104,7 @@ namespace UtilPack.ResourcePooling.MSBuild
                catch ( Exception exc )
                {
                   // Only log if we did not receive cancellation
-                  if ( !this._cancellationSource.IsCancellationRequested )
+                  if ( !this.CancellationTokenSource.IsCancellationRequested )
                   {
                      this.Log.LogErrorFromException( exc );
                   }
@@ -127,7 +126,7 @@ namespace UtilPack.ResourcePooling.MSBuild
       /// </summary>
       public void Cancel()
       {
-         this._cancellationSource.Cancel( false );
+         this.CancellationTokenSource.Cancel( false );
       }
 
       private async Task<Boolean> ExecuteTaskAsync()
@@ -144,11 +143,23 @@ namespace UtilPack.ResourcePooling.MSBuild
             var poolCreationArgs = await this.ProvideResourcePoolCreationParameters( poolProvider );
             var pool = await this.AcquireResourcePool( poolProvider, poolCreationArgs );
             Func<TResource, Task<Boolean>> func = this.UseResource;
-            retVal = await pool.UseResourceAsync<TResource, Boolean>( func, this._cancellationSource.Token );
+            retVal = await pool.UseResourceAsync<TResource, Boolean>( func, this.CancellationToken );
          }
 
          return retVal;
       }
+
+      /// <summary>
+      /// Derived classes may use this property to get the <see cref="System.Threading.CancellationToken"/> used by this task.
+      /// </summary>
+      /// <value>The <see cref="System.Threading.CancellationToken"/> used by this task.</value>
+      protected CancellationToken CancellationToken => this.CancellationTokenSource.Token;
+
+      /// <summary>
+      /// Derived classes may use this property to get the <see cref="System.Threading.CancellationTokenSource"/> used by this task.
+      /// </summary>
+      /// <value>The <see cref="System.Threading.CancellationTokenSource"/> used by this task.</value>
+      protected CancellationTokenSource CancellationTokenSource { get; }
 
       /// <summary>
       /// Derived classes should implement this method in order to perform any domain-specific checks before the task actually starts executing in <see cref="Execute"/>.

@@ -43,7 +43,7 @@ public static partial class E_UtilPack
    /// </remarks>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="addItem"/> is <c>null</c>.</exception>
-   public static ValueTask<Int64> AddToCollection<T, TCollection>( this IAsyncEnumerable<T> enumerable, TCollection collection, Action<TCollection, T> addItem )
+   public static ValueTask<Int64> AddToCollectionAsync<T, TCollection>( this IAsyncEnumerable<T> enumerable, TCollection collection, Action<TCollection, T> addItem )
    {
       ArgumentValidator.ValidateNotNullReference( enumerable );
       ArgumentValidator.ValidateNotNull( nameof( addItem ), addItem );
@@ -65,7 +65,7 @@ public static partial class E_UtilPack
    /// </remarks>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="addItem"/> is <c>null</c>.</exception>
-   public static ValueTask<Int64> AddToCollection<T, TCollection>( this IAsyncEnumerable<T> enumerable, TCollection collection, Func<TCollection, T, Task> addItem )
+   public static ValueTask<Int64> AddToCollectionAsync<T, TCollection>( this IAsyncEnumerable<T> enumerable, TCollection collection, Func<TCollection, T, Task> addItem )
    {
       ArgumentValidator.ValidateNotNullReference( enumerable );
       ArgumentValidator.ValidateNotNull( nameof( addItem ), addItem );
@@ -83,8 +83,8 @@ public static partial class E_UtilPack
    /// <remarks>
    /// This method will always use <see cref="E_UtilPack.EnumerateSequentiallyAsync{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
    /// </remarks>
-   public static async Task<T[]> ToArray<T>( this IAsyncEnumerable<T> enumerable )
-      => ( await enumerable.ToList() ).ToArray();
+   public static async Task<T[]> ToArrayAsync<T>( this IAsyncEnumerable<T> enumerable )
+      => ( await enumerable.ToListAsync() ).ToArray();
 
    /// <summary>
    /// This extension method will enumerate this <see cref="IAsyncEnumerable{T}"/> into a <see cref="List{T}"/>.
@@ -96,11 +96,11 @@ public static partial class E_UtilPack
    /// <remarks>
    /// This method will always use <see cref="E_UtilPack.EnumerateSequentiallyAsync{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
    /// </remarks>
-   public static async Task<List<T>> ToList<T>( this IAsyncEnumerable<T> enumerable )
+   public static async Task<List<T>> ToListAsync<T>( this IAsyncEnumerable<T> enumerable )
    {
       ArgumentValidator.ValidateNotNullReference( enumerable );
       var retVal = new List<T>();
-      await enumerable.AddToCollection( retVal, ( list, item ) => list.Add( item ) );
+      await enumerable.AddToCollectionAsync( retVal, ( list, item ) => list.Add( item ) );
       return retVal;
    }
 
@@ -120,7 +120,7 @@ public static partial class E_UtilPack
    /// </remarks>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If either of <paramref name="keySelector"/> or <paramref name="valueSelector"/> is <c>null</c>.</exception>
-   public static async Task<IDictionary<TKey, TValue>> ToDictionary<T, TKey, TValue>(
+   public static async Task<IDictionary<TKey, TValue>> ToDictionaryAsync<T, TKey, TValue>(
       this IAsyncEnumerable<T> enumerable,
       Func<T, TKey> keySelector,
       Func<T, TValue> valueSelector,
@@ -132,7 +132,7 @@ public static partial class E_UtilPack
       ArgumentValidator.ValidateNotNull( nameof( valueSelector ), valueSelector );
 
       var retVal = new Dictionary<TKey, TValue>( equalityComparer );
-      await enumerable.AddToCollection( retVal, ( dictionary, item ) => dictionary.Add( keySelector( item ), valueSelector( item ) ) );
+      await enumerable.AddToCollectionAsync( retVal, ( dictionary, item ) => dictionary.Add( keySelector( item ), valueSelector( item ) ) );
       return retVal;
    }
 
@@ -152,7 +152,7 @@ public static partial class E_UtilPack
    /// </remarks>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If either of <paramref name="keySelector"/> or <paramref name="valueSelector"/> is <c>null</c>.</exception>
-   public static async Task<IDictionary<TKey, TValue>> ToDictionary<T, TKey, TValue>(
+   public static async Task<IDictionary<TKey, TValue>> ToDictionaryAsync<T, TKey, TValue>(
       this IAsyncEnumerable<T> enumerable,
       Func<T, ValueTask<TKey>> keySelector,
       Func<T, ValueTask<TValue>> valueSelector,
@@ -164,7 +164,7 @@ public static partial class E_UtilPack
       ArgumentValidator.ValidateNotNull( nameof( valueSelector ), valueSelector );
 
       var retVal = new Dictionary<TKey, TValue>( equalityComparer );
-      await enumerable.AddToCollection( retVal, async ( dictionary, item ) => dictionary.Add( await keySelector( item ), await valueSelector( item ) ) );
+      await enumerable.AddToCollectionAsync( retVal, async ( dictionary, item ) => dictionary.Add( await keySelector( item ), await valueSelector( item ) ) );
       return retVal;
    }
 
@@ -182,7 +182,7 @@ public static partial class E_UtilPack
    /// </remarks>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="addItem"/> is <c>null</c>.</exception>
-   public static ValueTask<Int64> AddToConcurrentCollection<T, TCollection>( this IAsyncEnumerable<T> enumerable, TCollection collection, Action<TCollection, T> addItem )
+   public static ValueTask<Int64> AddToConcurrentCollectionAsync<T, TCollection>( this IAsyncEnumerable<T> enumerable, TCollection collection, Action<TCollection, T> addItem )
    {
       ArgumentValidator.ValidateNotNullReference( enumerable );
       ArgumentValidator.ValidateNotNull( nameof( addItem ), addItem );
@@ -204,7 +204,7 @@ public static partial class E_UtilPack
    /// </remarks>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="addItem"/> is <c>null</c>.</exception>
-   public static ValueTask<Int64> AddToConcurrentCollection<T, TCollection>( this IAsyncEnumerable<T> enumerable, TCollection collection, Func<TCollection, T, Task> addItem )
+   public static ValueTask<Int64> AddToConcurrentCollectionAsync<T, TCollection>( this IAsyncEnumerable<T> enumerable, TCollection collection, Func<TCollection, T, Task> addItem )
    {
       ArgumentValidator.ValidateNotNullReference( enumerable );
       ArgumentValidator.ValidateNotNull( nameof( addItem ), addItem );
@@ -224,10 +224,10 @@ public static partial class E_UtilPack
    /// This method will always use <see cref="E_UtilPack.EnumerateConcurrentlyIfPossible{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
    /// </remarks>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
-   public static async Task<ConcurrentBag<T>> ToConcurrentBag<T>( this IAsyncEnumerable<T> enumerable )
+   public static async Task<ConcurrentBag<T>> ToConcurrentBagAsync<T>( this IAsyncEnumerable<T> enumerable )
    {
       var retVal = new ConcurrentBag<T>();
-      await enumerable.AddToConcurrentCollection( retVal, ( bag, item ) => bag.Add( item ) );
+      await enumerable.AddToConcurrentCollectionAsync( retVal, ( bag, item ) => bag.Add( item ) );
       return retVal;
    }
 
@@ -241,10 +241,10 @@ public static partial class E_UtilPack
    /// This method will always use <see cref="E_UtilPack.EnumerateConcurrentlyIfPossible{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
    /// </remarks>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
-   public static async Task<ConcurrentQueue<T>> ToConcurrentQueue<T>( this IAsyncEnumerable<T> enumerable )
+   public static async Task<ConcurrentQueue<T>> ToConcurrentQueueAsync<T>( this IAsyncEnumerable<T> enumerable )
    {
       var retVal = new ConcurrentQueue<T>();
-      await enumerable.AddToConcurrentCollection( retVal, ( queue, item ) => queue.Enqueue( item ) );
+      await enumerable.AddToConcurrentCollectionAsync( retVal, ( queue, item ) => queue.Enqueue( item ) );
       return retVal;
    }
 
@@ -258,10 +258,10 @@ public static partial class E_UtilPack
    /// This method will always use <see cref="E_UtilPack.EnumerateConcurrentlyIfPossible{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
    /// </remarks>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
-   public static async Task<ConcurrentStack<T>> ToConcurrentStack<T>( this IAsyncEnumerable<T> enumerable )
+   public static async Task<ConcurrentStack<T>> ToConcurrentStackAsync<T>( this IAsyncEnumerable<T> enumerable )
    {
       var retVal = new ConcurrentStack<T>();
-      await enumerable.AddToConcurrentCollection( retVal, ( stack, item ) => stack.Push( item ) );
+      await enumerable.AddToConcurrentCollectionAsync( retVal, ( stack, item ) => stack.Push( item ) );
       return retVal;
    }
 
@@ -283,11 +283,11 @@ public static partial class E_UtilPack
    /// This method will always use <see cref="E_UtilPack.EnumerateConcurrentlyIfPossible{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
    /// </para>
    /// </remarks>
-   public static async Task<ConcurrentBag<U>> ToConcurrentBag<T, U>( this IAsyncEnumerable<T> enumerable, Func<T, Task<U>> selector )
+   public static async Task<ConcurrentBag<U>> ToConcurrentBagAsync<T, U>( this IAsyncEnumerable<T> enumerable, Func<T, Task<U>> selector )
    {
       ArgumentValidator.ValidateNotNull( nameof( selector ), selector );
       var retVal = new ConcurrentBag<U>();
-      await enumerable.AddToConcurrentCollection( retVal, async ( bag, item ) => bag.Add( await selector( item ) ) );
+      await enumerable.AddToConcurrentCollectionAsync( retVal, async ( bag, item ) => bag.Add( await selector( item ) ) );
       return retVal;
    }
 
@@ -309,11 +309,11 @@ public static partial class E_UtilPack
    /// This method will always use <see cref="E_UtilPack.EnumerateConcurrentlyIfPossible{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
    /// </para>
    /// </remarks>
-   public static async Task<ConcurrentQueue<U>> ToConcurrentQueue<T, U>( this IAsyncEnumerable<T> enumerable, Func<T, Task<U>> selector )
+   public static async Task<ConcurrentQueue<U>> ToConcurrentQueueAsync<T, U>( this IAsyncEnumerable<T> enumerable, Func<T, Task<U>> selector )
    {
       ArgumentValidator.ValidateNotNull( nameof( selector ), selector );
       var retVal = new ConcurrentQueue<U>();
-      await enumerable.AddToConcurrentCollection( retVal, async ( queue, item ) => queue.Enqueue( await selector( item ) ) );
+      await enumerable.AddToConcurrentCollectionAsync( retVal, async ( queue, item ) => queue.Enqueue( await selector( item ) ) );
       return retVal;
    }
 
@@ -335,11 +335,11 @@ public static partial class E_UtilPack
    /// This method will always use <see cref="E_UtilPack.EnumerateConcurrentlyIfPossible{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
    /// </para>
    /// </remarks>
-   public static async Task<ConcurrentStack<U>> ToConcurrentStack<T, U>( this IAsyncEnumerable<T> enumerable, Func<T, Task<U>> selector )
+   public static async Task<ConcurrentStack<U>> ToConcurrentStackAsync<T, U>( this IAsyncEnumerable<T> enumerable, Func<T, Task<U>> selector )
    {
       ArgumentValidator.ValidateNotNull( nameof( selector ), selector );
       var retVal = new ConcurrentStack<U>();
-      await enumerable.AddToConcurrentCollection( retVal, async ( stack, item ) => stack.Push( await selector( item ) ) );
+      await enumerable.AddToConcurrentCollectionAsync( retVal, async ( stack, item ) => stack.Push( await selector( item ) ) );
       return retVal;
    }
 
@@ -358,13 +358,13 @@ public static partial class E_UtilPack
    /// <para>This method will always use <see cref="E_UtilPack.EnumerateConcurrentlyIfPossible{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
    /// </para>
    /// <para>
-   /// TODO currently this will not throw if there are duplicate keys, unlike <see cref="ToDictionary{T, TKey, TValue}(IAsyncEnumerable{T}, Func{T, TKey}, Func{T, TValue}, IEqualityComparer{TKey})"/> method.
+   /// TODO currently this will not throw if there are duplicate keys, unlike <see cref="ToDictionaryAsync{T, TKey, TValue}(IAsyncEnumerable{T}, Func{T, TKey}, Func{T, TValue}, IEqualityComparer{TKey})"/> method.
    /// The behaviour needs to be unified/parametrized at some point.
    /// </para>
    /// </remarks>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If either of <paramref name="keySelector"/> or <paramref name="valueSelector"/> is <c>null</c>.</exception>
-   public static async Task<ConcurrentDictionary<TKey, TValue>> ToConcurrentDictionary<T, TKey, TValue>(
+   public static async Task<ConcurrentDictionary<TKey, TValue>> ToConcurrentDictionaryAsync<T, TKey, TValue>(
       this IAsyncEnumerable<T> enumerable,
       Func<T, TKey> keySelector,
       Func<T, TValue> valueSelector,
@@ -377,7 +377,7 @@ public static partial class E_UtilPack
 
       // Normal Dictionary<TKey, TValue> constructor accepts null as equality comparer, but ConcurrentDictionary throws... sigh. :)
       var retVal = new ConcurrentDictionary<TKey, TValue>( equalityComparer ?? EqualityComparer<TKey>.Default );
-      await enumerable.AddToConcurrentCollection( retVal, ( dictionary, item ) => dictionary.TryAdd( keySelector( item ), valueSelector( item ) ) );
+      await enumerable.AddToConcurrentCollectionAsync( retVal, ( dictionary, item ) => dictionary.TryAdd( keySelector( item ), valueSelector( item ) ) );
       return retVal;
    }
 
@@ -396,13 +396,13 @@ public static partial class E_UtilPack
    /// <para>This method will always use <see cref="E_UtilPack.EnumerateConcurrentlyIfPossible{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
    /// </para>
    /// <para>
-   /// TODO currently this will not throw if there are duplicate keys, unlike <see cref="ToDictionary{T, TKey, TValue}(IAsyncEnumerable{T}, Func{T, TKey}, Func{T, TValue}, IEqualityComparer{TKey})"/> method.
+   /// TODO currently this will not throw if there are duplicate keys, unlike <see cref="ToDictionaryAsync{T, TKey, TValue}(IAsyncEnumerable{T}, Func{T, TKey}, Func{T, TValue}, IEqualityComparer{TKey})"/> method.
    /// The behaviour needs to be unified/parametrized at some point.
    /// </para>
    /// </remarks>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If either of <paramref name="keySelector"/> or <paramref name="valueSelector"/> is <c>null</c>.</exception>
-   public static async Task<ConcurrentDictionary<TKey, TValue>> ToConcurrentDictionary<T, TKey, TValue>(
+   public static async Task<ConcurrentDictionary<TKey, TValue>> ToConcurrentDictionaryAsync<T, TKey, TValue>(
       this IAsyncEnumerable<T> enumerable,
       Func<T, ValueTask<TKey>> keySelector,
       Func<T, ValueTask<TValue>> valueSelector,
@@ -415,7 +415,7 @@ public static partial class E_UtilPack
 
       // Normal Dictionary<TKey, TValue> constructor accepts null as equality comparer, but ConcurrentDictionary throws... sigh. :)
       var retVal = new ConcurrentDictionary<TKey, TValue>( equalityComparer ?? EqualityComparer<TKey>.Default );
-      await enumerable.AddToConcurrentCollection( retVal, async ( dictionary, item ) => dictionary.TryAdd( await keySelector( item ), await valueSelector( item ) ) );
+      await enumerable.AddToConcurrentCollectionAsync( retVal, async ( dictionary, item ) => dictionary.TryAdd( await keySelector( item ), await valueSelector( item ) ) );
       return retVal;
    }
 

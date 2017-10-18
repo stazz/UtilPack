@@ -44,26 +44,29 @@ namespace UtilPack.AsyncEnumeration
       }
    }
 
-   internal sealed class AsyncEnumerator<T> : IAsyncEnumerator<T>
+   internal abstract class AbstractAsyncEnumerator<T> : IAsyncEnumerator<T>
    {
-      private const Int32 STATE_INITIAL = 0;
-      private const Int32 MOVE_NEXT_STARTED = 1;
-      private const Int32 MOVE_NEXT_ENDED = 2;
-      private const Int32 STATE_ENDED = 3;
-      private const Int32 DISPOSING = 4;
-      private const Int32 DISPOSED = 5;
+      protected const Int32 STATE_INITIAL = 0;
+      protected const Int32 MOVE_NEXT_STARTED = 1;
+      protected const Int32 MOVE_NEXT_ENDED = 2;
+      protected const Int32 STATE_ENDED = 3;
+      protected const Int32 DISPOSING = 4;
+      protected const Int32 DISPOSED = 5;
 
-      private const Int32 MOVE_NEXT_STARTED_CURRENT_NOT_READ = 6;
-      private const Int32 MOVE_NEXT_STARTED_CURRENT_READING = 7;
+      protected const Int32 MOVE_NEXT_STARTED_CURRENT_NOT_READ = 6;
+      protected const Int32 MOVE_NEXT_STARTED_CURRENT_READING = 7;
 
-      private Int32 _state;
-      private readonly SequentialEnumeratorCurrentInfo<T> _current;
+      protected Int32 _state;
+      protected readonly SequentialEnumeratorCurrentInfo<T> _current;
+      private readonly Int32 _enumerationStartState;
 
-      public AsyncEnumerator(
-         SequentialEnumeratorCurrentInfo<T> currentInfo
+      public AbstractAsyncEnumerator(
+         SequentialEnumeratorCurrentInfo<T> currentInfo,
+         Int32 enumerationStartState
          )
       {
          this._state = STATE_INITIAL;
+         this._enumerationStartState = enumerationStartState;
          this._current = ArgumentValidator.ValidateNotNull( nameof( currentInfo ), currentInfo );
       }
 
@@ -77,7 +80,7 @@ namespace UtilPack.AsyncEnumeration
          if (
             /*( prevState = */Interlocked.CompareExchange( ref this._state, MOVE_NEXT_STARTED, MOVE_NEXT_ENDED )/* ) */== MOVE_NEXT_ENDED // TryGetNext was called and returned false
             || /*( prevState = */Interlocked.CompareExchange( ref this._state, MOVE_NEXT_STARTED, MOVE_NEXT_STARTED_CURRENT_NOT_READ ) /* ) */ == MOVE_NEXT_STARTED_CURRENT_NOT_READ // TryGetNext was not called
-            || /*( prevState = */Interlocked.CompareExchange( ref this._state, MOVE_NEXT_STARTED, STATE_INITIAL ) /* ) */ == STATE_INITIAL // Initial call
+            || /*( prevState = */Interlocked.CompareExchange( ref this._state, MOVE_NEXT_STARTED, this._enumerationStartState ) /* ) */ == this._enumerationStartState // Initial call
             )
          {
             T current = default;
@@ -135,14 +138,14 @@ namespace UtilPack.AsyncEnumeration
 
       }
 
-      public async Task DisposeAsync()
+      public virtual async Task DisposeAsync()
       {
          // We can dispose from STATE_INITIAL, MOVE_NEXT_ENDED, STATE_ENDED, and MOVE_NEXT_STARTED_CURRENT_NOT_READ states
          Int32 prevState;
          if (
             ( prevState = Interlocked.CompareExchange( ref this._state, DISPOSING, STATE_ENDED ) ) == STATE_ENDED
             || ( prevState = Interlocked.CompareExchange( ref this._state, DISPOSING, MOVE_NEXT_ENDED ) ) == MOVE_NEXT_ENDED
-            || ( prevState = Interlocked.CompareExchange( ref this._state, DISPOSING, STATE_INITIAL ) ) == STATE_INITIAL
+            || ( prevState = Interlocked.CompareExchange( ref this._state, DISPOSING, this._enumerationStartState ) ) == this._enumerationStartState
             || ( prevState = Interlocked.CompareExchange( ref this._state, DISPOSING, MOVE_NEXT_STARTED_CURRENT_NOT_READ ) ) == MOVE_NEXT_STARTED_CURRENT_NOT_READ
             )
          {
@@ -167,6 +170,62 @@ namespace UtilPack.AsyncEnumeration
          }
       }
 
+   }
+
+   internal sealed class AsyncEnumerator<T> : AbstractAsyncEnumerator<T>
+   {
+      public AsyncEnumerator(
+         SequentialEnumeratorCurrentInfo<T> currentInfo
+         ) : base( currentInfo, STATE_INITIAL )
+      {
+      }
+   }
+
+   internal sealed class AsyncEnumerableExclusive<T> : AbstractAsyncEnumerator<T>, IAsyncEnumerable<T>
+   {
+      private const Int32 STATE_RESERVED = MOVE_NEXT_STARTED_CURRENT_READING + 1;
+
+      public AsyncEnumerableExclusive(
+         SequentialEnumeratorCurrentInfo<T> currentInfo
+         ) : base( currentInfo, STATE_RESERVED )
+      {
+      }
+
+      public IAsyncEnumerator<T> GetAsyncEnumerator()
+      {
+         return Interlocked.CompareExchange( ref this._state, STATE_RESERVED, STATE_INITIAL ) == STATE_INITIAL ?
+            this :
+            throw new InvalidOperationException( "Concurrent enumeration" );
+      }
+
+      public override Task DisposeAsync()
+      {
+         void PerformReset()
+         {
+            this._current.Current = default;
+            Interlocked.Exchange( ref this._state, STATE_INITIAL );
+         }
+
+         Task retVal = null;
+         try
+         {
+            retVal = base.DisposeAsync();
+         }
+         finally
+         {
+            if ( retVal == null || retVal.IsCompleted )
+            {
+               // Exception or synchronous completion
+               PerformReset();
+            }
+            else
+            {
+               retVal = retVal.ContinueWith( t => PerformReset() );
+            }
+         }
+
+         return retVal;
+      }
    }
 
    internal abstract class SequentialEnumeratorCurrentInfo<T>

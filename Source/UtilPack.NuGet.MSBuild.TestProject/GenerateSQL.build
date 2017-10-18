@@ -11,7 +11,7 @@
     This reference is needed for UtilPackNuGetMSBuildAssemblyPath property.
     The UtilPack.NuGet.MSBuild has no dependencies and no lib folder, so it should be very transparent.
     -->
-    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="1.1.0"/>
+    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="2.0.0"/>
   </ItemGroup>
   
   <!-- 

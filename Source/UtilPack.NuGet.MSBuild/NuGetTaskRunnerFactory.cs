@@ -966,35 +966,36 @@ namespace UtilPack.NuGet.MSBuild
             .GetConstructors();
          matchingCtor = null;
          ctorParams = null;
-         if ( ctors.Length == 1 )
+         if ( ctors.Length > 0 )
          {
-            if ( ctors[0].GetParameters().Length == 0 )
+            if ( ctors.Length == 1 && ctors[0].GetParameters().Length == 0 )
             {
                // Default parameterless constructor
                matchingCtor = ctors[0];
             }
-         }
-         else
-         {
-            TNuGetPackageResolverCallback nugetResolveCallback = ( packageID, packageVersion, assemblyPath ) => resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath );
-            TNuGetPackagesResolverCallback nugetsResolveCallback = ( packageIDs, packageVersions, assemblyPaths ) => resolver.LoadNuGetAssemblies( packageIDs, packageVersions, assemblyPaths );
-            TAssemblyByPathResolverCallback pathResolveCallback = ( assemblyPath ) => resolver.LoadOtherAssembly( assemblyPath );
-            TAssemblyNameResolverCallback assemblyResolveCallback = ( assemblyName ) => resolver.TryResolveFromPreviouslyLoaded( assemblyName );
-            TTypeStringResolverCallback typeStringResolveCallback = ( typeString ) => resolver.TryLoadTypeFromPreviouslyLoadedAssemblies( typeString );
 
-            MatchConstructorToParameters(
-               ctors,
-               new Dictionary<Type, Object>()
-               {
+            if ( matchingCtor == null )
+            {
+               TNuGetPackageResolverCallback nugetResolveCallback = ( packageID, packageVersion, assemblyPath ) => resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath );
+               TNuGetPackagesResolverCallback nugetsResolveCallback = ( packageIDs, packageVersions, assemblyPaths ) => resolver.LoadNuGetAssemblies( packageIDs, packageVersions, assemblyPaths );
+               TAssemblyByPathResolverCallback pathResolveCallback = ( assemblyPath ) => resolver.LoadOtherAssembly( assemblyPath );
+               TAssemblyNameResolverCallback assemblyResolveCallback = ( assemblyName ) => resolver.TryResolveFromPreviouslyLoaded( assemblyName );
+               TTypeStringResolverCallback typeStringResolveCallback = ( typeString ) => resolver.TryLoadTypeFromPreviouslyLoadedAssemblies( typeString );
+
+               MatchConstructorToParameters(
+                  ctors,
+                  new Dictionary<Type, Object>()
+                  {
                   { typeof(TNuGetPackageResolverCallback), nugetResolveCallback },
                   { typeof(TNuGetPackagesResolverCallback), nugetsResolveCallback },
                   { typeof(TAssemblyByPathResolverCallback), pathResolveCallback },
                   { typeof(TAssemblyNameResolverCallback), assemblyResolveCallback },
                   { typeof(TTypeStringResolverCallback), typeStringResolveCallback }
-               },
-               ref matchingCtor,
-               ref ctorParams
-               );
+                  },
+                  ref matchingCtor,
+                  ref ctorParams
+                  );
+            }
          }
 
          if ( matchingCtor == null )

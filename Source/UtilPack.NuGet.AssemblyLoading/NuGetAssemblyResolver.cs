@@ -302,7 +302,7 @@ namespace UtilPack.NuGet.AssemblyLoading
             ComparerFromFunctions.NewEqualityComparer<AssemblyName>(
                ( x, y ) => ReferenceEquals( x, y ) || ( x != null && y != null && String.Equals( x.Name, y.Name )
                   && String.Equals( x.CultureName, y.CultureName )
-                  && ( ReferenceEquals( x.Version, y.Version ) || ( x.Version != null && y.Version != null && x.Version.Equals( y.Version ) ) )
+                  && ( ReferenceEquals( x.Version, y.Version ) || ( x.Version?.Equals( y.Version ) ?? false ) )
                   && NuGetAssemblyResolverImpl.AssemblyNameComparer.SafeEqualsWhenNullsAreEmptyArrays( x.GetPublicKeyToken(), y.GetPublicKeyToken() )
                   ),
                x => x?.Name?.GetHashCode() ?? 0
@@ -322,11 +322,14 @@ namespace UtilPack.NuGet.AssemblyLoading
 
          // We do this to catch scenarios like using Type.GetType(String) method.
          var defaultLoader = Default;
-         if ( loadersRegistration.HasFlag( OtherLoadersRegistration.Default ) )
+         var registerDefault = loadersRegistration.HasFlag( OtherLoadersRegistration.Default );
+         if ( registerDefault )
          {
             defaultLoader.Resolving += this.OtherResolving;
          }
-         if ( loadersRegistration.HasFlag( OtherLoadersRegistration.Current ) && !ReferenceEquals( parentLoader, defaultLoader ) )
+         if ( loadersRegistration.HasFlag( OtherLoadersRegistration.Current )
+            && ( !registerDefault || !ReferenceEquals( parentLoader, defaultLoader ) )
+            )
          {
             parentLoader.Resolving += this.OtherResolving;
          }
@@ -375,7 +378,6 @@ namespace UtilPack.NuGet.AssemblyLoading
    }
 #endif
 
-   // This class will exist in separate app domain in .NET Desktop, so no UtilPack stuff here.
 
    internal sealed class NuGetAssemblyResolverImpl :
 #if NET45

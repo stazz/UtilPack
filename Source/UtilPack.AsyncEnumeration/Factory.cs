@@ -71,6 +71,16 @@ namespace UtilPack.AsyncEnumeration
          ) => enumerationStart == null ? (IAsyncEnumerable<T>) EmptyAsync<T>.Enumerable : new AsyncSequentialOnlyEnumerable<T>( enumerationStart );
 
       /// <summary>
+      /// Creates a new <see cref="IAsyncEnumerable{T}"/> which will allow at most one <see cref="IAsyncEnumerator{T}"/> to be active at once.
+      /// </summary>
+      /// <typeparam name="T">The type of items being enumerated.</typeparam>
+      /// <param name="startInfo">The <see cref="SequentialEnumerationStartInfo{T}"/> containing callbacks to use.</param>
+      /// <returns>A new instance of <see cref="IAsyncEnumerable{T}"/> which behaves like callbacks in <paramref name="startInfo"/> specified.</returns>
+      public static IAsyncEnumerable<T> CreateExclusiveSequentialEnumerable<T>(
+         SequentialEnumerationStartInfo<T> startInfo
+         ) => new AsyncEnumerableExclusive<T>( SequentialCurrentInfoFactory.GetInstance( startInfo.MoveNext, startInfo.Dispose ) );
+
+      /// <summary>
       /// Helper method to invoke constructor of <see cref="SequentialEnumerationStartInfo{T}"/> without explicitly specifying generic type arguments.
       /// </summary>
       /// <typeparam name="T">The type of items being enumerated.</typeparam>
@@ -96,7 +106,7 @@ namespace UtilPack.AsyncEnumeration
       public static IAsyncEnumerator<T> CreateSequentialEnumerator<T>(
          MoveNextAsyncDelegate<T> moveNext,
          EnumerationEndedDelegate dispose
-         ) => new AsyncEnumerator<T>( (SequentialEnumeratorCurrentInfo<T>) SequentialCurrentInfoFactory.Get( typeof( T ) )?.Invoke( moveNext, dispose ) ?? new SequentialEnumeratorCurrentInfoWithObject<T>( moveNext, dispose ) );
+         ) => new AsyncEnumerator<T>( SequentialCurrentInfoFactory.GetInstance( moveNext, dispose ) );
 
       /// <summary>
       /// Creates a new instance of <see cref="IAsyncConcurrentEnumerable{T}"/> with given callback to create <see cref="ConcurrentEnumerationStartInfo{T, TState}"/> for each new <see cref="IAsyncConcurrentEnumeratorSource{T}"/>.
@@ -137,10 +147,18 @@ namespace UtilPack.AsyncEnumeration
          { typeof(Double), (moveNext, disposeAsync) => new SequentialEnumeratorCurrentInfoWithFloat64((MoveNextAsyncDelegate<Double>)moveNext, disposeAsync ) }
       };
 
-      internal static TSequentialCurrentInfoFactory Get( Type type )
+      internal static TSequentialCurrentInfoFactory GetFactory( Type type )
       {
          CustomFactories.TryGetValue( type, out var retVal );
          return retVal;
+      }
+
+      internal static SequentialEnumeratorCurrentInfo<T> GetInstance<T>(
+         MoveNextAsyncDelegate<T> moveNext,
+         EnumerationEndedDelegate dispose
+         )
+      {
+         return (SequentialEnumeratorCurrentInfo<T>) GetFactory( typeof( T ) )?.Invoke( moveNext, dispose ) ?? new SequentialEnumeratorCurrentInfoWithObject<T>( moveNext, dispose );
       }
    }
 

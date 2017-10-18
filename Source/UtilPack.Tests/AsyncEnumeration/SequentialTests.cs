@@ -233,7 +233,7 @@ namespace UtilPack.Tests.AsyncEnumeration
       {
          var array = Enumerable.Range( 0, 10 ).ToArray();
          var enumerable = array.AsAsyncEnumerable();
-         var array2 = await enumerable.ToArray();
+         var array2 = await enumerable.ToArrayAsync();
          Assert.IsTrue( ArrayEqualityComparer<Int32>.ArrayEquality( array, array2 ) );
 
          var sequentialList = new List<Int32>();

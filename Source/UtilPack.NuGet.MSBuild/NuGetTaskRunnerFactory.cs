@@ -180,6 +180,13 @@ namespace UtilPack.NuGet.MSBuild
          )
       {
          var retVal = false;
+         var nugetLogger = new NuGetMSBuildLogger(
+            "NR0001",
+            "NR0002",
+            this.FactoryName,
+            this.FactoryName,
+            taskFactoryLoggingHost
+            );
          try
          {
             this._logger = taskFactoryLoggingHost;
@@ -193,13 +200,7 @@ namespace UtilPack.NuGet.MSBuild
                Path.GetDirectoryName( taskFactoryLoggingHost.ProjectFileOfTaskNode ),
                taskBodyElement.ElementAnyNS( "NuGetConfigurationFile" )?.Value
                );
-            var nugetLogger = new NuGetMSBuildLogger(
-               "NR0001",
-               "NR0002",
-               this.FactoryName,
-               this.FactoryName,
-               taskFactoryLoggingHost
-               );
+
             var nugetResolver = new BoundRestoreCommandUser(
                nugetSettings,
                thisFramework: thisFW,
@@ -277,6 +278,8 @@ namespace UtilPack.NuGet.MSBuild
                            throw;
                         }
                      }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
+                     // Force initialization right here, in order to provide better logging (since taskFactoryLoggingHost passed to this method is not useable once this method completes)
+                     var dummy = this._helper.Value.TaskReference;
                      retVal = true;
                   }
                   else
@@ -333,6 +336,8 @@ namespace UtilPack.NuGet.MSBuild
                ) );
          }
 
+         // We can't use IBuildEngine given to this method once it completes.
+         nugetLogger.BuildEngine = null;
          return retVal;
       }
 
@@ -1091,16 +1096,23 @@ namespace UtilPack.NuGet.MSBuild
          this._task = task ?? throw new Exception( "Failed to create the task object." );
          this.TaskUsesDynamicLoading = taskUsesDynamicLoading;
          var taskType = this._task.GetType();
+         //var mbfAssemblyName = new AssemblyName( msbuildFrameworkAssemblyName );
+         //var mbfAssemblyToken = mbfAssemblyName.GetPublicKeyToken() ?? Empty<Byte>.Array;
          var mbfInterfaces = taskType.GetInterfaces()
-            .Where( iFace => iFace
-#if !NET45
-            .GetTypeInfo()
-#endif
-            .Assembly.GetName().FullName.Equals( msbuildFrameworkAssemblyName ) )
+            .Where( iFace =>
+            {
+               // MSBuild does not understand loading multiple MSBuild assemblies, so we probably shouldn't either.
+               //var iFaceAssemblyName = iFace.GetTypeInfo().Assembly.GetName();
+               //return String.Equals( iFaceAssemblyName.Name, mbfAssemblyName.Name )
+               //   && ArrayEqualityComparer<Byte>.ArrayEquality( iFaceAssemblyName.GetPublicKeyToken() ?? Empty<Byte>.Array, mbfAssemblyToken );
+               return iFace
+                  .GetTypeInfo()
+                  .Assembly.GetName().FullName.Equals( msbuildFrameworkAssemblyName );
+            } )
             .ToArray();
          var iTask = mbfInterfaces
             .Where( iFace => iFace.FullName.Equals( CommonHelpers.MBF + nameof( Microsoft.Build.Framework.ITask ) ) )
-            .FirstOrDefault() ?? throw new ArgumentException( $"The task \"{taskType.FullName}\" does not seem to implement \"{nameof( Microsoft.Build.Framework.ITask )}\" interface. Seen interfaces: {String.Join( ",", taskType.GetInterfaces().Select( i => i.FullName ) )}. Seen MBF interfaces: {String.Join( ",", mbfInterfaces.Select( i => i.FullName ) )}. MBF assembly name: \"{msbuildFrameworkAssemblyName}\"." );
+            .FirstOrDefault() ?? throw new ArgumentException( $"The task \"{taskType.FullName}\" does not seem to implement \"{nameof( Microsoft.Build.Framework.ITask )}\" interface. Make sure the MSBuild target version is at least 14.3. Seen interfaces: {String.Join( ",", taskType.GetInterfaces().Select( i => i.AssemblyQualifiedName ) )}. Seen MBF interfaces: {String.Join( ",", mbfInterfaces.Select( i => i.FullName ) )}. MBF assembly name: \"{msbuildFrameworkAssemblyName}\"." );
 
          // TODO explicit implementations
          this._executeMethod = iTask.GetMethods()

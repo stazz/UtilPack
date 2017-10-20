@@ -619,28 +619,11 @@ namespace UtilPack.NuGet.AssemblyLoading
                var assemblyNames = assemblyInfos.Values
                   .SelectMany( v => v.Assemblies )
                   .Where( p => !String.IsNullOrEmpty( p ) )
+                  .Select( p => Path.GetFullPath( p ) )
                   .Distinct()
                   .ToDictionary(
                      p => p,
-                     p => this._assemblyNames.GetOrAdd( p, pp => new Lazy<AssemblyName>( () =>
-                     {
-                        AssemblyName an = null;
-                        try
-                        {
-#if !NET45
-                           an = System.Runtime.Loader.AssemblyLoadContext
-#else
-                           AssemblyName
-#endif
-               .GetAssemblyName( pp );
-                        }
-                        catch
-                        {
-                           // Ignore
-                        }
-
-                        return an;
-                     }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) )
+                     p => this._assemblyNames.GetOrAdd( p, this.LoadAssemblyNameFromPath )
                      );
 
                foreach ( var kvp in assemblyNames )
@@ -668,7 +651,7 @@ namespace UtilPack.NuGet.AssemblyLoading
                         ap => File.Exists( ap )
                         );
                      AssemblyName name;
-                     if ( !String.IsNullOrEmpty( assemblyPath ) && ( name = assemblyNames[assemblyPath].Value ) != null )
+                     if ( !String.IsNullOrEmpty( assemblyPath ) && ( name = assemblyNames[assemblyPath = Path.GetFullPath( assemblyPath )].Value ) != null )
                      {
                         retVal[i] = this._assemblies[name].Assembly;
                      }
@@ -701,14 +684,8 @@ namespace UtilPack.NuGet.AssemblyLoading
 
          if ( retVal == null && File.Exists( assemblyPath ) )
          {
-            var assemblyName = this._assemblyNames.GetOrAdd( assemblyPath, p => new Lazy<AssemblyName>( () =>
-#if !NET45
-               System.Runtime.Loader.AssemblyLoadContext
-#else
-               AssemblyName
-#endif
-               .GetAssemblyName( p ), System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) ).Value;
-            retVal = this._assemblies.GetOrAdd(
+            var assemblyName = this._assemblyNames.GetOrAdd( assemblyPath, this.LoadAssemblyNameFromPath ).Value;
+            retVal = assemblyName == null ? null : this._assemblies.GetOrAdd(
                assemblyName,
                an => new AssemblyInformation( assemblyPath, this )
                ).Assembly;
@@ -753,6 +730,35 @@ namespace UtilPack.NuGet.AssemblyLoading
             }
          }
          return retVal;
+      }
+
+      private Lazy<AssemblyName> LoadAssemblyNameFromPath( String path )
+      {
+         return new Lazy<AssemblyName>( () =>
+         {
+            AssemblyName an = null;
+            try
+            {
+               an =
+#if !NET45
+                           System.Runtime.Loader.AssemblyLoadContext
+#else
+                           AssemblyName
+#endif
+               .GetAssemblyName( path );
+            }
+            catch ( Exception exc )
+            {
+               this._resolver
+#if !NET45
+                           .Resolver
+#endif
+                           .LogAssemblyNameLoadError( path, exc.Message );
+               // Ignore
+            }
+
+            return an;
+         }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
       }
 
       private static Boolean CanIgnoreVersionAndToken( AssemblyName assemblyName )
@@ -859,6 +865,9 @@ namespace UtilPack.NuGet.AssemblyLoading
 
       internal void LogAssemblyPathResolveError( String packageID, String[] possiblePaths, String pathHint ) =>
          this.Resolver.LogAssemblyPathResolveError( packageID, possiblePaths, pathHint );
+
+      internal void LogAssemblyNameLoadError( String path, String message ) =>
+         this.Resolver.NuGetLogger.LogWarning( $"Error when loading assembly name from {path}: {message}" );
 #endif
 
 #if NET45
@@ -1014,6 +1023,11 @@ public static partial class E_UtilPack
    }
 
    internal static void LogAssemblyPathResolveError( this BoundRestoreCommandUser restorer, String packageID, String[] possiblePaths, String pathHint )
-      => restorer.NuGetLogger.LogError( $"Failed to resolve assemblies for \"{packageID}\", considered {String.Join( ";", possiblePaths.Select( pp => "\"" + pp + "\"" ) )}, with path hint of \"{pathHint}\"." );
+   {
+      restorer.NuGetLogger.LogError( $"Failed to resolve assemblies for \"{packageID}\", considered {String.Join( ";", possiblePaths.Select( pp => "\"" + pp + "\"" ) )}, with path hint of \"{pathHint}\"." );
+   }
+
+   internal static void LogAssemblyNameLoadError( this BoundRestoreCommandUser restorer, String path, String message ) =>
+      restorer.NuGetLogger.LogWarning( $"Error when loading assembly name from {path}: {message}" );
 
 }

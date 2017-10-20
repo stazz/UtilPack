@@ -70,12 +70,14 @@ namespace UtilPack.NuGet
           )
          {
             assemblyPath = assemblyPaths
-               .FirstOrDefault( ap => String.Equals( Path.GetFullPath( ap ), Path.GetFullPath( Path.Combine( Path.GetDirectoryName( ap ), assemblyPath ) ) ) );
+               .FirstOrDefault( ap => String.Equals( Path.GetFullPath( ap ), Path.GetFullPath( Path.Combine( Path.GetDirectoryName( ap ), assemblyPath ) ) )
+               && ( suitableAssemblyPathChecker?.Invoke( ap ) ?? true ) );
          }
          else
          {
             assemblyPath = null;
          }
+
 
          return assemblyPath;
       }

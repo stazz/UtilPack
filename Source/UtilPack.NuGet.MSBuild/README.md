@@ -80,6 +80,10 @@ The following information is optional:
     * `Default`: The `Resolving` event handler is registered to [`AssemblyLoadContext.Default`](https://docs.microsoft.com/en-gb/dotnet/api/system.runtime.loader.assemblyloadcontext.default). This makes [`Type.GetType`](https://docs.microsoft.com/en-gb/dotnet/api/system.type.gettype?view=netcore-2.0#System_Type_GetType_System_String_) work.
     * `Current`: The `Resolving` event handler is registered to the [`AssemblyLoadContext`](https://docs.microsoft.com/en-gb/dotnet/api/system.runtime.loader.assemblyloadcontext) that loaded the task factory.
     * `Default,Current`: This is the __default value__. It behaves like the combination of `Default` and `Current`, but it doesn't register the handler twice to the same event.
+* `CopyToFolderBeforeLoad`: This controls the behaviour after assembly has been successfully located but not yet loaded. Manipulating this value controls whether assembly is copied to another directory and loaded from there.
+    * `false` case insensitively: The default value, disables copying, and assemblies are loaded directly from within the package repository.
+    * `true` case insensitively: enables copying to randomly-name-generated folder in system's temporary folder.
+    * any non-empty string: enables copying to folder specified by string.
 
 ### Example
 There is an example of explicitly using `UtilPack.NuGet.MSBuild` in [here](../UtilPack.NuGet.MSBuild.TestProject).

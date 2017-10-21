@@ -662,7 +662,7 @@ namespace UtilPack.NuGet.AssemblyLoading
                            .Resolver
 #endif
 
-                           .LogAssemblyPathResolveError( packageID, possibleAssemblyPaths.Assemblies, assemblyPaths[i] );
+                           .LogAssemblyPathResolveError( packageID, possibleAssemblyPaths.Assemblies, assemblyPaths[i], assemblyPath );
                      }
                   }
                }
@@ -863,8 +863,8 @@ namespace UtilPack.NuGet.AssemblyLoading
          } );
       }
 
-      internal void LogAssemblyPathResolveError( String packageID, String[] possiblePaths, String pathHint ) =>
-         this.Resolver.LogAssemblyPathResolveError( packageID, possiblePaths, pathHint );
+      internal void LogAssemblyPathResolveError( String packageID, String[] possiblePaths, String pathHint, String seenAssemblyPath ) =>
+         this.Resolver.LogAssemblyPathResolveError( packageID, possiblePaths, pathHint, seenAssemblyPath );
 
       internal void LogAssemblyNameLoadError( String path, String message ) =>
          this.Resolver.NuGetLogger.LogWarning( $"Error when loading assembly name from {path}: {message}" );
@@ -1022,9 +1022,9 @@ public static partial class E_UtilPack
       return paths?.Where( p => !p.EndsWith( "_._" ) );
    }
 
-   internal static void LogAssemblyPathResolveError( this BoundRestoreCommandUser restorer, String packageID, String[] possiblePaths, String pathHint )
+   internal static void LogAssemblyPathResolveError( this BoundRestoreCommandUser restorer, String packageID, String[] possiblePaths, String pathHint, String seenAssemblyPath )
    {
-      restorer.NuGetLogger.LogError( $"Failed to resolve assemblies for \"{packageID}\", considered {String.Join( ";", possiblePaths.Select( pp => "\"" + pp + "\"" ) )}, with path hint of \"{pathHint}\"." );
+      restorer.NuGetLogger.LogError( $"Failed to resolve assemblies for \"{packageID}\"{( String.IsNullOrEmpty( seenAssemblyPath ) ? "" : ( " from \"" + seenAssemblyPath + "\"" ) )}, considered {String.Join( ";", possiblePaths.Select( pp => "\"" + pp + "\"" ) )}, with path hint of \"{pathHint}\"." );
    }
 
    internal static void LogAssemblyNameLoadError( this BoundRestoreCommandUser restorer, String path, String message ) =>

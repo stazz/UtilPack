@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Build.Framework" Version="15.1.1012" />
-    <PackageReference Include="NuGet.Common" Version="4.3.0" />
+    <PackageReference Include="NuGet.Common" Version="4.4.0" />
   </ItemGroup>
 
   <!-- Assembly information stuff -->

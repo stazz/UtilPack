@@ -37,6 +37,7 @@ using UtilPack;
 using UtilPack.NuGet;
 using NuGet.RuntimeModel;
 using NuGet.Packaging;
+using NuGet.Protocol;
 
 namespace UtilPack.NuGet
 {
@@ -75,6 +76,9 @@ namespace UtilPack.NuGet
          String runtimeIdentifier = null,
          ILogger nugetLogger = null,
          SourceCacheContext sourceCacheContext = null,
+#if !NUGET_430
+         LocalNuspecCache nuspecCache = null,
+#endif
          Boolean leaveSourceCacheOpen = false
          )
       {
@@ -105,6 +109,9 @@ namespace UtilPack.NuGet
             fallbacks,
             new PackageSourceProvider( nugetSettings ).LoadPackageSources().Where( s => s.IsEnabled ).Select( s => csp.CreateRepository( s ) ),
             ctx,
+#if !NUGET_430
+            nuspecCache ?? new LocalNuspecCache(),
+#endif
             nugetLogger
             );
          this._nugetRestoreRootDir = Path.Combine( Path.GetTempPath(), Path.GetRandomFileName() );

@@ -9,9 +9,14 @@
     <TreatSpecificWarningsAsErrors />
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <NuGetTargetVersion>4.4.0</NuGetTargetVersion>
+    <DefineConstants>$(DefineConstants);NUGET_$(NuGetTargetVersion.Replace('.', ''))</DefineConstants>
+  </PropertyGroup>
   
   <ItemGroup>
-    <PackageReference Include="NuGet.Commands" Version="4.3.0" />
+    <PackageReference Include="NuGet.Commands" Version="$(NuGetTargetVersion)" />
     <PackageReference Include="System.ValueTuple" Version="4.3.1" />
   </ItemGroup>
 

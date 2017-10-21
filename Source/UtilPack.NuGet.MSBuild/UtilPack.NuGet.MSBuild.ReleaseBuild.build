@@ -1,0 +1,31 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <TargetProjectFile>"$(MSBuildThisFileDirectory)UtilPack.NuGet.MSBuild.csproj"</TargetProjectFile>
+    <NewestNuGetVersion>4.4.0</NewestNuGetVersion>
+    <MSBuildExecCMD Condition=" '$(MSBuildRuntimeType)' == 'Core' ">dotnet msbuild</MSBuildExecCMD>
+    <MSBuildExecCMD Condition=" '$(MSBuildRuntimeType)' != 'Core' ">"$(MSBuildBinPath)\MSBuild.exe"</MSBuildExecCMD>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <SupportedNuGetVersions Include="$(NewestNuGetVersion);4.3.0"/>
+  </ItemGroup>
+  
+  <Target Name="Build">
+    <!-- We must use Exec since we are doing Restore with different parameters multiple times, and newer restore does not propagate to next build. -->
+    
+    <!-- Build .NET Desktop version with newest NuGet version (since NuGet assemblies will be included). -->
+    <Exec
+      Command="$(MSBuildExecCMD) /t:Restore;Build /p:Configuration=Release;TargetFramework=net45;NuGetTargetVersion=$(NewestNuGetVersion) $(TargetProjectFile)"
+      />
+
+    <!-- Build .NET Core for all supported NuGet versions. -->
+    <Exec
+      Command="$(MSBuildExecCMD) /t:Restore;Build /p:Configuration=Release;TargetFramework=netcoreapp1.1;NuGetTargetVersion=%(SupportedNuGetVersions.Identity) $(TargetProjectFile)"
+      />
+    
+    <!-- Build the facade for .NET Core. -->
+    <Exec
+      Command="$(MSBuildExecCMD) /t:Restore;Build;Pack /p:Configuration=Release;TargetFramework=netcoreapp1.1;NuGetTargetVersion= $(TargetProjectFile)"
+      />
+  </Target>
+</Project>

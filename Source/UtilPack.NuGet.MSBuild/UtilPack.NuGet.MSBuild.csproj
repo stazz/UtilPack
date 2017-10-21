@@ -20,6 +20,16 @@
     <IncludeBuildOutput>false</IncludeBuildOutput>
   </PropertyGroup>
 
+  <!-- Make this properly editable in MSVS debug mode (and fix nuget version to be 4.3.0 in desktop, since desktop behaves differently). -->
+  <PropertyGroup Condition=" '$(NuGetTargetVersion)' == '' and ( '$(TargetFramework)' == 'net45' or '$(Configuration)' == 'Debug' ) ">
+    <NuGetTargetVersion>4.4.0</NuGetTargetVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(NuGetTargetVersion)' != '' ">
+    <AssemblyName Condition=" '$(TargetFramework)' != 'net45' ">$(AssemblyName).NuGet.$(NuGetTargetVersion)</AssemblyName>
+    <DefineConstants>$(DefineConstants);NUGET_$(NuGetTargetVersion.Replace('.', ''))</DefineConstants>
+  </PropertyGroup>
+
   <ItemDefinitionGroup>
     <PackageReference>
       <PrivateAssets>all</PrivateAssets>
@@ -41,20 +51,30 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.ValueTuple" Version="4.3.0" />
+    <SupportedNuGetVersions Include="4.3.0;4.4.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(NuGetTargetVersion)' != '' ">
+    <PackageReference Include="NuGet.Commands" Version="$(NuGetTargetVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(NuGetTargetVersion)' != '' ">
     <None Include="build\**">
       <Pack>true</Pack>
       <PackagePath>build\%(RecursiveDir)%(FileName)%(Extension)</PackagePath>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="buildMultiTargeting\**">
       <Pack>true</Pack>
       <PackagePath>buildMultiTargeting\%(RecursiveDir)%(FileName)%(Extension)</PackagePath>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
+    <Compile Include="NuGetTaskRunnerFactory.cs" />
+    <Compile Include="NuGetTaskRunnerFactory.NET.cs" />
+    <Compile Include="NuGetTaskRunnerFactory.NETCore.cs" />
     <Compile Include="..\UtilPack.NuGet.AssemblyLoading\NuGetAssemblyResolver.cs" Link="UtilPack.NuGet.AssembyLoading.NuGetAssemblyResolver.cs" />
     <Compile Include="..\UtilPack.NuGet\Frameworks.cs" Link="UtilPack.NuGet.Frameworks.cs" />
     <Compile Include="..\UtilPack.NuGet\Restoring.cs" Link="UtilPack.NuGet.Restoring.cs" />
@@ -70,11 +90,21 @@
     <Compile Include="..\UtilPack\TreeToEnumerableExtensions.cs" Link="UtilPack.TreeToEnumerableExtensions.cs" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="System.ValueTuple" Version="4.3.1" />
-    <PackageReference Include="NuGet.Commands" Version="4.3.0" />
+  <ItemGroup Condition=" '$(NuGetTargetVersion)' == '' ">
+    <Compile Include="NuGetTaskRunnerFactory.NETCore.Facade.cs" />
   </ItemGroup>
-
+  
+  <Target Name="CopyOutputForRelease" AfterTargets="AfterBuild">
+    <!-- When building for different nuget versions, the next build will delete the output (UtilPack.NuGet.MSBuild.NuGet.x.y.z.dll) of the previous build.
+         In release build, we want to save that so that it can be packaged later.
+         -->
+    <Copy
+      Condition=" '$(Configuration)' == 'Release' and '$(TargetFramework)' != 'net45' and '$(NuGetTargetVersion)' != ''"
+      SourceFiles="$(MSBuildThisFileDirectory)$(OutputPath)$(AssemblyName).dll"
+      DestinationFolder="$(MSBuildThisFileDirectory)$(OutputPath)..\NuGetSpecific"
+      />
+  </Target>
+  
   <!-- Collect all dependencies and include them in the package itself, next to the Task assembly. -->
   <Target Name="CollectRuntimeOutputs" BeforeTargets="_GetPackageFiles">
     <ItemGroup>

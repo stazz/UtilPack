@@ -101,6 +101,7 @@ namespace UtilPack.NuGet.MSBuild
       private const String NUGET_FW_VERSION = "NuGetFrameworkVersion";
       private const String NUGET_FW_PACKAGE_ID = "NuGetFrameworkPackageID";
       private const String NUGET_FW_PACKAGE_VERSION = "NuGetFrameworkPackageVersion";
+      private const String COPY_TO_TEMPORARY_FOlDER_BEFORE_LOAD = "CopyToFolderBeforeLoad";
       //private const String KNOWN_SDK_PACKAGE = "KnownSDKPackage";
 
       // We will re-create anything that needs re-creating between mutiple task usages from this same lazy.
@@ -250,12 +251,22 @@ namespace UtilPack.NuGet.MSBuild
                   if ( !String.IsNullOrEmpty( assemblyPath ) )
                   {
                      taskName = this.ProcessTaskName( taskBodyElement, taskName );
+                     var givenTempFolder = taskBodyElement.ElementAnyNS( COPY_TO_TEMPORARY_FOlDER_BEFORE_LOAD )?.Value;
+                     var wasBoolean = false;
+                     var noTempFolder = String.IsNullOrEmpty( givenTempFolder ) || ( ( wasBoolean = Boolean.TryParse( givenTempFolder, out var createTempFolder ) ) && !createTempFolder );
+                     var explicitTempFolder = !noTempFolder && !wasBoolean ? givenTempFolder : null;
                      this._helper = LazyFactory.NewReadOnlyResettableLazy( () =>
                      {
                         try
                         {
-                           var tempFolder = Path.Combine( Path.GetTempPath(), "NuGetAssemblies_" + packageID + "_" + packageVersion + "_" + ( Guid.NewGuid().ToString() ) );
-                           Directory.CreateDirectory( tempFolder );
+
+                           var tempFolder = noTempFolder ?
+                              null :
+                              ( explicitTempFolder ?? Path.Combine( Path.GetTempPath(), "NuGetAssemblies_" + packageID + "_" + packageVersion + "_" + ( Guid.NewGuid().ToString() ) ) );
+                           if ( !String.IsNullOrEmpty( tempFolder ) && ( String.IsNullOrEmpty( explicitTempFolder ) || !Directory.Exists( explicitTempFolder ) ) )
+                           {
+                              Directory.CreateDirectory( tempFolder );
+                           }
 
                            return this.CreateExecutionHelper(
                               taskName,
@@ -284,7 +295,7 @@ namespace UtilPack.NuGet.MSBuild
                   }
                   else
                   {
-                     nugetResolver.LogAssemblyPathResolveError( packageID, taskAssemblies.Assemblies, assemblyPathHint );
+                     nugetResolver.LogAssemblyPathResolveError( packageID, taskAssemblies.Assemblies, assemblyPathHint, assemblyPath );
                      taskFactoryLoggingHost.LogErrorEvent(
                         new BuildErrorEventArgs(
                            "Task factory error",
@@ -306,7 +317,7 @@ namespace UtilPack.NuGet.MSBuild
                   taskFactoryLoggingHost.LogErrorEvent(
                      new BuildErrorEventArgs(
                         "Task factory error",
-                        "NMSBT009",
+                        "NMSBT003",
                         null,
                         -1,
                         -1,
@@ -324,7 +335,7 @@ namespace UtilPack.NuGet.MSBuild
          {
             taskFactoryLoggingHost.LogErrorEvent( new BuildErrorEventArgs(
                "Task factory error",
-               "NMSBT003",
+               "NMSBT001",
                null,
                -1,
                -1,
@@ -525,7 +536,7 @@ namespace UtilPack.NuGet.MSBuild
                      taskFactoryLoggingHost.LogErrorEvent(
                         new BuildErrorEventArgs(
                            "Task factory error",
-                           "NMSBT008",
+                           "NMSBT009",
                            null,
                            -1,
                            -1,
@@ -617,7 +628,7 @@ namespace UtilPack.NuGet.MSBuild
 
       private static Func<String, String> CreatePathProcessor( String assemblyCopyTargetFolder )
       {
-         return originalPath =>
+         return String.IsNullOrEmpty( assemblyCopyTargetFolder ) ? (Func<String, String>) null : originalPath =>
          {
             var newPath = Path.Combine( assemblyCopyTargetFolder, Path.GetFileName( originalPath ) );
             File.Copy( originalPath, newPath, true );

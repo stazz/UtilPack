@@ -90,7 +90,10 @@ There is an example of explicitly using `UtilPack.NuGet.MSBuild` in [here](../Ut
 
 # Developing MSBuild Tasks Executable By UtilPack.NuGet.MSBuild Task Factory
 ## Overview
-There are no special constraints when developing the MSBuild task that will be executed by `UtilPack.NuGet.MSBuild` package, other than recommending to use [the template](../UtilPack.NuGet.MSBuild.Template) for tasks which are intented to hook into build process and be automatically run by just adding package reference to the consumer project.
+There are just a few constraints when developing the MSBuild task that will be executed by `UtilPack.NuGet.MSBuild` package:
+* Minimum MSBuild version supported is `14.3`, and
+* It is recommended to use [the template](../UtilPack.NuGet.MSBuild.Template) for tasks which are intented to hook into build process and be automatically run by just adding package reference to the consumer project.
+
 No certain class is required to be extended, and no dependencies (other than to MSBuild assemblies) are required.
 If your task uses framework assemblies and other NuGet packages only (the majority of the cases), the `CopyLocalLockFileAssemblies` build property is not required - the task factory will take care of restoring and loading the dependant assemblies from their corresponding NuGet packages.
 Developing for .NET 4.5+, .NET Standard 1.3+ and .NET Core 1.0+ is supported - indeed, it is enough to target .NET Standard 1.3, and your task will be executable by both desktop and .NET Core MSBuild.

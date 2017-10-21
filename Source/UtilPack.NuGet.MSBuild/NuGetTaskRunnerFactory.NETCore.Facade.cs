@@ -31,6 +31,8 @@ namespace UtilPack.NuGet.MSBuild
       private readonly ITaskFactory _loaded;
       private readonly Exception _error;
       
+      private const String THIS_NAME_SUFFIX = ".NuGet.";
+      
       public NuGetTaskRunnerFactory()
       {
          var thisLoader = System.Runtime.Loader.AssemblyLoadContext.GetLoadContext( this.GetType().GetTypeInfo().Assembly );
@@ -66,7 +68,7 @@ namespace UtilPack.NuGet.MSBuild
          {
             try
             {
-              this._loaded = (ITaskFactory)Activator.CreateInstance( thisLoader.LoadFromAssemblyPath( Path.Combine( thisDir, thisName + ".NuGet." + taskFactoryVersion.ToString( 3 ) + ".dll" ) ).GetType( this.GetType().FullName ) );
+              this._loaded = (ITaskFactory)Activator.CreateInstance( thisLoader.LoadFromAssemblyPath( Path.Combine( thisDir, thisName + THIS_NAME_SUFFIX + taskFactoryVersion.ToString( 3 ) + ".dll" ) ).GetType( this.GetType().FullName ) );
             }
             catch ( Exception exc)
             {
@@ -90,8 +92,8 @@ namespace UtilPack.NuGet.MSBuild
            {
                var endIdx = fp.LastIndexOf( '.' );
                var startIdx = fp.LastIndexOf( thisName, endIdx - 1 );
-               startIdx += thisName.Length + 1;
-               return Version.Parse( fp.Substring( startIdx, endIdx - startIdx ) );
+               startIdx += thisName.Length + THIS_NAME_SUFFIX.Length;
+               try {return Version.Parse( fp.Substring( startIdx, endIdx - startIdx ) ); } catch { throw new Exception(fp + "\n" + startIdx + ":" + endIdx ); }
             } )
             .OrderByDescending( v => v )
             .FirstOrDefault();

@@ -108,6 +108,9 @@ namespace UtilPack.Cryptography.Digest
       }
 
       /// <inheritdoc />
+      public Int32 BlockSize => BLOCK_SIZE;
+
+      /// <inheritdoc />
       protected override void Dispose( Boolean disposing )
       {
          if ( disposing )

@@ -1123,7 +1123,7 @@ namespace UtilPack.NuGet.MSBuild
             .ToArray();
          var iTask = mbfInterfaces
             .Where( iFace => iFace.FullName.Equals( CommonHelpers.MBF + nameof( Microsoft.Build.Framework.ITask ) ) )
-            .FirstOrDefault() ?? throw new ArgumentException( $"The task \"{taskType.FullName}\" does not seem to implement \"{nameof( Microsoft.Build.Framework.ITask )}\" interface. Make sure the MSBuild target version is at least 14.3. Seen interfaces: {String.Join( ",", taskType.GetInterfaces().Select( i => i.AssemblyQualifiedName ) )}. Seen MBF interfaces: {String.Join( ",", mbfInterfaces.Select( i => i.FullName ) )}. MBF assembly name: \"{msbuildFrameworkAssemblyName}\"." );
+            .FirstOrDefault() ?? throw new ArgumentException( $"The task \"{taskType.FullName}\" located in \"{taskType.GetTypeInfo().Assembly.CodeBase}\" does not seem to implement \"{nameof( Microsoft.Build.Framework.ITask )}\" interface. Make sure the MSBuild target version is at least 14.3. Seen interfaces: {String.Join( ",", taskType.GetInterfaces().Select( i => i.AssemblyQualifiedName ) )}. Seen MBF interfaces: {String.Join( ",", mbfInterfaces.Select( i => i.FullName ) )}. MBF assembly name: \"{msbuildFrameworkAssemblyName}\"." );
 
          // TODO explicit implementations
          this._executeMethod = iTask.GetMethods()

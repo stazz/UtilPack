@@ -101,6 +101,7 @@ namespace UtilPack.NuGet.MSBuild
       private const String NUGET_FW_VERSION = "NuGetFrameworkVersion";
       private const String NUGET_FW_PACKAGE_ID = "NuGetFrameworkPackageID";
       private const String NUGET_FW_PACKAGE_VERSION = "NuGetFrameworkPackageVersion";
+      private const String COPY_TO_TEMPORARY_FOlDER_BEFORE_LOAD = "CopyToFolderBeforeLoad";
       //private const String KNOWN_SDK_PACKAGE = "KnownSDKPackage";
 
       // We will re-create anything that needs re-creating between mutiple task usages from this same lazy.
@@ -180,6 +181,13 @@ namespace UtilPack.NuGet.MSBuild
          )
       {
          var retVal = false;
+         var nugetLogger = new NuGetMSBuildLogger(
+            "NR0001",
+            "NR0002",
+            this.FactoryName,
+            this.FactoryName,
+            taskFactoryLoggingHost
+            );
          try
          {
             this._logger = taskFactoryLoggingHost;
@@ -193,13 +201,7 @@ namespace UtilPack.NuGet.MSBuild
                Path.GetDirectoryName( taskFactoryLoggingHost.ProjectFileOfTaskNode ),
                taskBodyElement.ElementAnyNS( "NuGetConfigurationFile" )?.Value
                );
-            var nugetLogger = new NuGetMSBuildLogger(
-               "NR0001",
-               "NR0002",
-               this.FactoryName,
-               this.FactoryName,
-               taskFactoryLoggingHost
-               );
+
             var nugetResolver = new BoundRestoreCommandUser(
                nugetSettings,
                thisFramework: thisFW,
@@ -249,12 +251,22 @@ namespace UtilPack.NuGet.MSBuild
                   if ( !String.IsNullOrEmpty( assemblyPath ) )
                   {
                      taskName = this.ProcessTaskName( taskBodyElement, taskName );
+                     var givenTempFolder = taskBodyElement.ElementAnyNS( COPY_TO_TEMPORARY_FOlDER_BEFORE_LOAD )?.Value;
+                     var wasBoolean = false;
+                     var noTempFolder = String.IsNullOrEmpty( givenTempFolder ) || ( ( wasBoolean = Boolean.TryParse( givenTempFolder, out var createTempFolder ) ) && !createTempFolder );
+                     var explicitTempFolder = !noTempFolder && !wasBoolean ? givenTempFolder : null;
                      this._helper = LazyFactory.NewReadOnlyResettableLazy( () =>
                      {
                         try
                         {
-                           var tempFolder = Path.Combine( Path.GetTempPath(), "NuGetAssemblies_" + packageID + "_" + packageVersion + "_" + ( Guid.NewGuid().ToString() ) );
-                           Directory.CreateDirectory( tempFolder );
+
+                           var tempFolder = noTempFolder ?
+                              null :
+                              ( explicitTempFolder ?? Path.Combine( Path.GetTempPath(), "NuGetAssemblies_" + packageID + "_" + packageVersion + "_" + ( Guid.NewGuid().ToString() ) ) );
+                           if ( !String.IsNullOrEmpty( tempFolder ) && ( String.IsNullOrEmpty( explicitTempFolder ) || !Directory.Exists( explicitTempFolder ) ) )
+                           {
+                              Directory.CreateDirectory( tempFolder );
+                           }
 
                            return this.CreateExecutionHelper(
                               taskName,
@@ -277,11 +289,13 @@ namespace UtilPack.NuGet.MSBuild
                            throw;
                         }
                      }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
+                     // Force initialization right here, in order to provide better logging (since taskFactoryLoggingHost passed to this method is not useable once this method completes)
+                     var dummy = this._helper.Value.TaskReference;
                      retVal = true;
                   }
                   else
                   {
-                     nugetResolver.LogAssemblyPathResolveError( packageID, taskAssemblies.Assemblies, assemblyPathHint );
+                     nugetResolver.LogAssemblyPathResolveError( packageID, taskAssemblies.Assemblies, assemblyPathHint, assemblyPath );
                      taskFactoryLoggingHost.LogErrorEvent(
                         new BuildErrorEventArgs(
                            "Task factory error",
@@ -303,7 +317,7 @@ namespace UtilPack.NuGet.MSBuild
                   taskFactoryLoggingHost.LogErrorEvent(
                      new BuildErrorEventArgs(
                         "Task factory error",
-                        "NMSBT009",
+                        "NMSBT003",
                         null,
                         -1,
                         -1,
@@ -321,7 +335,7 @@ namespace UtilPack.NuGet.MSBuild
          {
             taskFactoryLoggingHost.LogErrorEvent( new BuildErrorEventArgs(
                "Task factory error",
-               "NMSBT003",
+               "NMSBT001",
                null,
                -1,
                -1,
@@ -333,6 +347,8 @@ namespace UtilPack.NuGet.MSBuild
                ) );
          }
 
+         // We can't use IBuildEngine given to this method once it completes.
+         nugetLogger.BuildEngine = null;
          return retVal;
       }
 
@@ -520,7 +536,7 @@ namespace UtilPack.NuGet.MSBuild
                      taskFactoryLoggingHost.LogErrorEvent(
                         new BuildErrorEventArgs(
                            "Task factory error",
-                           "NMSBT008",
+                           "NMSBT009",
                            null,
                            -1,
                            -1,
@@ -612,7 +628,7 @@ namespace UtilPack.NuGet.MSBuild
 
       private static Func<String, String> CreatePathProcessor( String assemblyCopyTargetFolder )
       {
-         return originalPath =>
+         return String.IsNullOrEmpty( assemblyCopyTargetFolder ) ? (Func<String, String>) null : originalPath =>
          {
             var newPath = Path.Combine( assemblyCopyTargetFolder, Path.GetFileName( originalPath ) );
             File.Copy( originalPath, newPath, true );
@@ -966,35 +982,36 @@ namespace UtilPack.NuGet.MSBuild
             .GetConstructors();
          matchingCtor = null;
          ctorParams = null;
-         if ( ctors.Length == 1 )
+         if ( ctors.Length > 0 )
          {
-            if ( ctors[0].GetParameters().Length == 0 )
+            if ( ctors.Length == 1 && ctors[0].GetParameters().Length == 0 )
             {
                // Default parameterless constructor
                matchingCtor = ctors[0];
             }
-         }
-         else
-         {
-            TNuGetPackageResolverCallback nugetResolveCallback = ( packageID, packageVersion, assemblyPath ) => resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath );
-            TNuGetPackagesResolverCallback nugetsResolveCallback = ( packageIDs, packageVersions, assemblyPaths ) => resolver.LoadNuGetAssemblies( packageIDs, packageVersions, assemblyPaths );
-            TAssemblyByPathResolverCallback pathResolveCallback = ( assemblyPath ) => resolver.LoadOtherAssembly( assemblyPath );
-            TAssemblyNameResolverCallback assemblyResolveCallback = ( assemblyName ) => resolver.TryResolveFromPreviouslyLoaded( assemblyName );
-            TTypeStringResolverCallback typeStringResolveCallback = ( typeString ) => resolver.TryLoadTypeFromPreviouslyLoadedAssemblies( typeString );
 
-            MatchConstructorToParameters(
-               ctors,
-               new Dictionary<Type, Object>()
-               {
+            if ( matchingCtor == null )
+            {
+               TNuGetPackageResolverCallback nugetResolveCallback = ( packageID, packageVersion, assemblyPath ) => resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath );
+               TNuGetPackagesResolverCallback nugetsResolveCallback = ( packageIDs, packageVersions, assemblyPaths ) => resolver.LoadNuGetAssemblies( packageIDs, packageVersions, assemblyPaths );
+               TAssemblyByPathResolverCallback pathResolveCallback = ( assemblyPath ) => resolver.LoadOtherAssembly( assemblyPath );
+               TAssemblyNameResolverCallback assemblyResolveCallback = ( assemblyName ) => resolver.TryResolveFromPreviouslyLoaded( assemblyName );
+               TTypeStringResolverCallback typeStringResolveCallback = ( typeString ) => resolver.TryLoadTypeFromPreviouslyLoadedAssemblies( typeString );
+
+               MatchConstructorToParameters(
+                  ctors,
+                  new Dictionary<Type, Object>()
+                  {
                   { typeof(TNuGetPackageResolverCallback), nugetResolveCallback },
                   { typeof(TNuGetPackagesResolverCallback), nugetsResolveCallback },
                   { typeof(TAssemblyByPathResolverCallback), pathResolveCallback },
                   { typeof(TAssemblyNameResolverCallback), assemblyResolveCallback },
                   { typeof(TTypeStringResolverCallback), typeStringResolveCallback }
-               },
-               ref matchingCtor,
-               ref ctorParams
-               );
+                  },
+                  ref matchingCtor,
+                  ref ctorParams
+                  );
+            }
          }
 
          if ( matchingCtor == null )
@@ -1090,16 +1107,23 @@ namespace UtilPack.NuGet.MSBuild
          this._task = task ?? throw new Exception( "Failed to create the task object." );
          this.TaskUsesDynamicLoading = taskUsesDynamicLoading;
          var taskType = this._task.GetType();
+         //var mbfAssemblyName = new AssemblyName( msbuildFrameworkAssemblyName );
+         //var mbfAssemblyToken = mbfAssemblyName.GetPublicKeyToken() ?? Empty<Byte>.Array;
          var mbfInterfaces = taskType.GetInterfaces()
-            .Where( iFace => iFace
-#if !NET45
-            .GetTypeInfo()
-#endif
-            .Assembly.GetName().FullName.Equals( msbuildFrameworkAssemblyName ) )
+            .Where( iFace =>
+            {
+               // MSBuild does not understand loading multiple MSBuild assemblies, so we probably shouldn't either.
+               //var iFaceAssemblyName = iFace.GetTypeInfo().Assembly.GetName();
+               //return String.Equals( iFaceAssemblyName.Name, mbfAssemblyName.Name )
+               //   && ArrayEqualityComparer<Byte>.ArrayEquality( iFaceAssemblyName.GetPublicKeyToken() ?? Empty<Byte>.Array, mbfAssemblyToken );
+               return iFace
+                  .GetTypeInfo()
+                  .Assembly.GetName().FullName.Equals( msbuildFrameworkAssemblyName );
+            } )
             .ToArray();
          var iTask = mbfInterfaces
             .Where( iFace => iFace.FullName.Equals( CommonHelpers.MBF + nameof( Microsoft.Build.Framework.ITask ) ) )
-            .FirstOrDefault() ?? throw new ArgumentException( $"The task \"{taskType.FullName}\" does not seem to implement \"{nameof( Microsoft.Build.Framework.ITask )}\" interface. Seen interfaces: {String.Join( ",", taskType.GetInterfaces().Select( i => i.FullName ) )}. Seen MBF interfaces: {String.Join( ",", mbfInterfaces.Select( i => i.FullName ) )}. MBF assembly name: \"{msbuildFrameworkAssemblyName}\"." );
+            .FirstOrDefault() ?? throw new ArgumentException( $"The task \"{taskType.FullName}\" located in \"{taskType.GetTypeInfo().Assembly.CodeBase}\" does not seem to implement \"{nameof( Microsoft.Build.Framework.ITask )}\" interface. Make sure the MSBuild target version is at least 14.3. Seen interfaces: {String.Join( ",", taskType.GetInterfaces().Select( i => i.AssemblyQualifiedName ) )}. Seen MBF interfaces: {String.Join( ",", mbfInterfaces.Select( i => i.FullName ) )}. MBF assembly name: \"{msbuildFrameworkAssemblyName}\"." );
 
          // TODO explicit implementations
          this._executeMethod = iTask.GetMethods()

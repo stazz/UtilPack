@@ -24,97 +24,148 @@ using System.Linq;
 
 namespace UtilPack.Tests.Digest
 {
+   using TNativeAlgorithmFactory = Func<Byte[], System.Security.Cryptography.HashAlgorithm>;
+   using TUtilPackAlgorithmFactory = Func<Byte[], BlockDigestAlgorithm>;
+
    [TestClass]
    public class DigestTests
    {
-      private static readonly Func<System.Security.Cryptography.HashAlgorithm> NativeMD5 = () => System.Security.Cryptography.MD5.Create();
-      private static readonly Func<System.Security.Cryptography.HashAlgorithm> NativSHA128 = () => System.Security.Cryptography.SHA1.Create();
-      private static readonly Func<System.Security.Cryptography.HashAlgorithm> NativeSHA256 = () => System.Security.Cryptography.SHA256.Create();
-      private static readonly Func<System.Security.Cryptography.HashAlgorithm> NativeSHA384 = () => System.Security.Cryptography.SHA384.Create();
-      private static readonly Func<System.Security.Cryptography.HashAlgorithm> NativeSHA512 = () => System.Security.Cryptography.SHA512.Create();
+      private static readonly TNativeAlgorithmFactory NativeMD5 = ( key ) => System.Security.Cryptography.MD5.Create();
+      private static readonly TNativeAlgorithmFactory NativeSHA128 = ( key ) => System.Security.Cryptography.SHA1.Create();
+      private static readonly TNativeAlgorithmFactory NativeSHA256 = ( key ) => System.Security.Cryptography.SHA256.Create();
+      private static readonly TNativeAlgorithmFactory NativeSHA384 = ( key ) => System.Security.Cryptography.SHA384.Create();
+      private static readonly TNativeAlgorithmFactory NativeSHA512 = ( key ) => System.Security.Cryptography.SHA512.Create();
 
-      private static readonly Func<BlockDigestAlgorithm> UtilPackMD5 = () => new MD5();
-      private static readonly Func<BlockDigestAlgorithm> UtilPackSHA128 = () => new SHA128();
-      private static readonly Func<BlockDigestAlgorithm> UtilPackSHA256 = () => new SHA256();
-      private static readonly Func<BlockDigestAlgorithm> UtilPackSHA384 = () => new SHA384();
-      private static readonly Func<BlockDigestAlgorithm> UtilPackSHA512 = () => new SHA512();
+      private static readonly TNativeAlgorithmFactory NativeHMACMD5 = ( key ) => new System.Security.Cryptography.HMACMD5( key );
+      private static readonly TNativeAlgorithmFactory NativeHMACSHA128 = ( key ) => new System.Security.Cryptography.HMACSHA1( key );
+      private static readonly TNativeAlgorithmFactory NativeHMACSHA256 = ( key ) => new System.Security.Cryptography.HMACSHA256( key );
+      private static readonly TNativeAlgorithmFactory NativeHMACSHA384 = ( key ) => new System.Security.Cryptography.HMACSHA384( key );
+      private static readonly TNativeAlgorithmFactory NativeHMACSHA512 = ( key ) => new System.Security.Cryptography.HMACSHA512( key );
+
+      private static readonly TUtilPackAlgorithmFactory UtilPackMD5 = ( key ) => new MD5();
+      private static readonly TUtilPackAlgorithmFactory UtilPackSHA128 = ( key ) => new SHA128();
+      private static readonly TUtilPackAlgorithmFactory UtilPackSHA256 = ( key ) => new SHA256();
+      private static readonly TUtilPackAlgorithmFactory UtilPackSHA384 = ( key ) => new SHA384();
+      private static readonly TUtilPackAlgorithmFactory UtilPackSHA512 = ( key ) => new SHA512();
 
 
-      [TestMethod]
-      public void TestMD5()
+      private static readonly TUtilPackAlgorithmFactory UtilPackHMACMD5 = ( key ) => new MD5().CreateHMAC( key );
+      private static readonly TUtilPackAlgorithmFactory UtilPackHMACSHA128 = ( key ) => new SHA128().CreateHMAC( key );
+      private static readonly TUtilPackAlgorithmFactory UtilPackHMACSHA256 = ( key ) => new SHA256().CreateHMAC( key );
+      private static readonly TUtilPackAlgorithmFactory UtilPackHMACSHA384 = ( key ) => new SHA384().CreateHMAC( key );
+      private static readonly TUtilPackAlgorithmFactory UtilPackHMACSHA512 = ( key ) => new SHA512().CreateHMAC( key );
+
+      private static T PickBasedOnKey<T>( T keyless, T keyful, Byte[] key )
+      {
+         return key.IsNullOrEmpty() ? keyless : keyful;
+      }
+
+      [DataTestMethod,
+         DataRow( null ),
+         DataRow( new Byte[] { 1, 2, 3 } )
+         ]
+      public void TestMD5(
+         Byte[] key
+         )
       {
          VerifyNativeVsUtilPack(
-            NativeMD5,
-            UtilPackMD5,
+            PickBasedOnKey( NativeMD5, NativeHMACMD5, key ),
+            PickBasedOnKey( UtilPackMD5, UtilPackHMACMD5, key ),
+            key,
             1, 10
             );
          VerifyNativeVsUtilPack(
-            NativeMD5,
-            UtilPackMD5,
+            PickBasedOnKey( NativeMD5, NativeHMACMD5, key ),
+            PickBasedOnKey( UtilPackMD5, UtilPackHMACMD5, key ),
+            key,
             1000,
             2000
             );
       }
 
-      [TestMethod]
-      public void TestSHA128()
+      [DataTestMethod,
+         DataRow( null ),
+         DataRow( new Byte[] { 1, 2, 3 } )]
+      public void TestSHA128(
+         Byte[] key
+         )
       {
          VerifyNativeVsUtilPack(
-            NativSHA128,
-            UtilPackSHA128,
+            PickBasedOnKey( NativeSHA128, NativeHMACSHA128, key ),
+            PickBasedOnKey( UtilPackSHA128, UtilPackHMACSHA128, key ),
+            key,
             1, 10
             );
          VerifyNativeVsUtilPack(
-            NativSHA128,
-            UtilPackSHA128,
+            PickBasedOnKey( NativeSHA128, NativeHMACSHA128, key ),
+            PickBasedOnKey( UtilPackSHA128, UtilPackHMACSHA128, key ),
+            key,
             1000,
             2000
             );
       }
 
-      [TestMethod]
-      public void TestSHA256()
+      [DataTestMethod,
+         DataRow( null ),
+         DataRow( new Byte[] { 1, 2, 3 } )]
+      public void TestSHA256(
+         Byte[] key
+         )
       {
          VerifyNativeVsUtilPack(
-            NativeSHA256,
-            UtilPackSHA256,
+            PickBasedOnKey( NativeSHA256, NativeHMACSHA256, key ),
+            PickBasedOnKey( UtilPackSHA256, UtilPackHMACSHA256, key ),
+            key,
             1, 10
             );
          VerifyNativeVsUtilPack(
-            NativeSHA256,
-            UtilPackSHA256,
+            PickBasedOnKey( NativeSHA256, NativeHMACSHA256, key ),
+            PickBasedOnKey( UtilPackSHA256, UtilPackHMACSHA256, key ),
+            key,
             1000,
             2000
             );
       }
 
-      [TestMethod]
-      public void TestSHA384()
+      [DataTestMethod,
+         DataRow( null ),
+         DataRow( new Byte[] { 1, 2, 3 } )]
+      public void TestSHA384(
+         Byte[] key
+         )
       {
          VerifyNativeVsUtilPack(
-            NativeSHA384,
-            UtilPackSHA384,
+            PickBasedOnKey( NativeSHA384, NativeHMACSHA384, key ),
+            PickBasedOnKey( UtilPackSHA384, UtilPackHMACSHA384, key ),
+            key,
             1, 10
             );
          VerifyNativeVsUtilPack(
-            NativeSHA384,
-            UtilPackSHA384,
+            PickBasedOnKey( NativeSHA384, NativeHMACSHA384, key ),
+            PickBasedOnKey( UtilPackSHA384, UtilPackHMACSHA384, key ),
+            key,
             1000,
             2000
             );
       }
 
-      [TestMethod]
-      public void TestSHA512()
+      [DataTestMethod,
+         DataRow( null ),
+         DataRow( new Byte[] { 1, 2, 3 } )]
+      public void TestSHA512(
+         Byte[] key
+         )
       {
          VerifyNativeVsUtilPack(
-            NativeSHA512,
-            UtilPackSHA512,
+            PickBasedOnKey( NativeSHA512, NativeHMACSHA512, key ),
+            PickBasedOnKey( UtilPackSHA512, UtilPackHMACSHA512, key ),
+            key,
             1, 10
             );
          VerifyNativeVsUtilPack(
-            NativeSHA512,
-            UtilPackSHA512,
+            PickBasedOnKey( NativeSHA512, NativeHMACSHA512, key ),
+            PickBasedOnKey( UtilPackSHA512, UtilPackHMACSHA512, key ),
+            key,
             1000,
             2000
             );
@@ -143,8 +194,9 @@ namespace UtilPack.Tests.Digest
       }
 
       private void VerifyNativeVsUtilPack(
-         Func<System.Security.Cryptography.HashAlgorithm> nativeFactory,
-         Func<BlockDigestAlgorithm> utilPackFactory,
+         TNativeAlgorithmFactory nativeFactory,
+         TUtilPackAlgorithmFactory utilPackFactory,
+         Byte[] key,
          Int32 minLength,
          Int32 maxLength
          )
@@ -154,24 +206,36 @@ namespace UtilPack.Tests.Digest
          var bytez = r.NextBytes( count );
 
          Byte[] nativeHash;
-         using ( var native = nativeFactory() )
+         using ( var native = nativeFactory( key.CreateArrayCopy() ) )
          {
             nativeHash = native.ComputeHash( bytez );
          }
 
          Byte[] camHash;
-         using ( var cam = utilPackFactory() )
+         using ( var cam = utilPackFactory( key.CreateArrayCopy() ) )
          {
             camHash = cam.ComputeDigest( bytez, 0, bytez.Length );
+
+            Assert.IsTrue(
+               ArrayEqualityComparer<Byte>.ArrayEquality( nativeHash, camHash ),
+               "The hash differed:\nNative hash: {0}\nUtilPack hash: {1}\ninput: {2}",
+               StringConversions.CreateHexString( nativeHash ),
+               StringConversions.CreateHexString( camHash ),
+               StringConversions.CreateHexString( bytez )
+               );
+
+            // Test that resetting works by computing same digest again
+            camHash = cam.ComputeDigest( bytez, 0, bytez.Length );
+            Assert.IsTrue(
+               ArrayEqualityComparer<Byte>.ArrayEquality( nativeHash, camHash ),
+               "The hash differed:\nNative hash: {0}\nUtilPack hash: {1}\ninput: {2}",
+               StringConversions.CreateHexString( nativeHash ),
+               StringConversions.CreateHexString( camHash ),
+               StringConversions.CreateHexString( bytez )
+               );
          }
 
-         Assert.IsTrue(
-            ArrayEqualityComparer<Byte>.ArrayEquality( nativeHash, camHash ),
-            "The hash differed:\nNative hash: {0}\nUtilPack hash: {1}\ninput: {2}",
-            StringConversions.CreateHexString( nativeHash ),
-            StringConversions.CreateHexString( camHash ),
-            StringConversions.CreateHexString( bytez )
-            );
+
       }
 
    }

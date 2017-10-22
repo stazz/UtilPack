@@ -1269,7 +1269,7 @@ namespace UtilPack
 #endif
       public static void CopyTo<T>( this T[] array, T[] targetArray )
       {
-         Array.Copy( array, targetArray, targetArray.Length );
+         Array.Copy( array, targetArray, array.Length );
       }
 
       /// <summary>

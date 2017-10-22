@@ -23,6 +23,15 @@ using System.Threading.Tasks;
 using UtilPack;
 using UtilPack.AsyncEnumeration;
 using UtilPack.AsyncEnumeration.LINQ;
+using System.Reflection;
+
+using TTypeInfo =
+#if NET40
+   System.Type
+#else
+   System.Reflection.TypeInfo
+#endif
+   ;
 
 namespace UtilPack.AsyncEnumeration.LINQ
 {
@@ -96,7 +105,18 @@ public static partial class E_UtilPack
    public static IAsyncEnumerable<U> OfType<T, U>( this IAsyncEnumerable<T> enumerable )
    {
       ArgumentValidator.ValidateNotNullReference( enumerable );
-      return new EnumerableWrapper<U>( () => enumerable.GetAsyncEnumerator().OfType<T, U>() );
+      return IsOfType(
+         typeof( T )
+#if !NET40
+         .GetTypeInfo()
+#endif
+         , typeof( U )
+#if !NET40
+         .GetTypeInfo()
+#endif
+         ) ?
+         (IAsyncEnumerable<U>) enumerable :
+         new EnumerableWrapper<U>( () => enumerable.GetAsyncEnumerator().OfType<T, U>() );
    }
 
    /// <summary>
@@ -112,7 +132,18 @@ public static partial class E_UtilPack
    public static IAsyncEnumerable<U> OfType<T, U>( this IAsyncEnumerable<T> enumerable, OfTypeInfo<U> type )
    {
       ArgumentValidator.ValidateNotNullReference( enumerable );
-      return new EnumerableWrapper<U>( () => enumerable.GetAsyncEnumerator().OfType<T, U>() );
+      return IsOfType(
+         typeof( T )
+#if !NET40
+         .GetTypeInfo()
+#endif
+         , typeof( U )
+#if !NET40
+         .GetTypeInfo()
+#endif
+         ) ?
+         (IAsyncEnumerable<U>) enumerable :
+         new EnumerableWrapper<U>( () => enumerable.GetAsyncEnumerator().OfType<T, U>() );
    }
 
    /// <summary>
@@ -126,7 +157,18 @@ public static partial class E_UtilPack
    public static IAsyncEnumerator<U> OfType<T, U>( this IAsyncEnumerator<T> enumerator )
    {
       ArgumentValidator.ValidateNotNullReference( enumerator );
-      return new OfTypeEnumerator<T, U>( enumerator );
+      return IsOfType(
+         typeof( T )
+#if !NET40
+         .GetTypeInfo()
+#endif
+         , typeof( U )
+#if !NET40
+         .GetTypeInfo()
+#endif
+         ) ?
+         (IAsyncEnumerator<U>) enumerator :
+         new OfTypeEnumerator<T, U>( enumerator );
    }
 
    /// <summary>
@@ -142,6 +184,26 @@ public static partial class E_UtilPack
    public static IAsyncEnumerator<U> OfType<T, U>( this IAsyncEnumerator<T> enumerator, OfTypeInfo<U> type )
    {
       ArgumentValidator.ValidateNotNullReference( enumerator );
-      return new OfTypeEnumerator<T, U>( enumerator );
+      return IsOfType(
+         typeof( T )
+#if !NET40
+         .GetTypeInfo()
+#endif
+         , typeof( U )
+#if !NET40
+         .GetTypeInfo()
+#endif
+         ) ?
+         (IAsyncEnumerator<U>) enumerator :
+         new OfTypeEnumerator<T, U>( enumerator );
+   }
+
+   private static Boolean IsOfType(
+      TTypeInfo t,
+      TTypeInfo u
+      )
+   {
+      // When both types are non-structs and non-generic-parameters, and u is supertype of t, then we don't need new enumerable/enumerator
+      return Equals( t, u ) || ( !t.IsValueType && !u.IsValueType && !t.IsGenericParameter && !u.IsGenericParameter && u.IsAssignableFrom( t ) );
    }
 }

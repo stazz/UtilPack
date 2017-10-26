@@ -31,6 +31,9 @@ namespace UtilPack.Cryptography
       /// <param name="material">The seed material array.</param>
       /// <param name="offset">The offset in <paramref name="material"/> where to start to read for bytes.</param>
       /// <param name="count">How many bytes to read from <paramref name="material"/>.</param>
+      /// <exception cref="ArgumentNullException">If <paramref name="material"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentOutOfRangeException">If <paramref name="offset"/> or <paramref name="count"/> is less than <c>0</c>.</exception>
+      /// <exception cref="ArgumentException">If <paramref name="offset"/> + <paramref name="count"/> is greater than array length.</exception>
       void AddSeedMaterial( Byte[] material, Int32 offset, Int32 count );
 
       /// <summary>
@@ -45,6 +48,9 @@ namespace UtilPack.Cryptography
       /// <param name="array">The array to generate random bytes to.</param>
       /// <param name="offset">The offset where to start generating.</param>
       /// <param name="count">Amount of bytes to generate.</param>
+      /// <exception cref="ArgumentNullException">If <paramref name="array"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentOutOfRangeException">If <paramref name="offset"/> or <paramref name="count"/> is less than <c>0</c>.</exception>
+      /// <exception cref="ArgumentException">If <paramref name="offset"/> + <paramref name="count"/> is greater than array length.</exception>
       void NextBytes( Byte[] array, Int32 offset, Int32 count );
    }
 
@@ -208,7 +214,7 @@ namespace UtilPack.Cryptography
       public void Dispose()
       {
          this._generator.DisposeSafely();
-         Array.Clear( this._intBytes, 0, this._intBytes.Length );
+         this._intBytes.Clear();
       }
 
       /// <summary>

@@ -2187,7 +2187,7 @@ namespace UtilPack
       {
          if ( count > 0 )
          {
-            Array.Clear( array, idx, count );
+            array.Clear( idx, count );
             idx += count;
          }
          return array;

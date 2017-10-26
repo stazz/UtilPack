@@ -980,7 +980,7 @@ namespace UtilPack
                         if ( bytesLeft > 0 )
                         {
                            // Write zeroes for the rest
-                           Array.Clear( this._buffer.Array, currentAppendedCount, (Int32) bytesLeft );
+                           this._buffer.Array.Clear( currentAppendedCount, (Int32) bytesLeft );
                         }
 
                         Interlocked.Exchange( ref this._appendedByteCount, (Int32) ( currentAppendedCount + bytesLeft ) );
@@ -1356,7 +1356,7 @@ public static partial class E_UtilPack
          var copyCount = wholeSegmentCount - deletableStart - deletableCount;
          if ( copyCount <= 0 )
          {
-            Array.Clear( array, deletableStart, deletableCount );
+            array.Clear( deletableStart, deletableCount );
          }
          else
          {

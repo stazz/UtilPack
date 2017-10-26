@@ -618,6 +618,51 @@ namespace UtilPack
       }
 
       /// <summary>
+      /// This is shortcut method to <see cref="Array.Clear(Array, int, int)"/> method, with parameters which will clear whole contents of this <see cref="Array"/>.
+      /// </summary>
+      /// <param name="array">This <see cref="Array"/>.</param>
+      /// <exception cref="NullReferenceException">If this <see cref="Array"/> is <c>null</c>.</exception>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static void Clear( this Array array )
+      {
+         // Don't use argumentvalidator, as that is generic mehtod invocation
+         Array.Clear( array ?? throw new NullReferenceException(), 0, array.Length );
+      }
+
+      /// <summary>
+      /// This is shortcut method to <see cref="Array.Clear(Array, int, int)"/> method, with parameters which will clear the contents of this <see cref="Array"/> starting from given offset.
+      /// </summary>
+      /// <param name="array">This <see cref="Array"/>.</param>
+      /// <param name="offset">The index of first element to be cleared.</param>
+      /// <exception cref="NullReferenceException">If this <see cref="Array"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentException">If <paramref name="offset"/> is invalid.</exception>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static void Clear( this Array array, Int32 offset )
+      {
+         Array.Clear( array ?? throw new NullReferenceException(), offset, array.Length - offset );
+      }
+
+      /// <summary>
+      /// This is shortcut method to <see cref="Array.Clear(Array, int, int)"/> method.
+      /// </summary>
+      /// <param name="array">This <see cref="Array"/>.</param>
+      /// <param name="offset">The index of first element to be cleared.</param>
+      /// <param name="count">The amount of elements to be cleared.</param>
+      /// <exception cref="NullReferenceException">If this <see cref="Array"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentException">If <paramref name="offset"/> and/or <paramref name="count"/> are invalid.</exception>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static void Clear( this Array array, Int32 offset, Int32 count )
+      {
+         Array.Clear( array ?? throw new NullReferenceException(), offset, count );
+      }
+
+      /// <summary>
       /// Helper method to return empty array in case given array is <c>null</c>.
       /// </summary>
       /// <typeparam name="T">The type of array elements.</typeparam>

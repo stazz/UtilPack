@@ -45,6 +45,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.ResourcePooling.MS
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.ResourcePooling.NetworkStream", "UtilPack.ResourcePooling.NetworkStream\UtilPack.ResourcePooling.NetworkStream.csproj", "{0CC65E99-25B5-4B64-A330-9FC4BC41AE97}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.Cryptography.SASL", "UtilPack.Cryptography.SASL\UtilPack.Cryptography.SASL.csproj", "{D8D38563-AEE6-4244-BE8F-05C8F39E3366}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.Cryptography.SASL.SCRAM", "UtilPack.Cryptography.SASL.SCRAM\UtilPack.Cryptography.SASL.SCRAM.csproj", "{C11F826C-9CB6-488C-B488-2CD8A514AB0E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -135,6 +139,14 @@ Global
 		{0CC65E99-25B5-4B64-A330-9FC4BC41AE97}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0CC65E99-25B5-4B64-A330-9FC4BC41AE97}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0CC65E99-25B5-4B64-A330-9FC4BC41AE97}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D8D38563-AEE6-4244-BE8F-05C8F39E3366}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D8D38563-AEE6-4244-BE8F-05C8F39E3366}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D8D38563-AEE6-4244-BE8F-05C8F39E3366}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D8D38563-AEE6-4244-BE8F-05C8F39E3366}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C11F826C-9CB6-488C-B488-2CD8A514AB0E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C11F826C-9CB6-488C-B488-2CD8A514AB0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C11F826C-9CB6-488C-B488-2CD8A514AB0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C11F826C-9CB6-488C-B488-2CD8A514AB0E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

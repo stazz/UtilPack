@@ -37,6 +37,7 @@ namespace UtilPack.Cryptography.Digest
       /// <param name="data">The array from where to read bytes.</param>
       /// <param name="offset">The offset in <paramref name="data"/> array where to start reading.</param>
       /// <param name="count">The amount of bytes to read from <paramref name="data"/> array.</param>
+      /// <exception cref="ArgumentNullException">If <paramref name="data"/> is <c>null</c>.</exception>
       void ProcessBlock( Byte[] data, Int32 offset, Int32 count );
 
       /// <summary>
@@ -44,6 +45,7 @@ namespace UtilPack.Cryptography.Digest
       /// </summary>
       /// <param name="array">The byte array where to write digest to.</param>
       /// <param name="offset">The offset in <paramref name="array"/> where to start writing.</param>
+      /// <exception cref="ArgumentNullException">If <paramref name="array"/> is <c>null</c>.</exception>
       /// <seealso cref="DigestByteCount"/>
       void WriteDigest( Byte[] array, Int32 offset );
 
@@ -95,137 +97,7 @@ namespace UtilPack.Cryptography.Digest
 
    }
 
-   internal sealed class HMACBlockDigestAlgorithm : BlockDigestAlgorithm
-   {
-      private const Byte INNER_PAD_BYTE = 0x36;
-      private const Byte OUTER_PAD_BYTE = 0x5C;
 
-      private const Int32 KEY_ORIGINAL = 0;
-      private const Int32 KEY_XORRED_WITH_INNER = 1;
-      private const Int32 KEY_XORRED_WITH_OUTER = 2;
-
-      private readonly BlockDigestAlgorithm _actual;
-      private readonly Byte[] _key;
-      private Int32 _state;
-
-      public HMACBlockDigestAlgorithm(
-         BlockDigestAlgorithm actual,
-         Byte[] key
-         )
-      {
-         this._actual = ArgumentValidator.ValidateNotNull( nameof( actual ), actual );
-         ArgumentValidator.ValidateNotNull( nameof( key ), key );
-
-         // Check if the key is too long
-         var blockSize = actual.BlockSize;
-         if ( key.Length > blockSize )
-         {
-            // Compute hash of the key
-            actual.ProcessBlock( key );
-            key = new Byte[blockSize];
-            actual.WriteDigest( key ); // There will be trailing zeroes, as needed
-         }
-
-         if ( key.Length < blockSize )
-         {
-            var newKey = new Byte[blockSize];
-            key.CopyTo( newKey );
-            key = newKey; // There will be trailing zeroes, as needed
-         }
-
-         this._key = key;
-      }
-
-      public Int32 DigestByteCount => this._actual.DigestByteCount;
-
-      public Int32 BlockSize => this._actual.BlockSize;
-
-      public void Dispose()
-      {
-         Array.Clear( this._key, 0, this._key.Length );
-         _actual.Dispose();
-      }
-
-      public void ProcessBlock( Byte[] data, Int32 offset, Int32 count )
-      {
-         if ( this._state == KEY_ORIGINAL )
-         {
-            // Write inner padding
-            this._state = KEY_XORRED_WITH_INNER;
-            this.WriteInnerPadding( true );
-         }
-         this._actual.ProcessBlock( data, offset, count );
-      }
-
-      public void Reset()
-      {
-         // Remember to un-xor the key
-         switch ( this._state )
-         {
-            case KEY_XORRED_WITH_INNER:
-               this.WriteInnerPadding( false );
-               break;
-            case KEY_XORRED_WITH_OUTER:
-               this.WriteOuterPadding( false );
-               break;
-         }
-
-         this._state = KEY_ORIGINAL;
-         this._actual.Reset();
-      }
-
-      public void WriteDigest( Byte[] array, Int32 offset )
-      {
-         if ( this._state == KEY_ORIGINAL )
-         {
-            // Write emtpy message
-            this.ProcessBlock( Empty<Byte>.Array, 0, 0 );
-         }
-
-         // Compute digest of the actual message first
-         this._actual.WriteDigest( array, offset );
-
-         // Then compute the digest for outer padding concatenated with digest
-         this._state = KEY_XORRED_WITH_OUTER;
-         this.WriteOuterPadding( true );
-         this._actual.ProcessBlock( array, offset, this._actual.DigestByteCount );
-         this._actual.WriteDigest( array, offset );
-
-         // And now we're done.
-         this.Reset();
-      }
-
-      private void WriteInnerPadding( Boolean processByActual )
-      {
-         // We can write directly into this._key - no need to allocate arrays
-         for ( var i = 0; i < this._key.Length; ++i )
-         {
-            this._key[i] ^= INNER_PAD_BYTE;
-         }
-
-         if ( processByActual )
-         {
-            this._actual.ProcessBlock( this._key );
-         }
-      }
-
-      private void WriteOuterPadding( Boolean processByActual )
-      {
-         // We can write directly into this._key - no need to allocate arrays
-         // Remember that our key is XORred with inner padding by WriteInnerPadding method
-         var mask = processByActual ?
-            (Byte) ( INNER_PAD_BYTE ^ OUTER_PAD_BYTE ) :
-            OUTER_PAD_BYTE;
-         for ( var i = 0; i < this._key.Length; ++i )
-         {
-            this._key[i] ^= mask;
-         }
-         if ( processByActual )
-         {
-            this._actual.ProcessBlock( this._key );
-         }
-      }
-   }
 }
 
 /// <summary>
@@ -237,37 +109,118 @@ public static partial class E_UtilPack
    /// Helper method to compute digest over the whole contents of given byte array.
    /// </summary>
    /// <param name="transform">This <see cref="BlockDigestAlgorithm"/>.</param>
-   /// <param name="array">The byte data of which to compute digest from.</param>
+   /// <param name="source">The byte data of which to compute digest from.</param>
    /// <returns>The digest produced by this <see cref="BlockDigestAlgorithm"/>.</returns>
-   public static Byte[] ComputeDigest( this BlockDigestAlgorithm transform, Byte[] array )
-   {
-      return transform.ComputeDigest( array, 0, array?.Length ?? 0 );
-   }
+   public static Byte[] ComputeDigest( this BlockDigestAlgorithm transform, Byte[] source )
+      => transform.ComputeDigest( source, 0, source?.Length ?? 0 );
+
 
    /// <summary>
    /// Helper method to compute digest when all the data has already been read to given array.
    /// </summary>
    /// <param name="transform">This <see cref="BlockDigestAlgorithm"/>.</param>
-   /// <param name="array">The data. Reading will start at offset <c>0</c>.</param>
-   /// <param name="count">The amount of bytes to read from <paramref name="array"/>.</param>
-   /// <returns></returns>
-   public static Byte[] ComputeDigest( this BlockDigestAlgorithm transform, Byte[] array, Int32 count )
-   {
-      return transform.ComputeDigest( array, 0, count );
-   }
+   /// <param name="source">The data. Reading will start at offset <c>0</c>.</param>
+   /// <param name="sourceCount">The amount of bytes to read from <paramref name="source"/>.</param>
+   /// <returns>The digest produced by this <see cref="BlockDigestAlgorithm"/>.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="BlockDigestAlgorithm"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="source"/> is <c>null</c>.</exception>
+   public static Byte[] ComputeDigest( this BlockDigestAlgorithm transform, Byte[] source, Int32 sourceCount )
+      => transform.ComputeDigest( source, 0, sourceCount );
 
    /// <summary>
    /// Helper method to compute digest when all the data has already been read to given array.
    /// </summary>
    /// <param name="transform">This <see cref="BlockDigestAlgorithm"/>.</param>
-   /// <param name="array">The data.</param>
-   /// <param name="offset">The offset in <paramref name="array"/> where to start reading.</param>
-   /// <param name="count">The amount of bytes to read from <paramref name="array"/>.</param>
+   /// <param name="source">The data.</param>
+   /// <param name="sourceOffset">The offset in <paramref name="source"/> where to start reading.</param>
+   /// <param name="sourceCount">The amount of bytes to read from <paramref name="source"/>.</param>
    /// <returns>The digest produced by this <see cref="BlockDigestAlgorithm"/>.</returns>
-   public static Byte[] ComputeDigest( this BlockDigestAlgorithm transform, Byte[] array, Int32 offset, Int32 count )
+   /// <exception cref="NullReferenceException">If this <see cref="BlockDigestAlgorithm"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="source"/> is <c>null</c>.</exception>
+   public static Byte[] ComputeDigest( this BlockDigestAlgorithm transform, Byte[] source, Int32 sourceOffset, Int32 sourceCount )
    {
-      transform.ProcessBlock( array, offset, count );
+      transform.ProcessBlock( source, sourceOffset, sourceCount );
       return transform.CreateDigest();
+   }
+
+   /// <summary>
+   /// Helper method to write digest to a target array, when source data is already completely in source array.
+   /// </summary>
+   /// <param name="transform">This <see cref="BlockDigestAlgorithm"/>.</param>
+   /// <param name="sourceArray">The array holding all of the data.</param>
+   /// <param name="targetArray">The array where to write the digest, starting at index <c>0</c>.</param>
+   /// <exception cref="NullReferenceException">If this <see cref="BlockDigestAlgorithm"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If either of <paramref name="sourceArray"/> or <paramref name="targetArray"/> is <c>null</c>.</exception>
+   public static void ComputeDigest( this BlockDigestAlgorithm transform, Byte[] sourceArray, Byte[] targetArray )
+      => transform.ComputeDigest( sourceArray, 0, sourceArray?.Length ?? 0, targetArray, 0 );
+
+   /// <summary>
+   /// Helper method to write digest to a target array, when source data is already completely in source array.
+   /// </summary>
+   /// <param name="transform">This <see cref="BlockDigestAlgorithm"/>.</param>
+   /// <param name="sourceArray">The array holding all of the data.</param>
+   /// <param name="sourceCount">The amount of data in the <paramref name="sourceArray"/>, starting at index <c>0</c>.</param>
+   /// <param name="targetArray">The array where to write the digest, starting at index <c>0</c>.</param>
+   /// <exception cref="NullReferenceException">If this <see cref="BlockDigestAlgorithm"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If either of <paramref name="sourceArray"/> or <paramref name="targetArray"/> is <c>null</c>.</exception>
+   public static void ComputeDigest( this BlockDigestAlgorithm transform, Byte[] sourceArray, Int32 sourceCount, Byte[] targetArray )
+      => transform.ComputeDigest( sourceArray, 0, sourceCount, targetArray, 0 );
+
+
+   /// <summary>
+   /// Helper method to write digest to a target array, when source data is already completely in source array.
+   /// </summary>
+   /// <param name="transform">This <see cref="BlockDigestAlgorithm"/>.</param>
+   /// <param name="sourceArray">The array holding all of the data.</param>
+   /// <param name="sourceOffset">The offset in <paramref name="sourceArray"/> where the data starts.</param>
+   /// <param name="sourceCount">The amount of data in <paramref name="sourceArray"/>.</param>
+   /// <param name="targetArray">The array where to write the digest, starting at index <c>0</c>.</param>
+   /// <exception cref="NullReferenceException">If this <see cref="BlockDigestAlgorithm"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If either of <paramref name="sourceArray"/> or <paramref name="targetArray"/> is <c>null</c>.</exception>
+   public static void ComputeDigest( this BlockDigestAlgorithm transform, Byte[] sourceArray, Int32 sourceOffset, Int32 sourceCount, Byte[] targetArray )
+      => transform.ComputeDigest( sourceArray, sourceOffset, sourceCount, targetArray, 0 );
+
+
+   /// <summary>
+   /// Helper method to write digest to a target array, when source data is already completely in source array.
+   /// </summary>
+   /// <param name="transform">This <see cref="BlockDigestAlgorithm"/>.</param>
+   /// <param name="sourceArray">The array holding all of the data.</param>
+   /// <param name="targetArray">The array where to write the digest, starting at <paramref name="targetOffset"/>.</param>
+   /// <param name="targetOffset">The index in <paramref name="targetArray"/> where to start writing digest.</param>
+   /// <exception cref="NullReferenceException">If this <see cref="BlockDigestAlgorithm"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If either of <paramref name="sourceArray"/> or <paramref name="targetArray"/> is <c>null</c>.</exception>
+   public static void ComputeDigest( this BlockDigestAlgorithm transform, Byte[] sourceArray, Byte[] targetArray, Int32 targetOffset )
+      => transform.ComputeDigest( sourceArray, 0, sourceArray?.Length ?? 0, targetArray, 0 );
+
+   /// <summary>
+   /// Helper method to write digest to a target array, when source data is already completely in source array.
+   /// </summary>
+   /// <param name="transform">This <see cref="BlockDigestAlgorithm"/>.</param>
+   /// <param name="sourceArray">The array holding all of the data.</param>
+   /// <param name="sourceCount">The amount of data in the <paramref name="sourceArray"/>, starting at index <c>0</c>.</param>
+   /// <param name="targetArray">The array where to write the digest, starting at <paramref name="targetOffset"/>.</param>
+   /// <param name="targetOffset">The index in <paramref name="targetArray"/> where to start writing digest.</param>
+   /// <exception cref="NullReferenceException">If this <see cref="BlockDigestAlgorithm"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If either of <paramref name="sourceArray"/> or <paramref name="targetArray"/> is <c>null</c>.</exception>
+   public static void ComputeDigest( this BlockDigestAlgorithm transform, Byte[] sourceArray, Int32 sourceCount, Byte[] targetArray, Int32 targetOffset )
+      => transform.ComputeDigest( sourceArray, 0, sourceCount, targetArray, targetOffset );
+
+   /// <summary>
+   /// Helper method to write digest to a target array, when source data is already completely in source array.
+   /// </summary>
+   /// <param name="transform">This <see cref="BlockDigestAlgorithm"/>.</param>
+   /// <param name="sourceArray">The array holding all of the data.</param>
+   /// <param name="sourceOffset">The offset in <paramref name="sourceArray"/> where the data starts.</param>
+   /// <param name="sourceCount">The amount of data in <paramref name="sourceArray"/>.</param>
+   /// <param name="targetArray">The array where to write the digest, starting at <paramref name="targetOffset"/>.</param>
+   /// <param name="targetOffset">The index in <paramref name="targetArray"/> where to start writing digest.</param>
+   /// <exception cref="NullReferenceException">If this <see cref="BlockDigestAlgorithm"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If either of <paramref name="sourceArray"/> or <paramref name="targetArray"/> is <c>null</c>.</exception>
+   public static void ComputeDigest( this BlockDigestAlgorithm transform, Byte[] sourceArray, Int32 sourceOffset, Int32 sourceCount, Byte[] targetArray, Int32 targetOffset )
+   {
+      transform.ProcessBlock( sourceArray, sourceOffset, sourceCount );
+      transform.WriteDigest( targetArray, targetOffset );
    }
 
    /// <summary>
@@ -326,22 +279,4 @@ public static partial class E_UtilPack
       algorithm.WriteDigest( array, 0 );
    }
 
-   /// <summary>
-   /// Creates a new instance of <see cref="BlockDigestAlgorithm"/> which wraps this <see cref="BlockDigestAlgorithm"/>, and adds HMAC support.
-   /// </summary>
-   /// <param name="algorithm">This <see cref="BlockDigestAlgorithm"/>.</param>
-   /// <param name="key">The key to use in HMAC.</param>
-   /// <returns>A new instance of <see cref="BlockDigestAlgorithm"/> with HMAC support.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="BlockDigestAlgorithm"/> is <c>null</c>.</exception>
-   /// <exception cref="ArgumentNullException">If <paramref name="key"/> is <c>null</c>.</exception>
-   /// <remarks>
-   /// The returned <see cref="BlockDigestAlgorithm"/> will assume the given <paramref name="key"/> as its own, and will write to it. If that is undesirable, please pass a copy of an array as <paramref name="key"/>.
-   /// </remarks>
-   public static BlockDigestAlgorithm CreateHMAC( this BlockDigestAlgorithm algorithm, Byte[] key )
-   {
-      return new HMACBlockDigestAlgorithm(
-         ArgumentValidator.ValidateNotNullReference( algorithm ),
-         key
-         );
-   }
 }

@@ -85,13 +85,13 @@ namespace UtilPack.Cryptography.Digest
             this._stateResetDone = true;
          }
 
-         this.HashBlock( data, offset, count );
+         this.HashBlock( data ?? throw new ArgumentNullException( nameof ( data ) ), offset, count );
       }
 
       /// <inheritdoc />
       public void WriteDigest( Byte[] array, Int32 offset )
       {
-         this.HashEnd( array, offset );
+         this.HashEnd( array ?? throw new ArgumentNullException( nameof( array ) ), offset );
          this.Reset();
       }
 
@@ -101,7 +101,7 @@ namespace UtilPack.Cryptography.Digest
       /// <inheritdoc />
       public void Reset()
       {
-         Array.Clear( this._block, 0, BLOCK_SIZE );
+         this._block.Clear();
          this._count = 0UL;
          this.ResetState( true );
          this._stateResetDone = false;
@@ -209,7 +209,7 @@ namespace UtilPack.Cryptography.Digest
             else
             {
                (resizableArray = instance.Array).CurrentMaxCapacity = dataLen;
-               Array.Clear( ( data = resizableArray.Array ), 0, dataLen );
+               ( data = resizableArray.Array ).Clear( 0, dataLen );
             }
 
             // Write value 128 at the beginning, and amount of written *bits* at the end of the data
@@ -236,7 +236,7 @@ namespace UtilPack.Cryptography.Digest
       {
          if ( isHashDone )
          {
-            Array.Clear( this._expandedState, 0, EXPANDED_STATE_SIZE );
+            this._expandedState.Clear();
          }
          var state = this._state;
 

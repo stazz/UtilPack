@@ -381,7 +381,7 @@ namespace UtilPack
       {
          var isBE = this.IsBigEndian;
          array[isBE ? ( idx + 3 ) : idx] = asciiByte;
-         Array.Clear( array, isBE ? idx : idx + 1, 3 );
+         array.Clear( isBE ? idx : idx + 1, 3 );
          return this;
       }
    }

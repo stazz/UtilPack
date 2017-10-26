@@ -88,4 +88,31 @@ namespace UtilPack
          }
       }
    }
+
+   public sealed class LazyDisposable<T> : AbstractDisposable
+      where T : IDisposable
+   {
+      private readonly Lazy<T> _lazy;
+
+      public LazyDisposable( Lazy<T> lazy )
+      {
+         this._lazy = ArgumentValidator.ValidateNotNull( nameof( lazy ), lazy );
+      }
+
+      public LazyDisposable( Func<T> factory )
+         : this( new Lazy<T>( factory, System.Threading.LazyThreadSafetyMode.None ) )
+      {
+
+      }
+
+      public T Value => this._lazy.Value;
+
+      protected override void Dispose( Boolean disposing )
+      {
+         if ( disposing && this._lazy.IsValueCreated )
+         {
+            this._lazy.Value.Dispose();
+         }
+      }
+   }
 }

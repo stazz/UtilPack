@@ -32,6 +32,8 @@ namespace UtilPack.Cryptography.Digest
       private readonly Byte[] _seed;
       private readonly Byte[] _state;
 
+      private readonly Boolean _skipDisposeAlgorithm;
+
       private Int64 _stateCounter;
       private Int64 _seedCounter;
 
@@ -44,10 +46,12 @@ namespace UtilPack.Cryptography.Digest
       /// <exception cref="ArgumentNullException">If <paramref name="algorithm"/> is <c>null</c>.</exception>
       public DigestBasedRandomGenerator(
          BlockDigestAlgorithm algorithm,
-         Int32 seedCycleCount = DEFAULT_SEED_CYCLE_COUNT
+         Int32 seedCycleCount,
+         Boolean skipDisposeAlgorithm
          )
       {
          this.Algorithm = ArgumentValidator.ValidateNotNull( "Algorithm", algorithm );
+         this._skipDisposeAlgorithm = skipDisposeAlgorithm;
          this._seed = new Byte[this.Algorithm.DigestByteCount];
          this._state = new Byte[this.Algorithm.DigestByteCount];
 
@@ -64,6 +68,8 @@ namespace UtilPack.Cryptography.Digest
       /// <param name="count">The amount of bytes to read from <paramref name="material"/> array.</param>
       public override void AddSeedMaterial( Byte[] material, Int32 offset, Int32 count )
       {
+         ArgumentValidator.ValidateNotNull( nameof( material ), material );
+         material.CheckArrayArguments( offset, count, false );
          this.Algorithm.ProcessBlock( material, offset, count );
          this.Algorithm.ProcessBlock( this._seed );
          this.Algorithm.WriteDigest( this._seed );
@@ -77,13 +83,18 @@ namespace UtilPack.Cryptography.Digest
       /// <param name="count">The amount of bytes to write to <paramref name="array"/>.</param>
       public override void NextBytes( Byte[] array, Int32 offset, Int32 count )
       {
-         var state = this._state;
-         do
+         ArgumentValidator.ValidateNotNull( nameof( array ), array );
+         array.CheckArrayArguments( offset, count, false );
+         if ( count > 0 )
          {
-            this.PopulateState();
-            Array.Copy( state, 0, array, offset, Math.Min( count, state.Length ) );
-            offset += state.Length;
-         } while ( count - offset > 0 );
+            var state = this._state;
+            do
+            {
+               this.PopulateState();
+               Array.Copy( state, 0, array, offset, Math.Min( count, state.Length ) );
+               offset += state.Length;
+            } while ( count - offset > 0 );
+         }
       }
 
       /// <summary>
@@ -94,9 +105,13 @@ namespace UtilPack.Cryptography.Digest
       {
          if ( disposing )
          {
-            this.Algorithm.DisposeSafely();
-            Array.Clear( this._state, 0, this._state.Length );
-            Array.Clear( this._seed, 0, this._seed.Length );
+            if ( !this._skipDisposeAlgorithm )
+            {
+               this.Algorithm.DisposeSafely();
+            }
+
+            this._state.Clear();
+            this._seed.Clear();
          }
       }
 
@@ -140,10 +155,13 @@ namespace UtilPack.Cryptography.Digest
       /// <param name="seedCycleCount">How often to re-seed the state of returned <see cref="DigestBasedRandomGenerator"/>.</param>
       /// <returns>A new instance of <see cref="DigestBasedRandomGenerator"/> with given parameters.</returns>
       /// <exception cref="ArgumentNullException">If <paramref name="algorithm"/> is <c>null</c>.</exception>
-      public static DigestBasedRandomGenerator CreateAndSeedWithDefaultLogic( BlockDigestAlgorithm algorithm, Int32 seedCycleCount = DEFAULT_SEED_CYCLE_COUNT )
+      public static DigestBasedRandomGenerator CreateAndSeedWithDefaultLogic(
+         BlockDigestAlgorithm algorithm,
+         Int32 seedCycleCount = DEFAULT_SEED_CYCLE_COUNT,
+         Boolean skipDisposeAlgorithm = false
+         )
       {
-
-         var retVal = new DigestBasedRandomGenerator( algorithm, seedCycleCount );
+         var retVal = new DigestBasedRandomGenerator( algorithm, seedCycleCount, skipDisposeAlgorithm );
          // Use Guid as random source (should be version 4)
          retVal.AddSeedMaterial( Guid.NewGuid().ToByteArray() );
 

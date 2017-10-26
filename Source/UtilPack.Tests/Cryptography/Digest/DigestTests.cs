@@ -22,7 +22,7 @@ using System.Text;
 using UtilPack.Cryptography.Digest;
 using System.Linq;
 
-namespace UtilPack.Tests.Digest
+namespace UtilPack.Tests.Cryptography.Digest
 {
    using TNativeAlgorithmFactory = Func<Byte[], System.Security.Cryptography.HashAlgorithm>;
    using TUtilPackAlgorithmFactory = Func<Byte[], BlockDigestAlgorithm>;

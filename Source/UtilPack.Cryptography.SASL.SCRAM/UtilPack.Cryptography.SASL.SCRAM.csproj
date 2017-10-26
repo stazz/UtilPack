@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net40;net45;netstandard1.0</TargetFrameworks>
+    <LangVersion>7.1</LangVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <TreatSpecificWarningsAsErrors />
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UtilPack.Cryptography.Digest\UtilPack.Cryptography.Digest.csproj" />
+    <ProjectReference Include="..\UtilPack.Cryptography.SASL\UtilPack.Cryptography.SASL.csproj" />
+  </ItemGroup>
+
+</Project>

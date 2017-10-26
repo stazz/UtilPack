@@ -1337,7 +1337,10 @@ public static partial class E_UtilPack
 #endif
    public static Boolean IsVectorArray( this Type type )
    {
-      return type != null && type.IsArray && type.Name.EndsWith( "[]" );
+      return type != null
+         && type.IsArray
+         && type.GetArrayRank() == 1
+         && type.Name.EndsWith( "[]" );
    }
 
    /// <summary>
@@ -1356,8 +1359,16 @@ public static partial class E_UtilPack
    public static Boolean IsMultiDimensionalArray( this Type type )
    {
       String name;
-      return type != null && type.IsArray && ( type.GetArrayRank() > 1 || ( ( name = type.Name ).EndsWith( "]" ) && name[name.Length - 2] != '[' ) );
+      return type != null
+         && type.IsArray
+         && ( type.GetArrayRank() > 1 || ( ( name = type.Name ).EndsWith( "]" ) && name[name.Length - 2] != '[' ) );
    }
+
+   public static T1 GetFirstOrDefault<T1, T2>( this EitherOr<T1, T2> eitherOr )
+      => eitherOr.IsFirst ? eitherOr.First : default;
+
+   public static T2 GetSecondOrDefault<T1, T2>( this EitherOr<T1, T2> eitherOr )
+      => eitherOr.IsSecond ? eitherOr.Second : default;
 
 
 }

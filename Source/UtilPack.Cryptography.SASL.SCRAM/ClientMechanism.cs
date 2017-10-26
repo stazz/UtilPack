@@ -242,7 +242,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
 
             if ( messageOK )
             {
-               this.PerformFinalWrite(
+               retVal = this.PerformFinalWrite(
                   ref args,
                   credentials,
                   ref writeOffset,
@@ -267,7 +267,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
          return retVal;
       }
 
-      private void PerformFinalWrite(
+      private Int32 PerformFinalWrite(
          ref SASLAuthenticationArguments args,
          SASLCredentialsSCRAMForClient credentials,
          ref Int32 writeOffset,
@@ -289,117 +289,121 @@ namespace UtilPack.Cryptography.SASL.SCRAM
          // The server nonce and salt are in the write array
          // Expand salt (it will overwrite iteration data, but that is already parsed)
          var pw = credentials.PasswordDigest;
-         if ( pw.IsNullOrEmpty() )
-         {
-            var pwStart = keyWriteOffset + keyWriteCount + 4;
-            writeArray.CurrentMaxCapacity = pwStart;
-            writeArray.Array.WriteInt32BEToBytesNoRef( keyWriteOffset + keyWriteCount, 1 );
+         String stringPW = null;
+         var errorCode = !pw.IsNullOrEmpty() || !String.IsNullOrEmpty( stringPW = credentials.Password ) ?
+            0 :
+            SCRAMCommon.ERROR_CLIENT_SUPPLIED_WITH_INVALID_CREDENTIALS;
 
-            var pwString = credentials.Password;
-            if ( String.IsNullOrEmpty( pwString ) )
+         if ( errorCode == 0 )
+         {
+            if ( pw.IsNullOrEmpty() )
             {
-               throw new InvalidOperationException( "Both password digest and password string were empty and/or null." );
+               var pwStart = keyWriteOffset + keyWriteCount + 4;
+               writeArray.CurrentMaxCapacity = pwStart;
+               writeArray.Array.WriteInt32BEToBytesNoRef( keyWriteOffset + keyWriteCount, 1 );
+
+               // Write processed password
+               var pwEnd = pwStart;
+               SASLUtility.WriteString(
+                  stringPW,
+                  args.Encoding,
+                  writeArray,
+                  ref pwEnd
+                  );
+               // Make sure HMAC won't allocate new array
+               writeArray.CurrentMaxCapacity = pwStart + blockSize;
+               pw = WritePBKDF2(
+                  algorithm,
+                  writeArray.Array,
+                  pwStart,
+                  pwEnd - pwStart,
+                  writeArray.Array,
+                  keyWriteOffset,
+                  keyWriteCount + 4,
+                  iterationCount
+                  );
+               credentials.PasswordDigest = pw;
             }
 
-            // Write processed password
-            var pwEnd = pwStart;
-            SASLUtility.WriteString(
-               credentials.Password,
-               args.Encoding,
-               writeArray,
-               ref pwEnd
-               );
+            var clientKeyDigestStart = keyWriteOffset + digestByteCount;
+            var hmacKeyStart = clientKeyDigestStart + digestByteCount;
+            writeArray.CurrentMaxCapacity = hmacKeyStart + blockSize;
+            var dummy = 0;
+            pw.CopyTo( writeArray.Array, ref dummy, hmacKeyStart, digestByteCount );
+            using ( var hmac = algorithm.CreateHMAC( writeArray.Array, hmacKeyStart, digestByteCount, skipDisposeAlgorithm: true ) )
+            {
+               // We can overwrite server salt with this digest, as the salt is no longer needed
+               hmac.ComputeDigest( ClientKeyBytes, writeArray.Array, keyWriteOffset );
+            }
+
+            // Client key is now in writeArray. Write hashed key to writeArray
+            algorithm.ComputeDigest( writeArray.Array, keyWriteOffset, digestByteCount, writeArray.Array, clientKeyDigestStart );
+
+            // Hashed client key is now in writeArray.Array, starting at keyWriteOffset.
+            // Compute HMAC using hashed client key as HMAC key
             // Make sure HMAC won't allocate new array
-            writeArray.CurrentMaxCapacity = pwStart + blockSize;
-            pw = WritePBKDF2(
-               algorithm,
-               writeArray.Array,
-               pwStart,
-               pwEnd - pwStart,
-               writeArray.Array,
-               keyWriteOffset,
-               keyWriteCount + 4,
-               iterationCount
-               );
-            credentials.PasswordDigest = pw;
+            var hmacEnd = clientKeyDigestStart + blockSize;
+            writeArray.CurrentMaxCapacity = hmacEnd + digestByteCount;
+            Int32 withoutProofIndex;
+            Int32 withoutProofCount;
+            using ( var hmac = algorithm.CreateHMAC( writeArray.Array, clientKeyDigestStart, digestByteCount, skipDisposeAlgorithm: true ) )
+            {
+               // We need to create HMAC of whole previous client message + "," + whole server response + "," + message without proof
+               // Furthermore, we need to save this whole HMACed data for next phase processing
+
+               // Calculate the amount of bytes needed
+               var clientMsg = this._clientMessage;
+               var asciiSize = encodingInfo.BytesPerASCIICharacter;
+               var cbindInput = SCRAMCommon.WITHOUT_PROOF_PREFIX; // TODO add ability to do channel binds.
+               clientMsg.CurrentMaxCapacity =
+                  prevMsgLen // Client message length in bytes
+                  + 2 * asciiSize // two commas
+                  + args.ReadCount // this server response message length in bytes
+                  + encoding.GetByteCount( cbindInput ) // Length of constant prefix
+                  + serverNonceReadCount // Length of textual server nonce
+                  + 1 // Terminating zero
+                  ;
+               var msg = clientMsg.Array;
+               var idx = prevMsgLen;
+               encodingInfo.WriteASCIIByte( msg, ref idx, SCRAMCommon.COMMA );
+               dummy = args.ReadOffset;
+               args.ReadArray.CopyTo( msg, ref dummy, idx, args.ReadCount );
+               idx += args.ReadCount;
+               encodingInfo.WriteASCIIByte( msg, ref idx, SCRAMCommon.COMMA );
+               withoutProofIndex = idx;
+               idx += encoding.GetBytes( cbindInput, 0, cbindInput.Length, msg, idx );
+               args.ReadArray.CopyTo( msg, ref serverNonceReadOffset, idx, serverNonceReadCount );
+               idx += serverNonceReadCount;
+               msg.Clear( idx, msg.Length - idx ); // Terminating zero, so that next phase will find the end.
+               withoutProofCount = idx - withoutProofIndex;
+
+               // We have created and writen the message, now compute HMAC of it
+               hmac.ComputeDigest( msg, 0, idx, writeArray.Array, hmacEnd );
+            }
+
+            // HMAC digest of message starting at index hmacEnd
+            // Do XOR for client key
+            SCRAMCommon.ArrayXor( writeArray.Array, writeArray.Array, hmacEnd, keyWriteOffset, digestByteCount );
+
+            // Our response is: withoutproof part of this._clientMessage + ",p=" + base64 string of XORred key
+            var digestStart = withoutProofCount + 3 * encodingInfo.BytesPerASCIICharacter;
+            var xorStart = digestStart + UtilPackUtility.GetBase64CharCount( digestByteCount, true );
+            writeArray.CurrentMaxCapacity = xorStart + digestByteCount;
+            writeArray.Array.CopyTo( writeArray.Array, ref hmacEnd, xorStart, digestByteCount );
+
+            // Write the base64 XORred key at the end of the message first
+            var digestEnd = digestStart;
+            encodingInfo.WriteBinaryAsBase64ASCIICharactersTrimEnd( writeArray.Array, xorStart, digestByteCount, writeArray.Array, ref digestEnd, false );
+
+            // Now start writing the beginning of the message
+            this._clientMessage.Array.CopyTo( writeArray.Array, ref withoutProofIndex, writeOffset, withoutProofCount );
+            writeOffset += withoutProofCount;
+            writeOffset += encoding.GetBytes( SCRAMCommon.CLIENT_PROOF_PREFIX, 0, SCRAMCommon.CLIENT_PROOF_PREFIX.Length, writeArray.Array, writeOffset );
+            writeOffset += digestEnd - digestStart;
+            // We're done
          }
 
-         var clientKeyDigestStart = keyWriteOffset + digestByteCount;
-         var hmacKeyStart = clientKeyDigestStart + digestByteCount;
-         writeArray.CurrentMaxCapacity = hmacKeyStart + blockSize;
-         var dummy = 0;
-         pw.CopyTo( writeArray.Array, ref dummy, hmacKeyStart, digestByteCount );
-         using ( var hmac = algorithm.CreateHMAC( writeArray.Array, hmacKeyStart, digestByteCount, skipDisposeAlgorithm: true ) )
-         {
-            // We can overwrite server salt with this digest, as the salt is no longer needed
-            hmac.ComputeDigest( ClientKeyBytes, writeArray.Array, keyWriteOffset );
-         }
-
-         // Client key is now in writeArray. Write hashed key to writeArray
-         algorithm.ComputeDigest( writeArray.Array, keyWriteOffset, digestByteCount, writeArray.Array, clientKeyDigestStart );
-
-         // Hashed client key is now in writeArray.Array, starting at keyWriteOffset.
-         // Compute HMAC using hashed client key as HMAC key
-         // Make sure HMAC won't allocate new array
-         var hmacEnd = clientKeyDigestStart + blockSize;
-         writeArray.CurrentMaxCapacity = hmacEnd + digestByteCount;
-         Int32 withoutProofIndex;
-         Int32 withoutProofCount;
-         using ( var hmac = algorithm.CreateHMAC( writeArray.Array, clientKeyDigestStart, digestByteCount, skipDisposeAlgorithm: true ) )
-         {
-            // We need to create HMAC of whole previous client message + "," + whole server response + "," + message without proof
-            // Furthermore, we need to save this whole HMACed data for next phase processing
-
-            // Calculate the amount of bytes needed
-            var clientMsg = this._clientMessage;
-            var asciiSize = encodingInfo.BytesPerASCIICharacter;
-            var cbindInput = SCRAMCommon.WITHOUT_PROOF_PREFIX; // TODO add ability to do channel binds.
-            clientMsg.CurrentMaxCapacity =
-               prevMsgLen // Client message length in bytes
-               + 2 * asciiSize // two commas
-               + args.ReadCount // this server response message length in bytes
-               + encoding.GetByteCount( cbindInput ) // Length of constant prefix
-               + serverNonceReadCount // Length of textual server nonce
-               + 1 // Terminating zero
-               ;
-            var msg = clientMsg.Array;
-            var idx = prevMsgLen;
-            encodingInfo.WriteASCIIByte( msg, ref idx, SCRAMCommon.COMMA );
-            dummy = args.ReadOffset;
-            args.ReadArray.CopyTo( msg, ref dummy, idx, args.ReadCount );
-            idx += args.ReadCount;
-            encodingInfo.WriteASCIIByte( msg, ref idx, SCRAMCommon.COMMA );
-            withoutProofIndex = idx;
-            idx += encoding.GetBytes( cbindInput, 0, cbindInput.Length, msg, idx );
-            args.ReadArray.CopyTo( msg, ref serverNonceReadOffset, idx, serverNonceReadCount );
-            idx += serverNonceReadCount;
-            msg.Clear( idx, msg.Length - idx ); // Terminating zero, so that next phase will find the end.
-            withoutProofCount = idx - withoutProofIndex;
-
-            // We have created and writen the message, now compute HMAC of it
-            hmac.ComputeDigest( msg, 0, idx, writeArray.Array, hmacEnd );
-         }
-
-         // HMAC digest of message starting at index hmacEnd
-         // Do XOR for client key
-         SCRAMCommon.ArrayXor( writeArray.Array, writeArray.Array, hmacEnd, keyWriteOffset, digestByteCount );
-
-         // Our response is: withoutproof part of this._clientMessage + ",p=" + base64 string of XORred key
-         var digestStart = withoutProofCount + 3 * encodingInfo.BytesPerASCIICharacter;
-         var xorStart = digestStart + UtilPackUtility.GetBase64CharCount( digestByteCount, true );
-         writeArray.CurrentMaxCapacity = xorStart + digestByteCount;
-         writeArray.Array.CopyTo( writeArray.Array, ref hmacEnd, xorStart, digestByteCount );
-
-         // Write the base64 XORred key at the end of the message first
-         var digestEnd = digestStart;
-         encodingInfo.WriteBinaryAsBase64ASCIICharactersTrimEnd( writeArray.Array, xorStart, digestByteCount, writeArray.Array, ref digestEnd, false );
-
-         // Now start writing the beginning of the message
-         this._clientMessage.Array.CopyTo( writeArray.Array, ref withoutProofIndex, writeOffset, withoutProofCount );
-         writeOffset += withoutProofCount;
-         writeOffset += encoding.GetBytes( SCRAMCommon.CLIENT_PROOF_PREFIX, 0, SCRAMCommon.CLIENT_PROOF_PREFIX.Length, writeArray.Array, writeOffset );
-         writeOffset += digestEnd - digestStart;
-         // We're done
+         return errorCode;
       }
 
       private Byte[] WritePBKDF2(

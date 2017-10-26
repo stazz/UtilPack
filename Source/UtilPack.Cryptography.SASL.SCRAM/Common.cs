@@ -46,6 +46,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
       public const Int32 ERROR_SERVER_SENT_WRONG_PROOF = -5;
       public const Int32 ERROR_CLIENT_SENT_WRONG_CREDENTIALS = -6;
       public const Int32 ERROR_CLIENT_SENT_INVALID_NONCE = -7;
+      public const Int32 ERROR_CLIENT_SUPPLIED_WITH_INVALID_CREDENTIALS = -8;
 
       internal static Byte[] UseNonceGenerator( BlockDigestAlgorithm algorithm, Func<Byte[]> nonceGenerator )
       {

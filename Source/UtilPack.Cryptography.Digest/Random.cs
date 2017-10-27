@@ -42,6 +42,7 @@ namespace UtilPack.Cryptography.Digest
       /// </summary>
       /// <param name="algorithm">The <see cref="BlockDigestAlgorithm"/> to use when producing random data.</param>
       /// <param name="seedCycleCount">How often to re-seed the state. Minimum value will be <c>1</c> if if <c>0</c> or less is specified.</param>
+      /// <param name="skipDisposeAlgorithm">Optional parameter controlling whether this <see cref="DigestBasedRandomGenerator"/> will, when disposed, dispose also the given <paramref name="algorithm"/>.</param>
       /// <seealso cref="CreateAndSeedWithDefaultLogic"/>
       /// <exception cref="ArgumentNullException">If <paramref name="algorithm"/> is <c>null</c>.</exception>
       public DigestBasedRandomGenerator(
@@ -153,6 +154,7 @@ namespace UtilPack.Cryptography.Digest
       /// </summary>
       /// <param name="algorithm">The algorithm that returned <see cref="DigestBasedRandomGenerator"/> should use.</param>
       /// <param name="seedCycleCount">How often to re-seed the state of returned <see cref="DigestBasedRandomGenerator"/>.</param>
+      /// <param name="skipDisposeAlgorithm">Optional parameter controlling whether the <see cref="DigestBasedRandomGenerator"/> will, when disposed, dispose also the given <paramref name="algorithm"/>.</param>
       /// <returns>A new instance of <see cref="DigestBasedRandomGenerator"/> with given parameters.</returns>
       /// <exception cref="ArgumentNullException">If <paramref name="algorithm"/> is <c>null</c>.</exception>
       public static DigestBasedRandomGenerator CreateAndSeedWithDefaultLogic(

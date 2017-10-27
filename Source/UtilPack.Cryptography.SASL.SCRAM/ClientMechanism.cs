@@ -455,7 +455,6 @@ namespace UtilPack.Cryptography.SASL.SCRAM
       {
          var array = args.ReadArray;
          var offset = args.ReadOffset;
-         var count = args.ReadCount;
          var encoding = args.Encoding;
          var writeArray = args.WriteArray;
 
@@ -499,8 +498,9 @@ namespace UtilPack.Cryptography.SASL.SCRAM
          encoding.VerifyASCIIBytes( array, ref offset, SCRAMCommon.ITERATION_PREFIX );
 
          // Then a number
-         iterationCount = encoding.ParseInt32Textual( array, ref offset, (( count - offset ) / encoding.BytesPerASCIICharacter, true) );
-         seenReadCount = offset - args.ReadOffset;
+         var start = args.ReadOffset;
+         iterationCount = encoding.ParseInt32Textual( array, ref offset, (( start + args.ReadCount - offset ) / encoding.BytesPerASCIICharacter, true) );
+         seenReadCount = offset - start;
       }
 
       private Int32 PerformValidate(
@@ -546,7 +546,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
          encodingInfo.ReadBase64ASCIICharactersAsBinaryTrimEnd(
             readArray,
             readOffset,
-            args.ReadCount - readOffset,
+            args.ReadOffset + args.ReadCount - readOffset,
             writeArray,
             ref writeIndex,
             false

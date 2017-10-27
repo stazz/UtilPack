@@ -52,7 +52,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
       {
          var retVal = nonceGenerator?.Invoke();
          return retVal.IsNullOrEmpty() ?
-            GenerateNonce( algorithm, 18 ) :
+            GenerateNonce( algorithm, 24, 32 ) :
             retVal; // Let's not check it after all - but document that nonce returned by factory is not checked!
       }
 
@@ -69,13 +69,14 @@ namespace UtilPack.Cryptography.SASL.SCRAM
 
       //}
 
-      internal static Byte[] GenerateNonce( BlockDigestAlgorithm algorithm, Int32 size )
+      internal static Byte[] GenerateNonce( BlockDigestAlgorithm algorithm, Int32 minSize, Int32 maxValue )
       {
-         var retVal = new Byte[size];
+
          using ( var random = new SecureRandom( DigestBasedRandomGenerator.CreateAndSeedWithDefaultLogic( algorithm, skipDisposeAlgorithm: true ) ) )
          {
+            var retVal = new Byte[random.Next( minSize, maxValue )];
             // Actual legal values are 0x21-0x7E
-            for ( var i = 0; i < size; ++i )
+            for ( var i = 0; i < retVal.Length; ++i )
             {
                Byte nextVal;
                do
@@ -84,9 +85,9 @@ namespace UtilPack.Cryptography.SASL.SCRAM
                   retVal[i] = nextVal;
                } while ( nextVal == COMMA ); // ... except commas not allowed
             }
+            return retVal;
          }
 
-         return retVal;
       }
 
       internal static void ArrayXor( Byte[] x, Byte[] y, Int32 length )

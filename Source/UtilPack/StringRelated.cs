@@ -961,4 +961,36 @@ public static partial class E_UtilPack
 
       return result;
    }
+
+   public static Int32 IndexOfASCIICharacterOrMax( this IEncodingInfo encoding, Byte[] array, Int32 offset, Int32 count, Byte asciiCharacter )
+   {
+      var retVal = encoding.IndexOfASCIICharacter( array, offset, count, asciiCharacter );
+      return retVal < 0 ? ( offset + count ) : retVal;
+   }
+
+   public static Int32 IndexOfASCIICharacter( this IEncodingInfo encoding, Byte[] array, Int32 offset, Int32 count, Byte asciiCharacter )
+   {
+      var max = offset + count;
+      var endIdx = Array.IndexOf( array, asciiCharacter, offset, max - offset );
+
+      Int32 min;
+      if (
+         endIdx > 0
+         && endIdx < max
+         && ( min = encoding.MinCharByteCount ) > 1
+         )
+      {
+         // Have to detect actual end of string... it depends on endianness of encoding
+         var tmp = endIdx;
+         if ( endIdx == max - 1
+            || ( endIdx > offset + min && encoding.ReadASCIIByte( array, ref tmp ) != asciiCharacter )
+            )
+         {
+            // Must be big-endian
+            endIdx -= encoding.MinCharByteCount - 1;
+         }
+      }
+
+      return endIdx;
+   }
 }

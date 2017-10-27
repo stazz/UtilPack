@@ -387,13 +387,13 @@ namespace UtilPack.Cryptography.SASL.SCRAM
 
             // Our response is: withoutproof part of this._clientMessage + ",p=" + base64 string of XORred key
             var digestStart = withoutProofCount + 3 * encodingInfo.BytesPerASCIICharacter;
-            var xorStart = digestStart + UtilPackUtility.GetBase64CharCount( digestByteCount, true );
+            var xorStart = digestStart + StringConversions.GetBase64CharCount( digestByteCount, true );
             writeArray.CurrentMaxCapacity = xorStart + digestByteCount;
             writeArray.Array.CopyTo( writeArray.Array, ref hmacEnd, xorStart, digestByteCount );
 
             // Write the base64 XORred key at the end of the message first
             var digestEnd = digestStart;
-            encodingInfo.WriteBinaryAsBase64ASCIICharactersTrimEnd( writeArray.Array, xorStart, digestByteCount, writeArray.Array, ref digestEnd, false );
+            encodingInfo.WriteBinaryAsBase64ASCIICharactersWithPadding( writeArray.Array, xorStart, digestByteCount, writeArray.Array, ref digestEnd, false );
 
             // Now start writing the beginning of the message
             this._clientMessage.Array.CopyTo( writeArray.Array, ref withoutProofIndex, writeOffset, withoutProofCount );
@@ -463,7 +463,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
 
          // Now follows server nonce, but skip it, since it does not have '=' characters between client nonce string and the rest
          serverNonceReadOffset = offset;
-         serverNonceReadCount = Array.IndexOf( array, SCRAMCommon.COMMA, offset ) - offset;
+         serverNonceReadCount = encoding.IndexOfASCIICharacter( array, offset, args.ReadOffset + args.ReadCount - offset, SCRAMCommon.COMMA ) - offset;
          offset += serverNonceReadCount;
          //serverNonceWriteOffset = writeOffset;
          //encoding.ReadASCIICharactersAsBinaryTrimEnd(
@@ -482,12 +482,13 @@ namespace UtilPack.Cryptography.SASL.SCRAM
 
          // Now follows salt
          keyWriteOffset = writeOffset;
-         var keyReadCount = Array.IndexOf( array, SCRAMCommon.COMMA, offset ) - offset;
-         encoding.ReadBase64ASCIICharactersAsBinaryTrimEnd(
+         var keyReadCount = encoding.IndexOfASCIICharacter( array, offset, args.ReadOffset + args.ReadCount - offset, SCRAMCommon.COMMA ) - offset;
+         writeArray.CurrentMaxCapacity = writeOffset + StringConversions.GetBase64CharBinaryCount( keyReadCount / encoding.MinCharByteCount );
+         encoding.ReadBase64PaddedASCIICharactersAsBinary(
             array,
             offset,
             keyReadCount,
-            writeArray,
+            writeArray.Array,
             ref writeOffset,
             false
             );
@@ -543,24 +544,30 @@ namespace UtilPack.Cryptography.SASL.SCRAM
          // 2. Encode-base64 computed digest to writeArray and verify that textual data in readArray and writeArray equal.
          // We choose #1 as it uses less memory, and we can detect invalid server tokens better.
          var writeIndex = 0;
-         encodingInfo.ReadBase64ASCIICharactersAsBinaryTrimEnd(
-            readArray,
-            readOffset,
-            args.ReadOffset + args.ReadCount - readOffset,
-            writeArray,
-            ref writeIndex,
-            false
-            );
-         // Verify that writeArray.Array[digestByteCount .. writeArrayReservedCount] segment equals to writeArray.Array[writeArrayReservedCount..writeArrayReservedCount+digestByteCount]segment
-         var messageOK = writeIndex == digestByteCount;
+         var serverProofReadSize = args.ReadOffset + args.ReadCount - readOffset;
+         var messageOK = serverProofReadSize == StringConversions.GetBase64CharCount( digestByteCount, true ) * encodingInfo.BytesPerASCIICharacter;
          if ( messageOK )
          {
-            var array = writeArray.Array;
-            for ( var i = 0; i < digestByteCount && messageOK; ++i )
+            writeArray.CurrentMaxCapacity = writeIndex + digestByteCount;
+            encodingInfo.ReadBase64PaddedASCIICharactersAsBinary(
+               readArray,
+               readOffset,
+               serverProofReadSize,
+               writeArray.Array,
+               ref writeIndex,
+               false
+               );
+            // Verify that writeArray.Array[digestByteCount .. writeArrayReservedCount] segment equals to writeArray.Array[writeArrayReservedCount..writeArrayReservedCount+digestByteCount]segment
+            messageOK = writeIndex == digestByteCount;
+            if ( messageOK )
             {
-               if ( array[i + computedStart] != array[i] )
+               var array = writeArray.Array;
+               for ( var i = 0; i < digestByteCount && messageOK; ++i )
                {
-                  messageOK = false;
+                  if ( array[i + computedStart] != array[i] )
+                  {
+                     messageOK = false;
+                  }
                }
             }
          }
@@ -570,319 +577,23 @@ namespace UtilPack.Cryptography.SASL.SCRAM
 
    }
 
-   internal static partial class UtilPackUtility
+   public static partial class UtilPackUtility
    {
-      public static Int32 GetBase64CharCount( Int32 byteCount, Boolean pad )
-      {
-         var raw = BinaryUtils.AmountOfPagesTaken( byteCount * E_TODO.BYTE_SIZE, 6 );
-         if ( pad )
-         {
-            while ( raw % 4 != 0 )
-            {
-               ++raw;
-            }
-         }
 
-         return raw;
+      public static SASLMechanism CreateSASLClientSCRAM( this BlockDigestAlgorithm algorithm, Func<Byte[]> clientNonceGenerator = null )
+      {
+         return new SASLMechanismSCRAMForClient( ArgumentValidator.ValidateNotNullReference( algorithm ), clientNonceGenerator );
       }
    }
-}
 
-public static partial class E_UtilPack
-{
-   public static SASLMechanism CreateSASLClientSCRAM( this BlockDigestAlgorithm algorithm, Func<Byte[]> clientNonceGenerator = null )
-   {
-      return new SASLMechanismSCRAMForClient( ArgumentValidator.ValidateNotNullReference( algorithm ), clientNonceGenerator );
-   }
 }
 
 internal static partial class E_TODO
 {
-
-   // TODO move these to UtilPack
-   internal const Int32 BYTE_SIZE = 8;
-   private const Int32 ALL_ONES = Byte.MaxValue;
-   private const Byte BASE64_PADDING = (Byte) '=';
-
-   public static void WriteBinaryAsBase64ASCIICharactersTrimEnd(
-      this IEncodingInfo encoding,
-      Byte[] sourceArray,
-      Byte[] targetArray,
-      ref Int32 targetArrayIndex,
-      Boolean isURLSafe
-      )
-      => encoding.WriteBinaryAsASCIICharactersTrimEnd(
-         sourceArray,
-         0,
-         sourceArray.Length,
-         StringConversions.CreateBase64EncodeLookupTable( isURLSafe ),
-         targetArray,
-         ref targetArrayIndex,
-         BASE64_PADDING
-         );
-
-   public static void WriteBinaryAsBase64ASCIICharactersTrimEnd(
-      this IEncodingInfo encoding,
-      Byte[] sourceArray,
-      Int32 sourceOffset,
-      Int32 sourceCount,
-      Byte[] targetArray,
-      ref Int32 targetArrayIndex,
-      Boolean isURLSafe
-      )
-   => encoding.WriteBinaryAsASCIICharactersTrimEnd(
-      sourceArray,
-      sourceOffset,
-      sourceCount,
-      StringConversions.CreateBase64EncodeLookupTable( isURLSafe ),
-      targetArray,
-      ref targetArrayIndex,
-      BASE64_PADDING
-      );
-
-   public static void WriteBinaryAsASCIICharacters(
-      this IEncodingInfo encoding,
-      Byte[] sourceArray,
-      Char[] lookupArray,
-      Byte[] targetArray,
-      ref Int32 targetArrayIndex
-      )
-      => encoding.WriteBinaryAsASCIICharacters( sourceArray, 0, sourceArray?.Length ?? 0, lookupArray, targetArray, ref targetArrayIndex, out var dummy );
-
-   public static Int32 WriteBinaryAsASCIICharactersTrimEnd(
-      this IEncodingInfo encoding,
-      Byte[] sourceArray,
-      Char[] lookupArray,
-      Byte[] targetArray,
-      ref Int32 targetArrayIndex,
-      Byte padding
-      )
-      => encoding.WriteBinaryAsASCIICharactersTrimEnd( sourceArray, 0, sourceArray.Length, lookupArray, targetArray, ref targetArrayIndex, padding );
-
-   public static Int32 WriteBinaryAsASCIICharactersTrimEnd(
-     this IEncodingInfo encoding,
-     Byte[] sourceArray,
-     Int32 sourceOffset,
-     Int32 sourceCount,
-     Char[] lookupArray,
-     Byte[] targetArray,
-     ref Int32 targetArrayIndex,
-     Byte padding
-     )
-   {
-      var charCount = encoding.WriteBinaryAsASCIICharacters( sourceArray, sourceOffset, sourceCount, lookupArray, targetArray, ref targetArrayIndex, out var unitSize );
-
-      Int32 charChunkSize;
-      switch ( unitSize )
-      {
-         case 6:
-            charChunkSize = 4;
-            break;
-         case 3:
-         case 5:
-         case 7:
-            charChunkSize = 8;
-            break;
-         default:
-            charChunkSize = -1;
-            break;
-      }
-
-      if ( charChunkSize > 0 )
-      {
-         while ( charCount % charChunkSize != 0 )
-         {
-            encoding.WriteASCIIByte( targetArray, ref targetArrayIndex, padding );
-            ++charCount;
-         }
-      }
-
-      return charCount;
-   }
-
-
-
-   public static Int32 WriteBinaryAsASCIICharacters(
-      this IEncodingInfo encoding,
-      Byte[] sourceArray,
-      Int32 sourceOffset,
-      Int32 sourceCount,
-      Char[] lookupArray,
-      Byte[] targetArray,
-      ref Int32 targetArrayIndex,
-      out Int32 unitSize
-      )
-   {
-      sourceArray.CheckArrayArguments( sourceOffset, sourceCount, false );
-      ArgumentValidator.ValidateNotNull( nameof( lookupArray ), lookupArray );
-      ArgumentValidator.ValidateNotNull( nameof( targetArray ), targetArray );
-      Int32 charCount;
-      if ( sourceCount > 0 )
-      {
-         unitSize = CheckUnitSize( lookupArray.Length );
-
-         // Compute amount of characters needed
-         charCount = BinaryUtils.AmountOfPagesTaken( sourceCount * BYTE_SIZE, unitSize );
-
-         var bit = sourceOffset * BYTE_SIZE;
-         var max = sourceOffset + sourceCount;
-         for ( var i = 0; i < charCount; ++i, bit += unitSize )
-         {
-            var startByte = bit / BYTE_SIZE;
-            var endByte = ( bit + unitSize - 1 ) / BYTE_SIZE;
-            // How many MSB's to skip
-            var msbSkip = bit % BYTE_SIZE;
-            Int32 idx;
-            if ( startByte == endByte )
-            {
-               // Skip msbSkip MSB, extract next unitSize bits, and skip final 8 - unitsize - msbSkip bits
-               var lsbSkip = BYTE_SIZE - unitSize - msbSkip;
-               var mask = ( ALL_ONES >> msbSkip ) & ( ALL_ONES << lsbSkip );
-               idx = ( sourceArray[startByte] & mask ) >> lsbSkip;
-            }
-            else
-            {
-               // For first byte: skip msbSkip MSB, extract final bits
-               // For next byte: extract unitsize - previous byte final bits size MSB
-               var firstMask = ALL_ONES >> msbSkip;
-               // Amount of bits in second byte
-               var secondByteBits = ( unitSize + msbSkip - BYTE_SIZE );
-               idx = ( ( sourceArray[startByte] & firstMask ) << secondByteBits );
-               if ( endByte < max )
-               {
-                  var secondMask = ( ALL_ONES << ( BYTE_SIZE - secondByteBits ) ) & ALL_ONES;
-                  idx |= ( ( sourceArray[endByte] & secondMask ) >> ( BYTE_SIZE - secondByteBits ) );
-               }
-            }
-
-            encoding.WriteASCIIByte( targetArray, ref targetArrayIndex, (Byte) lookupArray[idx] );
-         }
-
-      }
-      else
-      {
-         charCount = 0;
-         unitSize = -1;
-      }
-
-      return charCount;
-
-   }
-
-   public static Int32 ReadBase64ASCIICharactersAsBinaryTrimEnd(
-      this IEncodingInfo encoding,
-      Byte[] sourceArray,
-      Int32 sourceOffset,
-      Int32 sourceCount,
-      ResizableArray<Byte> targetArray,
-      ref Int32 targetArrayIndex,
-      Boolean isURLSafe
-      )
-      => encoding.ReadASCIICharactersAsBinaryTrimEnd( sourceArray, sourceOffset, sourceCount, 6, StringConversions.CreateBase64DecodeLookupTable( isURLSafe ), targetArray, ref targetArrayIndex, BASE64_PADDING );
-
-   public static Int32 ReadASCIICharactersAsBinaryTrimEnd(
-      this IEncodingInfo encoding,
-      Byte[] sourceArray,
-      Int32 sourceOffset,
-      Int32 sourceCount,
-      Int32 unitSize, // To make sense using this in this method, this must be 3,5,6, or 7
-      Int32[] lookupTable,
-      ResizableArray<Byte> targetArray,
-      ref Int32 targetArrayIndex,
-      Byte padding
-      )
-   {
-      var delta = encoding.BytesPerASCIICharacter;
-      var idx = sourceOffset + sourceCount - delta;
-      Byte asciiByte;
-      while ( idx >= sourceOffset && idx >= 0 && lookupTable[asciiByte = encoding.ReadASCIIByte( sourceArray, ref idx )] < 0 )
-      {
-         if ( asciiByte != padding )
-         {
-            throw new FormatException( $"Invalid base{1 << unitSize} string" );
-         }
-
-         idx -= delta * 2;
-      }
-
-      sourceCount = idx - sourceOffset;
-      encoding.ReadASCIICharactersAsBinary( sourceArray, sourceOffset, sourceCount, unitSize, lookupTable, targetArray, ref targetArrayIndex );
-      return sourceCount;
-   }
-
-   public static void ReadASCIICharactersAsBinary(
-      this IEncodingInfo encoding,
-      Byte[] sourceArray,
-      Int32 sourceOffset,
-      Int32 sourceCount,
-      Int32 unitSize,
-      Int32[] lookupTable,
-      ResizableArray<Byte> targetArray,
-      ref Int32 targetArrayIndex
-      )
-   {
-      sourceArray.CheckArrayArguments( sourceOffset, sourceCount, false );
-      ArgumentValidator.ValidateNotNull( "Lookup table", lookupTable );
-
-      var sMax = targetArrayIndex;
-      targetArrayIndex += ( sourceCount * unitSize / BYTE_SIZE ); //  BinaryUtils.AmountOfPagesTaken( sourceCount * unitSize, BYTE_SIZE );
-      targetArray.CurrentMaxCapacity = targetArrayIndex;
-      var targetBuffer = targetArray.Array;
-      // Clear target buffer because it will mess up things otherwise
-      targetBuffer.Clear( sMax, targetArrayIndex - sMax );
-
-      var bit = sMax * BYTE_SIZE;
-      sMax = sourceOffset + sourceCount;
-      for ( ; sourceOffset < sMax; bit += unitSize )
-      {
-         var c = encoding.ReadASCIIByte( sourceArray, ref sourceOffset );
-         var value = lookupTable[c];
-         if ( value == -1 )
-         {
-            throw new InvalidOperationException( "Character \"" + (Char) c + "\" not found from lookup table." );
-         }
-         else
-         {
-            var startByte = bit / BYTE_SIZE;
-            var endByte = ( bit + unitSize - 1 ) / BYTE_SIZE;
-            // How many MSB's to skip
-            var skip = bit % BYTE_SIZE;
-            if ( startByte == endByte )
-            {
-               // Keep the MSB, shift value to left (in case e.g. unit size is 3 and MSB is 1) 
-               targetBuffer[startByte] = unchecked((Byte) ( targetBuffer[startByte] | ( value << ( BYTE_SIZE - unitSize - skip ) ) ));
-            }
-            else
-            {
-               // Keep the existing MSB, and extract the MSB from the value
-               // Amount of bits to use up in second byte
-               skip = unitSize + skip - BYTE_SIZE;
-               // Extract the MSB from value
-               targetBuffer[startByte] = unchecked((Byte) ( targetBuffer[startByte] | ( value >> skip ) ));
-
-               if ( endByte < targetArrayIndex )
-               {
-                  // Extract the LSB from the value
-                  targetBuffer[endByte] = unchecked((Byte) ( value << ( BYTE_SIZE - skip ) ));
-               }
-            }
-         }
-      }
-   }
-
-   private static Int32 CheckUnitSize( Int32 lookupTableSize )
-   {
-      lookupTableSize = BinaryUtils.Log2( (UInt32) lookupTableSize );
-      if ( lookupTableSize < 1 )
-      {
-         throw new ArgumentException( "Unit size must be at least one." );
-      }
-      else if ( lookupTableSize > BYTE_SIZE )
-      {
-         lookupTableSize = BYTE_SIZE; // throw new ArgumentException( "Unit size must be at most " + BYTE_SIZE + "." );
-      }
-      return lookupTableSize;
-   }
+   // TODO not sure what to do with these methods. The pipeline idea seems more smart instead of just throwing an exception right away.
+   // TODO some kind of pipeline API which accepts sequence of callbacks, and instead of throwing, will just skip calling subsequent callbacks
+   // public struct TryBlock { ... } ?
+   // PipeLineDefinition { PipeLineInstance CreatePipeLine(SomeKindOfContext context); } ?
 
    public static Boolean TryVerifyASCIIBytesNoRef( this IEncodingInfo encoding, Byte[] array, Int32 offset, String required )
       => encoding.TryVerifyASCIIBytes( array, ref offset, required );
@@ -903,8 +614,6 @@ internal static partial class E_TODO
 
    public static void VerifyASCIIBytes( this IEncodingInfo encoding, Byte[] array, ref Int32 offset, String required )
    {
-      // TODO some kind of pipeline API which accepts sequence of callbacks, and instead of throwing, will just skip calling subsequent callbacks
-      // public struct TryBlock { ... } ?
       if ( !encoding.TryVerifyASCIIBytes( array, ref offset, required ) )
       {
          throw new FormatException( "Illegal character in input." );

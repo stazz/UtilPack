@@ -19,6 +19,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using UtilPack;
 
 namespace UtilPack
 {
@@ -133,8 +134,9 @@ namespace UtilPack
          return b;
       }
 
-      private const Int32 BYTE_SIZE = 8;
-      private const Int32 ALL_ONES = Byte.MaxValue;
+      internal const Int32 BYTE_SIZE = 8;
+      internal const Int32 ALL_ONES = Byte.MaxValue;
+      internal const Int32 BASE64_UNIT_SIZE = 6;
 
       private const Char CHAR62_URLSAFE = '-';
       private const Char CHAR62_URLUNSAFE = '+';
@@ -271,7 +273,7 @@ namespace UtilPack
       /// <returns>Byte array representing base64-decoded byte sequence from given string.</returns>
       public static Byte[] DecodeBase64( this String encoded, Boolean useURLSafeEncoding )
       {
-         return encoded.DecodeBinary( 6, CreateBase64DecodeLookupTable( useURLSafeEncoding ) );
+         return encoded.DecodeBinary( BASE64_UNIT_SIZE, CreateBase64DecodeLookupTable( useURLSafeEncoding ) );
       }
 
       /// <summary>
@@ -369,7 +371,7 @@ namespace UtilPack
          return bit / BYTE_SIZE;
       }
 
-      private static Int32 CheckUnitSize( Int32 lookupTableSize )
+      internal static Int32 CheckUnitSize( Int32 lookupTableSize )
       {
          lookupTableSize = BinaryUtils.Log2( (UInt32) lookupTableSize );
          if ( lookupTableSize < 1 )
@@ -525,6 +527,322 @@ namespace UtilPack
          }
 
          return retVal;
+      }
+
+      public static Int32 GetBinaryCharCount( Int32 byteCount, Boolean pad, Int32 unitSize )
+      {
+         var raw = BinaryUtils.AmountOfPagesTaken( byteCount * BYTE_SIZE, unitSize );
+         if ( raw > 0 && pad )
+         {
+            Int32 charChunkSize;
+            switch ( unitSize )
+            {
+               case 6:
+                  charChunkSize = 4;
+                  break;
+               case 3:
+               case 5:
+               case 7:
+                  charChunkSize = 8;
+                  break;
+               default:
+                  charChunkSize = -1;
+                  break;
+            }
+
+            if ( charChunkSize > 0 )
+            {
+               raw = raw.RoundUpI32( charChunkSize ); // charChunkSize will always be power of 2
+            }
+         }
+
+         return raw;
+      }
+
+      public static Int32 GetBase64CharCount( Int32 byteCount, Boolean pad )
+         => GetBinaryCharCount( byteCount, pad, BASE64_UNIT_SIZE );
+
+      public static Int32 GetCharBinaryCount( Int32 charCount, Int32 unitSize )
+      {
+         return ( charCount * unitSize / BYTE_SIZE );
+      }
+
+      public static Int32 GetBase64CharBinaryCount( Int32 charCount )
+         => GetCharBinaryCount( charCount, BASE64_UNIT_SIZE );
+   }
+}
+
+public static partial class E_UtilPack
+{
+   public static Int32 GetBinaryCharCount( this IEncodingInfo encoding, Int32 byteCount, Boolean pad, Int32 unitSize )
+   {
+      var raw = BinaryUtils.AmountOfPagesTaken( byteCount * StringConversions.BYTE_SIZE, unitSize );
+      if ( raw > 0 && pad )
+      {
+         Int32 charChunkSize;
+         switch ( unitSize )
+         {
+            case 6:
+               charChunkSize = 4;
+               break;
+            case 3:
+            case 5:
+            case 7:
+               charChunkSize = 8;
+               break;
+            default:
+               charChunkSize = -1;
+               break;
+         }
+
+         if ( charChunkSize > 0 )
+         {
+            raw = raw.RoundUpI32( charChunkSize ); // charChunkSize will always be power of 2
+         }
+      }
+
+      return raw;
+   }
+
+   public static Int32 GetBase64CharCount( this IEncodingInfo encoding, Int32 byteCount, Boolean pad )
+      => encoding.GetBinaryCharCount( byteCount, pad, StringConversions.BASE64_UNIT_SIZE );
+
+
+   private const Byte BASE64_PADDING = (Byte) '=';
+
+   public static void WriteBinaryAsBase64ASCIICharactersWithPadding(
+      this IEncodingInfo encoding,
+      Byte[] sourceArray,
+      Int32 sourceOffset,
+      Int32 sourceCount,
+      Byte[] targetArray,
+      ref Int32 targetArrayIndex,
+      Boolean isURLSafe
+      )
+   => encoding.WriteBinaryAsASCIICharactersWithPadding(
+      sourceArray,
+      sourceOffset,
+      sourceCount,
+      StringConversions.CreateBase64EncodeLookupTable( isURLSafe ),
+      targetArray,
+      ref targetArrayIndex,
+      BASE64_PADDING
+   );
+
+   public static void WriteBinaryAsASCIICharactersWithPadding(
+     this IEncodingInfo encoding,
+     Byte[] sourceArray,
+     Int32 sourceOffset,
+     Int32 sourceCount,
+     Char[] lookupArray,
+     Byte[] targetArray,
+     ref Int32 targetArrayIndex,
+     Byte padding
+     )
+   {
+      var idx = targetArrayIndex;
+      encoding.WriteBinaryAsASCIICharacters( sourceArray, sourceOffset, sourceCount, lookupArray, targetArray, ref targetArrayIndex, out var unitSize );
+      var count = ( targetArrayIndex - idx ) / encoding.BytesPerASCIICharacter;
+      var expectedCount = StringConversions.GetBinaryCharCount( sourceCount, true, unitSize );
+      for ( ; count < expectedCount; ++count )
+      {
+         encoding.WriteASCIIByte( targetArray, ref targetArrayIndex, padding );
+      }
+   }
+
+   public static void WriteBinaryAsBase64ASCIICharacters(
+      this IEncodingInfo encoding,
+      Byte[] sourceArray,
+      Int32 sourceOffset,
+      Int32 sourceCount,
+      Byte[] targetArray,
+      ref Int32 targetArrayIndex,
+      Boolean isURLSafe
+      )
+      => encoding.WriteBinaryAsASCIICharacters( sourceArray, sourceOffset, sourceCount, UtilPack.StringConversions.CreateBase64EncodeLookupTable( isURLSafe ), targetArray, ref targetArrayIndex, out var unitSize );
+
+   public static void WriteBinaryAsASCIICharacters(
+      this IEncodingInfo encoding,
+      Byte[] sourceArray,
+      Int32 sourceOffset,
+      Int32 sourceCount,
+      Char[] lookupArray,
+      Byte[] targetArray,
+      ref Int32 targetArrayIndex
+      ) => encoding.WriteBinaryAsASCIICharacters( sourceArray, sourceOffset, sourceCount, lookupArray, targetArray, ref targetArrayIndex, out var unitSize );
+
+   private static void WriteBinaryAsASCIICharacters(
+      this IEncodingInfo encoding,
+      Byte[] sourceArray,
+      Int32 sourceOffset,
+      Int32 sourceCount,
+      Char[] lookupArray,
+      Byte[] targetArray,
+      ref Int32 targetArrayIndex,
+      out Int32 unitSize
+      )
+   {
+      sourceArray.CheckArrayArguments( sourceOffset, sourceCount, false );
+      ArgumentValidator.ValidateNotNull( nameof( lookupArray ), lookupArray );
+      ArgumentValidator.ValidateNotNull( nameof( targetArray ), targetArray );
+      if ( sourceCount > 0 )
+      {
+         unitSize = StringConversions.CheckUnitSize( lookupArray.Length );
+
+         // Compute amount of characters needed
+         var charCount = BinaryUtils.AmountOfPagesTaken( sourceCount * StringConversions.BYTE_SIZE, unitSize );
+
+         var bit = sourceOffset * StringConversions.BYTE_SIZE;
+         var max = sourceOffset + sourceCount;
+         for ( var i = 0; i < charCount; ++i, bit += unitSize )
+         {
+            var startByte = bit / StringConversions.BYTE_SIZE;
+            var endByte = ( bit + unitSize - 1 ) / StringConversions.BYTE_SIZE;
+            // How many MSB's to skip
+            var msbSkip = bit % StringConversions.BYTE_SIZE;
+            Int32 idx;
+            if ( startByte == endByte )
+            {
+               // Skip msbSkip MSB, extract next unitSize bits, and skip final 8 - unitsize - msbSkip bits
+               var lsbSkip = StringConversions.BYTE_SIZE - unitSize - msbSkip;
+               var mask = ( StringConversions.ALL_ONES >> msbSkip ) & ( StringConversions.ALL_ONES << lsbSkip );
+               idx = ( sourceArray[startByte] & mask ) >> lsbSkip;
+            }
+            else
+            {
+               // For first byte: skip msbSkip MSB, extract final bits
+               // For next byte: extract unitsize - previous byte final bits size MSB
+               var firstMask = StringConversions.ALL_ONES >> msbSkip;
+               // Amount of bits in second byte
+               var secondByteBits = ( unitSize + msbSkip - StringConversions.BYTE_SIZE );
+               idx = ( ( sourceArray[startByte] & firstMask ) << secondByteBits );
+               if ( endByte < max )
+               {
+                  var secondMask = ( StringConversions.ALL_ONES << ( StringConversions.BYTE_SIZE - secondByteBits ) ) & StringConversions.ALL_ONES;
+                  idx |= ( ( sourceArray[endByte] & secondMask ) >> ( StringConversions.BYTE_SIZE - secondByteBits ) );
+               }
+            }
+
+            encoding.WriteASCIIByte( targetArray, ref targetArrayIndex, (Byte) lookupArray[idx] );
+         }
+
+      }
+      else
+      {
+         unitSize = -1;
+      }
+
+
+   }
+
+   public static void ReadBase64PaddedASCIICharactersAsBinary(
+      this IEncodingInfo encoding,
+      Byte[] sourceArray,
+      Int32 sourceOffset,
+      Int32 sourceCount,
+      Byte[] targetArray,
+      ref Int32 targetArrayIndex,
+      Boolean isURLSafe
+      )
+      => encoding.ReadPaddedASCIICharactersAsBinary( sourceArray, sourceOffset, sourceCount, 6, UtilPack.StringConversions.CreateBase64DecodeLookupTable( isURLSafe ), targetArray, ref targetArrayIndex, BASE64_PADDING );
+
+   public static void ReadPaddedASCIICharactersAsBinary(
+      this IEncodingInfo encoding,
+      Byte[] sourceArray,
+      Int32 sourceOffset,
+      Int32 sourceCount,
+      Int32 unitSize,
+      Int32[] lookupTable,
+      Byte[] targetArray,
+      ref Int32 targetArrayIndex,
+      Byte padding
+      )
+   {
+      var delta = encoding.BytesPerASCIICharacter;
+      var idx = sourceOffset + sourceCount - delta;
+      Byte asciiByte;
+      while ( idx >= sourceOffset && idx >= 0 && lookupTable[asciiByte = encoding.ReadASCIIByte( sourceArray, ref idx )] < 0 )
+      {
+         if ( asciiByte != padding )
+         {
+            throw new FormatException( $"Invalid base{1 << unitSize} string" );
+         }
+
+         idx -= delta * 2;
+      }
+
+      sourceCount = idx - sourceOffset;
+      encoding.ReadASCIICharactersAsBinary( sourceArray, sourceOffset, sourceCount, unitSize, lookupTable, targetArray, ref targetArrayIndex );
+
+   }
+
+   public static void ReadBase64ASCIICharactersAsBinary(
+      this IEncodingInfo encoding,
+      Byte[] sourceArray,
+      Int32 sourceOffset,
+      Int32 sourceCount,
+      Byte[] targetArray,
+      ref Int32 targetArrayIndex,
+      Boolean isURLSafe
+      )
+   => encoding.ReadASCIICharactersAsBinary( sourceArray, sourceOffset, sourceCount, 6, UtilPack.StringConversions.CreateBase64DecodeLookupTable( isURLSafe ), targetArray, ref targetArrayIndex );
+
+
+   public static void ReadASCIICharactersAsBinary(
+      this IEncodingInfo encoding,
+      Byte[] sourceArray,
+      Int32 sourceOffset,
+      Int32 sourceCount,
+      Int32 unitSize,
+      Int32[] lookupTable,
+      Byte[] targetArray,
+      ref Int32 targetArrayIndex
+      )
+   {
+      sourceArray.CheckArrayArguments( sourceOffset, sourceCount, false );
+      ArgumentValidator.ValidateNotNull( "Lookup table", lookupTable );
+
+      var sMax = targetArrayIndex;
+      targetArrayIndex += ( sourceCount * unitSize / StringConversions.BYTE_SIZE ); //  BinaryUtils.AmountOfPagesTaken( sourceCount * unitSize, BYTE_SIZE );
+      // Clear target buffer because it will mess up things otherwise
+      targetArray.Clear( sMax, targetArrayIndex - sMax );
+
+      var bit = sMax * StringConversions.BYTE_SIZE;
+      sMax = sourceOffset + sourceCount;
+      for ( ; sourceOffset < sMax; bit += unitSize )
+      {
+         var c = encoding.ReadASCIIByte( sourceArray, ref sourceOffset );
+         var value = lookupTable[c];
+         if ( value < 0 )
+         {
+            throw new InvalidOperationException( "Character \"" + (Char) c + "\" not found from lookup table." );
+         }
+         else
+         {
+            var startByte = bit / StringConversions.BYTE_SIZE;
+            var endByte = ( bit + unitSize - 1 ) / StringConversions.BYTE_SIZE;
+            // How many MSB's to skip
+            var skip = bit % StringConversions.BYTE_SIZE;
+            if ( startByte == endByte )
+            {
+               // Keep the MSB, shift value to left (in case e.g. unit size is 3 and MSB is 1) 
+               targetArray[startByte] = unchecked((Byte) ( targetArray[startByte] | ( value << ( StringConversions.BYTE_SIZE - unitSize - skip ) ) ));
+            }
+            else
+            {
+               // Keep the existing MSB, and extract the MSB from the value
+               // Amount of bits to use up in second byte
+               skip = unitSize + skip - StringConversions.BYTE_SIZE;
+               // Extract the MSB from value
+               targetArray[startByte] = unchecked((Byte) ( targetArray[startByte] | ( value >> skip ) ));
+
+               if ( endByte < targetArrayIndex )
+               {
+                  // Extract the LSB from the value
+                  targetArray[endByte] = unchecked((Byte) ( value << ( StringConversions.BYTE_SIZE - skip ) ));
+               }
+            }
+         }
       }
    }
 }

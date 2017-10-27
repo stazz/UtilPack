@@ -825,7 +825,6 @@ namespace UtilPack
             && ReferenceEquals( Interlocked.CompareExchange( ref this._state, this._originalState, oldState ), oldState );
       }
    }
-
 }
 
 

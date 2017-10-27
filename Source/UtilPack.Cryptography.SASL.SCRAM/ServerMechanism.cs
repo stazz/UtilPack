@@ -216,7 +216,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
          encoding.VerifyASCIIBytes( readArray, ref readOffset, SCRAMCommon.CLIENT_FIRST_PREFIX_2 );
 
          // Username
-         username = SASLUtility.ReadString( encoding, readArray, ref readOffset, readMax - readOffset, Denormalize );
+         username = SASLUtility.ReadString( encoding, readArray, ref readOffset, readMax - readOffset, SCRAMCommon.COMMA, Denormalize );
 
          // Nonce prefix
          encoding.VerifyASCIIBytes( readArray, ref readOffset, SCRAMCommon.CLIENT_NONCE_PREFIX );
@@ -258,7 +258,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
          args.WriteArray.CurrentMaxCapacity = writeOffset
             + ( SCRAMCommon.NONCE_PREFIX.Length + SCRAMCommon.SALT_PREFIX.Length + SCRAMCommon.ITERATION_PREFIX.Length + nonce.Length ) * encodingInfo.BytesPerASCIICharacter // All constant strings + our nonce length (which will be just random characters instead of base64)
             + clientNonceReadCount // client nonce
-            + UtilPackUtility.GetBase64CharCount( salt.Length, true )
+            + StringConversions.GetBase64CharCount( salt.Length, true )
             + encodingInfo.GetTextualIntegerRepresentationSize( iterations );
 
          // Now we can write whole message
@@ -274,7 +274,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
          fullNonceWriteCount = writeOffset - fullNonceWriteOffset;
 
          encodingInfo.WriteString( array, ref writeOffset, SCRAMCommon.SALT_PREFIX );
-         encodingInfo.WriteBinaryAsBase64ASCIICharactersTrimEnd( salt, array, ref writeOffset, false );
+         encodingInfo.WriteBinaryAsBase64ASCIICharactersWithPadding( salt, 0, salt.Length, array, ref writeOffset, false );
          encodingInfo.WriteString( array, ref writeOffset, SCRAMCommon.ITERATION_PREFIX );
          encodingInfo.WriteIntegerTextual( array, ref writeOffset, iterations );
 
@@ -290,14 +290,14 @@ namespace UtilPack.Cryptography.SASL.SCRAM
          var errorCode = this.PerformValidateRead(
             ref args,
             out var beforeProofReadCount,
-            out var proofReadOffset
+            out var proofReadOffset,
+            out var proofReadCount
             );
 
          var algorithm = this._algorithm;
          var digestByteCount = algorithm.DigestByteCount;
          var encodingInfo = args.Encoding;
-         var digestBase64Count = UtilPackUtility.GetBase64CharCount( digestByteCount, true ) * encodingInfo.BytesPerASCIICharacter;
-         if ( errorCode == 0 && proofReadOffset + digestBase64Count == args.ReadOffset + args.ReadCount )
+         if ( errorCode == 0 )
          {
             // We haven't read proof yet from read array, but let's start the validation
 
@@ -318,12 +318,12 @@ namespace UtilPack.Cryptography.SASL.SCRAM
                hmac.WriteDigest( auxArray, digestStart );
             }
 
-            // Calculate h_xor = XOR(h, proof from client message) (write h_xor to writeArray)
+            // Calculate h_xor = XOR(h, proof from client message) (write h_xor to writeArray) (PerformValidateRead made sure that base64 string is of correct size)
             var writeArray = args.WriteArray;
             writeArray.CurrentMaxCapacity = writeOffset + 2 * digestByteCount;
             var wArray = writeArray.Array;
             var writeStart = writeOffset;
-            encodingInfo.ReadBase64ASCIICharactersAsBinaryTrimEnd( args.ReadArray, proofReadOffset, digestBase64Count, writeArray, ref writeOffset, false );
+            encodingInfo.ReadBase64PaddedASCIICharactersAsBinary( args.ReadArray, proofReadOffset, proofReadCount, wArray, ref writeOffset, false );
             SCRAMCommon.ArrayXor( auxArray, wArray, digestStart, writeStart, digestByteCount );
 
             // Calculate H(h_xor) and validate that equals to credentials.ClientKeyDigest
@@ -352,7 +352,8 @@ namespace UtilPack.Cryptography.SASL.SCRAM
       private Int32 PerformValidateRead(
          ref SASLAuthenticationArguments args,
          out Int32 beforeProofReadCount,
-         out Int32 proofReadOffset
+         out Int32 proofReadOffset,
+         out Int32 proofReadCount
          )
       {
          // Validate that message is: client-message + server responce + client responce
@@ -380,10 +381,16 @@ namespace UtilPack.Cryptography.SASL.SCRAM
          {
             encodingInfo.VerifyASCIIBytes( array, ref readOffset, SCRAMCommon.CLIENT_PROOF_PREFIX );
             proofReadOffset = readOffset;
+            proofReadCount = StringConversions.GetBase64CharCount( this._algorithm.DigestByteCount, true ) * encodingInfo.BytesPerASCIICharacter;
+            if ( args.ReadOffset + args.ReadCount != readOffset + proofReadCount )
+            {
+               // Too small/big message
+               errorCode = SCRAMCommon.ERROR_INVALID_FORMAT;
+            }
          }
          else
          {
-            proofReadOffset = -1;
+            proofReadCount = proofReadOffset = -1;
          }
 
          return errorCode;
@@ -405,7 +412,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
          // Reserve enough space
          writeArray.CurrentMaxCapacity = writeOffset
             + SCRAMCommon.VALIDATE_PREFIX.Length * encodingInfo.BytesPerASCIICharacter
-            + UtilPackUtility.GetBase64CharCount( digestByteCount, true )
+            + StringConversions.GetBase64CharCount( digestByteCount, true )
             ;
          var array = writeArray.Array;
 
@@ -424,23 +431,20 @@ namespace UtilPack.Cryptography.SASL.SCRAM
          }
 
          // Proof is now in the beginning of aux array
-         encodingInfo.WriteBinaryAsBase64ASCIICharactersTrimEnd( auxArray, 0, digestByteCount, array, ref writeOffset, false );
+         encodingInfo.WriteBinaryAsBase64ASCIICharactersWithPadding( auxArray, 0, digestByteCount, array, ref writeOffset, false );
       }
 
    }
-}
 
-public static partial class E_UtilPack
-{
-   public static SASLMechanism CreateSASLServerSCRAM(
-      this BlockDigestAlgorithm algorithm,
-      Func<String, ValueTask<SASLCredentialsSCRAMForServer>> getCredentials,
-      Func<Byte[]> nonceGenerator = null
-      )
+   public static partial class UtilPackUtility
    {
-      return new SASLMechanismSCRAMForServer( ArgumentValidator.ValidateNotNullReference( algorithm ), getCredentials, nonceGenerator );
+      public static SASLMechanism CreateSASLServerSCRAM(
+         this BlockDigestAlgorithm algorithm,
+         Func<String, ValueTask<SASLCredentialsSCRAMForServer>> getCredentials,
+         Func<Byte[]> nonceGenerator = null
+         )
+      {
+         return new SASLMechanismSCRAMForServer( ArgumentValidator.ValidateNotNullReference( algorithm ), getCredentials, nonceGenerator );
+      }
    }
-
-
-
 }

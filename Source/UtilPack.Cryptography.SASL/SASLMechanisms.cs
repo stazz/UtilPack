@@ -349,32 +349,12 @@ namespace UtilPack.Cryptography.SASL
          IEncodingInfo encodingInfo,
          Byte[] array,
          ref Int32 idx,
-         Int32 maxCount, // exclusive
+         Int32 count,
+         Byte firstExclusiveASCIICharacter,
          CustomStringDenormalizer denormalizer = null
          )
       {
-         var max = idx + maxCount;
-         var endIdx = Array.IndexOf( array, (Byte) ',', idx, max - idx );
-         if ( endIdx < 0 )
-         {
-            endIdx = max;
-         }
-
-         var min = encodingInfo.MinCharByteCount;
-         Int32 count;
-         if ( endIdx < max && min > 1 )
-         {
-            // Have to detect actual end of string... it depends on endianness of encoding
-            count = endIdx;
-            if ( endIdx == max - 1
-               || ( endIdx > idx + min && encodingInfo.ReadASCIIByte( array, ref count ) != ',' )
-               )
-            {
-               // Must be big-endian
-               endIdx -= encodingInfo.MinCharByteCount - 1;
-            }
-         }
-
+         var endIdx = encodingInfo.IndexOfASCIICharacterOrMax( array, idx, count, firstExclusiveASCIICharacter );
          String retVal;
          count = endIdx - idx;
          if ( denormalizer == null )
@@ -387,6 +367,7 @@ namespace UtilPack.Cryptography.SASL
             StringBuilder sb = null;
             var encoding = encodingInfo.Encoding;
             var prev = idx;
+            var min = encodingInfo.MinCharByteCount;
             for ( var i = idx; i < endIdx; i += min )
             {
                var replacement = denormalizer( encodingInfo, array, i );

@@ -35,6 +35,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
       private const Int32 STATE_INITIAL = 0;
       private const Int32 STATE_VALIDATE = 1;
       private const Int32 STATE_COMPLETE = 2;
+      private const Int32 STATE_INVALID_CREDENTIALS = 3;
 
       private readonly BlockDigestAlgorithm _algorithm;
       private readonly ResizableArray<Byte> _auxArray;
@@ -59,8 +60,8 @@ namespace UtilPack.Cryptography.SASL.SCRAM
          this._auxArray = new ResizableArray<Byte>();
       }
 
-      protected override async ValueTask<TSyncChallengeResult> ChallengeServer(
-         SASLAuthenticationArguments args,
+      protected override async ValueTask<TSyncChallengeResult> Challenge(
+         SASLChallengeArguments args,
          SASLCredentialsHolder credentialsHolder,
          SASLCredentialsSCRAMForServer credentials
          )
@@ -76,7 +77,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
             case STATE_INITIAL:
                (credentials, writeOffset, errorCode) = await this.PerformInitial( args );
                credentialsHolder.Credentials = credentials;
-               nextState = STATE_VALIDATE;
+               nextState = errorCode == 0 ? STATE_VALIDATE : STATE_INVALID_CREDENTIALS;
                break;
             case STATE_VALIDATE:
                errorCode = this.PerformValidate( ref args, credentials, ref writeOffset );
@@ -89,23 +90,23 @@ namespace UtilPack.Cryptography.SASL.SCRAM
                break;
          }
 
-         Int32 bytesWritten;
-         if ( errorCode < 0
+         TSyncChallengeResult retVal;
+         if ( errorCode != 0
             || nextState < 0
             || Interlocked.CompareExchange( ref this._state, nextState, prevState ) != prevState )
          {
-            bytesWritten = MakeSureIsNegative( errorCode );
+            retVal = new TSyncChallengeResult( errorCode == 0 ? SCRAMCommon.ERROR_CONCURRENT_ACCESS : errorCode );
          }
          else
          {
-            bytesWritten = writeOffset - args.WriteOffset;
+            retVal = new TSyncChallengeResult( (writeOffset - args.WriteOffset, challengeResult) );
          }
 
-         return bytesWritten < 0 ? new TSyncChallengeResult( bytesWritten ) : new TSyncChallengeResult( (bytesWritten, challengeResult) );
+         return retVal;
       }
 
       protected override Int32 GetExceptionErrorCode( Exception exc )
-         => SCRAMCommon.ERROR_INVALID_FORMAT;
+         => SCRAMCommon.ERROR_INVALID_RESPONSE_MESSAGE_FORMAT;
 
       public override void Reset()
       {
@@ -131,7 +132,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
       }
 
       private async ValueTask<(SASLCredentialsSCRAMForServer, Int32, Int32)> PerformInitial(
-         SASLAuthenticationArguments args
+         SASLChallengeArguments args
          )
       {
          var errorCode = this.PerformInitialRead(
@@ -184,7 +185,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
                }
                else
                {
-                  errorCode = SCRAMCommon.ERROR_INVALID_FORMAT;
+                  errorCode = SCRAMCommon.ERROR_INVALID_RESPONSE_MESSAGE_FORMAT;
                }
             }
          }
@@ -199,7 +200,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
       }
 
       private Int32 PerformInitialRead(
-         ref SASLAuthenticationArguments args,
+         ref SASLChallengeArguments args,
          out String username,
          out Int32 clientNonceReadOffset,
          out Int32 clientNonceReadCount,
@@ -228,7 +229,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
 
          // Verify that all the rest of the characters are ASCII
          return min > 1 && ( readMax - readOffset ) % min != 0 ?
-            SCRAMCommon.ERROR_INVALID_FORMAT :
+            SCRAMCommon.ERROR_INVALID_RESPONSE_MESSAGE_FORMAT :
             0;
       }
 
@@ -240,7 +241,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
       }
 
       private void PerformInitialWrite(
-         ref SASLAuthenticationArguments args,
+         ref SASLChallengeArguments args,
          ref SASLCredentialsSCRAMForServer credentials,
          ref Int32 writeOffset,
          Int32 clientNonceReadOffset,
@@ -282,7 +283,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
       }
 
       private Int32 PerformValidate(
-         ref SASLAuthenticationArguments args,
+         ref SASLChallengeArguments args,
          SASLCredentialsSCRAMForServer credentials,
          ref Int32 writeOffset
          )
@@ -350,7 +351,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
       }
 
       private Int32 PerformValidateRead(
-         ref SASLAuthenticationArguments args,
+         ref SASLChallengeArguments args,
          out Int32 beforeProofReadCount,
          out Int32 proofReadOffset,
          out Int32 proofReadCount
@@ -385,7 +386,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
             if ( args.ReadOffset + args.ReadCount != readOffset + proofReadCount )
             {
                // Too small/big message
-               errorCode = SCRAMCommon.ERROR_INVALID_FORMAT;
+               errorCode = SCRAMCommon.ERROR_INVALID_RESPONSE_MESSAGE_FORMAT;
             }
          }
          else
@@ -397,7 +398,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
       }
 
       private void PerformValidateWrite(
-         ref SASLAuthenticationArguments args,
+         ref SASLChallengeArguments args,
          SASLCredentialsSCRAMForServer credentials,
          ref Int32 writeOffset,
          Int32 auxArrayCount,
@@ -438,6 +439,26 @@ namespace UtilPack.Cryptography.SASL.SCRAM
 
    public static partial class UtilPackUtility
    {
+      /// <summary>
+      /// Creates a new instance of <see cref="SASLMechanism"/> that implements server-side SCRAM mechanism with this <see cref="BlockDigestAlgorithm"/>.
+      /// </summary>
+      /// <param name="algorithm">This <see cref="BlockDigestAlgorithm"/>, that will be used by SCRAM mechanism as its digest provider.</param>
+      /// <param name="getCredentials">The callback to get <see cref="SASLCredentialsSCRAMForServer"/> for given username.</param>
+      /// <param name="nonceGenerator">The optional custom callback to provide nonce. Please read remarks if supplying value.</param>
+      /// <returns>A new <see cref="SASLMechanism"/> which will behave as server-side when authenticating with SCRAM.</returns>
+      /// <remarks>
+      /// <para>
+      /// The returned <see cref="SASLMechanism"/> will expect the <see cref="SASLChallengeArguments.Credentials"/> field to always be non-null and of type <see cref="SASLCredentialsHolder"/>.
+      /// </para>
+      /// <para>
+      /// The <paramref name="nonceGenerator"/>, if supplied, *must* return valid nonce (e.g. not containing any commas, printable ASCII characters, etc).
+      /// The returned nonce will be directly written to the message - it is not base64-encoded!
+      /// </para>
+      /// </remarks>
+      /// <exception cref="NullReferenceException">If this <see cref="BlockDigestAlgorithm"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="getCredentials"/> is <c>null</c>.</exception>
+      /// <seealso cref="SASLCredentialsSCRAMForClient"/>
+      /// <seealso cref="SCRAMCommon"/>
       public static SASLMechanism CreateSASLServerSCRAM(
          this BlockDigestAlgorithm algorithm,
          Func<String, ValueTask<SASLCredentialsSCRAMForServer>> getCredentials,

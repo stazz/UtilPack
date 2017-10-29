@@ -11,6 +11,10 @@
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\UtilPack.Cryptography\UtilPack.Cryptography.csproj" />
+  </ItemGroup>
+
   <!-- Assembly information stuff -->
   <PropertyGroup>
     <VersionPrefix>1.1.0</VersionPrefix>
@@ -70,10 +74,6 @@
   <ItemGroup>
     <AlgorithmGeneratorFileItem Include="$(AlgorithmGeneratorFile)" />
     <GeneratedAlgorithmFiles Include="$(AlgorithmsDirectory)/MD5.cs;$(AlgorithmsDirectory)/SHA128.cs;$(AlgorithmsDirectory)/SHA256.cs;$(AlgorithmsDirectory)/SHA384.cs;$(AlgorithmsDirectory)/SHA512.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\UtilPack.Cryptography\UtilPack.Cryptography.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

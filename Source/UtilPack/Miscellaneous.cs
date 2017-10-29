@@ -1363,9 +1363,23 @@ public static partial class E_UtilPack
          && ( type.GetArrayRank() > 1 || ( ( name = type.Name ).EndsWith( "]" ) && name[name.Length - 2] != '[' ) );
    }
 
+   /// <summary>
+   /// Helper method to get the <see cref="EitherOr{T1, T2}.First"/> value of this <see cref="EitherOr{T1, T2}"/>, or return the default value for the first type, if the <see cref="EitherOr{T1, T2}.IsFirst"/> return <c>false</c> for this <see cref="EitherOr{T1, T2}"/>.
+   /// </summary>
+   /// <typeparam name="T1">The type of first value.</typeparam>
+   /// <typeparam name="T2">The type of second value.</typeparam>
+   /// <param name="eitherOr">This <see cref="EitherOr{T1, T2}"/>.</param>
+   /// <returns>The result of <see cref="EitherOr{T1, T2}.First"/> or default value for type <typeparamref name="T1"/>.</returns>
    public static T1 GetFirstOrDefault<T1, T2>( this EitherOr<T1, T2> eitherOr )
       => eitherOr.IsFirst ? eitherOr.First : default;
 
+   /// <summary>
+   /// Helper method to get the <see cref="EitherOr{T1, T2}.Second"/> value of this <see cref="EitherOr{T1, T2}"/>, or return the default value for the second type, if the <see cref="EitherOr{T1, T2}.IsSecond"/> return <c>false</c> for this <see cref="EitherOr{T1, T2}"/>.
+   /// </summary>
+   /// <typeparam name="T1">The type of first value.</typeparam>
+   /// <typeparam name="T2">The type of second value.</typeparam>
+   /// <param name="eitherOr">This <see cref="EitherOr{T1, T2}"/>.</param>
+   /// <returns>The result of <see cref="EitherOr{T1, T2}.Second"/> or default value for type <typeparamref name="T2"/>.</returns>
    public static T2 GetSecondOrDefault<T1, T2>( this EitherOr<T1, T2> eitherOr )
       => eitherOr.IsSecond ? eitherOr.Second : default;
 

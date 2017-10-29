@@ -22,7 +22,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
 {
    /// <summary>
    /// This class contains credential information for client-side SCRAM authentication.
-   /// The <see cref="SASLChallengeArguments.Credentials"/> property of <see cref="SASLChallengeArguments"/> passed to client-side SCRAM <see cref="SASLMechanism"/> in its <see cref="SASLMechanism.Challenge"/> method should be instance of this class.
+   /// The <see cref="SASLChallengeArguments.Credentials"/> property of <see cref="SASLChallengeArguments"/> passed to client-side SCRAM <see cref="SASLMechanism"/> in its <see cref="SASLMechanism.ChallengeAsync"/> method should be instance of this class.
    /// </summary>
    public sealed class SASLCredentialsSCRAMForClient
    {

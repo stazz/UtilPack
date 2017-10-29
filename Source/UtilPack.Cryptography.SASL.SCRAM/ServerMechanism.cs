@@ -60,7 +60,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
          this._auxArray = new ResizableArray<Byte>();
       }
 
-      protected override async ValueTask<TSyncChallengeResult> Challenge(
+      protected override async ValueTask<TSyncChallengeResult> ChallengeAsync(
          SASLChallengeArguments args,
          SASLCredentialsHolder credentialsHolder,
          SASLCredentialsSCRAMForServer credentials

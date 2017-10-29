@@ -48,11 +48,11 @@ namespace UtilPack
          /// <param name="args">The <see cref="SASLChallengeArguments"/> containing information about previously read remote response (if any), and the array where to write response, along with encoding and credential information.</param>
          /// <returns>The <see cref="EitherOr{T1, T2}"/> object, which will have <see cref="EitherOr{T1, T2}.IsFirst"/> set to <c>true</c> in case of successful challenge. For unsuccessful challenges, <see cref="EitherOr{T1, T2}.IsSecond"/> is set to <c>true</c></returns>
          /// <remarks>
-         /// The type of successful challenge result is a tuple of amount of bytes written to <see cref="SASLChallengeArguments.WriteArray"/> of <paramref name="args"/>, and the <see cref="SASLChallengeResult"/> enumeration describing whether this <see cref="SASLMechanism"/> expects more calls to <see cref="Challenge"/>-
+         /// The type of successful challenge result is a tuple of amount of bytes written to <see cref="SASLChallengeArguments.WriteArray"/> of <paramref name="args"/>, and the <see cref="SASLChallengeResult"/> enumeration describing whether this <see cref="SASLMechanism"/> expects more calls to <see cref="ChallengeAsync"/>-
          /// The type of unsuccesssful challenge result is a mechanism-specific error code, which should be negative integer.
          /// </remarks>
          /// <seealso cref="SASLChallengeArguments"/>
-         TAsyncSyncChallengeResult Challenge(
+         TAsyncSyncChallengeResult ChallengeAsync(
             SASLChallengeArguments args
             );
 
@@ -63,7 +63,7 @@ namespace UtilPack
       }
 
       /// <summary>
-      /// This enumeration represents a result of successful SASL challenge result (e.g. from <see cref="SASLMechanism.Challenge"/> method).
+      /// This enumeration represents a result of successful SASL challenge result (e.g. from <see cref="SASLMechanism.ChallengeAsync"/> method).
       /// </summary>
       public enum SASLChallengeResult
       {
@@ -79,18 +79,18 @@ namespace UtilPack
       }
 
       /// <summary>
-      /// This class implements <see cref="SASLMechanism"/> in such way that <see cref="SASLMechanism.Challenge"/> is always synchronous.
+      /// This class implements <see cref="SASLMechanism"/> in such way that <see cref="SASLMechanism.ChallengeAsync"/> is always synchronous.
       /// </summary>
       /// <typeparam name="TCredentials">The expected type of <see cref="SASLChallengeArguments.Credentials"/>.</typeparam>
       public abstract class AbstractSyncSASLMechanism<TCredentials> : AbstractDisposable, SASLMechanism
       {
          /// <summary>
-         /// Implements <see cref="SASLMechanism.Challenge"/> by calling <see cref="Challenge(ref SASLChallengeArguments, TCredentials)"/>.
+         /// Implements <see cref="SASLMechanism.ChallengeAsync"/> by calling <see cref="Challenge(ref SASLChallengeArguments, TCredentials)"/>.
          /// If <see cref="SASLChallengeArguments.Credentials"/> is not of type <typeparamref name="TCredentials"/>, or if <see cref="Challenge(ref SASLChallengeArguments, TCredentials)"/> throws, then the exception is catched and error code returned by <see cref="GetExceptionErrorCode(Exception)"/> is returned.
          /// </summary>
          /// <param name="args">The <see cref="SASLChallengeArguments"/>.</param>
          /// <returns>The result of <see cref="Challenge(ref SASLChallengeArguments, TCredentials)"/>, or error code returned by <see cref="GetExceptionErrorCode(Exception)"/>.</returns>
-         public TAsyncSyncChallengeResult Challenge(
+         public TAsyncSyncChallengeResult ChallengeAsync(
             SASLChallengeArguments args
          )
          {
@@ -129,24 +129,24 @@ namespace UtilPack
       }
 
       /// <summary>
-      /// This class implements <see cref="SASLMechanism"/> in such way that <see cref="SASLMechanism.Challenge"/> implementation may be asynchronous.
+      /// This class implements <see cref="SASLMechanism"/> in such way that <see cref="SASLMechanism.ChallengeAsync"/> implementation may be asynchronous.
       /// </summary>
       /// <typeparam name="TCredentials">The expected type of <see cref="SASLChallengeArguments.Credentials"/>.</typeparam>
       public abstract class AbstractAsyncSASLMechanism<TCredentials> : AbstractDisposable, SASLMechanism
       {
          /// <summary>
-         /// Implements <see cref="SASLMechanism.Challenge"/> by calling <see cref="Challenge(SASLChallengeArguments, TCredentials)"/>.
-         /// If <see cref="SASLChallengeArguments.Credentials"/> is not of type <typeparamref name="TCredentials"/>, or if <see cref="Challenge(SASLChallengeArguments, TCredentials)"/> throws, then the exception is catched and error code returned by <see cref="GetExceptionErrorCode(Exception)"/> is returned.
+         /// Implements <see cref="SASLMechanism.ChallengeAsync"/> by calling <see cref="ChallengeAsync(SASLChallengeArguments, TCredentials)"/>.
+         /// If <see cref="SASLChallengeArguments.Credentials"/> is not of type <typeparamref name="TCredentials"/>, or if <see cref="ChallengeAsync(SASLChallengeArguments, TCredentials)"/> throws, then the exception is catched and error code returned by <see cref="GetExceptionErrorCode(Exception)"/> is returned.
          /// </summary>
          /// <param name="args">The <see cref="SASLChallengeArguments"/>.</param>
-         /// <returns>The result of <see cref="Challenge(SASLChallengeArguments, TCredentials)"/>, or error code returned by <see cref="GetExceptionErrorCode(Exception)"/>.</returns>
-         public async TAsyncSyncChallengeResult Challenge(
+         /// <returns>The result of <see cref="ChallengeAsync(SASLChallengeArguments, TCredentials)"/>, or error code returned by <see cref="GetExceptionErrorCode(Exception)"/>.</returns>
+         public async TAsyncSyncChallengeResult ChallengeAsync(
             SASLChallengeArguments args
          )
          {
             try
             {
-               return await this.Challenge( args, (TCredentials) args.Credentials );
+               return await this.ChallengeAsync( args, (TCredentials) args.Credentials );
             }
             catch ( Exception exc )
             {
@@ -165,7 +165,7 @@ namespace UtilPack
          /// <param name="args">The <see cref="SASLChallengeArguments"/>.</param>
          /// <param name="credentials">The credentials.</param>
          /// <returns>Result indicating how the challenge went, either tuple of how many bytes were written along with <see cref="SASLChallengeResult"/>, or a integer with error code.</returns>
-         protected abstract TAsyncSyncChallengeResult Challenge(
+         protected abstract TAsyncSyncChallengeResult ChallengeAsync(
             SASLChallengeArguments args,
             TCredentials credentials
             );
@@ -188,16 +188,16 @@ namespace UtilPack
          where TCredentials : class
       {
          /// <summary>
-         /// Implements <see cref="AbstractAsyncSASLMechanism{TCredentials}.Challenge(SASLChallengeArguments, TCredentials)"/> by delegating implementation to <see cref="Challenge(SASLChallengeArguments, SASLCredentialsHolder, TCredentials)"/>.
+         /// Implements <see cref="AbstractAsyncSASLMechanism{TCredentials}.ChallengeAsync(SASLChallengeArguments, TCredentials)"/> by delegating implementation to <see cref="ChallengeAsync(SASLChallengeArguments, SASLCredentialsHolder, TCredentials)"/>.
          /// </summary>
          /// <param name="args">The <see cref="SASLChallengeArguments"/>.</param>
          /// <param name="credentials">The <see cref="SASLCredentialsHolder"/>.</param>
-         /// <returns>Result of <see cref="Challenge(SASLChallengeArguments, SASLCredentialsHolder, TCredentials)"/>.</returns>
-         protected sealed override TAsyncSyncChallengeResult Challenge(
+         /// <returns>Result of <see cref="ChallengeAsync(SASLChallengeArguments, SASLCredentialsHolder, TCredentials)"/>.</returns>
+         protected sealed override TAsyncSyncChallengeResult ChallengeAsync(
             SASLChallengeArguments args,
             SASLCredentialsHolder credentials
             )
-            => this.Challenge( args, credentials, (TCredentials) ( credentials ?? throw new InvalidOperationException( "No credential holder supplied" ) ).Credentials );
+            => this.ChallengeAsync( args, credentials, (TCredentials) ( credentials ?? throw new InvalidOperationException( "No credential holder supplied" ) ).Credentials );
 
          /// <summary>
          /// The derived classes should implement this method for their SASL challenge logic.
@@ -206,7 +206,7 @@ namespace UtilPack
          /// <param name="credentialsHolder">The <see cref="SASLCredentialsHolder"/>.</param>
          /// <param name="credentials">The credentials from <see cref="SASLCredentialsHolder.Credentials"/> property of <see cref="SASLCredentialsHolder"/>.</param>
          /// <returns>Result indicating how the challenge went, either tuple of how many bytes were written along with <see cref="SASLChallengeResult"/>, or a integer with error code.</returns>
-         protected abstract TAsyncSyncChallengeResult Challenge(
+         protected abstract TAsyncSyncChallengeResult ChallengeAsync(
             SASLChallengeArguments args,
             SASLCredentialsHolder credentialsHolder,
             TCredentials credentials
@@ -247,16 +247,16 @@ public static partial class E_UtilPack
    }
 
    /// <summary>
-   /// This helper method will invoke <see cref="SASLMechanism.Challenge"/> method of this <see cref="SASLMechanism"/> and throw an exception if it returns error code.
+   /// This helper method will invoke <see cref="SASLMechanism.ChallengeAsync"/> method of this <see cref="SASLMechanism"/> and throw an exception if it returns error code.
    /// </summary>
    /// <param name="mechanism">This <see cref="SASLMechanism"/>.</param>
    /// <param name="args">The <see cref="SASLChallengeArguments"/>.</param>
    /// <returns>Information about how many bytes were written to <see cref="SASLChallengeArguments.WriteArray"/>, along with <see cref="SASLChallengeArguments"/>.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="SASLMechanism"/> is <c>null</c>.</exception>
-   /// <exception cref="InvalidOperationException">If <see cref="SASLMechanism.Challenge"/> returns error code.</exception>
-   public static async ValueTask<TSuccessfulChallenge> ChallengeOrThrowOnError( this SASLMechanism mechanism, SASLChallengeArguments args )
+   /// <exception cref="InvalidOperationException">If <see cref="SASLMechanism.ChallengeAsync"/> returns error code.</exception>
+   public static async ValueTask<TSuccessfulChallenge> ChallengeOrThrowOnErrorAsync( this SASLMechanism mechanism, SASLChallengeArguments args )
    {
-      var challengeResult = await mechanism.Challenge( args );
+      var challengeResult = await mechanism.ChallengeAsync( args );
       return challengeResult.IsFirst ? challengeResult.First : throw new InvalidOperationException( $"SASL challenge failed with exit code {challengeResult.GetSecondOrDefault()}." );
    }
 }

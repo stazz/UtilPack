@@ -100,17 +100,19 @@ namespace UtilPack.AsyncEnumeration
          }
       }
 
-      internal abstract class AbstractValueTaskAsyncSingletonEnumerator<T> : IAsyncEnumerator<T>
+      internal sealed class ValueTaskAsyncSingletonEnumerator<T> : IAsyncEnumerator<T>
       {
          private const Int32 STATE_INITIAL = 0;
          private const Int32 STATE_WAIT_CALLED = 1;
-         protected const Int32 STATE_GET_CALLED = 2;
+         private const Int32 STATE_GET_CALLED = 2;
 
          private readonly ValueTask<T> _asyncValue;
-         protected Int32 _state;
+         private Int32 _state;
 
-         public AbstractValueTaskAsyncSingletonEnumerator( ValueTask<T> asyncValue )
-            => this._asyncValue = asyncValue;
+         public ValueTaskAsyncSingletonEnumerator( ValueTask<T> asyncValue )
+         {
+            this._asyncValue = asyncValue;
+         }
 
          public Task<Boolean> WaitForNextAsync()
          {
@@ -139,7 +141,8 @@ namespace UtilPack.AsyncEnumeration
             return success ? this._asyncValue.Result : default;
          }
 
-         public abstract Task DisposeAsync();
+         public Task DisposeAsync() =>
+            TaskUtils.CompletedTask;
 
          private async Task<Boolean> ReallyWaitForNextAsync()
          {
@@ -148,32 +151,6 @@ namespace UtilPack.AsyncEnumeration
          }
       }
 
-      internal sealed class ValueTaskAsyncSingletonEnumerator<T> : AbstractValueTaskAsyncSingletonEnumerator<T>
-      {
-         public ValueTaskAsyncSingletonEnumerator( ValueTask<T> asyncValue )
-            : base( asyncValue )
-         {
-         }
-
-         public override Task DisposeAsync()
-            => TaskUtils.CompletedTask;
-      }
-
-      internal sealed class ValueTaskAsyncSingletonEnumerator2<T> : AbstractValueTaskAsyncSingletonEnumerator<T>
-      {
-         private readonly EnumerationEndedDelegate _enumerationEnded;
-
-         public ValueTaskAsyncSingletonEnumerator2(
-            ValueTask<T> asyncValue,
-            EnumerationEndedDelegate enumerationEnded
-            ) : base( asyncValue )
-         {
-            this._enumerationEnded = enumerationEnded;
-         }
-
-         public override Task DisposeAsync()
-            => this._enumerationEnded?.Invoke() ?? TaskUtils.CompletedTask;
-      }
    }
 
    public static partial class UtilPackExtensions

@@ -54,7 +54,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
       public const Int32 ERROR_INVALID_RESPONSE_MESSAGE_FORMAT = 2;
 
       /// <summary>
-      /// This error code is returned by both client and server when using <see cref="SASLMechanism.Challenge"/> is not suitable in its current state. One should call <see cref="SASLMechanism.Reset"/> and re-start authentication process.
+      /// This error code is returned by both client and server when using <see cref="SASLMechanism.ChallengeAsync"/> is not suitable in its current state. One should call <see cref="SASLMechanism.Reset"/> and re-start authentication process.
       /// </summary>
       public const Int32 ERROR_INVALID_STATE = 3;
 

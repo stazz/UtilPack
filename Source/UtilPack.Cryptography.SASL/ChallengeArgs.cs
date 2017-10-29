@@ -112,7 +112,7 @@ namespace UtilPack.Cryptography.SASL
 
    /// <summary>
    /// This class contains the reference to protocol-specific credential object, which may be modified.
-   /// It is used typically by server side of protocol, where the e.g. username is not known before first call to <see cref="SASLMechanism.Challenge"/>
+   /// It is used typically by server side of protocol, where the e.g. username is not known before first call to <see cref="SASLMechanism.ChallengeAsync"/>
    /// </summary>
    public sealed class SASLCredentialsHolder
    {

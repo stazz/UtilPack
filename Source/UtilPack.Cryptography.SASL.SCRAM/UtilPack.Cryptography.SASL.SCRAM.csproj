@@ -25,7 +25,7 @@
     <NeutralLanguage>en-US</NeutralLanguage>
     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Product>UtilPack</Product>
-    <Description>Provides ability to create objects implementing SASLMechanism of UtilPack.Cryptograhy.SASL that handle the SCRAM mechanism of SASL. Both client-side and server-side mechanisms are provided.</Description>
+    <Description>Provides ability to create objects implementing SASLMechanism of UtilPack.Cryptograhy.SASL that handle the SCRAM mechanism of SASL. No strings are allocated during challenge. Both client-side and server-side mechanisms are provided.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>
     <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
   </PropertyGroup>

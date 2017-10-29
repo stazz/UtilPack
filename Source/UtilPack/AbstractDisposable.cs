@@ -89,24 +89,48 @@ namespace UtilPack
       }
    }
 
+   /// <summary>
+   /// This class encapsulates <see cref="IDisposable"/> resource which might be needed, or might not.
+   /// </summary>
+   /// <typeparam name="T">The type of the resource.</typeparam>
    public sealed class LazyDisposable<T> : AbstractDisposable
       where T : IDisposable
    {
       private readonly Lazy<T> _lazy;
 
+      /// <summary>
+      /// Creates a new instance of <see cref="LazyDisposable{T}"/> with given <see cref="Lazy{T}"/> containing the lazily initialized <see cref="IDisposable"/> resource.
+      /// </summary>
+      /// <param name="lazy">The <see cref="Lazy{T}"/> containing the lazily initialized <see cref="IDisposable"/> resource.</param>
+      /// <exception cref="ArgumentNullException">If <paramref name="lazy"/> is <c>null</c>.</exception>
       public LazyDisposable( Lazy<T> lazy )
       {
          this._lazy = ArgumentValidator.ValidateNotNull( nameof( lazy ), lazy );
       }
 
+      /// <summary>
+      /// Creates a new instance of <see cref="LazyDisposable{T}"/> with given callback which will be called when the <see cref="IDisposable"/> resource is used for the first time.
+      /// </summary>
+      /// <param name="factory">The callback to call when <see cref="IDisposable"/> resource is used for the first time.</param>
+      /// <exception cref="ArgumentNullException">If <paramref name="factory"/> is <c>null</c>.</exception>
+      /// <remarks>The <paramref name="factory"/> will be used to create <see cref="Lazy{T}"/> with <see cref="System.Threading.LazyThreadSafetyMode"/> of <see cref="System.Threading.LazyThreadSafetyMode.None"/>.</remarks>
       public LazyDisposable( Func<T> factory )
          : this( new Lazy<T>( factory, System.Threading.LazyThreadSafetyMode.None ) )
       {
 
       }
 
+      /// <summary>
+      /// Gets the actual <see cref="IDisposable"/> resource held by this <see cref="LazyDisposable{T}"/>.
+      /// </summary>
+      /// <value>The actual <see cref="IDisposable"/> resource held by this <see cref="LazyDisposable{T}"/>.</value>
       public T Value => this._lazy.Value;
 
+
+      /// <summary>
+      /// Disposes this <see cref="LazyDisposable{T}"/> and will also dispose the resource behind the <see cref="Value"/> property, but only if it has been accessed at least once.
+      /// </summary>
+      /// <param name="disposing">Whether we are calling from <see cref="AbstractDisposable.Dispose()"/>.</param>
       protected override void Dispose( Boolean disposing )
       {
          if ( disposing && this._lazy.IsValueCreated )

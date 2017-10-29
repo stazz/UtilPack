@@ -16,191 +16,47 @@
  * limitations under the License. 
  */
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-
-//using TChallengeResult = System.Threading.Tasks.ValueTask<System.ValueTuple<System.Int32, UtilPack.Cryptography.SASL.SASLChallengeResult>>;
-using TSyncChallengeResult = UtilPack.EitherOr<System.ValueTuple<System.Int32, UtilPack.Cryptography.SASL.SASLChallengeResult>, System.Int32>;
-using TProtectedSyncChallengeResult = UtilPack.EitherOr<System.ValueTuple<System.Int32, UtilPack.Cryptography.SASL.SASLChallengeResult>, System.Int32>;
 
 namespace UtilPack.Cryptography.SASL
 {
-   using TAsyncSyncChallengeResult = System.Threading.Tasks.ValueTask<TSyncChallengeResult>;
-   using TProtectedAsyncSyncChallengeResult = System.Threading.Tasks.ValueTask<TProtectedSyncChallengeResult>;
+   /// <summary>
+   /// This delegate is used by <see cref="SASLUtility.ReadString"/> method to detect any transformable string fragments.
+   /// </summary>
+   /// <param name="encoding">The <see cref="IEncodingInfo"/> used.</param>
+   /// <param name="array">The array to read data from.</param>
+   /// <param name="offset">The offset in <paramref name="array"/> where to start reading data from.</param>
+   /// <returns>The transformed string, or <c>null</c> if there is no transformable sequence in <paramref name="array"/> at given <paramref name="offset"/>.</returns>
+   public delegate String CustomStringDenormalizer( IEncodingInfo encoding, Byte[] array, Int32 offset );
 
-   public interface SASLMechanism : IDisposable
-   {
-      TAsyncSyncChallengeResult Challenge(
-         SASLAuthenticationArguments args
-         );
-
-      void Reset();
-   }
-
-
-   public enum SASLChallengeResult
-   {
-      MoreToCome,
-      Completed
-   }
-
-   public struct SASLAuthenticationArguments
-   {
-      public SASLAuthenticationArguments(
-         Byte[] readArray,
-         Int32 readOffset,
-         Int32 readCount,
-         ResizableArray<Byte> writeArray,
-         Int32 writeOffset,
-         IEncodingInfo encoding,
-         Object credentials
-         )
-      {
-         this.ReadArray = ArgumentValidator.ValidateNotNull( nameof( readArray ), readArray );
-         this.ReadOffset = readOffset;
-         this.ReadCount = readCount;
-         this.WriteArray = writeArray;
-         this.WriteOffset = writeOffset;
-         this.Encoding = encoding;
-         this.Credentials = credentials;
-      }
-
-      public Byte[] ReadArray { get; }
-      public Int32 ReadOffset { get; }
-      public Int32 ReadCount { get; }
-      public ResizableArray<Byte> WriteArray { get; }
-      public Int32 WriteOffset { get; }
-      public IEncodingInfo Encoding { get; }
-      public Object Credentials { get; }
-   }
-
-   public static class SASLAuthenticationArgumentsFactory
-   {
-      public static SASLAuthenticationArguments CreateClientArguments(
-         Byte[] readArray,
-         Int32 readOffset,
-         Int32 readCount,
-         ResizableArray<Byte> writeArray,
-         Int32 writeOffset,
-         IEncodingInfo encoding,
-         Object credentials
-         )
-      {
-         return new SASLAuthenticationArguments( readArray, readOffset, readCount, writeArray, writeOffset, encoding, credentials );
-      }
-
-      public static SASLAuthenticationArguments CreateServerArguments(
-         Byte[] readArray,
-         Int32 readOffset,
-         Int32 readCount,
-         ResizableArray<Byte> writeArray,
-         Int32 writeOffset,
-         IEncodingInfo encoding,
-         SASLCredentialsHolder credentials
-         )
-      {
-         return new SASLAuthenticationArguments( readArray, readOffset, readCount, writeArray, writeOffset, encoding, credentials );
-      }
-   }
-
-   public sealed class SASLCredentialsHolder
-   {
-      private Object _credentials;
-
-      public Object Credentials
-      {
-         get => this._credentials;
-         set => Interlocked.CompareExchange( ref this._credentials, value, null );
-      }
-   }
-
-   public abstract class AbstractSASLMechanism : AbstractDisposable, SASLMechanism
-   {
-      public abstract TAsyncSyncChallengeResult Challenge( SASLAuthenticationArguments args );
-      public abstract void Reset();
-
-      protected abstract Int32 GetExceptionErrorCode( Exception exc );
-
-      protected static Int32 MakeSureIsNegative( Int32 errorCode )
-      {
-         return errorCode == 0 ?
-            -1 : ( errorCode > 0 ? -errorCode : errorCode );
-
-      }
-   }
+   /// <summary>
+   /// This delegate is used by <see cref="SASLUtility.WriteString"/> method to detect any transformable string fragments.
+   /// </summary>
+   /// <param name="str">The string to write.</param>
+   /// <param name="offset">The character index in <paramref name="str"/>.</param>
+   /// <returns>Transformed string instead of character in <paramref name="str"/> at given <paramref name="offset"/>, or <c>null</c> if character should be serialized as is.</returns>
+   public delegate String CustomStringNormalizer( String str, Int32 offset );
 
 
-   public abstract class AbstractSyncSASLMechanism<TCredentials> : AbstractSASLMechanism
-   {
-      public sealed override TAsyncSyncChallengeResult Challenge(
-         SASLAuthenticationArguments args
-      )
-      {
-         try
-         {
-            return new TAsyncSyncChallengeResult( this.Challenge( ref args, (TCredentials) args.Credentials ) );
-         }
-         catch ( Exception exc )
-         {
-            return new TAsyncSyncChallengeResult( MakeSureIsNegative( this.GetExceptionErrorCode( exc ) ) );
-         }
-      }
-
-      protected abstract TProtectedSyncChallengeResult Challenge(
-         ref SASLAuthenticationArguments args,
-         TCredentials credentials
-         );
-   }
-
-   public abstract class AbstractAsyncSASLMechanism<TCredentials> : AbstractSASLMechanism
-   {
-      public sealed override async TAsyncSyncChallengeResult Challenge(
-         SASLAuthenticationArguments args
-      )
-      {
-         try
-         {
-            return await this.Challenge( args, (TCredentials) args.Credentials );
-         }
-         catch ( Exception exc )
-         {
-            return new TSyncChallengeResult( MakeSureIsNegative( this.GetExceptionErrorCode( exc ) ) );
-         }
-      }
-
-      protected abstract TProtectedAsyncSyncChallengeResult Challenge(
-         SASLAuthenticationArguments args,
-         TCredentials credentials
-         );
-   }
-
-   public abstract class AbstractServerSASLMechanism<TCredentials> : AbstractAsyncSASLMechanism<SASLCredentialsHolder>
-      where TCredentials : class
-   {
-      protected override TProtectedAsyncSyncChallengeResult Challenge(
-         SASLAuthenticationArguments args,
-         SASLCredentialsHolder credentials
-         )
-         => this.ChallengeServer( args, credentials, credentials.Credentials as TCredentials );
-
-      protected abstract TProtectedAsyncSyncChallengeResult ChallengeServer(
-         SASLAuthenticationArguments args,
-         SASLCredentialsHolder credentialsHolder,
-         TCredentials credentials
-         );
-   }
-
-   public delegate String CustomStringDenormalizer( IEncodingInfo encoding, Byte[] array, Int32 index );
-   public delegate String CustomStringNormalizer( String str, Int32 charIndex );
-
-   public static class SASLUtility
+   /// <summary>
+   /// This class contains some useful methods related to any SASL protocol.
+   /// </summary>
+   public static partial class SASLUtility
    {
       private const Char MIN_SPECIAL_CHAR = '\u00A0';
 
       // String preparation, as specified in RFC4013
 
-      // Returns -1 if all string characters pass all RFC4013 checks
+      /// <summary>
+      /// This method will iterate all charactesr in given <see cref="String"/> and return index of first escapable character, as per <see href="https://tools.ietf.org/html/rfc4013">RFC-4013</see> spec.
+      /// Will return <c>-1</c> if all characters are valid.
+      /// </summary>
+      /// <param name="str">The string to process.</param>
+      /// <param name="normalizer">The custom normalizer callback</param>
+      /// <returns>Index of first escapable or transformable character.</returns>
+      /// <exception cref="ArgumentException">If <paramref name="str"/> contains any invalid character, as per <see href="https://tools.ietf.org/html/rfc3454">RFC-3454</see> spec.</exception>
       public static Int32 CheckString(
          String str,
          CustomStringNormalizer normalizer = null
@@ -210,7 +66,11 @@ namespace UtilPack.Cryptography.SASL
          for ( var i = 0; i < str.Length && retVal == -1; ++i )
          {
             var c = str[i];
-            if ( Char.IsControl( c ) )
+            if ( c == 0 )
+            {
+               throw new ArgumentException( "Null characters are not allowed.", nameof( str ) );
+            }
+            else if ( Char.IsControl( c ) )
             {
                // Control characters not allowed
                throw new ArgumentException( "Control characters are not allowed.", nameof( str ) );
@@ -247,12 +107,25 @@ namespace UtilPack.Cryptography.SASL
          return retVal;
       }
 
-
+      /// <summary>
+      /// This method will write SASL string to given byte array using given <see cref="IEncodingInfo"/>, while escaping and transforming string as needed.
+      /// See <see cref="CheckString"/> for more information about escaping and transforming.
+      /// </summary>
+      /// <param name="str">The string to write.</param>
+      /// <param name="encodingInfo">The <see cref="IEncodingInfo"/> to use.</param>
+      /// <param name="array">The byte array where to write the string.</param>
+      /// <param name="offset">The offset in <paramref name="array"/> where to start writing.</param>
+      /// <param name="normalizer">The optional custom normalizer callback to use.</param>
+      /// <param name="checkResult">The result of <see cref="CheckString"/>, if it was used before calling this method.</param>
+      /// <seealso cref="CheckString"/>
+      /// <remarks>
+      /// This method will not allocate any strings.
+      /// </remarks>
       public static void WriteString(
          String str,
          IEncodingInfo encodingInfo,
          ResizableArray<Byte> array,
-         ref Int32 idx,
+         ref Int32 offset,
          CustomStringNormalizer normalizer = null,
          Int32? checkResult = null
          )
@@ -262,8 +135,8 @@ namespace UtilPack.Cryptography.SASL
          if ( checkResultValue == -1 )
          {
             // String may be written as-is
-            array.CurrentMaxCapacity = idx + encoding.GetByteCount( str );
-            encodingInfo.WriteString( array.Array, ref idx, str );
+            array.CurrentMaxCapacity = offset + encoding.GetByteCount( str );
+            encodingInfo.WriteString( array.Array, ref offset, str );
          }
          else
          {
@@ -296,7 +169,7 @@ namespace UtilPack.Cryptography.SASL
             }
 
             // Now we know that the string will take max 'byteSize' amount of bytes
-            array.CurrentMaxCapacity = idx + byteSize;
+            array.CurrentMaxCapacity = offset + byteSize;
             // We can get the actual array now, since we won't be resizing the ResizableArray anymore
             var buffer = array.Array;
 
@@ -318,20 +191,20 @@ namespace UtilPack.Cryptography.SASL
                   if ( IsNonAsciiSpace( c ) )
                   {
                      // Mapping special space into "normal" space (0x20)
-                     WritePreviousChunk( i, ref idx );
-                     encodingInfo.WriteASCIIByte( buffer, ref idx, 0x20 );
+                     WritePreviousChunk( i, ref offset );
+                     encodingInfo.WriteASCIIByte( buffer, ref offset, 0x20 );
                   }
                   else if ( IsCommonlyMappedToNothing( c ) )
                   {
                      // Nothing additional to write
-                     WritePreviousChunk( i, ref idx );
+                     WritePreviousChunk( i, ref offset );
                   }
                   else if ( ( tmpStr = normalizer?.Invoke( str, i ) ) != null )
                   {
-                     WritePreviousChunk( i, ref idx );
+                     WritePreviousChunk( i, ref offset );
                      if ( tmpStr.Length > 0 )
                      {
-                        encodingInfo.WriteString( buffer, ref idx, tmpStr );
+                        encodingInfo.WriteString( buffer, ref offset, tmpStr );
                      }
                   }
                }
@@ -340,35 +213,45 @@ namespace UtilPack.Cryptography.SASL
             if ( prev < str.Length )
             {
                // Write final chunk
-               WritePreviousChunk( str.Length - 1, ref idx );
+               WritePreviousChunk( str.Length - 1, ref offset );
             }
          }
       }
 
+      /// <summary>
+      /// This method will read the string written by <see cref="WriteString"/> method, assuming it will end in some ASCII character is never present in the string.
+      /// </summary>
+      /// <param name="encodingInfo">The <see cref="IEncodingInfo"/> to use.</param>
+      /// <param name="array">The byte array to read from.</param>
+      /// <param name="offset">The offset in <paramref name="array"/> where to start reading.</param>
+      /// <param name="count">The maximum amount of bytes to read.</param>
+      /// <param name="firstExclusiveASCIICharacter">The ASCII character which marks the end of the string. If it is not found, then the end of the string will be <paramref name="offset"/> + <paramref name="count"/>.</param>
+      /// <param name="denormalizer">The optional denormalizer callback.</param>
+      /// <returns>Deserialized string.</returns>
       public static String ReadString(
          IEncodingInfo encodingInfo,
          Byte[] array,
-         ref Int32 idx,
+         ref Int32 offset,
          Int32 count,
          Byte firstExclusiveASCIICharacter,
          CustomStringDenormalizer denormalizer = null
          )
       {
-         var endIdx = encodingInfo.IndexOfASCIICharacterOrMax( array, idx, count, firstExclusiveASCIICharacter );
+         var endIdx = encodingInfo.IndexOfASCIICharacterOrMax( array, offset, count, firstExclusiveASCIICharacter );
          String retVal;
-         count = endIdx - idx;
+         count = endIdx - offset;
          if ( denormalizer == null )
          {
             // Can just create string
-            retVal = encodingInfo.Encoding.GetString( array, idx, count );
+            retVal = encodingInfo.Encoding.GetString( array, offset, count );
          }
          else
          {
             StringBuilder sb = null;
             var encoding = encodingInfo.Encoding;
-            var prev = idx;
+            var prev = offset;
             var min = encodingInfo.MinCharByteCount;
-            for ( var i = idx; i < endIdx; i += min )
+            for ( var i = offset; i < endIdx; i += min )
             {
                var replacement = denormalizer( encodingInfo, array, i );
                if ( replacement != null )
@@ -387,7 +270,7 @@ namespace UtilPack.Cryptography.SASL
             if ( sb == null )
             {
                // No escapable strings
-               retVal = encoding.GetString( array, idx, count );
+               retVal = encoding.GetString( array, offset, count );
             }
             else
             {
@@ -396,7 +279,7 @@ namespace UtilPack.Cryptography.SASL
                retVal = sb.ToString();
             }
          }
-         idx += count;
+         offset += count;
 
          return retVal;
       }
@@ -428,7 +311,7 @@ namespace UtilPack.Cryptography.SASL
          }
       }
 
-      static Boolean IsCommonlyMappedToNothing( Char c )
+      private static Boolean IsCommonlyMappedToNothing( Char c )
       {
          switch ( c )
          {
@@ -465,7 +348,7 @@ namespace UtilPack.Cryptography.SASL
          }
       }
 
-      static Boolean IsProhibited( String s, Int32 index )
+      private static Boolean IsProhibited( String s, Int32 index )
       {
          var u = Char.ConvertToUtf32( s, index );
          Boolean retVal;
@@ -540,5 +423,4 @@ namespace UtilPack.Cryptography.SASL
          return retVal;
       }
    }
-
 }

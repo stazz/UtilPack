@@ -59,14 +59,13 @@ namespace UtilPack.Tests.Cryptography.SASL.SCRAM
                );
 
             // Phase 1.
-            (var bytesWritten, var challengeResult) = client.Challenge( SASLAuthenticationArgumentsFactory.CreateClientArguments(
-               Empty<Byte>.Array, // Initial phase does not read anything
+            (var bytesWritten, var challengeResult) = client.Challenge( credentials.CreateClientMechanismSCRAMArguments(
+               null, // Initial phase does not read anything
                -1,
                -1,
                writeArray,
                0,
-               encoding,
-               credentials
+               encoding
                ) ).Result.First;
             Assert.IsTrue( bytesWritten > 0 );
             Assert.AreEqual( challengeResult, SASLChallengeResult.MoreToCome );
@@ -74,14 +73,13 @@ namespace UtilPack.Tests.Cryptography.SASL.SCRAM
 
             // Phase 2.
             var serverBytes = encoding.Encoding.GetBytes( "r=" + clientNonce + serverNonce + ",s=" + serverSalt + ",i=" + iterationCount );
-            (bytesWritten, challengeResult) = client.Challenge( SASLAuthenticationArgumentsFactory.CreateClientArguments(
+            (bytesWritten, challengeResult) = client.Challenge( credentials.CreateClientMechanismSCRAMArguments(
                serverBytes,
                0,
                serverBytes.Length,
                writeArray,
                0,
-               encoding,
-               credentials
+               encoding
                ) ).Result.First;
             Assert.IsTrue( bytesWritten > 0 );
             Assert.AreEqual( challengeResult, SASLChallengeResult.MoreToCome );
@@ -90,14 +88,13 @@ namespace UtilPack.Tests.Cryptography.SASL.SCRAM
 
             // Phase 3
             serverBytes = encoding.Encoding.GetBytes( "v=" + serverProof );
-            (bytesWritten, challengeResult) = client.Challenge( SASLAuthenticationArgumentsFactory.CreateClientArguments(
+            (bytesWritten, challengeResult) = client.Challenge( credentials.CreateClientMechanismSCRAMArguments(
                serverBytes,
                0,
                serverBytes.Length,
                writeArray,
                0,
-               encoding,
-               credentials
+               encoding
                ) ).Result.First;
             Assert.AreEqual( challengeResult, SASLChallengeResult.Completed );
             Assert.AreEqual( bytesWritten, 0 );
@@ -148,67 +145,62 @@ namespace UtilPack.Tests.Cryptography.SASL.SCRAM
             var serverCredentials = new SASLCredentialsHolder();
 
             // Client-first
-            (var bytesWritten, var challengeResult) = client.Challenge( SASLAuthenticationArgumentsFactory.CreateClientArguments(
-               Empty<Byte>.Array, // Initial phase does not read anything
+            (var bytesWritten, var challengeResult) = client.Challenge( clientCredentials.CreateClientMechanismSCRAMArguments(
+               null, // Initial phase does not read anything
                -1,
                -1,
                clientWriteArray,
                0,
-               encoding,
-               clientCredentials
+               encoding
                ) ).Result.First;
             Assert.IsTrue( bytesWritten > 0 );
             Assert.AreEqual( challengeResult, SASLChallengeResult.MoreToCome );
 
             // Server-first
-            (bytesWritten, challengeResult) = server.Challenge( SASLAuthenticationArgumentsFactory.CreateServerArguments(
+            (bytesWritten, challengeResult) = server.Challenge( serverCredentials.CreateServerMechanismArguments(
                clientWriteArray.Array,
                0,
                bytesWritten,
                serverWriteArray,
                0,
-               encoding,
-               serverCredentials
+               encoding
                ) ).Result.First;
             Assert.IsTrue( bytesWritten > 0 );
             Assert.AreEqual( challengeResult, SASLChallengeResult.MoreToCome );
             Assert.AreNotEqual( 0, serverCallbackCalled );
 
             // Client-final
-            (bytesWritten, challengeResult) = client.Challenge( SASLAuthenticationArgumentsFactory.CreateClientArguments(
+            (bytesWritten, challengeResult) = client.Challenge( clientCredentials.CreateClientMechanismSCRAMArguments(
                serverWriteArray.Array,
                0,
                bytesWritten,
                clientWriteArray,
                0,
-               encoding,
-               clientCredentials
+               encoding
                ) ).Result.First;
             Assert.IsTrue( bytesWritten > 0 );
             Assert.AreEqual( challengeResult, SASLChallengeResult.MoreToCome );
 
             // Server-final
-            (bytesWritten, challengeResult) = server.Challenge( SASLAuthenticationArgumentsFactory.CreateServerArguments(
+            (bytesWritten, challengeResult) = server.Challenge( serverCredentials.CreateServerMechanismArguments(
                clientWriteArray.Array,
                0,
                bytesWritten,
                serverWriteArray,
                0,
-               encoding,
-               serverCredentials
+               encoding
                ) ).Result.First;
             Assert.IsTrue( bytesWritten > 0 );
             Assert.AreEqual( challengeResult, SASLChallengeResult.Completed );
 
             // Client-validate
-            (bytesWritten, challengeResult) = client.Challenge( SASLAuthenticationArgumentsFactory.CreateClientArguments(
+            (bytesWritten, challengeResult) = client.Challenge( clientCredentials.CreateClientMechanismSCRAMArguments(
                serverWriteArray.Array,
                0,
                bytesWritten,
                clientWriteArray,
                0,
-               encoding,
-               clientCredentials
+               encoding
                ) ).Result.First;
             Assert.AreEqual( bytesWritten, 0 );
             Assert.AreEqual( challengeResult, SASLChallengeResult.Completed );

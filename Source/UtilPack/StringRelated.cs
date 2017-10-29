@@ -962,14 +962,40 @@ public static partial class E_UtilPack
       return result;
    }
 
+   /// <summary>
+   /// Finds the index at correct byte boundary of the next ASCII character, or returns the maximum index (exclusive) if the next character is not found..
+   /// </summary>
+   /// <param name="encoding">This <see cref="IEncodingInfo"/>.</param>
+   /// <param name="array">The byte array containing characters encoded with this <see cref="IEncodingInfo"/>.</param>
+   /// <param name="offset">The offset in <paramref name="array"/> where to start searching.</param>
+   /// <param name="count">The maximum amount of bytes to search.</param>
+   /// <param name="asciiCharacter">The ASCII character to search.</param>
+   /// <returns>The index at correct byte boundary of the next ASCII character, or maximum index (<paramref name="offset"/> + <paramref name="count"/>) if next character is not found.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="IEncodingInfo"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="array"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentOutOfRangeException">If <paramref name="offset"/> and/or <paramref name="count"/> are invalid.</exception>
    public static Int32 IndexOfASCIICharacterOrMax( this IEncodingInfo encoding, Byte[] array, Int32 offset, Int32 count, Byte asciiCharacter )
    {
       var retVal = encoding.IndexOfASCIICharacter( array, offset, count, asciiCharacter );
       return retVal < 0 ? ( offset + count ) : retVal;
    }
 
+   /// <summary>
+   /// Finds the index at correct byte boundary of the next ASCII character.
+   /// </summary>
+   /// <param name="encoding">This <see cref="IEncodingInfo"/>.</param>
+   /// <param name="array">The byte array containing characters encoded with this <see cref="IEncodingInfo"/>.</param>
+   /// <param name="offset">The offset in <paramref name="array"/> where to start searching.</param>
+   /// <param name="count">The maximum amount of bytes to search.</param>
+   /// <param name="asciiCharacter">The ASCII character to search.</param>
+   /// <returns>The index at correct byte boundary of the next ASCII character, or <c>-1</c>.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="IEncodingInfo"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="array"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentOutOfRangeException">If <paramref name="offset"/> and/or <paramref name="count"/> are invalid.</exception>
    public static Int32 IndexOfASCIICharacter( this IEncodingInfo encoding, Byte[] array, Int32 offset, Int32 count, Byte asciiCharacter )
    {
+      ArgumentValidator.ValidateNotNullReference( encoding );
+
       var max = offset + count;
       var endIdx = Array.IndexOf( array, asciiCharacter, offset, max - offset );
 

@@ -66,54 +66,63 @@ namespace UtilPack.Cryptography.SASL.SCRAM
       }
 
       protected override TSyncChallengeResult Challenge(
-         ref SASLAuthenticationArguments args,
+         ref SASLChallengeArguments args,
          SASLCredentialsSCRAMForClient credentials
          )
       {
          var prevState = this._state;
-         Int32 nextState;
-         var writeOffset = args.WriteOffset;
          var challengeResult = SASLChallengeResult.MoreToCome;
-         Int32 errorCode;
-         switch ( prevState )
-         {
-            case STATE_INITIAL:
-               errorCode = this.PerformInitial( ref args, credentials, ref writeOffset );
-               nextState = STATE_FINAL;
-               break;
-            case STATE_FINAL:
-               // Read server response and write our response
-               errorCode = this.PerformFinal( ref args, credentials, ref writeOffset );
-               nextState = STATE_VALIDATE;
-               break;
-            case STATE_VALIDATE:
-               errorCode = this.PerformValidate( ref args, credentials );
-               nextState = STATE_COMPLETED;
-               challengeResult = SASLChallengeResult.Completed;
-               break;
-            default:
-               nextState = -1;
-               errorCode = SCRAMCommon.ERROR_INVALID_STATE;
-               break;
-         }
+         var writeOffset = args.WriteOffset;
 
-         Int32 bytesWritten;
-         if ( errorCode < 0
-            || nextState < 0
-            || Interlocked.CompareExchange( ref this._state, nextState, prevState ) != prevState )
+         Int32 errorCode;
+         Int32 nextState;
+         if ( credentials == null )
          {
-            bytesWritten = MakeSureIsNegative( errorCode );
+            errorCode = SCRAMCommon.ERROR_CLIENT_SUPPLIED_WITH_INVALID_CREDENTIALS;
+            nextState = -1;
          }
          else
          {
-            bytesWritten = writeOffset - args.WriteOffset;
+            switch ( prevState )
+            {
+               case STATE_INITIAL:
+                  errorCode = this.PerformInitial( ref args, credentials, ref writeOffset );
+                  nextState = STATE_FINAL;
+                  break;
+               case STATE_FINAL:
+                  // Read server response and write our response
+                  errorCode = this.PerformFinal( ref args, credentials, ref writeOffset );
+                  nextState = STATE_VALIDATE;
+                  break;
+               case STATE_VALIDATE:
+                  errorCode = this.PerformValidate( ref args, credentials );
+                  nextState = STATE_COMPLETED;
+                  challengeResult = SASLChallengeResult.Completed;
+                  break;
+               default:
+                  nextState = -1;
+                  errorCode = SCRAMCommon.ERROR_INVALID_STATE;
+                  break;
+            }
          }
 
-         return bytesWritten < 0 ? new TSyncChallengeResult( bytesWritten ) : new TSyncChallengeResult( (bytesWritten, challengeResult) );
+         TSyncChallengeResult retVal;
+         if ( errorCode != 0
+            || nextState < 0
+            || Interlocked.CompareExchange( ref this._state, nextState, prevState ) != prevState )
+         {
+            retVal = new TSyncChallengeResult( errorCode == 0 ? SCRAMCommon.ERROR_CONCURRENT_ACCESS : errorCode );
+         }
+         else
+         {
+            retVal = new TSyncChallengeResult( (writeOffset - args.WriteOffset, challengeResult) );
+         }
+
+         return retVal;
       }
 
       protected override Int32 GetExceptionErrorCode( Exception exc )
-         => SCRAMCommon.ERROR_INVALID_FORMAT;
+         => SCRAMCommon.ERROR_INVALID_RESPONSE_MESSAGE_FORMAT;
 
       protected override void Dispose( Boolean disposing )
       {
@@ -137,7 +146,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
       }
 
       private Int32 PerformInitial(
-         ref SASLAuthenticationArguments args,
+         ref SASLChallengeArguments args,
          SASLCredentialsSCRAMForClient credentials,
          ref Int32 writeOffset
          )
@@ -191,7 +200,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
       }
 
       private Int32 PerformFinal(
-         ref SASLAuthenticationArguments args,
+         ref SASLChallengeArguments args,
          SASLCredentialsSCRAMForClient credentials,
          ref Int32 writeOffset
          )
@@ -261,14 +270,14 @@ namespace UtilPack.Cryptography.SASL.SCRAM
          }
          else
          {
-            retVal = SCRAMCommon.ERROR_INVALID_FORMAT;
+            retVal = SCRAMCommon.ERROR_INVALID_RESPONSE_MESSAGE_FORMAT;
          }
 
          return retVal;
       }
 
       private Int32 PerformFinalWrite(
-         ref SASLAuthenticationArguments args,
+         ref SASLChallengeArguments args,
          SASLCredentialsSCRAMForClient credentials,
          ref Int32 writeOffset,
          Int32 serverNonceReadOffset,
@@ -441,7 +450,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
 
 
       private void PerformFinalRead(
-         ref SASLAuthenticationArguments args,
+         ref SASLChallengeArguments args,
          Int32 writeOffset,
          out Int32 serverNonceReadOffset,
          out Int32 serverNonceReadCount,
@@ -505,49 +514,50 @@ namespace UtilPack.Cryptography.SASL.SCRAM
       }
 
       private Int32 PerformValidate(
-         ref SASLAuthenticationArguments args,
+         ref SASLChallengeArguments args,
          SASLCredentialsSCRAMForClient credentials
          )
       {
          var encodingInfo = args.Encoding;
          var readArray = args.ReadArray;
          var readOffset = args.ReadOffset;
-
-         encodingInfo.VerifyASCIIBytes( readArray, ref readOffset, SCRAMCommon.VALIDATE_PREFIX );
-         // Using PBKDF2 result as HMAC key, calculate digest of "Server Key" ASCII bytes
          var algorithm = this._algorithm;
          var digestByteCount = algorithm.DigestByteCount;
-         var writeArray = args.WriteArray;
-         var computedStart = algorithm.BlockSize;
-         var writeArrayReservedCount = computedStart + digestByteCount;
-         writeArray.CurrentMaxCapacity = writeArrayReservedCount;
-         using ( var hmac = algorithm.CreateHMAC( credentials.PasswordDigest, 0, algorithm.DigestByteCount, skipDisposeAlgorithm: true, skipZeroingOutKey: true ) )
-         {
-            hmac.ComputeDigest( ServerKeyBytes, writeArray.Array );
-         }
 
-         // Using the computed digest as HMAC key, calculate digest for the concatenation of messages, stored to this._clientMessage in previous phase
-         var clientMsg = this._clientMessage;
-         var prevMsgLen = clientMsg.CurrentMaxCapacity;
-         while ( clientMsg.Array[prevMsgLen - 1] == 0 )
-         {
-            --prevMsgLen;
-         }
-         using ( var hmac = algorithm.CreateHMAC( writeArray.Array, 0, digestByteCount, skipDisposeAlgorithm: true ) )
-         {
-            hmac.ComputeDigest( clientMsg.Array, 0, prevMsgLen, writeArray.Array, computedStart );
-         }
-         // The digest is now in writeArray.Array starting at index digestByteCount
-         // We must now verify that that digest equals to the one sent by the server.
-         // We can either:
-         // 1. Decode-base64 server digest to writeArray and verify that array sections equal, or
-         // 2. Encode-base64 computed digest to writeArray and verify that textual data in readArray and writeArray equal.
-         // We choose #1 as it uses less memory, and we can detect invalid server tokens better.
-         var writeIndex = 0;
+         encodingInfo.VerifyASCIIBytes( readArray, ref readOffset, SCRAMCommon.VALIDATE_PREFIX );
+         var writeIndex = args.WriteOffset;
          var serverProofReadSize = args.ReadOffset + args.ReadCount - readOffset;
          var messageOK = serverProofReadSize == StringConversions.GetBase64CharCount( digestByteCount, true ) * encodingInfo.BytesPerASCIICharacter;
          if ( messageOK )
          {
+            // Using PBKDF2 result as HMAC key, calculate digest of "Server Key" ASCII bytes
+            var writeArray = args.WriteArray;
+            var computedStart = algorithm.BlockSize;
+            var writeArrayReservedCount = computedStart + digestByteCount;
+            writeArray.CurrentMaxCapacity = writeArrayReservedCount;
+            using ( var hmac = algorithm.CreateHMAC( credentials.PasswordDigest, 0, algorithm.DigestByteCount, skipDisposeAlgorithm: true, skipZeroingOutKey: true ) )
+            {
+               hmac.ComputeDigest( ServerKeyBytes, writeArray.Array );
+            }
+
+            // Using the computed digest as HMAC key, calculate digest for the concatenation of messages, stored to this._clientMessage in previous phase
+            var clientMsg = this._clientMessage;
+            var prevMsgLen = clientMsg.CurrentMaxCapacity;
+            while ( clientMsg.Array[prevMsgLen - 1] == 0 )
+            {
+               --prevMsgLen;
+            }
+            using ( var hmac = algorithm.CreateHMAC( writeArray.Array, 0, digestByteCount, skipDisposeAlgorithm: true ) )
+            {
+               hmac.ComputeDigest( clientMsg.Array, 0, prevMsgLen, writeArray.Array, computedStart );
+            }
+
+            // The digest is now in writeArray.Array starting at index digestByteCount
+            // We must now verify that that digest equals to the one sent by the server.
+            // We can either:
+            // 1. Decode-base64 server digest to writeArray and verify that array sections equal, or
+            // 2. Encode-base64 computed digest to writeArray and verify that textual data in readArray and writeArray equal.
+            // We choose #1 as it uses less memory, and we can detect invalid server tokens better.
             writeArray.CurrentMaxCapacity = writeIndex + digestByteCount;
             encodingInfo.ReadBase64PaddedASCIICharactersAsBinary(
                readArray,
@@ -558,7 +568,7 @@ namespace UtilPack.Cryptography.SASL.SCRAM
                false
                );
             // Verify that writeArray.Array[digestByteCount .. writeArrayReservedCount] segment equals to writeArray.Array[writeArrayReservedCount..writeArrayReservedCount+digestByteCount]segment
-            messageOK = writeIndex == digestByteCount;
+            messageOK = writeIndex - args.WriteOffset == digestByteCount;
             if ( messageOK )
             {
                var array = writeArray.Array;
@@ -577,15 +587,66 @@ namespace UtilPack.Cryptography.SASL.SCRAM
 
    }
 
+   /// <summary>
+   /// This class contains utility methods and extension methods for types defined in other assemblies than this.
+   /// </summary>
    public static partial class UtilPackUtility
    {
-
-      public static SASLMechanism CreateSASLClientSCRAM( this BlockDigestAlgorithm algorithm, Func<Byte[]> clientNonceGenerator = null )
+      /// <summary>
+      /// Creates a new instance of <see cref="SASLMechanism"/> that implements client-side SCRAM mechanism with this <see cref="BlockDigestAlgorithm"/>.
+      /// </summary>
+      /// <param name="algorithm">This <see cref="BlockDigestAlgorithm"/>, that will be used by SCRAM mechanism as its digest provider.</param>
+      /// <param name="nonceGenerator">The optional custom callback to provide client nonce. Please read remarks if supplying value.</param>
+      /// <returns>A new <see cref="SASLMechanism"/> which will behave as client-side when authenticating with SCRAM.</returns>
+      /// <remarks>
+      /// <para>
+      /// The returned <see cref="SASLMechanism"/> will expect the <see cref="SASLChallengeArguments.Credentials"/> field to always be non-null and of type <see cref="SASLCredentialsSCRAMForClient"/>.
+      /// </para>
+      /// <para>
+      /// The <paramref name="nonceGenerator"/>, if supplied, *must* return valid nonce (e.g. not containing any commas, printable ASCII characters, etc).
+      /// The returned nonce will be directly written to the message - it is not base64-encoded!
+      /// </para>
+      /// </remarks>
+      /// <exception cref="NullReferenceException">If this <see cref="BlockDigestAlgorithm"/> is <c>null</c>.</exception>
+      /// <seealso cref="SASLCredentialsSCRAMForClient"/>
+      /// <seealso cref="SCRAMCommon"/>
+      public static SASLMechanism CreateSASLClientSCRAM( this BlockDigestAlgorithm algorithm, Func<Byte[]> nonceGenerator = null )
       {
-         return new SASLMechanismSCRAMForClient( ArgumentValidator.ValidateNotNullReference( algorithm ), clientNonceGenerator );
+         return new SASLMechanismSCRAMForClient( ArgumentValidator.ValidateNotNullReference( algorithm ), nonceGenerator );
       }
    }
 
+}
+
+/// <summary>
+/// This class contains extension methods for types defined in this assembly.
+/// </summary>
+public static partial class E_UtilPack
+{
+   /// <summary>
+   /// Creates new <see cref="SASLChallengeArguments"/> from this client-side <see cref="SASLCredentialsSCRAMForClient"/>.
+   /// </summary>
+   /// <param name="credentials">This <see cref="SASLCredentialsSCRAMForClient"/>.</param>
+   /// <param name="readArray">The array containing remote response.</param>
+   /// <param name="readOffset">The offset in <paramref name="readArray"/> where remote response starts.</param>
+   /// <param name="readCount">The amount of bytes in <paramref name="readArray"/> that remote response takes.</param>
+   /// <param name="writeArray">The <see cref="ResizableArray{T}"/> where to write this response.</param>
+   /// <param name="writeOffset">The offset in <paramref name="writeArray"/> where to start writing.</param>
+   /// <param name="encoding">The <see cref="IEncodingInfo"/> to use for textual data.</param>
+   /// <returns>A new instance of <see cref="SASLChallengeArguments"/>.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="SASLCredentialsSCRAMForClient"/> is <c>null</c>.</exception>
+   public static SASLChallengeArguments CreateClientMechanismSCRAMArguments(
+      this SASLCredentialsSCRAMForClient credentials,
+      Byte[] readArray,
+      Int32 readOffset,
+      Int32 readCount,
+      ResizableArray<Byte> writeArray,
+      Int32 writeOffset,
+      IEncodingInfo encoding
+      )
+   {
+      return new SASLChallengeArguments( readArray, readOffset, readCount, writeArray, writeOffset, encoding, ArgumentValidator.ValidateNotNullReference( credentials ) );
+   }
 }
 
 internal static partial class E_TODO

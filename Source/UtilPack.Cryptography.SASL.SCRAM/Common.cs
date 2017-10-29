@@ -23,7 +23,10 @@ using UtilPack.Cryptography.Digest;
 
 namespace UtilPack.Cryptography.SASL.SCRAM
 {
-   internal static class SCRAMCommon
+   /// <summary>
+   /// This class contains some information common for both client- and server-side SCRAM mechanisms.
+   /// </summary>
+   public static class SCRAMCommon
    {
       internal const String WITHOUT_PROOF_PREFIX = "c=biws,r="; // biws = Base64-encoded "n,,"
       internal const String CLIENT_FIRST_PREFIX_1 = "n,,";
@@ -40,13 +43,45 @@ namespace UtilPack.Cryptography.SASL.SCRAM
 
       internal const Byte COMMA = (Byte) ',';
 
-      public const Int32 ERROR_INVALID_FORMAT = -2;
-      public const Int32 ERROR_INVALID_STATE = -3;
-      public const Int32 ERROR_SERVER_SENT_WRONG_NONCE = -4;
-      public const Int32 ERROR_SERVER_SENT_WRONG_PROOF = -5;
-      public const Int32 ERROR_CLIENT_SENT_WRONG_CREDENTIALS = -6;
-      public const Int32 ERROR_CLIENT_SENT_INVALID_NONCE = -7;
-      public const Int32 ERROR_CLIENT_SUPPLIED_WITH_INVALID_CREDENTIALS = -8;
+      /// <summary>
+      /// This error code is returned by both client and server when <see cref="SASLMechanism"/> is attempted to use concurrently.
+      /// </summary>
+      public const Int32 ERROR_CONCURRENT_ACCESS = 1;
+
+      /// <summary>
+      /// This error code is returned by both client and server when the remote response is in invalid format.
+      /// </summary>
+      public const Int32 ERROR_INVALID_RESPONSE_MESSAGE_FORMAT = 2;
+
+      /// <summary>
+      /// This error code is returned by both client and server when using <see cref="SASLMechanism.Challenge"/> is not suitable in its current state. One should call <see cref="SASLMechanism.Reset"/> and re-start authentication process.
+      /// </summary>
+      public const Int32 ERROR_INVALID_STATE = 3;
+
+      /// <summary>
+      /// This error code is returned by client when server sends wrong nonce.
+      /// </summary>
+      public const Int32 ERROR_SERVER_SENT_WRONG_NONCE = 4;
+
+      /// <summary>
+      /// This error code is returned by client when server sends wrong proof.
+      /// </summary>
+      public const Int32 ERROR_SERVER_SENT_WRONG_PROOF = 5;
+
+      /// <summary>
+      /// This error code is returned by server when client sends wrong credentials.
+      /// </summary>
+      public const Int32 ERROR_CLIENT_SENT_WRONG_CREDENTIALS = 6;
+
+      /// <summary>
+      /// This error code is returned by server when client sends invalid nonce.
+      /// </summary>
+      public const Int32 ERROR_CLIENT_SENT_INVALID_NONCE = 7;
+
+      /// <summary>
+      /// This error code is returned by client when <see cref="SASLCredentialsSCRAMForClient"/> object is <c>null</c> or in some way invalid.
+      /// </summary>
+      public const Int32 ERROR_CLIENT_SUPPLIED_WITH_INVALID_CREDENTIALS = 8;
 
       internal static Byte[] UseNonceGenerator( BlockDigestAlgorithm algorithm, Func<Byte[]> nonceGenerator )
       {

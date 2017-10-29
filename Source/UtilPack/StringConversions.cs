@@ -31,6 +31,11 @@ namespace UtilPack
       private static readonly Char[] LOOKUP_UC = new Char[] { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
       private static readonly Char[] LOOKUP_LC = new Char[] { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
+      internal static readonly Char[] BASE64_ENCODE_URLSAFE = CreateBase64EncodeLookupTable( true );
+      internal static readonly Char[] BASE64_ENCODE_URLUNSAFE = CreateBase64EncodeLookupTable( false );
+      internal static readonly Int32[] BASE64_DECODE_URLSAFE = CreateBase64DecodeLookupTable( true );
+      internal static readonly Int32[] BASE64_DECODE_URLUNSAFE = CreateBase64DecodeLookupTable( false );
+
       /// <summary>
       /// This method creates a textual representation in hexadecimal format of byte array <paramref name="data"/>.
       /// </summary>
@@ -172,7 +177,7 @@ namespace UtilPack
       /// </remarks>
       public static String EncodeBase64( this Byte[] bytes, Int32 start, Int32 length, Boolean useURLSafeEncoding )
       {
-         return bytes.EncodeBinary( start, length, CreateBase64EncodeLookupTable( useURLSafeEncoding ) );
+         return bytes.EncodeBinary( start, length, useURLSafeEncoding ? BASE64_ENCODE_URLSAFE : BASE64_ENCODE_URLUNSAFE );
       }
 
 
@@ -273,7 +278,7 @@ namespace UtilPack
       /// <returns>Byte array representing base64-decoded byte sequence from given string.</returns>
       public static Byte[] DecodeBase64( this String encoded, Boolean useURLSafeEncoding )
       {
-         return encoded.DecodeBinary( BASE64_UNIT_SIZE, CreateBase64DecodeLookupTable( useURLSafeEncoding ) );
+         return encoded.DecodeBinary( BASE64_UNIT_SIZE, useURLSafeEncoding ? BASE64_DECODE_URLSAFE : BASE64_DECODE_URLUNSAFE );
       }
 
       /// <summary>
@@ -421,6 +426,14 @@ namespace UtilPack
             };
       }
 
+      /// <summary>
+      /// This is helper method to generate lookup table for decoding strings into binary data using normal URL-safe or unsafe base64 encoding.
+      /// </summary>
+      /// <param name="isURLSafe">Whether encoding contains strings that are safe to use in URLs.</param>
+      /// <returns>
+      /// The lookup table to decode standard alphanumeric base64 characters with <c>-</c> and <c>_</c> characters, if <paramref name="isURLSafe"/> is <c>true</c>.
+      /// Otherwise those two characters will assumed to be <c>+</c> and <c>/</c>.
+      /// </returns>
       public static Int32[] CreateBase64DecodeLookupTable( Boolean isURLSafe )
       {
          // Use fully const arrays in order for them to be incorporated into binary file and thus have very fast initialization.
@@ -529,44 +542,98 @@ namespace UtilPack
          return retVal;
       }
 
+      /// <summary>
+      /// Gets the amount of characters needed to write binary data with given byte count, using given amount of bits per character, and whether to use padding.
+      /// </summary>
+      /// <param name="byteCount">The amount of bytes in binary data.</param>
+      /// <param name="pad">Whether the characters are expected to be padded.</param>
+      /// <param name="unitSize">The amount of bits each character will use. For base64, this is <c>6</c>.</param>
+      /// <returns>The amount of characters the binary data will use with given parameters.</returns>
+      /// <seealso cref="GetBase64CharCount"/>
+      /// <exception cref="ArgumentOutOfRangeException">If <paramref name="byteCount"/> is &lt; <c>0</c>, or if <paramref name="unitSize"/> is not within range <c>0</c> ≤ <paramref name="unitSize"/> ≤ <c>8</c>.</exception>
       public static Int32 GetBinaryCharCount( Int32 byteCount, Boolean pad, Int32 unitSize )
       {
-         var raw = BinaryUtils.AmountOfPagesTaken( byteCount * BYTE_SIZE, unitSize );
-         if ( raw > 0 && pad )
-         {
-            Int32 charChunkSize;
-            switch ( unitSize )
-            {
-               case 6:
-                  charChunkSize = 4;
-                  break;
-               case 3:
-               case 5:
-               case 7:
-                  charChunkSize = 8;
-                  break;
-               default:
-                  charChunkSize = -1;
-                  break;
-            }
 
-            if ( charChunkSize > 0 )
+         if ( byteCount < 0 )
+         {
+            throw new ArgumentOutOfRangeException( nameof( byteCount ) );
+         }
+         else if ( unitSize < 0 || unitSize > BYTE_SIZE )
+         {
+            throw new ArgumentOutOfRangeException( nameof( unitSize ) );
+         }
+
+         Int32 retVal;
+         checked
+         {
+            if ( byteCount > 0 && unitSize > 0 )
             {
-               raw = raw.RoundUpI32( charChunkSize ); // charChunkSize will always be power of 2
+               if ( unitSize == BYTE_SIZE )
+               {
+                  retVal = byteCount;
+               }
+               else
+               {
+                  retVal = BinaryUtils.AmountOfPagesTaken( byteCount * BYTE_SIZE, unitSize );
+                  if ( pad )
+                  {
+                     Int32 charChunkSize;
+                     switch ( unitSize )
+                     {
+                        case 6:
+                           charChunkSize = 4;
+                           break;
+                        case 3:
+                        case 5:
+                        case 7:
+                           charChunkSize = 8;
+                           break;
+                        default:
+                           charChunkSize = -1;
+                           break;
+                     }
+
+                     if ( charChunkSize > 0 )
+                     {
+                        retVal = retVal.RoundUpI32( charChunkSize ); // charChunkSize will always be power of 2
+                     }
+                  }
+               }
+            }
+            else
+            {
+               retVal = 0;
             }
          }
 
-         return raw;
+         return retVal;
       }
 
+      /// <summary>
+      /// Gets the amnount of characters used by the base64-encoded binary data of given size.
+      /// </summary>
+      /// <param name="byteCount">The amount of bytes in binary data.</param>
+      /// <param name="pad">Whether the string should be padded.</param>
+      /// <returns>The amount of characters used by the base64-encoded binar ydata of given size.</returns>
       public static Int32 GetBase64CharCount( Int32 byteCount, Boolean pad )
          => GetBinaryCharCount( byteCount, pad, BASE64_UNIT_SIZE );
 
+      /// <summary>
+      /// Gets the amount of bytes used by binary data encoded by characters.
+      /// </summary>
+      /// <param name="charCount">The amount of characters taken by the data representation.</param>
+      /// <param name="unitSize">The amount of bits each character represents.</param>
+      /// <returns>The amount of bytes used by binary data encoded by characters.</returns>
       public static Int32 GetCharBinaryCount( Int32 charCount, Int32 unitSize )
       {
-         return ( charCount * unitSize / BYTE_SIZE );
+         return checked(( charCount * unitSize / BYTE_SIZE ));
       }
 
+      /// <summary>
+      /// Gets the amount of bytes used by binary data encoded by base64 encoding.
+      /// </summary>
+      /// <param name="charCount">The amount of characters taken by the data representation.</param>
+      /// <returns>>The amount of bytes used by binary data encoded by base64 encoding.</returns>
       public static Int32 GetBase64CharBinaryCount( Int32 charCount )
          => GetCharBinaryCount( charCount, BASE64_UNIT_SIZE );
    }
@@ -574,42 +641,23 @@ namespace UtilPack
 
 public static partial class E_UtilPack
 {
-   public static Int32 GetBinaryCharCount( this IEncodingInfo encoding, Int32 byteCount, Boolean pad, Int32 unitSize )
-   {
-      var raw = BinaryUtils.AmountOfPagesTaken( byteCount * StringConversions.BYTE_SIZE, unitSize );
-      if ( raw > 0 && pad )
-      {
-         Int32 charChunkSize;
-         switch ( unitSize )
-         {
-            case 6:
-               charChunkSize = 4;
-               break;
-            case 3:
-            case 5:
-            case 7:
-               charChunkSize = 8;
-               break;
-            default:
-               charChunkSize = -1;
-               break;
-         }
-
-         if ( charChunkSize > 0 )
-         {
-            raw = raw.RoundUpI32( charChunkSize ); // charChunkSize will always be power of 2
-         }
-      }
-
-      return raw;
-   }
-
-   public static Int32 GetBase64CharCount( this IEncodingInfo encoding, Int32 byteCount, Boolean pad )
-      => encoding.GetBinaryCharCount( byteCount, pad, StringConversions.BASE64_UNIT_SIZE );
-
 
    private const Byte BASE64_PADDING = (Byte) '=';
 
+   /// <summary>
+   /// Writes the given binary data as base64-encoded ASCII characters to given array, encoded by this <see cref="IEncodingInfo"/>. Will use padding character <c>'='</c> to pad the data to 4-char-boundary, if needed.
+   /// </summary>
+   /// <param name="encoding">This <see cref="IEncodingInfo"/>.</param>
+   /// <param name="sourceArray">The array containing the data to be encoded.</param>
+   /// <param name="sourceOffset">The index in <paramref name="sourceArray"/> where to read first byte.</param>
+   /// <param name="sourceCount">The amount of bytes to read from <paramref name="sourceArray"/>.</param>
+   /// <param name="targetArray">The array where to write binary representation of the characters, using this <see cref="IEncodingInfo"/>.</param>
+   /// <param name="targetArrayIndex">The index in <paramref name="targetArray"/> where to write first byte. Will be incremented by the amount of bytes written. This may be different than amount of characters written, depending on this <see cref="IEncodingInfo"/>.</param>
+   /// <param name="isURLSafe">Whether to use URL-safe base64 encoding.</param>
+   /// <exception cref="NullReferenceException">If this <paramref name="encoding"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="sourceArray"/> or <paramref name="targetArray"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentOutOfRangeException">If <paramref name="sourceOffset"/> or <paramref name="sourceCount"/> is less than <c>0</c>.</exception>
+   /// <exception cref="ArgumentException">If <paramref name="sourceOffset"/> + <paramref name="sourceCount"/> is greater than array length.</exception>
    public static void WriteBinaryAsBase64ASCIICharactersWithPadding(
       this IEncodingInfo encoding,
       Byte[] sourceArray,
@@ -623,12 +671,29 @@ public static partial class E_UtilPack
       sourceArray,
       sourceOffset,
       sourceCount,
-      StringConversions.CreateBase64EncodeLookupTable( isURLSafe ),
+      isURLSafe ? StringConversions.BASE64_ENCODE_URLSAFE : StringConversions.BASE64_ENCODE_URLUNSAFE,
       targetArray,
       ref targetArrayIndex,
       BASE64_PADDING
    );
 
+
+   /// <summary>
+   /// Writes the given binary data as ASCII characters to given array, encoded by this <see cref="IEncodingInfo"/>. Will use given padding character to pad the data to char boundary, if needed.
+   /// </summary>
+   /// <param name="encoding">This <see cref="IEncodingInfo"/>.</param>
+   /// <param name="sourceArray">The array containing the data to be encoded.</param>
+   /// <param name="sourceOffset">The index in <paramref name="sourceArray"/> where to read first byte.</param>
+   /// <param name="sourceCount">The amount of bytes to read from <paramref name="sourceArray"/>.</param>
+   /// <param name="lookupArray">The array containing characters used by the encoding.</param>
+   /// <param name="targetArray">The array where to write binary representation of the characters, using this <see cref="IEncodingInfo"/>.</param>
+   /// <param name="targetArrayIndex">The index in <paramref name="targetArray"/> where to write first byte. Will be incremented by the amount of bytes written. This may be different than amount of characters written, depending on this <see cref="IEncodingInfo"/>.</param>
+   /// <param name="padding">The padding ASCII character to use.</param>
+   /// <exception cref="NullReferenceException">If this <paramref name="encoding"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="sourceArray"/> or <paramref name="targetArray"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentOutOfRangeException">If <paramref name="sourceOffset"/> or <paramref name="sourceCount"/> is less than <c>0</c>.</exception>
+   /// <exception cref="ArgumentException">If <paramref name="sourceOffset"/> + <paramref name="sourceCount"/> is greater than array length.</exception>
+   /// <exception cref="IndexOutOfRangeException">If <paramref name="lookupArray"/> does not have representation for bits encountered in <paramref name="sourceArray"/>.</exception>
    public static void WriteBinaryAsASCIICharactersWithPadding(
      this IEncodingInfo encoding,
      Byte[] sourceArray,
@@ -650,6 +715,20 @@ public static partial class E_UtilPack
       }
    }
 
+   /// <summary>
+   /// Writes the given binary data as base64-encoded ASCII characters to given array, encoded by this <see cref="IEncodingInfo"/>. No padding will be used.
+   /// </summary>
+   /// <param name="encoding">This <see cref="IEncodingInfo"/>.</param>
+   /// <param name="sourceArray">The array containing the data to be encoded.</param>
+   /// <param name="sourceOffset">The index in <paramref name="sourceArray"/> where to read first byte.</param>
+   /// <param name="sourceCount">The amount of bytes to read from <paramref name="sourceArray"/>.</param>
+   /// <param name="targetArray">The array where to write binary representation of the characters, using this <see cref="IEncodingInfo"/>.</param>
+   /// <param name="targetArrayIndex">The index in <paramref name="targetArray"/> where to write first byte. Will be incremented by the amount of bytes written. This may be different than amount of characters written, depending on this <see cref="IEncodingInfo"/>.</param>
+   /// <param name="isURLSafe">Whether to use URL-safe base64 encoding.</param>
+   /// <exception cref="NullReferenceException">If this <paramref name="encoding"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="sourceArray"/> or <paramref name="targetArray"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentOutOfRangeException">If <paramref name="sourceOffset"/> or <paramref name="sourceCount"/> is less than <c>0</c>.</exception>
+   /// <exception cref="ArgumentException">If <paramref name="sourceOffset"/> + <paramref name="sourceCount"/> is greater than array length.</exception>
    public static void WriteBinaryAsBase64ASCIICharacters(
       this IEncodingInfo encoding,
       Byte[] sourceArray,
@@ -659,8 +738,23 @@ public static partial class E_UtilPack
       ref Int32 targetArrayIndex,
       Boolean isURLSafe
       )
-      => encoding.WriteBinaryAsASCIICharacters( sourceArray, sourceOffset, sourceCount, UtilPack.StringConversions.CreateBase64EncodeLookupTable( isURLSafe ), targetArray, ref targetArrayIndex, out var unitSize );
+      => encoding.WriteBinaryAsASCIICharacters( sourceArray, sourceOffset, sourceCount, isURLSafe ? StringConversions.BASE64_ENCODE_URLSAFE : StringConversions.BASE64_ENCODE_URLUNSAFE, targetArray, ref targetArrayIndex, out var unitSize );
 
+   /// <summary>
+   /// Writes the given binary data as ASCII characters to given array, encoded by this <see cref="IEncodingInfo"/>. No padding will be used.
+   /// </summary>
+   /// <param name="encoding">This <see cref="IEncodingInfo"/>.</param>
+   /// <param name="sourceArray">The array containing the data to be encoded.</param>
+   /// <param name="sourceOffset">The index in <paramref name="sourceArray"/> where to read first byte.</param>
+   /// <param name="sourceCount">The amount of bytes to read from <paramref name="sourceArray"/>.</param>
+   /// <param name="lookupArray">The array containing characters used by the encoding.</param>
+   /// <param name="targetArray">The array where to write binary representation of the characters, using this <see cref="IEncodingInfo"/>.</param>
+   /// <param name="targetArrayIndex">The index in <paramref name="targetArray"/> where to write first byte. Will be incremented by the amount of bytes written. This may be different than amount of characters written, depending on this <see cref="IEncodingInfo"/>.</param>
+   /// <exception cref="NullReferenceException">If this <paramref name="encoding"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="sourceArray"/> or <paramref name="targetArray"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentOutOfRangeException">If <paramref name="sourceOffset"/> or <paramref name="sourceCount"/> is less than <c>0</c>.</exception>
+   /// <exception cref="ArgumentException">If <paramref name="sourceOffset"/> + <paramref name="sourceCount"/> is greater than array length.</exception>
+   /// <exception cref="IndexOutOfRangeException">If <paramref name="lookupArray"/> does not have representation for bits encountered in <paramref name="sourceArray"/>.</exception>
    public static void WriteBinaryAsASCIICharacters(
       this IEncodingInfo encoding,
       Byte[] sourceArray,
@@ -682,6 +776,7 @@ public static partial class E_UtilPack
       out Int32 unitSize
       )
    {
+      ArgumentValidator.ValidateNotNullReference( encoding );
       sourceArray.CheckArrayArguments( sourceOffset, sourceCount, false );
       ArgumentValidator.ValidateNotNull( nameof( lookupArray ), lookupArray );
       ArgumentValidator.ValidateNotNull( nameof( targetArray ), targetArray );
@@ -735,6 +830,22 @@ public static partial class E_UtilPack
 
    }
 
+
+   /// <summary>
+   /// Reads the byte array as characters encoded with this <see cref="IEncodingInfo"/>, and decodes those characters as base64 characters into binary data. Any padding characters (<c>'='</c>) will be ignored.
+   /// </summary>
+   /// <param name="encoding">This <see cref="IEncodingInfo"/>.</param>
+   /// <param name="sourceArray">The byte array containing characters encoded with this <see cref="IEncodingInfo"/>.</param>
+   /// <param name="sourceOffset">The index in <paramref name="sourceArray"/> where to start reading.</param>
+   /// <param name="sourceCount">The amount of bytes to read from <paramref name="sourceArray"/>.</param>
+   /// <param name="targetArray">The byte array where to write decoded binary data.</param>
+   /// <param name="targetArrayIndex">The index in <paramref name="targetArray"/> where to start writing. Will be incremented by the amount of bytes written.</param>
+   /// <param name="isURLSafe">Whether to use URL-safe base64 encoding.</param>
+   /// <exception cref="NullReferenceException">If this <paramref name="encoding"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="sourceArray"/> or <paramref name="targetArray"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentOutOfRangeException">If <paramref name="sourceOffset"/> or <paramref name="sourceCount"/> is less than <c>0</c>.</exception>
+   /// <exception cref="ArgumentException">If <paramref name="sourceOffset"/> + <paramref name="sourceCount"/> is greater than array length.</exception>
+   /// <exception cref="FormatException">If character not part of base64 encoding is encountered.</exception>
    public static void ReadBase64PaddedASCIICharactersAsBinary(
       this IEncodingInfo encoding,
       Byte[] sourceArray,
@@ -744,8 +855,25 @@ public static partial class E_UtilPack
       ref Int32 targetArrayIndex,
       Boolean isURLSafe
       )
-      => encoding.ReadPaddedASCIICharactersAsBinary( sourceArray, sourceOffset, sourceCount, 6, UtilPack.StringConversions.CreateBase64DecodeLookupTable( isURLSafe ), targetArray, ref targetArrayIndex, BASE64_PADDING );
+      => encoding.ReadPaddedASCIICharactersAsBinary( sourceArray, sourceOffset, sourceCount, 6, isURLSafe ? StringConversions.BASE64_DECODE_URLSAFE : StringConversions.BASE64_DECODE_URLUNSAFE, targetArray, ref targetArrayIndex, BASE64_PADDING );
 
+   /// <summary>
+   /// Reads the byte array as characters encoded with this <see cref="IEncodingInfo"/>, and decodes those characters as ASCII characters into binary data. Any padding characters will be ignored.
+   /// </summary>
+   /// <param name="encoding">This <see cref="IEncodingInfo"/>.</param>
+   /// <param name="sourceArray">The byte array containing characters encoded with this <see cref="IEncodingInfo"/>.</param>
+   /// <param name="sourceOffset">The index in <paramref name="sourceArray"/> where to start reading.</param>
+   /// <param name="sourceCount">The amount of bytes to read from <paramref name="sourceArray"/>.</param>
+   /// <param name="unitSize">The amount of data bits each character describes.</param>
+   /// <param name="lookupTable">The array containing decoded data values for characters.</param>
+   /// <param name="targetArray">The byte array where to write decoded binary data.</param>
+   /// <param name="targetArrayIndex">The index in <paramref name="targetArray"/> where to start writing. Will be incremented by the amount of bytes written.</param>
+   /// <param name="padding">The padding character at the end of the characters, which will be ignored.</param>
+   /// <exception cref="NullReferenceException">If this <paramref name="encoding"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="sourceArray"/> or <paramref name="targetArray"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentOutOfRangeException">If <paramref name="sourceOffset"/> or <paramref name="sourceCount"/> is less than <c>0</c>.</exception>
+   /// <exception cref="ArgumentException">If <paramref name="sourceOffset"/> + <paramref name="sourceCount"/> is greater than array length.</exception>
+   /// <exception cref="FormatException">If character not part of data encoding is encountered.</exception>
    public static void ReadPaddedASCIICharactersAsBinary(
       this IEncodingInfo encoding,
       Byte[] sourceArray,
@@ -776,6 +904,21 @@ public static partial class E_UtilPack
 
    }
 
+   /// <summary>
+   /// Reads the byte array as characters encoded with this <see cref="IEncodingInfo"/>, and decodes those characters as base64 characters into binary data. Any other characters, including padding characters, will cause an exception.
+   /// </summary>
+   /// <param name="encoding">This <see cref="IEncodingInfo"/>.</param>
+   /// <param name="sourceArray">The byte array containing characters encoded with this <see cref="IEncodingInfo"/>.</param>
+   /// <param name="sourceOffset">The index in <paramref name="sourceArray"/> where to start reading.</param>
+   /// <param name="sourceCount">The amount of bytes to read from <paramref name="sourceArray"/>.</param>
+   /// <param name="targetArray">The byte array where to write decoded binary data.</param>
+   /// <param name="targetArrayIndex">The index in <paramref name="targetArray"/> where to start writing. Will be incremented by the amount of bytes written.</param>
+   /// <param name="isURLSafe">Whether to use URL-safe base64 encoding.</param>
+   /// <exception cref="NullReferenceException">If this <paramref name="encoding"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="sourceArray"/> or <paramref name="targetArray"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentOutOfRangeException">If <paramref name="sourceOffset"/> or <paramref name="sourceCount"/> is less than <c>0</c>.</exception>
+   /// <exception cref="ArgumentException">If <paramref name="sourceOffset"/> + <paramref name="sourceCount"/> is greater than array length.</exception>
+   /// <exception cref="FormatException">If character not part of base64 encoding is encountered.</exception>
    public static void ReadBase64ASCIICharactersAsBinary(
       this IEncodingInfo encoding,
       Byte[] sourceArray,
@@ -785,9 +928,25 @@ public static partial class E_UtilPack
       ref Int32 targetArrayIndex,
       Boolean isURLSafe
       )
-   => encoding.ReadASCIICharactersAsBinary( sourceArray, sourceOffset, sourceCount, 6, UtilPack.StringConversions.CreateBase64DecodeLookupTable( isURLSafe ), targetArray, ref targetArrayIndex );
+   => encoding.ReadASCIICharactersAsBinary( sourceArray, sourceOffset, sourceCount, 6, isURLSafe ? StringConversions.BASE64_DECODE_URLSAFE : StringConversions.BASE64_DECODE_URLUNSAFE, targetArray, ref targetArrayIndex );
 
 
+   /// <summary>
+   /// Reads the byte array as characters encoded with this <see cref="IEncodingInfo"/>, and decodes those characters as ASCII characters into binary data. Any other characters, including padding characters, will cause an exception.
+   /// </summary>
+   /// <param name="encoding">This <see cref="IEncodingInfo"/>.</param>
+   /// <param name="sourceArray">The byte array containing characters encoded with this <see cref="IEncodingInfo"/>.</param>
+   /// <param name="sourceOffset">The index in <paramref name="sourceArray"/> where to start reading.</param>
+   /// <param name="sourceCount">The amount of bytes to read from <paramref name="sourceArray"/>.</param>
+   /// <param name="unitSize">The amount of data bits each character describes.</param>
+   /// <param name="lookupTable">The array containing decoded data values for characters.</param>
+   /// <param name="targetArray">The byte array where to write decoded binary data.</param>
+   /// <param name="targetArrayIndex">The index in <paramref name="targetArray"/> where to start writing. Will be incremented by the amount of bytes written.</param>
+   /// <exception cref="NullReferenceException">If this <paramref name="encoding"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="sourceArray"/> or <paramref name="targetArray"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentOutOfRangeException">If <paramref name="sourceOffset"/> or <paramref name="sourceCount"/> is less than <c>0</c>.</exception>
+   /// <exception cref="ArgumentException">If <paramref name="sourceOffset"/> + <paramref name="sourceCount"/> is greater than array length.</exception>
+   /// <exception cref="FormatException">If character not part of data encoding is encountered.</exception>
    public static void ReadASCIICharactersAsBinary(
       this IEncodingInfo encoding,
       Byte[] sourceArray,
@@ -815,7 +974,7 @@ public static partial class E_UtilPack
          var value = lookupTable[c];
          if ( value < 0 )
          {
-            throw new InvalidOperationException( "Character \"" + (Char) c + "\" not found from lookup table." );
+            throw new FormatException( "Character \"" + (Char) c + "\" not found from lookup table." );
          }
          else
          {

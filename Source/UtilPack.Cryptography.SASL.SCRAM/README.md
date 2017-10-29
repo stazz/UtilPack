@@ -19,7 +19,7 @@ using ( var client = new SHA256().CreateSASLClientSCRAM() )
     );
 
   // Create client-first message
-  (var bytesWritten, var challengeResult) = await client.ChallengeOrThrowOnErrorAsync( credentials.CreateClientMechanismSCRAMArguments(
+  (var bytesWritten, var challengeResult) = await client.ChallengeOrThrowOnErrorAsync( credentials.CreateChallengeArguments(
     null, // Initial phase does not read anything
     -1,
     -1,
@@ -36,7 +36,7 @@ using ( var client = new SHA256().CreateSASLClientSCRAM() )
   var readCount = await stream.ReadAsync( readBytes, 0, readBytes.Length ); // Assume this simple and naïve read for this small example
 
   // Create client-final message
-  (bytesWritten, challengeResult) = await client.ChallengeOrThrowOnErrorAsync( credentials.CreateClientMechanismSCRAMArguments(
+  (bytesWritten, challengeResult) = await client.ChallengeOrThrowOnErrorAsync( credentials.CreateChallengeArguments(
     readBytes,
     0,
     readCount,
@@ -54,7 +54,7 @@ using ( var client = new SHA256().CreateSASLClientSCRAM() )
   var readCount = await stream.ReadAsync(readBytes, 0, readBytes.Length );
   
   // Validate server-final message
-  (bytesWritten, challengeResult) = await client.ChallengeOrThrowOnErrorAsync( credentials.CreateClientMechanismSCRAMArguments(
+  (bytesWritten, challengeResult) = await client.ChallengeOrThrowOnErrorAsync( credentials.CreateChallengeArguments(
     readBytes,
     0,
     readCount,

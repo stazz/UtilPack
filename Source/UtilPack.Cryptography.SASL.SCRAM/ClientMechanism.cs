@@ -635,7 +635,7 @@ public static partial class E_UtilPack
    /// <param name="encoding">The <see cref="IEncodingInfo"/> to use for textual data.</param>
    /// <returns>A new instance of <see cref="SASLChallengeArguments"/>.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="SASLCredentialsSCRAMForClient"/> is <c>null</c>.</exception>
-   public static SASLChallengeArguments CreateClientMechanismSCRAMArguments(
+   public static SASLChallengeArguments CreateChallengeArguments(
       this SASLCredentialsSCRAMForClient credentials,
       Byte[] readArray,
       Int32 readOffset,

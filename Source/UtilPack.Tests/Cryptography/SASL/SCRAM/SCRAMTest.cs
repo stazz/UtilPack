@@ -59,7 +59,7 @@ namespace UtilPack.Tests.Cryptography.SASL.SCRAM
                );
 
             // Phase 1.
-            (var bytesWritten, var challengeResult) = client.ChallengeAsync( credentials.CreateClientMechanismSCRAMArguments(
+            (var bytesWritten, var challengeResult) = client.ChallengeAsync( credentials.CreateChallengeArguments(
                null, // Initial phase does not read anything
                -1,
                -1,
@@ -73,7 +73,7 @@ namespace UtilPack.Tests.Cryptography.SASL.SCRAM
 
             // Phase 2.
             var serverBytes = encoding.Encoding.GetBytes( "r=" + clientNonce + serverNonce + ",s=" + serverSalt + ",i=" + iterationCount );
-            (bytesWritten, challengeResult) = client.ChallengeAsync( credentials.CreateClientMechanismSCRAMArguments(
+            (bytesWritten, challengeResult) = client.ChallengeAsync( credentials.CreateChallengeArguments(
                serverBytes,
                0,
                serverBytes.Length,
@@ -88,7 +88,7 @@ namespace UtilPack.Tests.Cryptography.SASL.SCRAM
 
             // Phase 3
             serverBytes = encoding.Encoding.GetBytes( "v=" + serverProof );
-            (bytesWritten, challengeResult) = client.ChallengeAsync( credentials.CreateClientMechanismSCRAMArguments(
+            (bytesWritten, challengeResult) = client.ChallengeAsync( credentials.CreateChallengeArguments(
                serverBytes,
                0,
                serverBytes.Length,
@@ -145,7 +145,7 @@ namespace UtilPack.Tests.Cryptography.SASL.SCRAM
             var serverCredentials = new SASLCredentialsHolder();
 
             // Client-first
-            (var bytesWritten, var challengeResult) = client.ChallengeAsync( clientCredentials.CreateClientMechanismSCRAMArguments(
+            (var bytesWritten, var challengeResult) = client.ChallengeAsync( clientCredentials.CreateChallengeArguments(
                null, // Initial phase does not read anything
                -1,
                -1,
@@ -170,7 +170,7 @@ namespace UtilPack.Tests.Cryptography.SASL.SCRAM
             Assert.AreNotEqual( 0, serverCallbackCalled );
 
             // Client-final
-            (bytesWritten, challengeResult) = client.ChallengeAsync( clientCredentials.CreateClientMechanismSCRAMArguments(
+            (bytesWritten, challengeResult) = client.ChallengeAsync( clientCredentials.CreateChallengeArguments(
                serverWriteArray.Array,
                0,
                bytesWritten,
@@ -194,7 +194,7 @@ namespace UtilPack.Tests.Cryptography.SASL.SCRAM
             Assert.AreEqual( challengeResult, SASLChallengeResult.Completed );
 
             // Client-validate
-            (bytesWritten, challengeResult) = client.ChallengeAsync( clientCredentials.CreateClientMechanismSCRAMArguments(
+            (bytesWritten, challengeResult) = client.ChallengeAsync( clientCredentials.CreateChallengeArguments(
                serverWriteArray.Array,
                0,
                bytesWritten,

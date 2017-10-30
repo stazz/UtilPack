@@ -180,6 +180,7 @@ namespace UtilPack.NuGet.MSBuild
          IBuildEngine taskFactoryLoggingHost
          )
       {
+
          var retVal = false;
          var nugetLogger = new NuGetMSBuildLogger(
             "NR0001",
@@ -226,6 +227,7 @@ namespace UtilPack.NuGet.MSBuild
                   // On Desktop we must always load everything, since it's possible to have assemblies compiled against .NET Standard having references to e.g. System.IO.FileSystem.dll, which is not present in GAC
 #if NET45
                   String[] sdkPackages = null;
+                  AppDomainSetup appDomainSetup = null;
 #else
 
                   var sdkPackageID = thisFW.GetSDKPackageID( taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_ID )?.Value );
@@ -274,14 +276,17 @@ namespace UtilPack.NuGet.MSBuild
                               packageID,
                               packageVersion,
                               assemblyPath,
+                              assemblyPathHint,
                               nugetResolver,
                               new ResolverLogger( nugetLogger ),
                               getFiles,
-                              tempFolder
-#if !NET45
-                     , sdkRestoreResult
+                              tempFolder,
+#if NET45
+                              ref appDomainSetup
+#else
+                              sdkRestoreResult
 #endif
-                   );
+                           );
                         }
                         catch ( Exception exc )
                         {
@@ -1123,7 +1128,7 @@ namespace UtilPack.NuGet.MSBuild
             .ToArray();
          var iTask = mbfInterfaces
             .Where( iFace => iFace.FullName.Equals( CommonHelpers.MBF + nameof( Microsoft.Build.Framework.ITask ) ) )
-            .FirstOrDefault() ?? throw new ArgumentException( $"The task \"{taskType.FullName}\" located in \"{taskType.GetTypeInfo().Assembly.CodeBase}\" does not seem to implement \"{nameof( Microsoft.Build.Framework.ITask )}\" interface. Make sure the MSBuild target version is at least 14.3. Seen interfaces: {String.Join( ",", taskType.GetInterfaces().Select( i => i.AssemblyQualifiedName ) )}. Seen MBF interfaces: {String.Join( ",", mbfInterfaces.Select( i => i.FullName ) )}. MBF assembly name: \"{msbuildFrameworkAssemblyName}\"." );
+            .FirstOrDefault() ?? throw new ArgumentException( $"The task \"{taskType.FullName}\" located in \"{taskType.GetTypeInfo().Assembly.CodeBase}\" does not seem to implement \"{nameof( Microsoft.Build.Framework.ITask )}\" interface. Make sure the MSBuild target version is at least 14.3. Seen interfaces: {String.Join( ",", taskType.GetInterfaces().Select( i => i.AssemblyQualifiedName ) )}. Seen assemblies: {String.Join( ",", taskType.GetInterfaces().Select( i => i.GetTypeInfo().Assembly.CodeBase ) )}. Seen MBF interfaces: {String.Join( ",", mbfInterfaces.Select( i => i.FullName ) )}. MBF assembly name: \"{msbuildFrameworkAssemblyName}\"." );
 
          // TODO explicit implementations
          this._executeMethod = iTask.GetMethods()

@@ -43,25 +43,25 @@ namespace UtilPack.NuGet.MSBuild
          XElement taskBodyElement,
          String taskPackageID,
          String taskPackageVersion,
-         String taskAssemblyPath,
+         String taskAssemblyFullPath,
+         String taskAssemblyPathHint,
          BoundRestoreCommandUser restorer,
          ResolverLogger resolverLogger,
          GetFileItemsDelegate getFiles,
-         String assemblyCopyTargetFolder
+         String assemblyCopyTargetFolder,
+         ref AppDomainSetup appDomainSetup
          )
       {
-         var assemblyDir = Path.GetDirectoryName( taskAssemblyPath );
-         var aSetup = new AppDomainSetup()
+         if ( appDomainSetup == null )
          {
-            ApplicationBase = assemblyDir,
-            ConfigurationFile = taskAssemblyPath + ".config"
-         };
+            Interlocked.CompareExchange( ref appDomainSetup, this.CreateAppDomainSetup( taskAssemblyFullPath ), null );
+         }
 
          var mbfAssembly = typeof( Microsoft.Build.Framework.ITask ).Assembly;
          var mbfAssemblyDir = Path.GetDirectoryName( new Uri( mbfAssembly.CodeBase ).LocalPath );
          var thisLoader = NuGetAssemblyResolverFactory.NewNuGetAssemblyResolver(
             restorer,
-            aSetup,
+            appDomainSetup,
             out var createdDomain,
             defaultGetFiles: getFiles,
             overrideLocation: ( assemblyName ) =>
@@ -99,7 +99,7 @@ namespace UtilPack.NuGet.MSBuild
                thisLoader,
                taskPackageID,
                taskPackageVersion,
-               taskAssemblyPath,
+               taskAssemblyPathHint,
                mbfAssembly.GetName().FullName,
                resolverLogger
                ),
@@ -117,6 +117,24 @@ namespace UtilPack.NuGet.MSBuild
                }
             }
          );
+      }
+
+      private AppDomainSetup CreateAppDomainSetup(
+         String taskAssemblyFullPath
+         )
+      {
+         var assemblyDir = Path.GetDirectoryName( taskAssemblyFullPath );
+         var aSetup = new AppDomainSetup()
+         {
+            ApplicationBase = assemblyDir,
+            ConfigurationFile = AppDomain.CurrentDomain.SetupInformation.ConfigurationFile,
+            DisallowBindingRedirects = false,
+         };
+
+         // TODO if the DLL has its own configuration file, merge it with the one loaded by this app domain
+         // Configuration file of this domain will be typically {msbuild bin path}\MSBuild.exe.config, and will take care of version redirects for MSBuild assemblies
+
+         return aSetup;
       }
    }
 

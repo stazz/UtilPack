@@ -46,7 +46,8 @@ namespace UtilPack.NuGet.MSBuild
          XElement taskBodyElement,
          String taskPackageID,
          String taskPackageVersion,
-         String taskAssemblyPath,
+         String taskAssemblyFullPath,
+         String taskAssemblyPathHint,
          BoundRestoreCommandUser restorer,
          ResolverLogger resolverLogger,
          GetFileItemsDelegate getFiles,
@@ -77,7 +78,7 @@ namespace UtilPack.NuGet.MSBuild
             thisLoader,
             taskPackageID,
             taskPackageVersion,
-            taskAssemblyPath,
+            taskAssemblyPathHint,
             out var taskCtor,
             out var taskCtorArgs,
             out var taskUsesDynamicLoading

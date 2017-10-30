@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.27004.2002
+VisualStudioVersion = 15.0.27004.2005
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack", "UtilPack\UtilPack.csproj", "{6023CF33-713A-471D-A58C-D59228E900A3}"
 EndProject
@@ -45,9 +45,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.ResourcePooling.MS
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.ResourcePooling.NetworkStream", "UtilPack.ResourcePooling.NetworkStream\UtilPack.ResourcePooling.NetworkStream.csproj", "{0CC65E99-25B5-4B64-A330-9FC4BC41AE97}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.Cryptography.SASL", "UtilPack.Cryptography.SASL\UtilPack.Cryptography.SASL.csproj", "{D8D38563-AEE6-4244-BE8F-05C8F39E3366}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Cryptography.SASL", "UtilPack.Cryptography.SASL\UtilPack.Cryptography.SASL.csproj", "{D8D38563-AEE6-4244-BE8F-05C8F39E3366}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.Cryptography.SASL.SCRAM", "UtilPack.Cryptography.SASL.SCRAM\UtilPack.Cryptography.SASL.SCRAM.csproj", "{C11F826C-9CB6-488C-B488-2CD8A514AB0E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Cryptography.SASL.SCRAM", "UtilPack.Cryptography.SASL.SCRAM\UtilPack.Cryptography.SASL.SCRAM.csproj", "{C11F826C-9CB6-488C-B488-2CD8A514AB0E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

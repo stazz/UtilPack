@@ -53,6 +53,7 @@ using UtilPack.NuGet.MSBuild;
 using UtilPack;
 using UtilPack.NuGet.AssemblyLoading;
 using UtilPack.NuGet.Common.MSBuild;
+using NuGet.Packaging.Core;
 
 namespace UtilPack.NuGet.MSBuild
 {
@@ -397,19 +398,28 @@ namespace UtilPack.NuGet.MSBuild
                {
                   projectFile = Path.GetFullPath( projectFile );
                   // The usage of this task factory comes from the package itself, deduce the package ID
-                  var localRepo = restorer.LocalRepositories.FirstOrDefault( kvp => projectFile.StartsWith( Path.GetFullPath( kvp.Key ) ) ).Value;
-                  if ( localRepo == null )
+                  selfPackageIdentity = SearchWithinNuGetRepository(
+                     projectFile,
+                     restorer.LocalRepositories
+                        .FirstOrDefault( kvp => projectFile.StartsWith( Path.GetFullPath( kvp.Key ) ) )
+                        .Value
+                        ?.RepositoryRoot
+                     );
+
+                  if ( selfPackageIdentity == null )
                   {
+                     // Failed to deduce this package ID
+                     // No PackageID element and no PackageIDIsSelf element either
                      taskFactoryLoggingHost.LogErrorEvent(
                         new BuildErrorEventArgs(
                            "Task factory error",
-                           "NMSBT006",
+                           "NMSBT007",
                            null,
                            -1,
                            -1,
                            -1,
                            -1,
-                           $"The \"{SELF}\" package ID is not supported when the caller file of this task factory is not in local repositories: { String.Join( ",", restorer.LocalRepositories.Keys ) }.",
+                           $"Failed to deduce self package ID from file {projectFile}.",
                            null,
                            this.FactoryName
                         )
@@ -417,68 +427,9 @@ namespace UtilPack.NuGet.MSBuild
                   }
                   else
                   {
-                     // Search directories, and in each directory, search for manifest file
-                     var cur = localRepo.RepositoryRoot.Length;
-                     var projectDir = Path.GetDirectoryName( projectFile );
-                     var separator = Path.DirectorySeparatorChar;
-                     while ( cur < projectDir.Length && projectDir[cur] == separator )
-                     {
-                        ++cur;
-                     }
-                     var prev = cur;
-                     var fileFilter = "*" + PackagingConstants.ManifestExtension;
-                     for ( ; cur < projectDir.Length && selfPackageIdentity == null; ++cur )
-                     {
-                        var isLast = cur == projectDir.Length - 1;
-                        if ( projectDir[cur] == separator || isLast )
-                        {
-                           if ( isLast )
-                           {
-                              ++cur;
-                           }
-                           if ( cur > prev )
-                           {
-                              var nuSpecFile = new DirectoryInfo( projectDir.Substring( 0, cur ) )
-                                 .EnumerateFiles( fileFilter, SearchOption.TopDirectoryOnly )
-                                 .FirstOrDefault();
-                              if ( nuSpecFile != null )
-                              {
-                                 // We've found .nuspec file
-                                 selfPackageIdentity = new NuspecReader( nuSpecFile.FullName ).GetIdentity();
-                              }
-                           }
-
-                           if ( selfPackageIdentity == null )
-                           {
-                              prev = cur + 1;
-                           }
-                        }
-                     }
-
-                     if ( selfPackageIdentity == null )
-                     {
-                        // Failed to deduce this package ID
-                        // No PackageID element and no PackageIDIsSelf element either
-                        taskFactoryLoggingHost.LogErrorEvent(
-                           new BuildErrorEventArgs(
-                              "Task factory error",
-                              "NMSBT007",
-                              null,
-                              -1,
-                              -1,
-                              -1,
-                              -1,
-                              $"Failed to deduce self package ID from file {projectFile}.",
-                              null,
-                              this.FactoryName
-                           )
-                        );
-                     }
-                     else
-                     {
-                        packageID = selfPackageIdentity.Id;
-                     }
+                     packageID = selfPackageIdentity.Id;
                   }
+
 
                }
             }
@@ -569,6 +520,83 @@ namespace UtilPack.NuGet.MSBuild
          }
 
          return (packageID, packageVersion);
+      }
+
+      private static PackageIdentity SearchWithinNuGetRepository(
+         String projectFile,
+         String localRepoRoot
+         )
+      {
+         // Both V2 and V3 repositories have .nupkg file in its package root directory, so we search for that.
+         // But if localRepoRoot is specified, then we assume it is for V3 repository, so we will also require .nuspec file to be present.
+
+         var root = Path.GetPathRoot( projectFile );
+         var nupkgFileFilter = "*" + PackagingCoreConstants.NupkgExtension;
+         var nuspecFileFilter = "*" + PackagingConstants.ManifestExtension;
+
+         var splitDirs = Path
+            .GetDirectoryName( projectFile ).Substring( root.Length ) // Remove root
+            .Split( new[] { Path.DirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries ) // Get all directory components
+            .AggregateIntermediate_AfterAggregation( root, ( accumulated, item ) => Path.Combine( accumulated, item ) ); // Transform ["dir1", "dir2", "dir3"] into ["root:\dir1", "root:\dir1\dir2", "root:\dir1\dir2\dir3" ]
+         if ( !String.IsNullOrEmpty( localRepoRoot ) )
+         {
+            // Only include subfolders of localRepoRoot
+            localRepoRoot = Path.GetFullPath( localRepoRoot );
+            var repoRootDirLength = localRepoRoot.Substring( root.Length ).Length;
+            splitDirs = splitDirs.Where( dir => dir.Length > repoRootDirLength );
+         }
+
+         var nupkgFileInfo = splitDirs
+            .Reverse() // Enumerate from innermost directory towards outermost directory
+            .Select( curDir =>
+            {
+               var curDirInfo = new DirectoryInfo( curDir );
+               var thisNupkgFileInfo = curDirInfo
+                  .EnumerateFiles( nupkgFileFilter, SearchOption.TopDirectoryOnly )
+                  .FirstOrDefault();
+
+               FileInfo thisNuspecFileInfo = null;
+               if (
+                  thisNupkgFileInfo != null
+                  && !String.IsNullOrEmpty( localRepoRoot )
+                  && ( thisNuspecFileInfo = curDirInfo.EnumerateFiles( nuspecFileFilter, SearchOption.TopDirectoryOnly ).FirstOrDefault() ) == null
+                  )
+               {
+                  // .nuspec file is not present, and we are within v3 repo root, so maybe this nupkg file is content... ?
+                  thisNupkgFileInfo = null;
+               }
+
+               return (thisNupkgFileInfo, thisNuspecFileInfo);
+            } )
+            .FirstOrDefault( tuple =>
+             {
+                return tuple.thisNupkgFileInfo != null;
+             } );
+
+         PackageIdentity retVal;
+         if ( nupkgFileInfo.thisNupkgFileInfo != null )
+         {
+            // See if we have nuspec information
+            if ( nupkgFileInfo.thisNuspecFileInfo != null )
+            {
+               // We can read package identity from nuspec file
+               retVal = new NuspecReader( nupkgFileInfo.thisNuspecFileInfo.FullName ).GetIdentity();
+            }
+            else
+            {
+               // Have to read package identity from nupkg file
+               using ( var archiveReader = new PackageArchiveReader( nupkgFileInfo.thisNupkgFileInfo.FullName ) )
+               {
+                  retVal = archiveReader.GetIdentity();
+               }
+            }
+         }
+         else
+         {
+            retVal = null;
+         }
+
+         return retVal;
       }
 
       private static IEnumerable<String> GetSuitableFiles(

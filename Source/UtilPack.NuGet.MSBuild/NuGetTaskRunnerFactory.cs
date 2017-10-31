@@ -108,6 +108,13 @@ namespace UtilPack.NuGet.MSBuild
       private const String NUGET_CONFIG_FILE = "NuGetConfigurationFile";
       private const String COPY_TO_TEMPORARY_FOlDER_BEFORE_LOAD = "CopyToFolderBeforeLoad";
       private const String TASK_NAME = "TaskName";
+      private const String UNMANAGED_ASSEMBLIES_MAP = "UnmanagedAssemblyReferenceMap";
+
+      private const String MATCH_PLATFORM = "MatchPlatform";
+      private const String EXCEPT_PLATFORM = "ExceptPlatform";
+      private const String UNMANAGED_ASSEMBLY_REF = "AssemblyReference";
+      private const String MAPPED_NAME = "MappedTo";
+
       //private const String KNOWN_SDK_PACKAGE = "KnownSDKPackage";
 
       // We will re-create anything that needs re-creating between mutiple task usages from this same lazy.
@@ -218,7 +225,7 @@ namespace UtilPack.NuGet.MSBuild
                );
 
             taskFactoryLoggingHost.LogMessageEvent( new BuildMessageEventArgs(
-               $"Detected current NuGet framework to be \"{thisFW}\", with RID \"{nugetResolver.RuntimeIdentifier}\".",
+               $"Detected current NuGet framework to be \"{thisFW}\", with RID \"{nugetResolver.RuntimeIdentifier}\", and local repositories: {String.Join( ";", nugetResolver.LocalRepositories.Keys )}.",
                null,
                null,
                MessageImportance.Normal

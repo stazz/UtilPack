@@ -219,7 +219,8 @@ namespace UtilPack.NuGet.AssemblyLoading
          GetFileItemsDelegate defaultGetFiles = null,
          Func<String, String> pathProcessor = null
 #if !NET45
-         , OtherLoadersRegistration loadersRegistration = OtherLoadersRegistration.None
+         , OtherLoadersRegistration loadersRegistration = OtherLoadersRegistration.None,
+         UnmanagedAssemblyPathProcessorDelegate unmanagedAssemblyNameProcessor = null
 #endif
          )
       {
@@ -260,7 +261,22 @@ namespace UtilPack.NuGet.AssemblyLoading
                null
             );
 #else
-         var loader = new NuGetAssemblyLoadContext( restorer, thisFrameworkRestoreResult, additionalCheckForDefaultLoader, loadersRegistration );
+
+         if ( unmanagedAssemblyNameProcessor == null
+            && !String.IsNullOrEmpty( restorer.RuntimeIdentifier )
+            && restorer.RuntimeIdentifier.StartsWith( BoundRestoreCommandUser.RID_WINDOWS, StringComparison.OrdinalIgnoreCase )
+            )
+         {
+            // Default conventions for non-windows RIDs
+            unmanagedAssemblyNameProcessor = GetDefaultUnmanagedAssemblyPathCandidates;
+         }
+         var loader = new NuGetAssemblyLoadContext(
+            restorer,
+            thisFrameworkRestoreResult,
+            additionalCheckForDefaultLoader,
+            loadersRegistration,
+            unmanagedAssemblyNameProcessor
+            );
          retVal = loader.SetResolver( new NuGetAssemblyResolverImpl( resolver, loader, pathProcessor ) );
          createdLoader = loader;
 #endif
@@ -268,6 +284,28 @@ namespace UtilPack.NuGet.AssemblyLoading
          return retVal;
 
       }
+
+#if !NET45
+
+      public static IEnumerable<String> GetDefaultUnmanagedAssemblyPathCandidates( String platformRID, String unmanagedAssemblyName, String unmanagedAssemblyFullPath )
+      {
+         if (
+            !String.IsNullOrEmpty( platformRID )
+            && !platformRID.StartsWith( BoundRestoreCommandUser.RID_WINDOWS, StringComparison.OrdinalIgnoreCase )
+            )
+         {
+            // Non-windows runtimes may prefix the unmanaged assembly name with 'lib'
+            var fn = Path.GetFileName( unmanagedAssemblyFullPath );
+            const String LIB_PREFIX = "lib";
+            if ( !fn.StartsWith( LIB_PREFIX, StringComparison.OrdinalIgnoreCase ) )
+            {
+               yield return Path.Combine( Path.GetDirectoryName( unmanagedAssemblyFullPath ), LIB_PREFIX + fn );
+            }
+         }
+         yield return unmanagedAssemblyFullPath;
+      }
+
+#endif
    }
 
 #if !NET45
@@ -280,6 +318,8 @@ namespace UtilPack.NuGet.AssemblyLoading
       Current = 2
    }
 
+   public delegate IEnumerable<String> UnmanagedAssemblyPathProcessorDelegate( String platformRID, String unmanagedAssemblyName, String currentUnmanagedAssemblyFullPath );
+
    internal sealed class NuGetAssemblyLoadContext : System.Runtime.Loader.AssemblyLoadContext, IDisposable
    {
       private readonly ISet<String> _frameworkAssemblySimpleNames;
@@ -288,12 +328,16 @@ namespace UtilPack.NuGet.AssemblyLoading
       private readonly Func<AssemblyName, Boolean> _additionalCheckForDefaultLoader;
       private NuGetAssemblyResolverImpl _resolver;
 
+      private readonly UnmanagedAssemblyPathProcessorDelegate _unmanagedAssemblyNameProcessor;
+      private readonly String _platformRID;
+
 
       public NuGetAssemblyLoadContext(
          BoundRestoreCommandUser restorer,
          LockFile thisFrameworkRestoreResult,
          Func<AssemblyName, Boolean> additionalCheckForDefaultLoader,
-         OtherLoadersRegistration loadersRegistration
+         OtherLoadersRegistration loadersRegistration,
+         UnmanagedAssemblyPathProcessorDelegate unmanagedAssemblyNameProcessor
          )
       {
          var parentLoader = GetLoadContext( this.GetType().GetTypeInfo().Assembly );
@@ -333,6 +377,9 @@ namespace UtilPack.NuGet.AssemblyLoading
          {
             parentLoader.Resolving += this.OtherResolving;
          }
+
+         this._unmanagedAssemblyNameProcessor = unmanagedAssemblyNameProcessor;
+         this._platformRID = restorer.RuntimeIdentifier;
       }
 
       private Assembly OtherResolving( System.Runtime.Loader.AssemblyLoadContext loadContext, AssemblyName assemblyName )
@@ -380,13 +427,29 @@ namespace UtilPack.NuGet.AssemblyLoading
       {
          // Unmanaged assemblies will have their assembly name as null.
          // They have been previously loaded as long as they reside in proper package folders in dependant packages
-         var matchingPath = this._resolver.AssemblyNames
-            .FirstOrDefault( kvp => String.Equals( unmanagedDllName, Path.GetFileNameWithoutExtension( kvp.Key ) ) && kvp.Value.Value == null )
-            .Key;
+         var processor = this._unmanagedAssemblyNameProcessor;
+         var retVal = this._resolver.AssemblyNames
+            .Where( kvp => kvp.Value.Value == null )
+            .SelectMany( kvp => processor?.Invoke( this._platformRID, unmanagedDllName, kvp.Key ) ?? kvp.Key.Singleton() )
+            .Where( path => !String.IsNullOrEmpty( path ) && Path.IsPathRooted( path ) && File.Exists( path ) )
+            .Select( path =>
+            {
+               try
+               {
+                  return this.LoadUnmanagedDllFromPath( path );
+               }
+               catch
+               {
+                  // Sometimes there may be some non-dll files as assets, e.g. pdb files, or whatever the package creator has put in there.
+                  return IntPtr.Zero;
+               }
+            } )
+            .Where( ptr => ptr != IntPtr.Zero )
+            .FirstOrDefaultCustom( IntPtr.Zero );
 
-         return String.IsNullOrEmpty( matchingPath ) ?
+         return retVal == IntPtr.Zero ?
             base.LoadUnmanagedDll( unmanagedDllName ) :
-            this.LoadUnmanagedDllFromPath( matchingPath );
+            retVal;
       }
    }
 #endif

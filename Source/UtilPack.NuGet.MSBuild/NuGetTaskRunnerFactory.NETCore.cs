@@ -62,6 +62,62 @@ namespace UtilPack.NuGet.MSBuild
             Enum.TryParse( otherLoadersRegistrationString, out otherLoadersRegistration );
          }
 
+         var nativeAssembliesMapInfo = taskBodyElement.ElementAnyNS( UNMANAGED_ASSEMBLIES_MAP );
+         UnmanagedAssemblyPathProcessorDelegate unmanagedAssemblyPathProcessor;
+         if ( nativeAssembliesMapInfo == null )
+         {
+            unmanagedAssemblyPathProcessor = null;
+         }
+         else
+         {
+            var rGraph = restorer.RuntimeGraph.Value;
+            var rid = restorer.RuntimeIdentifier;
+            var map = nativeAssembliesMapInfo.Elements()
+               .Where( element =>
+               {
+                  String attr1, attr2;
+                  var retVal = !String.IsNullOrEmpty( element.Attribute( UNMANAGED_ASSEMBLY_REF )?.Value )
+                     && !String.IsNullOrEmpty( element.Attribute( MAPPED_NAME )?.Value );
+                  if (
+                  ( !String.IsNullOrEmpty( attr1 = element.Attribute( MATCH_PLATFORM )?.Value )
+                     && ( attr2 = element.Attribute( EXCEPT_PLATFORM )?.Value ) == null )
+                     ||
+                     ( ( attr1 = element.Attribute( MATCH_PLATFORM )?.Value ) == null
+                     && !String.IsNullOrEmpty( attr2 = element.Attribute( EXCEPT_PLATFORM )?.Value ) )
+                     )
+                  {
+                     if ( String.IsNullOrEmpty( attr1 ) )
+                     {
+                        // This is "ExceptPlatform" match
+                        retVal = !rGraph.AreCompatible( rid, attr2 );
+                     }
+                     else
+                     {
+                        // This is "MatchPlatform" match
+                        retVal = rGraph.AreCompatible( rid, attr1 );
+                     }
+                  }
+
+                  return retVal;
+               } )
+               .ToDictionary_Overwrite( element =>
+               {
+                  // Key -> assembly ref name
+                  return element.Attribute( UNMANAGED_ASSEMBLY_REF ).Value;
+               }, element =>
+               {
+                  // VAlue -> mapped assembly name
+                  return element.Attribute( MAPPED_NAME ).Value;
+               } );
+            unmanagedAssemblyPathProcessor = ( platformRID, unmanagedAssemblyName, unmanagedAssemblyFullPath ) =>
+            {
+               return map.TryGetValue( unmanagedAssemblyName, out var mappedName ) ?
+                  Path.Combine( Path.GetDirectoryName( unmanagedAssemblyFullPath ), mappedName + Path.GetExtension( unmanagedAssemblyFullPath ) ).Singleton() :
+                  NuGetAssemblyResolverFactory.GetDefaultUnmanagedAssemblyPathCandidates( platformRID, unmanagedAssemblyName, unmanagedAssemblyFullPath );
+            };
+         }
+
+
          var thisLoader = NuGetAssemblyResolverFactory.NewNuGetAssemblyResolver(
             restorer,
             thisFrameworkRestoreResult,
@@ -69,7 +125,8 @@ namespace UtilPack.NuGet.MSBuild
             defaultGetFiles: getFiles,
             additionalCheckForDefaultLoader: IsMBFAssembly, // Use default loader for Microsoft.Build assemblies
             pathProcessor: CreatePathProcessor( assemblyCopyTargetFolder ),
-            loadersRegistration: otherLoadersRegistration
+            loadersRegistration: otherLoadersRegistration,
+            unmanagedAssemblyNameProcessor: unmanagedAssemblyPathProcessor
             );
          RegisterToResolverEvents( thisLoader, resolverLogger );
 

@@ -51,6 +51,11 @@ namespace UtilPack.NuGet
       internal const String NUGET_FW_PACKAGE_ID = "NuGetFrameworkPackageID";
       internal const String NUGET_FW_PACKAGE_VERSION = "NuGetFrameworkPackageVersion";
 
+      public const String RID_WINDOWS = "win";
+      public const String RID_UNIX = "unix";
+      public const String RID_LINUX = "linux";
+      public const String RID_OSX = "osx";
+
 
       private readonly SourceCacheContext _cacheContext;
       private readonly RestoreCommandProviders _restoreCommandProvider;
@@ -357,7 +362,7 @@ namespace UtilPack.NuGet
          {
             var rGraph = runtimeGraph.Value;
             retVal = targetLib.RuntimeTargets
-                  .Where( rt => rGraph.AreCompatible( currentRID, rt.Runtime ) && ( rt.Path?.EndsWith( ".dll" ) ?? false ) )
+                  .Where( rt => rGraph.AreCompatible( currentRID, rt.Runtime ) && !String.IsNullOrEmpty( rt.Path ) && !rt.Path.EndsWith( ".pdb" ) )
                   .Select( rt => rt.Path );
          }
          if ( retVal.IsNullOrEmpty() )

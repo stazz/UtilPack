@@ -300,10 +300,10 @@ namespace UtilPack.NuGet
          )
       {
          // I wish these constants were in NuGet.Client library
-         const String WIN = "win";
-         const String UNIX = "unix";
-         const String LINUX = "linux";
-         const String OSX = "osx";
+         const String WIN = BoundRestoreCommandUser.RID_WINDOWS;
+         const String UNIX = BoundRestoreCommandUser.RID_UNIX;
+         const String LINUX = BoundRestoreCommandUser.RID_LINUX;
+         const String OSX = BoundRestoreCommandUser.RID_OSX;
 
          String retVal;
          if ( !String.IsNullOrEmpty( givenRID ) )

@@ -299,6 +299,10 @@ namespace UtilPack.NuGet
          String givenRID = null
          )
       {
+         // I wish these constants were in NuGet.Client library
+         const String WIN = "win";
+         const String UNIX = "unix";
+         const String OSX = "osx";
 
          String retVal;
          if ( !String.IsNullOrEmpty( givenRID ) )
@@ -307,10 +311,6 @@ namespace UtilPack.NuGet
          }
          else
          {
-            // I wish these constants were in NuGet.Client library
-            const String WIN = "win";
-            const String UNIX = "unix";
-            const String OSX = "osx";
 #if NET45
             switch ( Environment.OSVersion.Platform )
             {
@@ -350,6 +350,82 @@ namespace UtilPack.NuGet
             }
 #endif
 
+         }
+
+         if ( !String.IsNullOrEmpty( retVal ) )
+         {
+            const Char ARCHITECTURE_SEPARATOR = '-';
+            var numericChars = new[] { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
+            var architectureIndex = retVal.IndexOf( ARCHITECTURE_SEPARATOR );
+            var versionIndex = retVal.IndexOfAny( numericChars );
+            if ( versionIndex < 0 || architectureIndex < 0 || versionIndex > architectureIndex )
+            {
+               // No version specified
+               Version osVersion;
+#if NET45
+               osVersion = Environment.OSVersion.Version;
+#else
+               // Append version. This is a bit tricky...
+               // OS Description is typically something like "Microsoft Windows x.y.z" or "Linux (..) x.y.z"
+               // And we need to extract the x.y.z out of it.
+               var osDescription = System.Runtime.InteropServices.RuntimeInformation.OSDescription;
+               var idx = osDescription.IndexOfAny( numericChars );
+               if ( idx > 0 )
+               {
+                  Version.TryParse( osDescription.Substring( idx ), out osVersion );
+               }
+               else
+               {
+                  osVersion = null;
+               }
+#endif
+
+               if ( osVersion != null )
+               {
+                  // Append version: More 'fun' special cases.
+                  // On Windows, it is "majorminor" (without dot), unless minor is 0, then it is just "major"
+                  // On others, it is "major.minor" (with the dot)
+                  String versionSuffix;
+                  if ( String.Equals( retVal, WIN ) )
+                  {
+                     if ( osVersion.Minor == 0 )
+                     {
+                        versionSuffix = "" + osVersion.Major;
+                     }
+                     else
+                     {
+                        versionSuffix = "" + osVersion.Major + "." + osVersion.Minor;
+                     }
+                  }
+                  else
+                  {
+                     versionSuffix = "" + osVersion.Major + "." + osVersion.Minor;
+                  }
+
+                  if ( architectureIndex < 0 )
+                  {
+                     // Can append directly
+                     retVal += versionSuffix;
+                  }
+                  else
+                  {
+                     // Insert version before architecture separator
+                     retVal = retVal.Substring( 0, architectureIndex ) + versionSuffix + retVal.Substring( architectureIndex );
+                  }
+               }
+            }
+
+            // Append architecture
+            if ( architectureIndex < 0 )
+            {
+               String architectureString;
+#if NET45
+               architectureString = Environment.Is64BitProcess ? "x64" : "x86";
+#else
+               architectureString = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
+#endif
+               retVal += ARCHITECTURE_SEPARATOR + architectureString;
+            }
          }
 
          return retVal;

@@ -54,6 +54,7 @@ using UtilPack;
 using UtilPack.NuGet.AssemblyLoading;
 using UtilPack.NuGet.Common.MSBuild;
 using NuGet.Packaging.Core;
+using NuGet.RuntimeModel;
 
 namespace UtilPack.NuGet.MSBuild
 {
@@ -102,7 +103,11 @@ namespace UtilPack.NuGet.MSBuild
       private const String NUGET_FW_VERSION = "NuGetFrameworkVersion";
       private const String NUGET_FW_PACKAGE_ID = "NuGetFrameworkPackageID";
       private const String NUGET_FW_PACKAGE_VERSION = "NuGetFrameworkPackageVersion";
+      private const String NUGET_RID = "NuGetPlatformRID";
+      private const String NUGET_RID_CATALOG_PACKAGE_ID = "NuGetPlatformRIDCatalogPackageID";
+      private const String NUGET_CONFIG_FILE = "NuGetConfigurationFile";
       private const String COPY_TO_TEMPORARY_FOlDER_BEFORE_LOAD = "CopyToFolderBeforeLoad";
+      private const String TASK_NAME = "TaskName";
       //private const String KNOWN_SDK_PACKAGE = "KnownSDKPackage";
 
       // We will re-create anything that needs re-creating between mutiple task usages from this same lazy.
@@ -201,14 +206,23 @@ namespace UtilPack.NuGet.MSBuild
 
             var nugetSettings = UtilPackNuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
                Path.GetDirectoryName( taskFactoryLoggingHost.ProjectFileOfTaskNode ),
-               taskBodyElement.ElementAnyNS( "NuGetConfigurationFile" )?.Value
+               taskBodyElement.ElementAnyNS( NUGET_CONFIG_FILE )?.Value
                );
 
             var nugetResolver = new BoundRestoreCommandUser(
                nugetSettings,
                thisFramework: thisFW,
-               nugetLogger: nugetLogger
+               nugetLogger: nugetLogger,
+               runtimeIdentifier: taskBodyElement.ElementAnyNS( NUGET_RID )?.Value,
+               runtimeGraph: taskBodyElement.ElementAnyNS( NUGET_RID_CATALOG_PACKAGE_ID )?.Value
                );
+
+            taskFactoryLoggingHost.LogMessageEvent( new BuildMessageEventArgs(
+               $"Detected current NuGet framework to be \"{thisFW}\", with RID \"{nugetResolver.RuntimeIdentifier}\".",
+               null,
+               null,
+               MessageImportance.Normal
+               ) );
 
 
             // Restore task package
@@ -224,7 +238,7 @@ namespace UtilPack.NuGet.MSBuild
                   && !String.IsNullOrEmpty( ( packageVersion = restoreResult.Libraries.Where( lib => String.Equals( lib.Name, packageID ) ).FirstOrDefault()?.Version?.ToNormalizedString() ) )
                   )
                {
-                  GetFileItemsDelegate getFiles = ( rid, lib, libs ) => GetSuitableFiles( thisFW, rid, lib, libs );
+                  GetFileItemsDelegate getFiles = ( rGraph, rid, lib, libs ) => GetSuitableFiles( thisFW, rGraph, rid, lib, libs );
                   // On Desktop we must always load everything, since it's possible to have assemblies compiled against .NET Standard having references to e.g. System.IO.FileSystem.dll, which is not present in GAC
 #if NET45
                   String[] sdkPackages = null;
@@ -569,9 +583,9 @@ namespace UtilPack.NuGet.MSBuild
                return (thisNupkgFileInfo, thisNuspecFileInfo);
             } )
             .FirstOrDefault( tuple =>
-             {
-                return tuple.thisNupkgFileInfo != null;
-             } );
+            {
+               return tuple.thisNupkgFileInfo != null;
+            } );
 
          PackageIdentity retVal;
          if ( nupkgFileInfo.thisNupkgFileInfo != null )
@@ -601,12 +615,13 @@ namespace UtilPack.NuGet.MSBuild
 
       private static IEnumerable<String> GetSuitableFiles(
          NuGetFramework thisFramework,
+         Lazy<RuntimeGraph> runtimeGraph,
          String runtimeIdentifier,
          LockFileTargetLibrary targetLibrary,
          Lazy<IDictionary<String, LockFileLibrary>> libraries
          )
       {
-         var retVal = UtilPackNuGetUtility.GetRuntimeAssembliesDelegate( runtimeIdentifier, targetLibrary, libraries );
+         var retVal = UtilPackNuGetUtility.GetRuntimeAssembliesDelegate( runtimeGraph, runtimeIdentifier, targetLibrary, libraries );
          if ( !retVal.Any() && libraries.Value.TryGetValue( targetLibrary.Name, out var lib ) )
          {
 
@@ -646,8 +661,8 @@ namespace UtilPack.NuGet.MSBuild
          String taskName
          )
       {
-         var overrideTaskName = taskBodyElement.ElementAnyNS( "TaskName" )?.Value;
-         return String.IsNullOrEmpty( overrideTaskName ) ? taskName : taskName;
+         var overrideTaskName = taskBodyElement.ElementAnyNS( TASK_NAME )?.Value;
+         return String.IsNullOrEmpty( overrideTaskName ) ? taskName : overrideTaskName;
       }
 
       internal static void RegisterToResolverEvents(

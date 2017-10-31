@@ -302,6 +302,7 @@ namespace UtilPack.NuGet
          // I wish these constants were in NuGet.Client library
          const String WIN = "win";
          const String UNIX = "unix";
+         const String LINUX = "linux";
          const String OSX = "osx";
 
          String retVal;
@@ -338,7 +339,7 @@ namespace UtilPack.NuGet
             }
             else if ( System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform( System.Runtime.InteropServices.OSPlatform.Linux ) )
             {
-               retVal = UNIX;
+               retVal = LINUX;
             }
             else if ( System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform( System.Runtime.InteropServices.OSPlatform.OSX ) )
             {
@@ -358,9 +359,12 @@ namespace UtilPack.NuGet
             var numericChars = new[] { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
             var architectureIndex = retVal.IndexOf( ARCHITECTURE_SEPARATOR );
             var versionIndex = retVal.IndexOfAny( numericChars );
-            if ( versionIndex < 0 || architectureIndex < 0 || versionIndex > architectureIndex )
+            // Append version, unless we have generic UNIX/LINUX RID
+            if ( !String.Equals( retVal, UNIX, StringComparison.OrdinalIgnoreCase )
+               && !String.Equals( retVal, LINUX, StringComparison.OrdinalIgnoreCase )
+               && ( versionIndex < 0 || architectureIndex < 0 || versionIndex > architectureIndex )
+               )
             {
-               // No version specified
                Version osVersion;
 #if NET45
                osVersion = Environment.OSVersion.Version;
@@ -384,7 +388,7 @@ namespace UtilPack.NuGet
                {
                   // Append version: More 'fun' special cases.
                   // On Windows, it is "majorminor" (without dot), unless minor is 0, then it is just "major"
-                  // On others, it is "major.minor" (with the dot)
+                  // On others, it is ".major.minor" (with the dots)
                   String versionSuffix;
                   if ( String.Equals( retVal, WIN ) )
                   {
@@ -394,12 +398,12 @@ namespace UtilPack.NuGet
                      }
                      else
                      {
-                        versionSuffix = "" + osVersion.Major + "." + osVersion.Minor;
+                        versionSuffix = "" + osVersion.Major + "" + osVersion.Minor;
                      }
                   }
                   else
                   {
-                     versionSuffix = "" + osVersion.Major + "." + osVersion.Minor;
+                     versionSuffix = "." + osVersion.Major + "." + osVersion.Minor;
                   }
 
                   if ( architectureIndex < 0 )

@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
     <id>UtilPack.NuGet.MSBuild</id>
-    <version>2.1.0</version>
+    <version>2.1.1</version>
     <title>MSBuild Task Factory for NuGet-Oriented MSBuild Tasks</title>
     <authors>Stanislav Muhametsin</authors>
     <owners>Stanislav Muhametsin</owners>
@@ -11,7 +11,7 @@
     <repository url="https://github.com/CometaSolutions/UtilPack" />
     <projectUrl>https://github.com/CometaSolutions/UtilPack/tree/develop/Source/UtilPack.NuGet.MSBuild</projectUrl>
     <description>Provides easy way to execute NuGet-based MSBuild tasks.</description>
-    <releaseNotes>Fixed 14.X MSBuild assemblies loading in .NET Desktop. Fixed "PackageIDIsSelf" behaviour in V2 repositories, and in local repositories. The task factory assembly loading has now better and parametrizable platform RID detection, and supports loading unmanaged DLLs in .NET Core out-of-the-box.</releaseNotes>
+    <releaseNotes>Fixes to automatic NuGet RID detection.</releaseNotes>
     <copyright>Stanislav Muhametsin</copyright>
     <tags>utility nuget extensions msbuild task package resolve</tags>
     <developmentDependency>true</developmentDependency>

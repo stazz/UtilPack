@@ -229,7 +229,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          }
          var resolver = new NuGetRestorerWrapper(
             restorer,
-            ( rid, targetLib, libs ) => defaultGetFiles( rid, targetLib, libs ).FilterUnderscores(),
+            ( rGraph, rid, targetLib, libs ) => defaultGetFiles( rGraph, rid, targetLib, libs ).FilterUnderscores(),
 #if NET45
             null
 #else
@@ -312,7 +312,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          this._frameworkAssemblySimpleNames = new HashSet<String>(
             restorer.ExtractAssemblyPaths(
                   thisFrameworkRestoreResult,
-                  ( rid, lib, libs ) => lib.CompileTimeAssemblies.Select( i => i.Path ).FilterUnderscores(),
+                  ( rGraph, rid, lib, libs ) => lib.CompileTimeAssemblies.Select( i => i.Path ).FilterUnderscores(),
                   null
                   ).Values
                .SelectMany( p => p.Assemblies )
@@ -374,6 +374,19 @@ namespace UtilPack.NuGet.AssemblyLoading
             }
             return retVal ?? this._resolver.TryResolveFromPreviouslyLoaded( an );
          }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) ).Value;
+      }
+
+      protected override IntPtr LoadUnmanagedDll( String unmanagedDllName )
+      {
+         // Unmanaged assemblies will have their assembly name as null.
+         // They have been previously loaded as long as they reside in proper package folders in dependant packages
+         var matchingPath = this._resolver.AssemblyNames
+            .FirstOrDefault( kvp => String.Equals( unmanagedDllName, Path.GetFileNameWithoutExtension( kvp.Key ) ) && kvp.Value.Value == null )
+            .Key;
+
+         return String.IsNullOrEmpty( matchingPath ) ?
+            base.LoadUnmanagedDll( unmanagedDllName ) :
+            this.LoadUnmanagedDllFromPath( matchingPath );
       }
    }
 #endif
@@ -573,6 +586,8 @@ namespace UtilPack.NuGet.AssemblyLoading
          }
          return retVal;
       }
+#else
+      internal KeyValuePair<String, Lazy<AssemblyName>>[] AssemblyNames => this._assemblyNames.ToArray();
 
 #endif
 
@@ -616,6 +631,7 @@ namespace UtilPack.NuGet.AssemblyLoading
             retVal = new Assembly[packageIDs.Length];
             if ( assemblyInfos != null )
             {
+
                var assemblyNames = assemblyInfos.Values
                   .SelectMany( v => v.Assemblies )
                   .Where( p => !String.IsNullOrEmpty( p ) )
@@ -747,14 +763,9 @@ namespace UtilPack.NuGet.AssemblyLoading
 #endif
                .GetAssemblyName( path );
             }
-            catch ( Exception exc )
+            catch
             {
-               this._resolver
-#if !NET45
-                           .Resolver
-#endif
-                           .LogAssemblyNameLoadError( path, exc.Message );
-               // Ignore
+               // This happens for native assemblies - just ignore it.
             }
 
             return an;

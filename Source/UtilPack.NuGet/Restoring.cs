@@ -74,6 +74,7 @@ namespace UtilPack.NuGet
          ISettings nugetSettings,
          NuGetFramework thisFramework = null,
          String runtimeIdentifier = null,
+         EitherOr<RuntimeGraph, String> runtimeGraph = default,
          ILogger nugetLogger = null,
          SourceCacheContext sourceCacheContext = null,
 #if !NUGET_430
@@ -120,6 +121,29 @@ namespace UtilPack.NuGet
             FrameworkName = this.ThisFramework
          };
          this.LocalRepositories = this._restoreCommandProvider.GlobalPackages.Singleton().Concat( this._restoreCommandProvider.FallbackPackageFolders ).ToDictionary( r => r.RepositoryRoot, r => r );
+         this.RuntimeGraph = new Lazy<RuntimeGraph>( () =>
+            {
+               var rGraph = runtimeGraph.GetFirstOrDefault();
+               if ( rGraph == null )
+               {
+                  var packageName = runtimeGraph.GetSecondOrDefault();
+                  if ( String.IsNullOrEmpty( packageName ) )
+                  {
+                     packageName = "Microsoft.NETCore.Platforms";
+                  }
+                  // As per https://docs.microsoft.com/en-us/dotnet/core/rid-catalog 
+                  var platformsPackagePath = this.LocalRepositories.Values
+                     .SelectMany( r => r.FindPackagesById( packageName ) )
+                     .OrderByDescending( p => p.Version )
+                     .FirstOrDefault()
+                     ?.ExpandedPath;
+                  rGraph = String.IsNullOrEmpty( platformsPackagePath ) ?
+                  null :
+                  global::NuGet.RuntimeModel.JsonRuntimeFormat.ReadRuntimeGraph( Path.Combine( platformsPackagePath, global::NuGet.RuntimeModel.RuntimeGraph.RuntimeGraphFileName ) );
+               }
+               return rGraph;
+            }, LazyThreadSafetyMode.ExecutionAndPublication );
+
          this._allLockFiles = new ConcurrentDictionary<String, ConcurrentDictionary<NuGetVersion, RestoreResult>>();
       }
 
@@ -147,6 +171,9 @@ namespace UtilPack.NuGet
       /// <value>The runtime identifier that this <see cref="BoundRestoreCommandUser"/> is bound to.</value>
       public String RuntimeIdentifier { get; }
 
+
+      public Lazy<RuntimeGraph> RuntimeGraph { get; }
+
       /// <summary>
       /// Performs restore command for given combinations of package and version.
       /// Will use cached results, if available.
@@ -170,19 +197,19 @@ namespace UtilPack.NuGet
                .Select( tuple => String.IsNullOrEmpty( tuple.PackageVersion ) ? VersionRange.AllFloating : VersionRange.Parse( tuple.PackageVersion ) )
                .ToArray();
             var cachedResults = versionRanges.Select( ( versionRange, idx ) =>
-             {
-                RestoreResult curLockFile = null;
-                if ( !versionRange.IsFloating && this._allLockFiles.TryGetValue( packageInfo[idx].PackageID, out var thisPackageLockFiles ) )
-                {
-                   var matchingActualVersion = versionRange.FindBestMatch( thisPackageLockFiles.Keys.Where( v => versionRange.Satisfies( v ) ) );
-                   if ( matchingActualVersion != null )
-                   {
-                      curLockFile = thisPackageLockFiles[matchingActualVersion];
-                   }
-                }
+            {
+               RestoreResult curLockFile = null;
+               if ( !versionRange.IsFloating && this._allLockFiles.TryGetValue( packageInfo[idx].PackageID, out var thisPackageLockFiles ) )
+               {
+                  var matchingActualVersion = versionRange.FindBestMatch( thisPackageLockFiles.Keys.Where( v => versionRange.Satisfies( v ) ) );
+                  if ( matchingActualVersion != null )
+                  {
+                     curLockFile = thisPackageLockFiles[matchingActualVersion];
+                  }
+               }
 
-                return curLockFile;
-             } )
+               return curLockFile;
+            } )
             .Where( l => l != null )
             .ToArray();
 
@@ -316,20 +343,21 @@ namespace UtilPack.NuGet
    /// <param name="targetLibrary">The current <see cref="LockFileTargetLibrary"/>.</param>
    /// <param name="libraries">Lazily evaluated dictionary of all <see cref="LockFileLibrary"/> instances, based on package ID.</param>
    /// <returns>The assembly paths for this <see cref="LockFileTargetLibrary"/>.</returns>
-   public delegate IEnumerable<String> GetFileItemsDelegate( String currentRID, LockFileTargetLibrary targetLibrary, Lazy<IDictionary<String, LockFileLibrary>> libraries );
+   public delegate IEnumerable<String> GetFileItemsDelegate( Lazy<RuntimeGraph> runtimeGraph, String currentRID, LockFileTargetLibrary targetLibrary, Lazy<IDictionary<String, LockFileLibrary>> libraries );
 
    public static partial class UtilPackNuGetUtility
    {
       /// <summary>
       /// Gets the default <see cref="GetFileItemsDelegate"/> which will return all runtime assemblies for given <see cref="LockFileTargetLibrary"/>.
       /// </summary>
-      public static GetFileItemsDelegate GetRuntimeAssembliesDelegate { get; } = ( currentRID, targetLib, libs ) =>
+      public static GetFileItemsDelegate GetRuntimeAssembliesDelegate { get; } = ( runtimeGraph, currentRID, targetLib, libs ) =>
       {
          IEnumerable<String> retVal = null;
-         if ( targetLib.RuntimeTargets.Count > 0 )
+         if ( !String.IsNullOrEmpty( currentRID ) && targetLib.RuntimeTargets.Count > 0 )
          {
+            var rGraph = runtimeGraph.Value;
             retVal = targetLib.RuntimeTargets
-                  .Where( rt => String.Equals( rt.Runtime, currentRID, StringComparison.OrdinalIgnoreCase ) )
+                  .Where( rt => rGraph.AreCompatible( currentRID, rt.Runtime ) && ( rt.Path?.EndsWith( ".dll" ) ?? false ) )
                   .Select( rt => rt.Path );
          }
          if ( retVal.IsNullOrEmpty() )
@@ -480,7 +508,7 @@ public static partial class E_UtilPack
          {
             retVal.Add( curLib.Name, resultCreator(
                targetLibFullPath,
-               fileGetter( restorer.RuntimeIdentifier, curLib, libDic )
+               fileGetter( restorer.RuntimeGraph, restorer.RuntimeIdentifier, curLib, libDic )
                   ?.Select( p => Path.Combine( targetLibFullPath, p ) )
                   ?? Empty<String>.Enumerable
                ) );

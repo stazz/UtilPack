@@ -7,6 +7,7 @@
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
     <TreatSpecificWarningsAsErrors />
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+    <LangVersion>7.1</LangVersion>
   </PropertyGroup>
   
   <ItemGroup>

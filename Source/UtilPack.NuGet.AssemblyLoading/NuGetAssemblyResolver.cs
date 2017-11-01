@@ -83,20 +83,24 @@ namespace UtilPack.NuGet.AssemblyLoading
       /// <seealso cref="AssemblyLoadFailedEventArgs"/>
       event Action<AssemblyLoadFailedEventArgs> OnAssemblyLoadFail;
 
+      event Action<UnmanagedAssemblyLoadSuccessEventArgs> OnUnmanagedAssemblyLoadSuccess;
+
+      event Action<UnmanagedAssemblyLoadFailedEventArgs> OnUnmanagedAssemblyLoadFail;
+
       Assembly TryResolveFromPreviouslyLoaded( AssemblyName assemblyName );
    }
 
    /// <summary>
    /// This is abstract base class for <see cref="AssemblyLoadSuccessEventArgs"/> and <see cref="AssemblyLoadFailedEventArgs"/> types.
    /// </summary>
-   public abstract class AbstractAssemblyResolveArgs
+   public abstract class AbstractAssemblyResolveArgs<TName>
    {
       /// <summary>
       /// Initializes new instance of <see cref="AbstractAssemblyResolveArgs"/>.
       /// </summary>
       /// <param name="assemblyName">The <see cref="System.Reflection.AssemblyName"/> related to current event.</param>
       public AbstractAssemblyResolveArgs(
-         AssemblyName assemblyName
+         TName assemblyName
          )
       {
          this.AssemblyName = assemblyName;
@@ -106,13 +110,13 @@ namespace UtilPack.NuGet.AssemblyLoading
       /// Gets the <see cref="System.Reflection.AssemblyName"/> related to current event.
       /// </summary>
       /// <value>The <see cref="System.Reflection.AssemblyName"/> related to current event.</value>
-      public AssemblyName AssemblyName { get; }
+      public TName AssemblyName { get; }
    }
 
    /// <summary>
    /// This class contains information for <see cref="NuGetAssemblyResolver.OnAssemblyLoadSuccess"/> event.
    /// </summary>
-   public class AssemblyLoadSuccessEventArgs : AbstractAssemblyResolveArgs
+   public class AssemblyLoadSuccessEventArgs<TName> : AbstractAssemblyResolveArgs<TName>
    {
       /// <summary>
       /// Creates new instance of <see cref="AssemblyLoadSuccessEventArgs"/>
@@ -121,7 +125,7 @@ namespace UtilPack.NuGet.AssemblyLoading
       /// <param name="originalPath">The original path where assembly resides.</param>
       /// <param name="actualPath">The path where assembly is loaded from.</param>
       public AssemblyLoadSuccessEventArgs(
-         AssemblyName assemblyName,
+         TName assemblyName,
          String originalPath,
          String actualPath
          ) : base( assemblyName )
@@ -146,19 +150,63 @@ namespace UtilPack.NuGet.AssemblyLoading
    /// <summary>
    /// This class contains information for <see cref="NuGetAssemblyResolver.OnAssemblyLoadFail"/> event.
    /// </summary>
-   public class AssemblyLoadFailedEventArgs : AbstractAssemblyResolveArgs
+   public class AssemblyLoadFailedEventArgs<TName> : AbstractAssemblyResolveArgs<TName>
    {
       /// <summary>
       /// Creates new instance of <see cref="AssemblyLoadFailedEventArgs"/>
       /// </summary>
       /// <param name="assemblyName">The <see cref="System.Reflection.AssemblyName"/> related to current event.</param>
       public AssemblyLoadFailedEventArgs(
-         AssemblyName assemblyName
+         TName assemblyName
          ) : base( assemblyName )
       {
 
       }
 
+   }
+
+   public sealed class AssemblyLoadSuccessEventArgs : AssemblyLoadSuccessEventArgs<AssemblyName>
+   {
+      public AssemblyLoadSuccessEventArgs(
+         AssemblyName assemblyName,
+         String originalPath,
+         String actualPath
+         ) : base( assemblyName, originalPath, actualPath )
+      {
+      }
+   }
+
+   public sealed class AssemblyLoadFailedEventArgs : AssemblyLoadFailedEventArgs<AssemblyName>
+   {
+      public AssemblyLoadFailedEventArgs(
+         AssemblyName assemblyName
+         ) : base( assemblyName )
+      {
+      }
+   }
+
+   public sealed class UnmanagedAssemblyLoadSuccessEventArgs : AssemblyLoadSuccessEventArgs<String>
+   {
+      public UnmanagedAssemblyLoadSuccessEventArgs(
+         String assemblyName,
+         String originalPath,
+         String actualPath
+         ) : base( assemblyName, originalPath, actualPath )
+      {
+      }
+   }
+
+   public sealed class UnmanagedAssemblyLoadFailedEventArgs : AssemblyLoadFailedEventArgs<String>
+   {
+      public UnmanagedAssemblyLoadFailedEventArgs(
+         String assemblyName,
+         String[] allSeenUnmanagedDLLPaths
+         ) : base( assemblyName )
+      {
+         this.AllSeenUnmanagedDLLPaths = allSeenUnmanagedDLLPaths;
+      }
+
+      public String[] AllSeenUnmanagedDLLPaths { get; }
    }
 
    /// <summary>
@@ -261,23 +309,15 @@ namespace UtilPack.NuGet.AssemblyLoading
             );
 #else
 
-         if ( unmanagedAssemblyNameProcessor == null
-            && !String.IsNullOrEmpty( restorer.RuntimeIdentifier )
-            && restorer.RuntimeIdentifier.StartsWith( BoundRestoreCommandUser.RID_WINDOWS, StringComparison.OrdinalIgnoreCase )
-            )
-         {
-            // Default conventions for non-windows RIDs
-            unmanagedAssemblyNameProcessor = GetDefaultUnmanagedAssemblyPathCandidates;
-         }
-         var loader = new NuGetAssemblyLoadContext(
-            restorer,
+         retVal = new NuGetAssemblyResolverImpl(
+            resolver,
+            pathProcessor,
             thisFrameworkRestoreResult,
             additionalCheckForDefaultLoader,
             loadersRegistration,
-            unmanagedAssemblyNameProcessor
+            unmanagedAssemblyNameProcessor ?? GetDefaultUnmanagedAssemblyPathCandidates,
+            out createdLoader
             );
-         retVal = loader.SetResolver( new NuGetAssemblyResolverImpl( resolver, loader, pathProcessor ) );
-         createdLoader = loader;
 #endif
 
          return retVal;
@@ -338,170 +378,7 @@ namespace UtilPack.NuGet.AssemblyLoading
       IEnumerable<String> allSeenPotentiallyUnmanagedAssemblies
       );
 
-   internal sealed class NuGetAssemblyLoadContext : System.Runtime.Loader.AssemblyLoadContext, IDisposable
-   {
-      private readonly ISet<String> _frameworkAssemblySimpleNames;
-      private readonly System.Runtime.Loader.AssemblyLoadContext _parentLoadContext;
-      private readonly ConcurrentDictionary<AssemblyName, Lazy<Assembly>> _loadedAssemblies; // We will get multiple request for same assembly name, so let's cache them
-      private readonly Func<AssemblyName, Boolean> _additionalCheckForDefaultLoader;
-      private NuGetAssemblyResolverImpl _resolver;
 
-      private readonly UnmanagedAssemblyPathProcessorDelegate _unmanagedAssemblyNameProcessor;
-      private readonly ConcurrentDictionary<String, Lazy<String[]>> _unmanagedDLLPaths; // Cache potential paths instead of IntPtrs, as caching IntPtrs will cause errors
-
-      public NuGetAssemblyLoadContext(
-         BoundRestoreCommandUser restorer,
-         LockFile thisFrameworkRestoreResult,
-         Func<AssemblyName, Boolean> additionalCheckForDefaultLoader,
-         OtherLoadersRegistration loadersRegistration,
-         UnmanagedAssemblyPathProcessorDelegate unmanagedAssemblyNameProcessor
-         )
-      {
-         var parentLoader = GetLoadContext( this.GetType().GetTypeInfo().Assembly );
-         this._parentLoadContext = parentLoader;
-         this._loadedAssemblies = new ConcurrentDictionary<AssemblyName, Lazy<Assembly>>(
-            ComparerFromFunctions.NewEqualityComparer<AssemblyName>(
-               ( x, y ) => ReferenceEquals( x, y ) || ( x != null && y != null && String.Equals( x.Name, y.Name )
-                  && String.Equals( x.CultureName, y.CultureName )
-                  && ( ReferenceEquals( x.Version, y.Version ) || ( x.Version?.Equals( y.Version ) ?? false ) )
-                  && NuGetAssemblyResolverImpl.AssemblyNameComparer.SafeEqualsWhenNullsAreEmptyArrays( x.GetPublicKeyToken(), y.GetPublicKeyToken() )
-                  ),
-               x => x?.Name?.GetHashCode() ?? 0
-               )
-            );
-         // .NET Core is package-based framework, so we need to find out which packages are part of framework, and which ones are actually client ones.
-         this._frameworkAssemblySimpleNames = new HashSet<String>(
-            restorer.ExtractAssemblyPaths(
-                  thisFrameworkRestoreResult,
-                  ( rGraph, rid, lib, libs ) => lib.CompileTimeAssemblies.Select( i => i.Path ).FilterUnderscores(),
-                  null
-                  ).Values
-               .SelectMany( p => p.Assemblies )
-               .Select( p => Path.GetFileNameWithoutExtension( p ) ) // For framework assemblies, we can assume that file name without extension = assembly name
-            );
-         this._additionalCheckForDefaultLoader = additionalCheckForDefaultLoader;
-
-         // We do this to catch scenarios like using Type.GetType(String) method.
-         var defaultLoader = Default;
-         var registerDefault = loadersRegistration.HasFlag( OtherLoadersRegistration.Default );
-         if ( registerDefault )
-         {
-            defaultLoader.Resolving += this.OtherResolving;
-         }
-         if ( loadersRegistration.HasFlag( OtherLoadersRegistration.Current )
-            && ( !registerDefault || !ReferenceEquals( parentLoader, defaultLoader ) )
-            )
-         {
-            parentLoader.Resolving += this.OtherResolving;
-         }
-
-         this._unmanagedAssemblyNameProcessor = unmanagedAssemblyNameProcessor;
-         this._unmanagedDLLPaths = new ConcurrentDictionary<String, Lazy<String[]>>();
-      }
-
-      private Assembly OtherResolving( System.Runtime.Loader.AssemblyLoadContext loadContext, AssemblyName assemblyName )
-      {
-         return this._resolver?.TryResolveFromPreviouslyLoaded( assemblyName );
-      }
-
-      public void Dispose()
-      {
-         Default.Resolving -= this.OtherResolving;
-         this._parentLoadContext.Resolving -= this.OtherResolving;
-      }
-
-      internal NuGetAssemblyResolver SetResolver( NuGetAssemblyResolverImpl resolver )
-      {
-         if ( resolver != null )
-         {
-            System.Threading.Interlocked.CompareExchange( ref this._resolver, resolver, null );
-         }
-         return resolver;
-      }
-
-      protected override Assembly Load( AssemblyName assemblyName )
-      {
-         return this._loadedAssemblies.GetOrAdd( assemblyName, an => new Lazy<Assembly>( () =>
-         {
-            Assembly retVal = null;
-            if ( this._frameworkAssemblySimpleNames.Contains( an.Name ) || ( this._additionalCheckForDefaultLoader?.Invoke( an ) ?? false ) )
-            {
-               // We use default loader for framework assemblies, in order to avoid loading from different path for same assembly name.
-               try
-               {
-                  retVal = this._parentLoadContext.LoadFromAssemblyName( an );
-               }
-               catch
-               {
-                  // Ignore
-               }
-            }
-            return retVal ?? this._resolver.TryResolveFromPreviouslyLoaded( an );
-         }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) ).Value;
-      }
-
-      protected override IntPtr LoadUnmanagedDll( String unmanagedDllName )
-      {
-         var retVal = this._unmanagedDLLPaths
-            .GetOrAdd( unmanagedDllName, dllName => new Lazy<String[]>( () => this.PerformUnmanagedDLLResolve( dllName ), LazyThreadSafetyMode.ExecutionAndPublication ) )
-            .Value
-            .Select( path =>
-          {
-             IntPtr ptr;
-             try
-             {
-                ptr = this.LoadUnmanagedDllFromPath( path );
-             }
-             catch
-             {
-                // Sometimes there may be some non-dll files as assets, e.g. pdb files, or whatever the package creator has put in there.
-                ptr = IntPtr.Zero;
-             }
-             return (path, ptr);
-          } )
-            .Where( tuple => tuple.ptr != IntPtr.Zero )
-            .FirstOrDefaultCustom( (null, IntPtr.Zero) );
-
-         var logger = this._resolver.Restorer.Resolver.NuGetLogger;
-         var unmanagedPtr = retVal.ptr;
-         if ( unmanagedPtr == IntPtr.Zero )
-         {
-            // Inform about failure to resolve native assemblies (no error, since base.LoadUnmanagedDll might succeed (highly unlikely in practice, though)
-            logger.LogInformation( $"Failed to resolve unmanaged DLL \"{unmanagedDllName}\", with all seen unmanaged DLL paths: {String.Join( ";", this.GetAllSeenUnmanagedDLLPaths() )}." );
-         }
-         else
-         {
-            // Inform about success
-            logger.LogInformation( $"Resolved unmanaged DLL \"{unmanagedDllName}\" to be loaded from \"{retVal.path}\"." );
-         }
-
-         return unmanagedPtr == IntPtr.Zero ?
-            base.LoadUnmanagedDll( unmanagedDllName ) :
-            unmanagedPtr;
-
-      }
-
-      private String[] PerformUnmanagedDLLResolve( String unmanagedDllName )
-      {
-         return ( ( this._unmanagedAssemblyNameProcessor ?? NuGetAssemblyResolverFactory.GetDefaultUnmanagedAssemblyPathCandidates )(
-            this._resolver.Restorer.Resolver.RuntimeIdentifier,
-            unmanagedDllName,
-            this.GetAllSeenUnmanagedDLLPaths()
-            ) ?? Empty<String>.Enumerable )
-            // Sanitate paths returned by callback
-            .Where( path => !String.IsNullOrEmpty( path ) && Path.IsPathRooted( path ) && File.Exists( path ) )
-            .ToArray();
-      }
-
-      private IEnumerable<String> GetAllSeenUnmanagedDLLPaths()
-      {
-         // Unmanaged assemblies will have their assembly name as null.
-         // They have been previously loaded as long as they reside in proper package folders in dependant packages
-         return this._resolver.AssemblyNames
-            .Where( kvp => kvp.Value.Value == null )
-            .Select( kvp => kvp.Key );
-      }
-   }
 #endif
 
 
@@ -512,7 +389,180 @@ namespace UtilPack.NuGet.AssemblyLoading
 
    NuGetAssemblyResolver, IDisposable
    {
-      internal sealed class AssemblyNameComparer : IEqualityComparer<AssemblyName>
+#if !NET45
+      internal sealed class NuGetAssemblyLoadContext : System.Runtime.Loader.AssemblyLoadContext, IDisposable
+      {
+         private readonly ISet<String> _frameworkAssemblySimpleNames;
+         private readonly System.Runtime.Loader.AssemblyLoadContext _parentLoadContext;
+         private readonly ConcurrentDictionary<AssemblyName, Lazy<Assembly>> _loadedAssemblies; // We will get multiple request for same assembly name, so let's cache them
+         private readonly Func<AssemblyName, Boolean> _additionalCheckForDefaultLoader;
+         private readonly NuGetAssemblyResolverImpl _resolver;
+
+         private readonly UnmanagedAssemblyPathProcessorDelegate _unmanagedAssemblyNameProcessor;
+         private readonly ConcurrentDictionary<String, Lazy<String[]>> _unmanagedDLLPaths; // Cache potential paths instead of IntPtrs, as caching IntPtrs will cause errors
+
+         public NuGetAssemblyLoadContext(
+            NuGetAssemblyResolverImpl resolver,
+            BoundRestoreCommandUser restorer,
+            LockFile thisFrameworkRestoreResult,
+            Func<AssemblyName, Boolean> additionalCheckForDefaultLoader,
+            OtherLoadersRegistration loadersRegistration,
+            UnmanagedAssemblyPathProcessorDelegate unmanagedAssemblyNameProcessor
+            )
+         {
+            this._resolver = ArgumentValidator.ValidateNotNull( nameof( resolver ), resolver );
+            var parentLoader = GetLoadContext( this.GetType().GetTypeInfo().Assembly );
+            this._parentLoadContext = parentLoader;
+            this._loadedAssemblies = new ConcurrentDictionary<AssemblyName, Lazy<Assembly>>(
+               ComparerFromFunctions.NewEqualityComparer<AssemblyName>(
+                  ( x, y ) => ReferenceEquals( x, y ) || ( x != null && y != null && String.Equals( x.Name, y.Name )
+                     && String.Equals( x.CultureName, y.CultureName )
+                     && ( ReferenceEquals( x.Version, y.Version ) || ( x.Version?.Equals( y.Version ) ?? false ) )
+                     && AssemblyNameComparer.SafeEqualsWhenNullsAreEmptyArrays( x.GetPublicKeyToken(), y.GetPublicKeyToken() )
+                     ),
+                  x => x?.Name?.GetHashCode() ?? 0
+                  )
+               );
+            // .NET Core is package-based framework, so we need to find out which packages are part of framework, and which ones are actually client ones.
+            this._frameworkAssemblySimpleNames = new HashSet<String>(
+               restorer.ExtractAssemblyPaths(
+                     thisFrameworkRestoreResult,
+                     ( rGraph, rid, lib, libs ) => lib.CompileTimeAssemblies.Select( i => i.Path ).FilterUnderscores(),
+                     null
+                     ).Values
+                  .SelectMany( p => p.Assemblies )
+                  .Select( p => Path.GetFileNameWithoutExtension( p ) ) // For framework assemblies, we can assume that file name without extension = assembly name
+               );
+            this._additionalCheckForDefaultLoader = additionalCheckForDefaultLoader;
+
+            // We do this to catch scenarios like using Type.GetType(String) method.
+            var defaultLoader = Default;
+            var registerDefault = loadersRegistration.HasFlag( OtherLoadersRegistration.Default );
+            if ( registerDefault )
+            {
+               defaultLoader.Resolving += this.OtherResolving;
+            }
+            if ( loadersRegistration.HasFlag( OtherLoadersRegistration.Current )
+               && ( !registerDefault || !ReferenceEquals( parentLoader, defaultLoader ) )
+               )
+            {
+               parentLoader.Resolving += this.OtherResolving;
+            }
+
+            this._unmanagedAssemblyNameProcessor = unmanagedAssemblyNameProcessor;
+            this._unmanagedDLLPaths = new ConcurrentDictionary<String, Lazy<String[]>>();
+         }
+
+         private Assembly OtherResolving( System.Runtime.Loader.AssemblyLoadContext loadContext, AssemblyName assemblyName )
+         {
+            return this._resolver?.TryResolveFromPreviouslyLoaded( assemblyName );
+         }
+
+         public void Dispose()
+         {
+            Default.Resolving -= this.OtherResolving;
+            this._parentLoadContext.Resolving -= this.OtherResolving;
+         }
+
+         protected override Assembly Load( AssemblyName assemblyName )
+         {
+            return this._loadedAssemblies.GetOrAdd( assemblyName, an => new Lazy<Assembly>( () =>
+            {
+               Assembly retVal = null;
+               if ( this._frameworkAssemblySimpleNames.Contains( an.Name ) || ( this._additionalCheckForDefaultLoader?.Invoke( an ) ?? false ) )
+               {
+                  // We use default loader for framework assemblies, in order to avoid loading from different path for same assembly name.
+                  try
+                  {
+                     retVal = this._parentLoadContext.LoadFromAssemblyName( an );
+                  }
+                  catch
+                  {
+                     // Ignore
+                  }
+               }
+               return retVal ?? this._resolver.TryResolveFromPreviouslyLoaded( an );
+            }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) ).Value;
+         }
+
+         protected override IntPtr LoadUnmanagedDll( String unmanagedDllName )
+         {
+            var retVal = this._unmanagedDLLPaths
+               .GetOrAdd( unmanagedDllName, dllName => new Lazy<String[]>( () => this.PerformUnmanagedDLLResolve( dllName ), LazyThreadSafetyMode.ExecutionAndPublication ) )
+               .Value
+               .Select( path =>
+               {
+                  String processed;
+                  var actualPath = String.IsNullOrEmpty( ( processed = this._resolver._pathProcessor?.Invoke( path ) ) ) ?
+                  path :
+                  processed;
+                  return (path, actualPath);
+               } )
+               .Select( tuple =>
+                {
+                   IntPtr ptr;
+                   try
+                   {
+                      ptr = this.LoadUnmanagedDllFromPath( tuple.actualPath );
+                   }
+                   catch
+                   {
+                      // Sometimes there may be some non-dll files as assets, e.g. pdb files, or whatever the package creator has put in there.
+                      ptr = IntPtr.Zero;
+                   }
+                   return (tuple.path, tuple.actualPath, ptr);
+                } )
+               .Where( tuple => tuple.ptr != IntPtr.Zero )
+               .FirstOrDefaultCustom( (null, null, IntPtr.Zero) );
+
+            var logger = this._resolver._restorer.Restorer.NuGetLogger;
+            var unmanagedPtr = retVal.ptr;
+            try
+            {
+               if ( unmanagedPtr == IntPtr.Zero )
+               {
+                  this._resolver.OnUnmanagedAssemblyLoadFail?.Invoke( new UnmanagedAssemblyLoadFailedEventArgs( unmanagedDllName, this.GetAllSeenUnmanagedDLLPaths().ToArray() ) );
+               }
+               else
+               {
+                  this._resolver.OnUnmanagedAssemblyLoadSuccess?.Invoke( new UnmanagedAssemblyLoadSuccessEventArgs( unmanagedDllName, retVal.path, retVal.actualPath ) );
+               }
+            }
+            catch
+            {
+               // Ignore
+            }
+
+            return unmanagedPtr == IntPtr.Zero ?
+               base.LoadUnmanagedDll( unmanagedDllName ) :
+               unmanagedPtr;
+
+         }
+
+         private String[] PerformUnmanagedDLLResolve( String unmanagedDllName )
+         {
+            return ( ( this._unmanagedAssemblyNameProcessor ?? NuGetAssemblyResolverFactory.GetDefaultUnmanagedAssemblyPathCandidates )(
+               this._resolver._restorer.Restorer.RuntimeIdentifier,
+               unmanagedDllName,
+               this.GetAllSeenUnmanagedDLLPaths()
+               ) ?? Empty<String>.Enumerable )
+               // Sanitate paths returned by callback
+               .Where( path => !String.IsNullOrEmpty( path ) && Path.IsPathRooted( path ) && File.Exists( path ) )
+               .ToArray();
+         }
+
+         private IEnumerable<String> GetAllSeenUnmanagedDLLPaths()
+         {
+            // Unmanaged assemblies will have their assembly name as null.
+            // They have been previously loaded as long as they reside in proper package folders in dependant packages
+            return this._resolver._assemblyNames
+               .Where( kvp => kvp.Value.Value == null )
+               .Select( kvp => kvp.Key );
+         }
+      }
+#endif
+
+      private sealed class AssemblyNameComparer : IEqualityComparer<AssemblyName>
       {
 
          private AssemblyNameComparer()
@@ -623,8 +673,6 @@ namespace UtilPack.NuGet.AssemblyLoading
          resolver,
 #if NET45
          Object callbackWrapper,
-#else
-         NuGetAssemblyLoadContext loader,
 #endif
 #if NET45
          Object
@@ -632,6 +680,13 @@ namespace UtilPack.NuGet.AssemblyLoading
          Func<String, String>
 #endif
          pathProcessor
+#if !NET45
+         , LockFile thisFrameworkRestoreResult,
+         Func<AssemblyName, Boolean> additionalCheckForDefaultLoader,
+         OtherLoadersRegistration loadersRegistration,
+         UnmanagedAssemblyPathProcessorDelegate unmanagedAssemblyNameProcessor,
+         out System.Runtime.Loader.AssemblyLoadContext createdLoader
+#endif
          )
       {
 
@@ -640,13 +695,13 @@ namespace UtilPack.NuGet.AssemblyLoading
 #endif
 
 #if !NET45
-         this._loader = ArgumentValidator.ValidateNotNull( nameof( loader ), loader );
+         createdLoader = this._loader = new NuGetAssemblyLoadContext( this, resolver.Restorer, thisFrameworkRestoreResult, additionalCheckForDefaultLoader, loadersRegistration, unmanagedAssemblyNameProcessor );
 #endif
          this._fromPathLoader =
 #if NET45
             Assembly.LoadFile
 #else
-            path => loader.LoadFromAssemblyPath( path )
+            path => this._loader.LoadFromAssemblyPath( path )
 #endif
             ;
 
@@ -699,9 +754,6 @@ namespace UtilPack.NuGet.AssemblyLoading
          }
          return retVal;
       }
-#else
-      internal KeyValuePair<String, Lazy<AssemblyName>>[] AssemblyNames => this._assemblyNames.ToArray();
-      internal NuGetRestorerWrapper Restorer => this._restorer;
 
 #endif
 
@@ -734,8 +786,8 @@ namespace UtilPack.NuGet.AssemblyLoading
 #if NET45
             await this.UseResolver( packageIDs, packageVersions )
 #else
-            this._restorer.Resolver.ExtractAssemblyPaths(
-               await this._restorer.Resolver.RestoreIfNeeded( packageIDs.Select( ( p, idx ) => (p, packageVersions[idx]) ).ToArray() ),
+            this._restorer.Restorer.ExtractAssemblyPaths(
+               await this._restorer.Restorer.RestoreIfNeeded( packageIDs.Select( ( p, idx ) => (p, packageVersions[idx]) ).ToArray() ),
                this._restorer.GetFiles,
                this._restorer.SDKPackageIDs
                )
@@ -789,7 +841,7 @@ namespace UtilPack.NuGet.AssemblyLoading
                      {
                         this._restorer
 #if !NET45
-                           .Resolver
+                           .Restorer
 #endif
 
                            .LogAssemblyPathResolveError( packageID, possibleAssemblyPaths.Assemblies, assemblyPaths[i], assemblyPath );
@@ -825,6 +877,14 @@ namespace UtilPack.NuGet.AssemblyLoading
 
       public event Action<AssemblyLoadSuccessEventArgs> OnAssemblyLoadSuccess;
       public event Action<AssemblyLoadFailedEventArgs> OnAssemblyLoadFail;
+#if NET45
+#pragma warning disable 67
+#endif
+      public event Action<UnmanagedAssemblyLoadSuccessEventArgs> OnUnmanagedAssemblyLoadSuccess;
+      public event Action<UnmanagedAssemblyLoadFailedEventArgs> OnUnmanagedAssemblyLoadFail;
+#if NET45
+#pragma warning restore 67
+#endif
 
       public Assembly TryResolveFromPreviouslyLoaded( AssemblyName assemblyName )
       {
@@ -959,7 +1019,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          IEnumerable<String> sdkPackages
          )
       {
-         this.Resolver = resolver;
+         this.Restorer = resolver;
          this.GetFiles = getFiles;
          this.SDKPackageIDs = sdkPackages?.ToList();
       }
@@ -973,13 +1033,13 @@ namespace UtilPack.NuGet.AssemblyLoading
          )
       {
 
-         var task = this.Resolver.RestoreIfNeeded( packageID.Select( ( pID, idx ) => (pID, packageVersion[idx]) ).ToArray() );
+         var task = this.Restorer.RestoreIfNeeded( packageID.Select( ( pID, idx ) => (pID, packageVersion[idx]) ).ToArray() );
          task.ContinueWith( prevTask =>
          {
             try
             {
                var result = prevTask.Result;
-               setter.SetResult( this.Resolver.ExtractAssemblyPaths( result, this.GetFiles, this.SDKPackageIDs ) );
+               setter.SetResult( this.Restorer.ExtractAssemblyPaths( result, this.GetFiles, this.SDKPackageIDs ) );
             }
             catch
             {
@@ -989,10 +1049,10 @@ namespace UtilPack.NuGet.AssemblyLoading
       }
 
       internal void LogAssemblyPathResolveError( String packageID, String[] possiblePaths, String pathHint, String seenAssemblyPath ) =>
-         this.Resolver.LogAssemblyPathResolveError( packageID, possiblePaths, pathHint, seenAssemblyPath );
+         this.Restorer.LogAssemblyPathResolveError( packageID, possiblePaths, pathHint, seenAssemblyPath );
 
       internal void LogAssemblyNameLoadError( String path, String message ) =>
-         this.Resolver.NuGetLogger.LogWarning( $"Error when loading assembly name from {path}: {message}" );
+         this.Restorer.NuGetLogger.LogWarning( $"Error when loading assembly name from {path}: {message}" );
 #endif
 
 #if NET45
@@ -1000,7 +1060,7 @@ namespace UtilPack.NuGet.AssemblyLoading
 #else
       public
 #endif
-         BoundRestoreCommandUser Resolver
+         BoundRestoreCommandUser Restorer
       { get; }
 
 #if NET45

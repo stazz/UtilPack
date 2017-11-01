@@ -12,13 +12,18 @@
       <TreatSpecificWarningsAsErrors />
       <!-- Notice that setting CopyLocalLockFileAssemblies property is not required and is even discouraged - the UtilPack.NuGet.MSBuild task factory will take care of loading all the dependent assemblies.
            Setting CopyLocalLockFileAssemblies to true will cause unnecessary bloating of the resulting NuGet package. -->
-      <TaskFactoryPackageVersion>1.2.0</TaskFactoryPackageVersion>
+      <TaskFactoryPackageVersion>2.2.1</TaskFactoryPackageVersion>
    </PropertyGroup>
    
    <ItemGroup>
       <!-- Any NuGet packages this project depends on. The Microsoft.Build.Utilities.Core is typical dependency, and any other (3rd party) NuGet package dependency may be freely added. -->
       <PackageReference Include="Microsoft.Build.Utilities.Core" Version="15.1.548" />
-      <PackageReference Include="UtilPack.NuGet.MSBuild" Version="$(TaskFactoryPackageVersion)" PrivateAssets="all" />
+      <!-- 
+        The UtilPack.NuGet.MSBuild PackageReference is recommended, especially if your task modifies properties part of consumer build, but it is not strictly required.
+        We can't use $(TaskFactoryPackageVersion) as value of Version attribute, since that breaks VS completely. 
+        It'll just need to be updated separately, if this package reference is retained.
+      -->
+      <PackageReference Include="UtilPack.NuGet.MSBuild" Version="2.2.1" PrivateAssets="all" />
    </ItemGroup>
 
    <PropertyGroup>

@@ -109,11 +109,28 @@ namespace UtilPack.NuGet.MSBuild
                   // VAlue -> mapped assembly name
                   return element.Attribute( MAPPED_NAME ).Value;
                } );
-            unmanagedAssemblyPathProcessor = ( platformRID, unmanagedAssemblyName, unmanagedAssemblyFullPath ) =>
+            unmanagedAssemblyPathProcessor = ( platformRID, unmanagedAssemblyName, allUnmanagedAssemblyPaths ) =>
             {
-               return map.TryGetValue( unmanagedAssemblyName, out var mappedName ) ?
-                  Path.Combine( Path.GetDirectoryName( unmanagedAssemblyFullPath ), mappedName + Path.GetExtension( unmanagedAssemblyFullPath ) ).Singleton() :
-                  NuGetAssemblyResolverFactory.GetDefaultUnmanagedAssemblyPathCandidates( platformRID, unmanagedAssemblyName, unmanagedAssemblyFullPath );
+               IEnumerable<String> retVal;
+               if ( map.TryGetValue( unmanagedAssemblyName, out var mappedName ) )
+               {
+                  if ( Path.IsPathRooted( mappedName ) )
+                  {
+                     retVal = mappedName.Singleton();
+                  }
+                  else
+                  {
+                     retVal = allUnmanagedAssemblyPaths
+                        .Where( p => Path.GetFileNameWithoutExtension( p ).IndexOf( unmanagedAssemblyName ) >= 0 )
+                        .Select( p => Path.Combine( Path.GetDirectoryName( p ), mappedName + Path.GetExtension( p ) ) );
+                  }
+               }
+               else
+               {
+                  retVal = NuGetAssemblyResolverFactory.GetDefaultUnmanagedAssemblyPathCandidates( platformRID, unmanagedAssemblyName, allUnmanagedAssemblyPaths );
+               }
+
+               return retVal;
             };
          }
 

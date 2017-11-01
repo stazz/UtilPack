@@ -679,6 +679,8 @@ namespace UtilPack.NuGet.MSBuild
       {
          resolver.OnAssemblyLoadSuccess += args => logger.Log( $"Resolved {args.AssemblyName} located in {args.OriginalPath} and loaded from {args.ActualPath}." );
          resolver.OnAssemblyLoadFail += args => logger.Log( $"Failed to resolve {args.AssemblyName}." );
+         resolver.OnUnmanagedAssemblyLoadSuccess += args => logger.Log( $"Resolved unmanaged assembly \"{args.AssemblyName}\" located in {args.OriginalPath} and loaded from {args.ActualPath}." );
+         resolver.OnUnmanagedAssemblyLoadFail += args => logger.Log( $"Failed to resolve unmanaged assembly \"{args.AssemblyName}\", with all seen unmanaged DLL paths: {String.Join( ";", args.AllSeenUnmanagedDLLPaths )}." );
       }
 
       private static Func<String, String> CreatePathProcessor( String assemblyCopyTargetFolder )

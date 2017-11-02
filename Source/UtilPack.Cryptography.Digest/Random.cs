@@ -47,8 +47,8 @@ namespace UtilPack.Cryptography.Digest
       /// <exception cref="ArgumentNullException">If <paramref name="algorithm"/> is <c>null</c>.</exception>
       public DigestBasedRandomGenerator(
          BlockDigestAlgorithm algorithm,
-         Int32 seedCycleCount,
-         Boolean skipDisposeAlgorithm
+         Int32 seedCycleCount = 10,
+         Boolean skipDisposeAlgorithm = false
          )
       {
          this.Algorithm = ArgumentValidator.ValidateNotNull( "Algorithm", algorithm );

@@ -677,10 +677,12 @@ namespace UtilPack.NuGet.MSBuild
          ResolverLogger logger
          )
       {
-         resolver.OnAssemblyLoadSuccess += args => logger.Log( $"Resolved {args.AssemblyName} located in {args.OriginalPath} and loaded from {args.ActualPath}." );
+         resolver.OnAssemblyLoadSuccess += args => logger.Log( $"Resolved {args.AssemblyName} located in {args.OriginalPath} and loaded from {( String.Equals( args.OriginalPath, args.ActualPath ) ? "same path" : args.ActualPath )}." );
          resolver.OnAssemblyLoadFail += args => logger.Log( $"Failed to resolve {args.AssemblyName}." );
-         resolver.OnUnmanagedAssemblyLoadSuccess += args => logger.Log( $"Resolved unmanaged assembly \"{args.AssemblyName}\" located in {args.OriginalPath} and loaded from {args.ActualPath}." );
-         resolver.OnUnmanagedAssemblyLoadFail += args => logger.Log( $"Failed to resolve unmanaged assembly \"{args.AssemblyName}\", with all seen unmanaged DLL paths: {String.Join( ";", args.AllSeenUnmanagedDLLPaths )}." );
+#if !NET45
+         resolver.OnUnmanagedAssemblyLoadSuccess += args => logger.Log( $"Resolved unmanaged assembly \"{args.AssemblyName}\" located in {args.OriginalPath} and loaded from {( String.Equals( args.OriginalPath, args.ActualPath ) ? "same path" : args.ActualPath )}." );
+         resolver.OnUnmanagedAssemblyLoadFail += args => logger.Log( $"Failed to resolve unmanaged assembly \"{args.AssemblyName}\", with all seen unmanaged DLL paths: {String.Join( ";", args.AllSeenUnmanagedAssembliesPaths )}." );
+#endif
       }
 
       private static Func<String, String> CreatePathProcessor( String assemblyCopyTargetFolder )

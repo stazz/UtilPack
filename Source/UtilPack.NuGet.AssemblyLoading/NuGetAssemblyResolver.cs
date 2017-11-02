@@ -83,22 +83,42 @@ namespace UtilPack.NuGet.AssemblyLoading
       /// <seealso cref="AssemblyLoadFailedEventArgs"/>
       event Action<AssemblyLoadFailedEventArgs> OnAssemblyLoadFail;
 
+#if !NET45
+
+      /// <summary>
+      /// This event is only available in .NET Core environment.
+      /// It is triggered when an unmanaged assembly is successfully loaded by this <see cref="NuGetAssemblyResolver"/>.
+      /// </summary>
+      /// <seealso cref="UnmanagedAssemblyLoadSuccessEventArgs"/>
       event Action<UnmanagedAssemblyLoadSuccessEventArgs> OnUnmanagedAssemblyLoadSuccess;
 
+      /// <summary>
+      /// This event is only available in .NET Core environment.
+      /// It is triggered when an unmanaged assembly is failed to be resolved by this <see cref="NuGetAssemblyResolver"/>.
+      /// </summary>
+      /// <seealso cref="UnmanagedAssemblyLoadFailedEventArgs"/>
       event Action<UnmanagedAssemblyLoadFailedEventArgs> OnUnmanagedAssemblyLoadFail;
 
+#endif
+
+      /// <summary>
+      /// This method will try to resolve <see cref="Assembly"/> from currently loaded assemblies of this <see cref="NuGetAssemblyResolver"/> using the given <see cref="AssemblyName"/>.
+      /// </summary>
+      /// <param name="assemblyName">The <see cref="AssemblyName"/> to use when resolving. May be <c>null</c>.</param>
+      /// <returns>The resolved <see cref="Assembly"/>, or <c>null</c> if resolving failed.</returns>
       Assembly TryResolveFromPreviouslyLoaded( AssemblyName assemblyName );
    }
 
    /// <summary>
-   /// This is abstract base class for <see cref="AssemblyLoadSuccessEventArgs"/> and <see cref="AssemblyLoadFailedEventArgs"/> types.
+   /// This is abstract base class for <see cref="AssemblyLoadSuccessEventArgs{TName}"/> and <see cref="AssemblyLoadFailedEventArgs{TName}"/> types.
    /// </summary>
+   /// <typeparam name="TName">The type of the assembly name. Typically <see cref="System.Reflection.AssemblyName"/> or <see cref="String"/>.</typeparam>
    public abstract class AbstractAssemblyResolveArgs<TName>
    {
       /// <summary>
-      /// Initializes new instance of <see cref="AbstractAssemblyResolveArgs"/>.
+      /// Initializes new instance of <see cref="AbstractAssemblyResolveArgs{TName}"/>.
       /// </summary>
-      /// <param name="assemblyName">The <see cref="System.Reflection.AssemblyName"/> related to current event.</param>
+      /// <param name="assemblyName">The assembly name, typically <see cref="System.Reflection.AssemblyName"/> or <see cref="String"/>, related to current event.</param>
       public AbstractAssemblyResolveArgs(
          TName assemblyName
          )
@@ -107,21 +127,22 @@ namespace UtilPack.NuGet.AssemblyLoading
       }
 
       /// <summary>
-      /// Gets the <see cref="System.Reflection.AssemblyName"/> related to current event.
+      /// Gets the assembly name related to current event.
       /// </summary>
-      /// <value>The <see cref="System.Reflection.AssemblyName"/> related to current event.</value>
+      /// <value>The assembly name related to current event.</value>
       public TName AssemblyName { get; }
    }
 
    /// <summary>
-   /// This class contains information for <see cref="NuGetAssemblyResolver.OnAssemblyLoadSuccess"/> event.
+   /// This is base class for <see cref="AssemblyLoadSuccessEventArgs"/> and <see cref="T:UtilPack.NuGet.AssemblyLoading.UnmanagedAssemblyLoadSuccessEventArgs"/> (in .NET Core environment) classes.
    /// </summary>
+   /// <typeparam name="TName">The type of the assembly name. Typically <see cref="System.Reflection.AssemblyName"/> or <see cref="String"/>.</typeparam>
    public class AssemblyLoadSuccessEventArgs<TName> : AbstractAssemblyResolveArgs<TName>
    {
       /// <summary>
-      /// Creates new instance of <see cref="AssemblyLoadSuccessEventArgs"/>
+      /// Creates new instance of <see cref="AssemblyLoadSuccessEventArgs{TName}"/>
       /// </summary>
-      /// <param name="assemblyName">The <see cref="System.Reflection.AssemblyName"/> related to current event.</param>
+      /// <param name="assemblyName">The assembly name, typically <see cref="System.Reflection.AssemblyName"/> or <see cref="String"/>, related to current event.</param>
       /// <param name="originalPath">The original path where assembly resides.</param>
       /// <param name="actualPath">The path where assembly is loaded from.</param>
       public AssemblyLoadSuccessEventArgs(
@@ -147,9 +168,11 @@ namespace UtilPack.NuGet.AssemblyLoading
       public String ActualPath { get; }
    }
 
+
    /// <summary>
-   /// This class contains information for <see cref="NuGetAssemblyResolver.OnAssemblyLoadFail"/> event.
+   /// This is base class for <see cref="AssemblyLoadFailedEventArgs"/> and <see cref="T:UtilPack.NuGet.AssemblyLoading.UnmanagedAssemblyLoadFailedEventArgs"/> (in .NET Core environment) classes.
    /// </summary>
+   /// <typeparam name="TName">The type of the assembly name. Typically <see cref="System.Reflection.AssemblyName"/> or <see cref="String"/>.</typeparam>
    public class AssemblyLoadFailedEventArgs<TName> : AbstractAssemblyResolveArgs<TName>
    {
       /// <summary>
@@ -165,8 +188,17 @@ namespace UtilPack.NuGet.AssemblyLoading
 
    }
 
+   /// <summary>
+   /// This class contains information for <see cref="NuGetAssemblyResolver.OnAssemblyLoadSuccess"/> event.
+   /// </summary>
    public sealed class AssemblyLoadSuccessEventArgs : AssemblyLoadSuccessEventArgs<AssemblyName>
    {
+      /// <summary>
+      /// Creates new instance of <see cref="AssemblyLoadSuccessEventArgs"/> with given parameters.
+      /// </summary>
+      /// <param name="assemblyName">The <see cref="AssemblyName"/> of the resolved assembly.</param>
+      /// <param name="originalPath">The original path where assembly resides.</param>
+      /// <param name="actualPath">The path where assembly is loaded from.</param>
       public AssemblyLoadSuccessEventArgs(
          AssemblyName assemblyName,
          String originalPath,
@@ -176,8 +208,15 @@ namespace UtilPack.NuGet.AssemblyLoading
       }
    }
 
+   /// <summary>
+   /// This class contains information for <see cref="NuGetAssemblyResolver.OnAssemblyLoadFail"/> event.
+   /// </summary>
    public sealed class AssemblyLoadFailedEventArgs : AssemblyLoadFailedEventArgs<AssemblyName>
    {
+      /// <summary>
+      /// Creates new instance of <see cref="AssemblyLoadFailedEventArgs"/> with given parameter.
+      /// </summary>
+      /// <param name="assemblyName">The <see cref="AssemblyName"/> used when resolving.</param>
       public AssemblyLoadFailedEventArgs(
          AssemblyName assemblyName
          ) : base( assemblyName )
@@ -185,8 +224,19 @@ namespace UtilPack.NuGet.AssemblyLoading
       }
    }
 
+#if !NET45
+
+   /// <summary>
+   /// This class contains information for <see cref="NuGetAssemblyResolver.OnUnmanagedAssemblyLoadSuccess"/> event.
+   /// </summary>
    public sealed class UnmanagedAssemblyLoadSuccessEventArgs : AssemblyLoadSuccessEventArgs<String>
    {
+      /// <summary>
+      /// Creates new instance of <see cref="UnmanagedAssemblyLoadSuccessEventArgs"/> with given parameters.
+      /// </summary>
+      /// <param name="assemblyName">The name of unmanaged assembly, as <see cref="String"/>.</param>
+      /// <param name="originalPath">The original path where assembly resides.</param>
+      /// <param name="actualPath">The path where assembly is loaded from.</param>
       public UnmanagedAssemblyLoadSuccessEventArgs(
          String assemblyName,
          String originalPath,
@@ -196,18 +246,32 @@ namespace UtilPack.NuGet.AssemblyLoading
       }
    }
 
+   /// <summary>
+   /// This class contains information for <see cref="NuGetAssemblyResolver.OnUnmanagedAssemblyLoadFail"/> event.
+   /// </summary>
    public sealed class UnmanagedAssemblyLoadFailedEventArgs : AssemblyLoadFailedEventArgs<String>
    {
+      /// <summary>
+      /// Creates new instance of <see cref="UnmanagedAssemblyLoadFailedEventArgs"/> with given parameters.
+      /// </summary>
+      /// <param name="assemblyName">The name of unmanaged assembly used when resolving.</param>
+      /// <param name="allSeenUnmanagedAssembliesPaths">The paths of all unmanaged assemblies currently seen by <see cref="NuGetAssemblyResolver"/>.</param>
       public UnmanagedAssemblyLoadFailedEventArgs(
          String assemblyName,
-         String[] allSeenUnmanagedDLLPaths
+         String[] allSeenUnmanagedAssembliesPaths
          ) : base( assemblyName )
       {
-         this.AllSeenUnmanagedDLLPaths = allSeenUnmanagedDLLPaths;
+         this.AllSeenUnmanagedAssembliesPaths = allSeenUnmanagedAssembliesPaths;
       }
 
-      public String[] AllSeenUnmanagedDLLPaths { get; }
+      /// <summary>
+      /// Gets the paths of all the unmanaged assemblies currently seen by <see cref="NuGetAssemblyResolver"/>.
+      /// </summary>
+      /// <value>The paths of all the unmanaged assemblies currently seen by <see cref="NuGetAssemblyResolver"/>.</value>
+      public String[] AllSeenUnmanagedAssembliesPaths { get; }
    }
+
+#endif
 
    /// <summary>
    /// This class provides method to create new instances of <see cref="NuGetAssemblyResolver"/>.
@@ -239,6 +303,8 @@ namespace UtilPack.NuGet.AssemblyLoading
       /// <param name="additionalCheckForDefaultLoader">The optional callback to check whether some assembly needs to be loaded using parent loader (the loader which loaded this assembly).</param>
       /// <param name="defaultGetFiles">The optional callback to give to <see cref="M:E_UtilPack.ExtractAssemblyPaths{TResult}(BoundRestoreCommandUser, LockFile, Func{string, IEnumerable{string}, TResult}, GetFileItemsDelegate)"/> method.</param>
       /// <param name="pathProcessor">The optional callback to process assembly path just before it is loaded. It can e.g. copy assembly to some temp folder in order to avoid locking assembly in package repository.</param>
+      /// <param name="loadersRegistration">The enumeration controlling how to register to <see cref="System.Runtime.Loader.AssemblyLoadContext.Resolving"/> event of other <see cref="System.Runtime.Loader.AssemblyLoadContext"/> instances.</param>
+      /// <param name="unmanagedAssemblyNameProcessor">The optional callback to get all potential unmanaged assembly paths. Will be <see cref="GetDefaultUnmanagedAssemblyPathCandidates"/> if <c>null</c>.</param>
       /// <returns>A new instance of <see cref="NuGetAssemblyResolver"/>.</returns>
       /// <remarks>
       /// The created <see cref="System.Runtime.Loader.AssemblyLoadContext"/> and other resources will be cleared on calling <see cref="IDisposable.Dispose"/> method on returned <see cref="NuGetAssemblyResolver"/>.
@@ -326,6 +392,15 @@ namespace UtilPack.NuGet.AssemblyLoading
 
 #if !NET45
 
+      /// <summary>
+      /// This callback is used in .NET Core environment as default callback to resolve unmanaged assembly path.
+      /// For Windows runtimes, it uses exact match for filename without extension.
+      /// For other runtimes, it tries to prefix it with <c>"lib"</c> first, and then tries the exact match.
+      /// </summary>
+      /// <param name="platformRID">The current platform RID (<see href="https://docs.microsoft.com/en-us/dotnet/core/rid-catalog">official documentation</see>).</param>
+      /// <param name="unmanagedAssemblyName">The unmanaged assembly name.</param>
+      /// <param name="allSeenPotentiallyUnmanagedAssemblies">The paths of all the unmanaged assemblies currently seen by <see cref="NuGetAssemblyResolver"/>.</param>
+      /// <returns>An enumerable of all potential locations for <paramref name="unmanagedAssemblyName"/>. The <see cref="NuGetAssemblyResolver"/> will perform sanity checks for them: they must be rooted and point to existing file.</returns>
       public static IEnumerable<String> GetDefaultUnmanagedAssemblyPathCandidates(
          String platformRID,
          String unmanagedAssemblyName,
@@ -333,10 +408,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          )
       {
          IEnumerable<String> retVal;
-         if (
-            !String.IsNullOrEmpty( platformRID )
-            && !platformRID.StartsWith( BoundRestoreCommandUser.RID_WINDOWS, StringComparison.OrdinalIgnoreCase )
-            )
+         if ( !platformRID.IsWindowsRID() )
          {
             // Non-windows runtimes may prefix the unmanaged assembly name with 'lib'
             const String LIB_PREFIX = "lib";
@@ -351,9 +423,9 @@ namespace UtilPack.NuGet.AssemblyLoading
          }
          else
          {
-            // On Windows or unknown platform, do exact match
+            // On Windows platform, do exact match
             retVal = allSeenPotentiallyUnmanagedAssemblies
-               .Where( path => String.Equals( Path.GetFileNameWithoutExtension( path ), unmanagedAssemblyName ) );
+               .Where( path => String.Equals( Path.GetFileNameWithoutExtension( path ), unmanagedAssemblyName ) && String.Equals( Path.GetExtension( path ), ".dll" ) ); // Filter any other than .dll files (e.g. .pdb files)
          }
 
          return retVal;
@@ -364,14 +436,35 @@ namespace UtilPack.NuGet.AssemblyLoading
 
 #if !NET45
 
+   /// <summary>
+   /// This enumeration controls how <see cref="System.Runtime.Loader.AssemblyLoadContext"/> used by <see cref="NuGetAssemblyResolver"/> registers itself to <see cref="System.Runtime.Loader.AssemblyLoadContext.Resolving"/> event of other <see cref="System.Runtime.Loader.AssemblyLoadContext"/> instances.
+   /// </summary>
    [Flags]
    public enum OtherLoadersRegistration
    {
+      /// <summary>
+      /// The <see cref="System.Runtime.Loader.AssemblyLoadContext"/> used by <see cref="NuGetAssemblyResolver"/> will not register to any other <see cref="System.Runtime.Loader.AssemblyLoadContext.Resolving"/> event.
+      /// </summary>
       None = 0,
+
+      /// <summary>
+      /// The <see cref="System.Runtime.Loader.AssemblyLoadContext"/> used by <see cref="NuGetAssemblyResolver"/> will register itself to <see cref="System.Runtime.Loader.AssemblyLoadContext.Resolving"/> event of <see cref="System.Runtime.Loader.AssemblyLoadContext.Default"/> instance.
+      /// </summary>
       Default = 1,
+
+      /// <summary>
+      /// The <see cref="System.Runtime.Loader.AssemblyLoadContext"/> used by <see cref="NuGetAssemblyResolver"/> will register itself to <see cref="System.Runtime.Loader.AssemblyLoadContext.Resolving"/> event of whatever <see cref="System.Runtime.Loader.AssemblyLoadContext"/> loaded the <see cref="NuGetAssemblyResolver"/>.
+      /// </summary>
       Current = 2
    }
 
+   /// <summary>
+   /// This delegate has the signature of the callback used by <see cref="System.Runtime.Loader.AssemblyLoadContext"/> of <see cref="NuGetAssemblyResolver"/> when it performs unmanaged assembly resolving.
+   /// </summary>
+   /// <param name="platformRID">The current platform RID.</param>
+   /// <param name="unmanagedAssemblyName">The name of the unmanaged assembly to resolve.</param>
+   /// <param name="allSeenPotentiallyUnmanagedAssemblies">The paths of the all unmanaged assemblies currently seen by <see cref="NuGetAssemblyResolver"/>.</param>
+   /// <returns>An enumerable of all potential locations for <paramref name="unmanagedAssemblyName"/>. The <see cref="NuGetAssemblyResolver"/> will perform sanity checks for them: they must be rooted and point to existing file.</returns>
    public delegate IEnumerable<String> UnmanagedAssemblyPathProcessorDelegate(
       String platformRID,
       String unmanagedAssemblyName,
@@ -455,7 +548,7 @@ namespace UtilPack.NuGet.AssemblyLoading
 
          private Assembly OtherResolving( System.Runtime.Loader.AssemblyLoadContext loadContext, AssemblyName assemblyName )
          {
-            return this._resolver?.TryResolveFromPreviouslyLoaded( assemblyName );
+            return this._resolver.TryResolveFromPreviouslyLoaded( assemblyName, true );
          }
 
          public void Dispose()
@@ -481,7 +574,7 @@ namespace UtilPack.NuGet.AssemblyLoading
                      // Ignore
                   }
                }
-               return retVal ?? this._resolver.TryResolveFromPreviouslyLoaded( an );
+               return retVal ?? this._resolver.TryResolveFromPreviouslyLoaded( an, true );
             }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) ).Value;
          }
 
@@ -749,7 +842,7 @@ namespace UtilPack.NuGet.AssemblyLoading
             }
             else
             {
-               retVal = this.TryResolveFromPreviouslyLoaded( name ); // this._fromNameLoader( name );
+               retVal = this.TryResolveFromPreviouslyLoaded( name, true ); // this._fromNameLoader( name );
             }
          }
          return retVal;
@@ -877,16 +970,16 @@ namespace UtilPack.NuGet.AssemblyLoading
 
       public event Action<AssemblyLoadSuccessEventArgs> OnAssemblyLoadSuccess;
       public event Action<AssemblyLoadFailedEventArgs> OnAssemblyLoadFail;
-#if NET45
-#pragma warning disable 67
-#endif
+
+#if !NET45
       public event Action<UnmanagedAssemblyLoadSuccessEventArgs> OnUnmanagedAssemblyLoadSuccess;
       public event Action<UnmanagedAssemblyLoadFailedEventArgs> OnUnmanagedAssemblyLoadFail;
-#if NET45
-#pragma warning restore 67
 #endif
 
       public Assembly TryResolveFromPreviouslyLoaded( AssemblyName assemblyName )
+         => this.TryResolveFromPreviouslyLoaded( assemblyName, false );
+
+      private Assembly TryResolveFromPreviouslyLoaded( AssemblyName assemblyName, Boolean invokeEvent )
       {
          Assembly retVal;
          if (
@@ -908,7 +1001,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          {
             retVal = null;
          }
-         if ( retVal == null )
+         if ( retVal == null && invokeEvent )
          {
             try
             {
@@ -1050,9 +1143,6 @@ namespace UtilPack.NuGet.AssemblyLoading
 
       internal void LogAssemblyPathResolveError( String packageID, String[] possiblePaths, String pathHint, String seenAssemblyPath ) =>
          this.Restorer.LogAssemblyPathResolveError( packageID, possiblePaths, pathHint, seenAssemblyPath );
-
-      internal void LogAssemblyNameLoadError( String path, String message ) =>
-         this.Restorer.NuGetLogger.LogWarning( $"Error when loading assembly name from {path}: {message}" );
 #endif
 
 #if NET45
@@ -1166,6 +1256,13 @@ public static partial class E_UtilPack
          packageInfo.Select( p => p.AssemblyPath ).ToArray() );
    }
 
+   /// <summary>
+   /// This is helper method to try resolve <see cref="Type"/> from all assemblies currently seen by <see cref="NuGetAssemblyResolver"/> based on assembly-name-qualified type string.
+   /// </summary>
+   /// <param name="resolver">This <see cref="NuGetAssemblyResolver"/>.</param>
+   /// <param name="typeName">The assembly-name-qualified type string.</param>
+   /// <returns>The resolved type, or <c>null</c> if type for one reason or another could not be resolved.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="NuGetAssemblyResolver"/> is <c>null</c>.</exception>
    public static Type TryLoadTypeFromPreviouslyLoadedAssemblies( this NuGetAssemblyResolver resolver, String typeName )
    {
       if ( resolver == null )
@@ -1211,8 +1308,4 @@ public static partial class E_UtilPack
    {
       restorer.NuGetLogger.LogError( $"Failed to resolve assemblies for \"{packageID}\"{( String.IsNullOrEmpty( seenAssemblyPath ) ? "" : ( " from \"" + seenAssemblyPath + "\"" ) )}, considered {String.Join( ";", possiblePaths.Select( pp => "\"" + pp + "\"" ) )}, with path hint of \"{pathHint}\"." );
    }
-
-   internal static void LogAssemblyNameLoadError( this BoundRestoreCommandUser restorer, String path, String message ) =>
-      restorer.NuGetLogger.LogWarning( $"Error when loading assembly name from {path}: {message}" );
-
 }

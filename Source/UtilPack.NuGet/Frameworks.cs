@@ -39,14 +39,17 @@ namespace UtilPack.NuGet
    public static partial class UtilPackNuGetUtility
    {
 
+#if NUGET_430
       private static readonly NuGetFramework NETCOREAPP20 = new NuGetFramework( FrameworkConstants.FrameworkIdentifiers.NetCoreApp, new Version( 2, 0, 0, 0 ) );
+#endif
 
       /// <summary>
       /// Gets the matching assembly path from set of assembly paths, the expanded home path of the package, and optional assembly path from "outside world", e.g. configuration.
       /// </summary>
+      /// <param name="packageID">This package ID. It will be used as assembly name without an extension, if <paramref name="optionalGivenAssemblyPath"/> is <c>null</c> or empty.</param>
       /// <param name="assemblyPaths">All assembly paths to be considered from this package.</param>
-      /// <param name="packageExpandedPath">The package home directory path.</param>
       /// <param name="optionalGivenAssemblyPath">Optional assembly path from "outside world", e.g. configuration.</param>
+      /// <param name="suitableAssemblyPathChecker">The callback to check whether the assembly path is suitable (e.g. file exists on disk).</param>
       /// <returns>Best matched assembly path, or <c>null</c>.</returns>
       public static String GetAssemblyPathFromNuGetAssemblies(
          String packageID,
@@ -64,13 +67,15 @@ namespace UtilPack.NuGet
                assemblyPath = null;
             }
          }
-         else if (
-          assemblyPaths.Length > 1
-          && !String.IsNullOrEmpty( ( assemblyPath = ( optionalGivenAssemblyPath ?? ( packageID + ".dll" ) ) ) ) // AssemblyPath task property was given
-          )
+         else if ( assemblyPaths.Length > 1 )
          {
+            if ( String.IsNullOrEmpty( optionalGivenAssemblyPath ) )
+            {
+               optionalGivenAssemblyPath = packageID + ".dll";
+            }
+
             assemblyPath = assemblyPaths
-               .FirstOrDefault( ap => String.Equals( Path.GetFullPath( ap ), Path.GetFullPath( Path.Combine( Path.GetDirectoryName( ap ), assemblyPath ) ) )
+               .FirstOrDefault( ap => String.Equals( Path.GetFullPath( ap ), Path.GetFullPath( Path.Combine( Path.GetDirectoryName( ap ), optionalGivenAssemblyPath ) ) )
                && ( suitableAssemblyPathChecker?.Invoke( ap ) ?? true ) );
          }
          else
@@ -278,8 +283,14 @@ namespace UtilPack.NuGet
                      }
                      else
                      {
-                        // NET Core 2.0, except that we don't see it as field of FrameworkConstants.CommonFrameworks, since we are targeting NuGet.Client package 4.0.0
-                        retVal = NETCOREAPP20;
+                        // NET Core 2.0
+                        retVal =
+#if NUGET_430
+                           NETCOREAPP20
+#else
+                           FrameworkConstants.CommonFrameworks.NetCoreApp20
+#endif
+                           ;
                      }
                   }
                }
@@ -300,11 +311,6 @@ namespace UtilPack.NuGet
          )
       {
          // I wish these constants were in NuGet.Client library
-         const String WIN = BoundRestoreCommandUser.RID_WINDOWS;
-         const String UNIX = BoundRestoreCommandUser.RID_UNIX;
-         const String LINUX = BoundRestoreCommandUser.RID_LINUX;
-         const String OSX = BoundRestoreCommandUser.RID_OSX;
-
          String retVal;
          if ( !String.IsNullOrEmpty( givenRID ) )
          {
@@ -319,13 +325,14 @@ namespace UtilPack.NuGet
                case PlatformID.Win32S:
                case PlatformID.Win32Windows:
                case PlatformID.WinCE:
-                  retVal = WIN;
+                  retVal = RID_WINDOWS;
                   break;
+               // We will most likely never go into cases below, but one never knows...
                case PlatformID.Unix:
-                  retVal = UNIX;
+                  retVal = RID_UNIX;
                   break;
                case PlatformID.MacOSX:
-                  retVal = OSX;
+                  retVal = RID_OSX;
                   break;
                default:
                   retVal = null;
@@ -335,15 +342,15 @@ namespace UtilPack.NuGet
 
             if ( System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform( System.Runtime.InteropServices.OSPlatform.Windows ) )
             {
-               retVal = WIN;
+               retVal = RID_WINDOWS;
             }
             else if ( System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform( System.Runtime.InteropServices.OSPlatform.Linux ) )
             {
-               retVal = LINUX;
+               retVal = RID_LINUX;
             }
             else if ( System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform( System.Runtime.InteropServices.OSPlatform.OSX ) )
             {
-               retVal = OSX;
+               retVal = RID_OSX;
             }
             else
             {
@@ -360,8 +367,8 @@ namespace UtilPack.NuGet
             var architectureIndex = retVal.IndexOf( ARCHITECTURE_SEPARATOR );
             var versionIndex = retVal.IndexOfAny( numericChars );
             // Append version, unless we have generic UNIX/LINUX RID
-            if ( !String.Equals( retVal, UNIX, StringComparison.OrdinalIgnoreCase )
-               && !String.Equals( retVal, LINUX, StringComparison.OrdinalIgnoreCase )
+            if ( !String.Equals( retVal, RID_LINUX, StringComparison.OrdinalIgnoreCase )
+               && !String.Equals( retVal, RID_UNIX, StringComparison.OrdinalIgnoreCase )
                && ( versionIndex < 0 || architectureIndex < 0 || versionIndex > architectureIndex )
                )
             {
@@ -370,7 +377,7 @@ namespace UtilPack.NuGet
                osVersion = Environment.OSVersion.Version;
 #else
                // Append version. This is a bit tricky...
-               // OS Description is typically something like "Microsoft Windows x.y.z" or "Linux (..) x.y.z"
+               // OS Description is typically something like "Microsoft Windows x.y.z"
                // And we need to extract the x.y.z out of it.
                var osDescription = System.Runtime.InteropServices.RuntimeInformation.OSDescription;
                var idx = osDescription.IndexOfAny( numericChars );
@@ -390,7 +397,7 @@ namespace UtilPack.NuGet
                   // On Windows, it is "majorminor" (without dot), unless minor is 0, then it is just "major"
                   // On others, it is ".major.minor" (with the dots)
                   String versionSuffix;
-                  if ( String.Equals( retVal, WIN ) )
+                  if ( String.Equals( retVal, RID_WINDOWS ) )
                   {
                      if ( osVersion.Minor == 0 )
                      {

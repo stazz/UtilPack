@@ -47,15 +47,6 @@ namespace UtilPack.NuGet
    /// </summary>
    public class BoundRestoreCommandUser : IDisposable
    {
-      private const String NUGET_FW = "NuGetFramework";
-      internal const String NUGET_FW_PACKAGE_ID = "NuGetFrameworkPackageID";
-      internal const String NUGET_FW_PACKAGE_VERSION = "NuGetFrameworkPackageVersion";
-
-      public const String RID_WINDOWS = "win";
-      public const String RID_UNIX = "unix";
-      public const String RID_LINUX = "linux";
-      public const String RID_OSX = "osx";
-
 
       private readonly SourceCacheContext _cacheContext;
       private readonly RestoreCommandProviders _restoreCommandProvider;
@@ -71,8 +62,10 @@ namespace UtilPack.NuGet
       /// <param name="nugetSettings">The settings to use.</param>
       /// <param name="thisFramework">The framework to bind to.</param>
       /// <param name="runtimeIdentifier">The runtime identifier. Will be used by <see cref="E_UtilPack.ExtractAssemblyPaths{TResult}(BoundRestoreCommandUser, LockFile, Func{string, IEnumerable{string}, TResult}, GetFileItemsDelegate, IEnumerable{string})"/> method.</param>
+      /// <param name="runtimeGraph">Optional value indicating runtime graph information: either <see cref="global::NuGet.RuntimeModel.RuntimeGraph"/> directly, or <see cref="String"/> containing package ID of package holding <c>runtime.json</c> file, containing serialized runtime graph definition. If neither is specified, then <c>"Microsoft.NETCore.Platforms"</c> package ID used to locate <c>runtime.json</c> file, as per <see href="https://docs.microsoft.com/en-us/dotnet/core/rid-catalog">official documentation</see>.</param>
       /// <param name="nugetLogger">The logger to use in restore command.</param>
       /// <param name="sourceCacheContext">The optional <see cref="SourceCacheContext"/> to use.</param>
+      /// <param name="nuspecCache">The optional <see cref="LocalNuspecCache"/> to use.</param>
       /// <param name="leaveSourceCacheOpen">Whether to leave the <paramref name="sourceCacheContext"/> open when disposing this <see cref="BoundRestoreCommandUser"/>.</param>
       /// <exception cref="ArgumentNullException">If <paramref name="nugetSettings"/> is <c>null</c>.</exception>
       public BoundRestoreCommandUser(
@@ -104,7 +97,7 @@ namespace UtilPack.NuGet
          }
          var ctx = sourceCacheContext ?? new SourceCacheContext();
          var psp = new PackageSourceProvider( nugetSettings );
-         var csp = new global::NuGet.Protocol.CachingSourceProvider( psp );
+         var csp = new CachingSourceProvider( psp );
          this.RuntimeIdentifier = UtilPackNuGetUtility.TryAutoDetectThisProcessRuntimeIdentifier( runtimeIdentifier );
          this._cacheContext = ctx;
          this._disposeSourceCacheContext = !leaveSourceCacheOpen;
@@ -136,7 +129,6 @@ namespace UtilPack.NuGet
                   {
                      packageName = "Microsoft.NETCore.Platforms";
                   }
-                  // As per https://docs.microsoft.com/en-us/dotnet/core/rid-catalog 
                   var platformsPackagePath = this.LocalRepositories.Values
                      .SelectMany( r => r.FindPackagesById( packageName ) )
                      .OrderByDescending( p => p.Version )
@@ -176,7 +168,10 @@ namespace UtilPack.NuGet
       /// <value>The runtime identifier that this <see cref="BoundRestoreCommandUser"/> is bound to.</value>
       public String RuntimeIdentifier { get; }
 
-
+      /// <summary>
+      /// Gets the <see cref="Lazy{T}"/> holding the <see cref="global::NuGet.RuntimeModel.RuntimeGraph"/> of this <see cref="BoundRestoreCommandUser"/>.
+      /// </summary>
+      /// <value>The <see cref="Lazy{T}"/> holding the <see cref="global::NuGet.RuntimeModel.RuntimeGraph"/> of this <see cref="BoundRestoreCommandUser"/>.</value>
       public Lazy<RuntimeGraph> RuntimeGraph { get; }
 
       /// <summary>
@@ -344,7 +339,8 @@ namespace UtilPack.NuGet
    /// <summary>
    /// This delegate is used by <see cref="E_UtilPack.ExtractAssemblyPaths"/> in order to get required assembly paths from single <see cref="LockFileTargetLibrary"/>.
    /// </summary>
-   /// <param name="currentRID">The current runtime identifier (RID). E.g. "win", "unix", etc.</param>
+   /// <param name="runtimeGraph">The lazy holding <see cref="RuntimeGraph"/> containing information about various runtime identifiers (RIDs) and their dependencies.</param>
+   /// <param name="currentRID">The current RID string.</param>
    /// <param name="targetLibrary">The current <see cref="LockFileTargetLibrary"/>.</param>
    /// <param name="libraries">Lazily evaluated dictionary of all <see cref="LockFileLibrary"/> instances, based on package ID.</param>
    /// <returns>The assembly paths for this <see cref="LockFileTargetLibrary"/>.</returns>
@@ -352,6 +348,27 @@ namespace UtilPack.NuGet
 
    public static partial class UtilPackNuGetUtility
    {
+
+      /// <summary>
+      /// This is constant for generic Windows runtime - without version or architecture information.
+      /// </summary>
+      public const String RID_WINDOWS = "win";
+
+      /// <summary>
+      /// This is constant for generic Unix runtime - without version or architecture information.
+      /// </summary>
+      public const String RID_UNIX = "unix";
+
+      /// <summary>
+      /// This is constant for generic Linux runtime - without version or architecture information.
+      /// </summary>
+      public const String RID_LINUX = "linux";
+
+      /// <summary>
+      /// This is constant for generic OSX runtime - without version or architecture information.
+      /// </summary>
+      public const String RID_OSX = "osx";
+
       /// <summary>
       /// Gets the default <see cref="GetFileItemsDelegate"/> which will return all runtime assemblies for given <see cref="LockFileTargetLibrary"/>.
       /// </summary>
@@ -362,7 +379,7 @@ namespace UtilPack.NuGet
          {
             var rGraph = runtimeGraph.Value;
             retVal = targetLib.RuntimeTargets
-                  .Where( rt => rGraph.AreCompatible( currentRID, rt.Runtime ) && !String.IsNullOrEmpty( rt.Path ) && !rt.Path.EndsWith( ".pdb" ) )
+                  .Where( rt => rGraph.AreCompatible( currentRID, rt.Runtime ) )
                   .Select( rt => rt.Path );
          }
          if ( retVal.IsNullOrEmpty() )
@@ -412,6 +429,50 @@ namespace UtilPack.NuGet
             .Select( pID => targetLibsDictionary[pID] )
             .SelectMany( targetLib => targetLib.AsDepthFirstEnumerableWithLoopDetection( curLib => GetChildrenExceptFilterable( curLib ), returnHead: true ) )
             .Distinct();
+      }
+
+
+      /// <summary>
+      /// This is helper method to detect wither this <see cref="String"/> is NuGet platform runtime identifier, which represents some Windows runtime.
+      /// </summary>
+      /// <param name="thisRID">This <see cref="String"/>.</param>
+      /// <returns><c>true</c> if this <see cref="String"/> is not <c>null</c>, not empty, and starts with <see cref="RID_WINDOWS"/> case insensitively.</returns>
+      public static Boolean IsWindowsRID( this String thisRID )
+         => IsOfGenericRID( thisRID, RID_WINDOWS );
+
+      /// <summary>
+      /// This is helper method to detect wither this <see cref="String"/> is NuGet platform runtime identifier, which represents some Unix runtime.
+      /// </summary>
+      /// <param name="thisRID">This <see cref="String"/>.</param>
+      /// <returns><c>true</c> if this <see cref="String"/> is not <c>null</c>, not empty, and starts with <see cref="RID_UNIX"/> case insensitively.</returns>
+      public static Boolean IsUnixRID( this String thisRID )
+         => IsOfGenericRID( thisRID, RID_UNIX );
+
+      /// <summary>
+      /// This is helper method to detect wither this <see cref="String"/> is NuGet platform runtime identifier, which represents some Linux runtime (generic, but not specific).
+      /// </summary>
+      /// <param name="thisRID">This <see cref="String"/>.</param>
+      /// <returns><c>true</c> if this <see cref="String"/> is not <c>null</c>, not empty, and starts with <see cref="RID_LINUX"/> case insensitively.</returns>
+      public static Boolean IsGenericLinuxRID( this String thisRID )
+         => IsOfGenericRID( thisRID, RID_LINUX );
+
+      /// <summary>
+      /// This is helper method to detect wither this <see cref="String"/> is NuGet platform runtime identifier, which represents some OSX runtime.
+      /// </summary>
+      /// <param name="thisRID">This <see cref="String"/>.</param>
+      /// <returns><c>true</c> if this <see cref="String"/> is not <c>null</c>, not empty, and starts with <see cref="RID_OSX"/> case insensitively.</returns>
+      public static Boolean IsOSXRID( this String thisRID )
+         => IsOfGenericRID( thisRID, RID_OSX );
+
+      /// <summary>
+      /// This is helper method to detect wither this <see cref="String"/> is NuGet platform runtime identifier, which represents some other generic runtime.
+      /// </summary>
+      /// <param name="thisRID">This <see cref="String"/>.</param>
+      /// <param name="genericRID">The generic RID to test against.</param>
+      /// <returns><c>true</c> if this <see cref="String"/> is not <c>null</c>, not empty, and starts with <paramref name="genericRID"/> case insensitively.</returns>
+      public static Boolean IsOfGenericRID( this String thisRID, String genericRID )
+      {
+         return !String.IsNullOrEmpty( thisRID ) && !String.IsNullOrEmpty( genericRID ) && thisRID.StartsWith( genericRID, StringComparison.OrdinalIgnoreCase );
       }
    }
 }

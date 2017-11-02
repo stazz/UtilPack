@@ -209,12 +209,18 @@ namespace UtilPack.NuGet.Deployment
                   .ToArray();
 
                var targetFWString = config.ProcessFramework;
-               NuGetFramework targetFW;
                if ( !String.IsNullOrEmpty( targetFWString ) )
                {
-                  targetFW = NuGetFramework.ParseFolder( targetFWString );
+                  var targetFW = NuGetFramework.ParseFolder( targetFWString );
+
+                  var nearestFW = new global::NuGet.Frameworks.FrameworkReducer().GetNearest( targetFW, possibleAssemblies.Select( t => t.Item1.TargetFramework ) );
+                  if ( nearestFW == null )
+                  {
+                     nearestFW = targetFW;
+                  }
+
                   possibleAssemblies = possibleAssemblies
-                     .Where( t => t.Item1.TargetFramework.Equals( targetFW ) )
+                     .Where( t => t.Item1.TargetFramework.Equals( nearestFW ) )
                      .ToArray();
                }
 
@@ -234,6 +240,10 @@ namespace UtilPack.NuGet.Deployment
                      retVal = (packageID, assemblyInfo.Item1, assemblyInfo.Item2);
                   }
 
+               }
+               else
+               {
+                  logger.LogError( $"No suitable assemblies found for {packageID} and framework \"{targetFWString}\"." );
                }
             }
          }

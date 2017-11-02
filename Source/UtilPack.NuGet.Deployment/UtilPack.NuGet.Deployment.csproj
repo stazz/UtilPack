@@ -55,7 +55,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Tracking release of UtilPack.NuGet.</PackageReleaseNotes>
+    <PackageReleaseNotes>Tracking release of UtilPack.NuGet. Also using nearest match instead of exact when detecting the framework to deploy.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions deployment</PackageTags>
     <Title>NuGet Package Deployment</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

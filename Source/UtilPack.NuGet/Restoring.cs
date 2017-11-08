@@ -299,14 +299,17 @@ namespace UtilPack.NuGet
       /// <returns>A new instance of <see cref="PackageSpec"/> having <see cref="PackageSpec.TargetFrameworks"/> and <see cref="PackageSpec.Dependencies"/> populated as needed.</returns>
       protected PackageSpec CreatePackageSpec( (String ID, VersionRange Version)[] targets )
       {
+         var projectName = $"Restoring: {String.Join( ", ", targets )}";
          var spec = new PackageSpec()
          {
-            Name = $"Restoring: {String.Join( ", ", targets )}",
+            Name = projectName,
             FilePath = Path.Combine( this._nugetRestoreRootDir, "dummy" ),
             RestoreMetadata = new ProjectRestoreMetadata() // restore command will call GetBuildIntegratedProjectCacheFilePath, which will use request.Project.RestoreMetadata.ProjectPath without null-checks
             {
-               ProjectPath = "dummy.csproj"
+               ProjectPath = "dummy.csproj",
+               ProjectName = projectName // If this is left to anything else than project name, Nuget.Commands.TransitiveNoWarnUtils.ExtractTransitiveNoWarnProperties method will fail to nullref or key-not-found
             }
+            // TODO now that this class has its own RuntimeGraph, investigate whether we can use it here.
             //RuntimeGraph = new RuntimeGraph( new RuntimeDescription( this.RuntimeIdentifier ).Singleton() )
          };
          spec.TargetFrameworks.Add( this._restoreTargetFW );

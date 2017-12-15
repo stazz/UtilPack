@@ -28,6 +28,8 @@ namespace UtilPack.NuGet.MSBuild
 {
    public sealed class NuGetTaskRunnerFactory : ITaskFactory
    {
+      private readonly Version _thisNuGetVersion;
+      private readonly Version _taskFactoryNuGetVersion;
       private readonly ITaskFactory _loaded;
       private readonly Exception _error;
       
@@ -45,6 +47,7 @@ namespace UtilPack.NuGet.MSBuild
          catch
          {
            // Ignore, and then just use newest
+           // TODO it is most likely actually an error if we can't see NuGet assembly here, need to figure this out properly later.
          }
          
          Version taskFactoryVersion = null;
@@ -54,9 +57,20 @@ namespace UtilPack.NuGet.MSBuild
 
          try
          {
-            taskFactoryVersion = nugetAssembly == null ?
-               GetNewestAvailableTaskFactoryVersion( thisDir, thisName ) :
-               GetTaskFactoryVersionFromNuGetAssembly( nugetAssembly );
+            if ( nugetAssembly != null )
+            {
+               taskFactoryVersion = this._thisNuGetVersion = nugetAssembly.GetName().Version;
+               if ( !File.Exists(GetTaskFactoryFilePath( thisDir, thisName, taskFactoryVersion ) ) )
+               {
+                  // Fallback to using newest available version
+                  taskFactoryVersion = null;
+               }
+            }
+            
+            if ( taskFactoryVersion == null )
+            {
+               taskFactoryVersion = GetNewestAvailableTaskFactoryVersion( thisDir, thisName );
+            }
          }
          catch ( Exception exc )
          {
@@ -68,7 +82,7 @@ namespace UtilPack.NuGet.MSBuild
          {
             try
             {
-              this._loaded = (ITaskFactory)Activator.CreateInstance( thisLoader.LoadFromAssemblyPath( Path.Combine( thisDir, thisName + THIS_NAME_SUFFIX + taskFactoryVersion.ToString( 3 ) + ".dll" ) ).GetType( this.GetType().FullName ) );
+              this._loaded = (ITaskFactory)Activator.CreateInstance( thisLoader.LoadFromAssemblyPath( GetTaskFactoryFilePath( thisDir, thisName, taskFactoryVersion ) ).GetType( this.GetType().FullName ) );
             }
             catch ( Exception exc)
             {
@@ -76,11 +90,8 @@ namespace UtilPack.NuGet.MSBuild
                this._error = exc;
             }
          }
-      }
-      
-      private static Version GetTaskFactoryVersionFromNuGetAssembly( Assembly nugetAssembly )
-      {
-         return nugetAssembly.GetName().Version;
+         
+         this._taskFactoryNuGetVersion = taskFactoryVersion;
       }
       
       private static Version GetNewestAvailableTaskFactoryVersion( String thisDir, String thisName )
@@ -98,6 +109,21 @@ namespace UtilPack.NuGet.MSBuild
             .OrderByDescending( v => v )
             .FirstOrDefault();
       }
+      
+      private static String GetTaskFactoryFilePath( String thisDir, String thisName, Version version )
+      {
+         return Path.Combine( thisDir, thisName + THIS_NAME_SUFFIX + ExtractVersionString( version ) + ".dll" );
+      }
+      
+      private static Boolean VersionsMatch(Version v1, Version v2)
+      {
+         return String.Equals( ExtractVersionString(v1), ExtractVersionString(v2) );
+      }
+      
+      private static String ExtractVersionString(Version v)
+      {
+         return v?.ToString( 3 );
+      }
 
       public Boolean Initialize(
          String taskName,
@@ -113,7 +139,7 @@ namespace UtilPack.NuGet.MSBuild
             retVal = false;
             taskFactoryLoggingHost.LogErrorEvent(
                new BuildErrorEventArgs(
-                 "Task factory error",
+                 "Task factory",
                  "NMSBT000",
                  null,
                  -1,
@@ -127,6 +153,23 @@ namespace UtilPack.NuGet.MSBuild
          }
          else
          {
+            if ( this._thisNuGetVersion != null && !VersionsMatch( this._thisNuGetVersion, this._taskFactoryNuGetVersion) )
+            {
+               taskFactoryLoggingHost.LogWarningEvent(
+                  new BuildWarningEventArgs(
+                    "Task factory",
+                    "NMSBT010",
+                    null,
+                    -1,
+                    -1,
+                    -1,
+                    -1,
+                    $"There is a mismatch between SDK NuGet version ({ ExtractVersionString( this._thisNuGetVersion ) }) and the NuGet version the task factory was compiled against ({ ExtractVersionString(this._taskFactoryNuGetVersion ) }). There might occur some exotic errors.",
+                    null,
+                    nameof( NuGetTaskRunnerFactory )
+                 ) );
+            }
+            
             retVal = this._loaded.Initialize( taskName, parameterGroup, taskBody, taskFactoryLoggingHost );
          }
          

@@ -12,7 +12,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <NuGetTargetVersion>4.4.0</NuGetTargetVersion>
+    <NuGetTargetVersion>4.5.0</NuGetTargetVersion>
     <DefineConstants>$(DefineConstants);NUGET_$(NuGetTargetVersion.Replace('.', ''))</DefineConstants>
   </PropertyGroup>
   

@@ -325,7 +325,7 @@ namespace UtilPack.NuGet.MSBuild
                      nugetResolver.LogAssemblyPathResolveError( packageID, taskAssemblies.Assemblies, assemblyPathHint, assemblyPath );
                      taskFactoryLoggingHost.LogErrorEvent(
                         new BuildErrorEventArgs(
-                           "Task factory error",
+                           "Task factory",
                            "NMSBT004",
                            null,
                            -1,
@@ -343,7 +343,7 @@ namespace UtilPack.NuGet.MSBuild
                {
                   taskFactoryLoggingHost.LogErrorEvent(
                      new BuildErrorEventArgs(
-                        "Task factory error",
+                        "Task factory",
                         "NMSBT003",
                         null,
                         -1,
@@ -361,7 +361,7 @@ namespace UtilPack.NuGet.MSBuild
          catch ( Exception exc )
          {
             taskFactoryLoggingHost.LogErrorEvent( new BuildErrorEventArgs(
-               "Task factory error",
+               "Task factory",
                "NMSBT001",
                null,
                -1,
@@ -402,7 +402,7 @@ namespace UtilPack.NuGet.MSBuild
                {
                   taskFactoryLoggingHost.LogErrorEvent(
                      new BuildErrorEventArgs(
-                        "Task factory error",
+                        "Task factory",
                         "NMSBT005",
                         null,
                         -1,
@@ -433,7 +433,7 @@ namespace UtilPack.NuGet.MSBuild
                      // No PackageID element and no PackageIDIsSelf element either
                      taskFactoryLoggingHost.LogErrorEvent(
                         new BuildErrorEventArgs(
-                           "Task factory error",
+                           "Task factory",
                            "NMSBT007",
                            null,
                            -1,
@@ -459,7 +459,7 @@ namespace UtilPack.NuGet.MSBuild
                // No PackageID element and no PackageIDIsSelf element either
                taskFactoryLoggingHost.LogErrorEvent(
                      new BuildErrorEventArgs(
-                        "Task factory error",
+                        "Task factory",
                         "NMSBT002",
                         null,
                         -1,
@@ -478,7 +478,7 @@ namespace UtilPack.NuGet.MSBuild
             packageID = null;
             taskFactoryLoggingHost.LogErrorEvent(
                new BuildErrorEventArgs(
-                  "Task factory error",
+                  "Task factory",
                   "NMSBT008",
                   null,
                   -1,
@@ -512,7 +512,7 @@ namespace UtilPack.NuGet.MSBuild
                   {
                      taskFactoryLoggingHost.LogErrorEvent(
                         new BuildErrorEventArgs(
-                           "Task factory error",
+                           "Task factory",
                            "NMSBT009",
                            null,
                            -1,

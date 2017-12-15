@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
     <id>UtilPack.NuGet.MSBuild</id>
-    <version>2.2.2</version>
+    <version>2.3.0</version>
     <title>MSBuild Task Factory for NuGet-Oriented MSBuild Tasks</title>
     <authors>Stanislav Muhametsin</authors>
     <owners>Stanislav Muhametsin</owners>
@@ -11,7 +11,7 @@
     <repository url="https://github.com/CometaSolutions/UtilPack" />
     <projectUrl>https://github.com/CometaSolutions/UtilPack/tree/develop/Source/UtilPack.NuGet.MSBuild</projectUrl>
     <description>Provides easy way to execute NuGet-based MSBuild tasks.</description>
-    <releaseNotes>Fixed minor issue with logging, and did some internal refactorings.</releaseNotes>
+    <releaseNotes>Updated to NuGet 4.5. Several bug fixes. The .NET Core version no longer crashes when there isn't exact NuGet version match.</releaseNotes>
     <copyright>Stanislav Muhametsin</copyright>
     <tags>utility nuget extensions msbuild task package resolve</tags>
     <developmentDependency>true</developmentDependency>

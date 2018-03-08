@@ -1,6 +1,7 @@
 # UtilPack.NuGet.Deployment.MSBuild
 
 This project contains MSBuild task, which exposes the functionality of the `NuGetDeployment` class located in [UtilPack.NuGet.Deployment](../UtilPack.NuGet.Deployment) project.
+The task will download, if necessary, the specified NuGet package, and all of its dependencies, and then will deploy the assemblies against specified framework into given directory.
 
 # Input parameters
 The input parameters of the `UtilPack.NuGet.Deployment.MSBuild.DeployNuGetPackageTask` are listed below.
@@ -19,6 +20,37 @@ The input parameters of the `UtilPack.NuGet.Deployment.MSBuild.DeployNuGetPackag
 # Output parameters
 The `UtilPack.NuGet.Deployment.MSBuild.DeployNuGetPackageTask` has one output parameter.
 * The `EntryPointAssemblyPath` will contain full path to the entrypoint assembly of the deployed NuGet package.
+
+# Example
+Here is a small example of how to use this task within your `.csproj` file:
+```xml
+  <ItemGroup>
+    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="2.4.0"/>
+  </ItemGroup>
+  <UsingTask
+     Condition=" '$(UtilPackNuGetMSBuildAssemblyPath)' != '' "
+     TaskFactory="UtilPack.NuGet.MSBuild.NuGetTaskRunnerFactory"
+     AssemblyFile="$(UtilPackNuGetMSBuildAssemblyPath)"
+     TaskName="UtilPack.MSBuild.AsyncExec.AsyncExecTask">
+    <Task>
+      <NuGetTaskInfo>
+        <PackageID>UtilPack.NuGet.Deployment.MSBuild</PackageID>
+        <PackageVersion>2.0.0</PackageVersion>
+      </NuGetTaskInfo>
+    </Task>
+  </UsingTask>
+
+   <Target Name="Deploy">
+    <UtilPack.NuGet.Push.MSBuild.PushTask
+      ProcessPackageID="MyNuGetPackage"
+      ProcessPackageVersion="MyNuGetPackageVersion"
+      >
+      <Output TaskParameter="EntryPointAssemblyPath" PropertyName="EntryPointAssemblyPath" />
+    </UtilPack.NuGet.Push.MSBuild.PushTask>
+    <!-- Now "EntryPointAssemblyPath" property will contain full path the the .dll file -->
+  </Target>
+
+```
 
 # Distribution
 The [NuGet package](http://www.nuget.org/packages/UtilPack.NuGet.Deployment.MSBuild) has the same package ID as this folder name.

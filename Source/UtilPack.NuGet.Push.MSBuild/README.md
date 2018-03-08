@@ -23,6 +23,33 @@ The input parameters of the `UtilPack.NuGet.Push.MSBuild.PushTask` are listed be
 # Output parameters
 This task has no output parameters.
 
+# Example
+Here is a small example of how to use this task within your `.csproj` file:
+```xml
+  <ItemGroup>
+    <PackageReference Include="UtilPack.NuGet.MSBuild" Version="2.4.0"/>
+  </ItemGroup>
+  <UsingTask
+     Condition=" '$(UtilPackNuGetMSBuildAssemblyPath)' != '' "
+     TaskFactory="UtilPack.NuGet.MSBuild.NuGetTaskRunnerFactory"
+     AssemblyFile="$(UtilPackNuGetMSBuildAssemblyPath)"
+     TaskName="UtilPack.MSBuild.AsyncExec.AsyncExecTask">
+    <Task>
+      <NuGetTaskInfo>
+        <PackageID>UtilPack.NuGet.Push.MSBuild</PackageID>
+        <PackageVersion>2.0.0</PackageVersion>
+      </NuGetTaskInfo>
+    </Task>
+  </UsingTask>
+
+   <Target Name="AfterBuild">
+    <UtilPack.NuGet.Push.MSBuild.PushTask
+      PackageFilePath="path/to/file.nupkg"
+      SourceNames="items with the names of the sources to push to"
+      />
+  </Target>
+```
+
 # Distribution
 The [NuGet package](http://www.nuget.org/packages/UtilPack.NuGet.Push.MSBuild) has the same package ID as this folder name.
 __The task provided by this project should be loaded using [UtilPack.NuGet.MSBuild](../UtilPack.NuGet.MSBuild) task factory.__

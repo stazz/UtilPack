@@ -247,7 +247,7 @@ namespace UtilPack.NuGet.MSBuild
                {
                   GetFileItemsDelegate getFiles = ( rGraph, rid, lib, libs ) => GetSuitableFiles( thisFW, rGraph, rid, lib, libs );
                   // On Desktop we must always load everything, since it's possible to have assemblies compiled against .NET Standard having references to e.g. System.IO.FileSystem.dll, which is not present in GAC
-#if NET45
+#if NET45 || NET46
                   String[] sdkPackages = null;
                   AppDomainSetup appDomainSetup = null;
 #else
@@ -303,7 +303,7 @@ namespace UtilPack.NuGet.MSBuild
                               new ResolverLogger( nugetLogger ),
                               getFiles,
                               tempFolder,
-#if NET45
+#if NET45 || NET46
                               ref appDomainSetup
 #else
                               sdkRestoreResult
@@ -730,7 +730,7 @@ namespace UtilPack.NuGet.MSBuild
 
          var ab = AssemblyBuilder.DefineDynamicAssembly( new AssemblyName( "NuGetTaskWrapperDynamicAssembly" ), AssemblyBuilderAccess.RunAndCollect );
          var mb = ab.DefineDynamicModule( "NuGetTaskWrapperDynamicAssembly.dll"
-#if NET45
+#if NET45 || NET46
                , false
 #endif
                );
@@ -961,7 +961,7 @@ namespace UtilPack.NuGet.MSBuild
 
          // We are ready
          return tb.
-#if NET45
+#if NET45 || NET46
             CreateType()
 #else
             CreateTypeInfo().AsType()
@@ -1125,7 +1125,7 @@ namespace UtilPack.NuGet.MSBuild
 
    // Instances of this class reside in target task app domain, so we must be careful not to use any UtilPack stuff here! So no ArgumentValidator. etc.
    public sealed class TaskReferenceHolder
-#if NET45
+#if NET45 || NET46
       : MarshalByRefObject
 #endif
    {
@@ -1308,7 +1308,7 @@ namespace UtilPack.NuGet.MSBuild
    // Instances of this class reside in task factory app domain.
    // Has to be public, since it is used by dynamically generated task type.
    public sealed class ResolverLogger
-#if NET45
+#if NET45 || NET46
       : MarshalByRefObject
 #endif
    {
@@ -1380,7 +1380,7 @@ namespace UtilPack.NuGet.MSBuild
 
 
 
-#if NET45
+#if NET45 || NET46
    [Serializable] // We want to be serializable instead of MarshalByRef as we want to copy these objects
 #endif
    internal sealed class ResolvedPackageInfo
@@ -1457,7 +1457,7 @@ namespace UtilPack.NuGet.MSBuild
                      kind = null;
                   }
                   break;
-#if NET45
+#if NET45 || NET46
                case TypeCode.DBNull:
 #endif
                case TypeCode.Empty:

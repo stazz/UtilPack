@@ -83,7 +83,7 @@ namespace UtilPack.NuGet.AssemblyLoading
       /// <seealso cref="AssemblyLoadFailedEventArgs"/>
       event Action<AssemblyLoadFailedEventArgs> OnAssemblyLoadFail;
 
-#if !NET45
+#if !NET45 && !NET46
 
       /// <summary>
       /// This event is only available in .NET Core environment.
@@ -224,7 +224,7 @@ namespace UtilPack.NuGet.AssemblyLoading
       }
    }
 
-#if !NET45
+#if !NET45 && !NET46
 
    /// <summary>
    /// This class contains information for <see cref="NuGetAssemblyResolver.OnUnmanagedAssemblyLoadSuccess"/> event.
@@ -278,7 +278,7 @@ namespace UtilPack.NuGet.AssemblyLoading
    /// </summary>
    public static class NuGetAssemblyResolverFactory
    {
-#if NET45
+#if NET45 || NET46
       /// <summary>
       /// Creates new instance of <see cref="NuGetAssemblyResolver"/> which will reside in a new <see cref="AppDomain"/> if <paramref name="appDomainSetup"/> is specified.
       /// </summary>
@@ -312,26 +312,26 @@ namespace UtilPack.NuGet.AssemblyLoading
 #endif
       public static NuGetAssemblyResolver NewNuGetAssemblyResolver(
          BoundRestoreCommandUser restorer,
-#if NET45
+#if NET45 || NET46
          AppDomainSetup appDomainSetup,
 #else
          LockFile thisFrameworkRestoreResult,
 #endif
          out
-#if NET45
+#if NET45 || NET46
          AppDomain
 #else
          System.Runtime.Loader.AssemblyLoadContext
 #endif
          createdLoader,
-#if NET45
+#if NET45 || NET46
          Func<AssemblyName, String> overrideLocation = null,
 #else
          Func<AssemblyName, Boolean> additionalCheckForDefaultLoader = null, // return true if nuget-based assembly loading should not be used
 #endif
          GetFileItemsDelegate defaultGetFiles = null,
          Func<String, String> pathProcessor = null
-#if !NET45
+#if !NET45 && !NET46
          , OtherLoadersRegistration loadersRegistration = OtherLoadersRegistration.None,
          UnmanagedAssemblyPathProcessorDelegate unmanagedAssemblyNameProcessor = null
 #endif
@@ -344,7 +344,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          var resolver = new NuGetRestorerWrapper(
             restorer,
             ( rGraph, rid, targetLib, libs ) => defaultGetFiles( rGraph, rid, targetLib, libs ).FilterUnderscores(),
-#if NET45
+#if NET45 || NET46
             null
 #else
             thisFrameworkRestoreResult.Libraries.Select( lib => lib.Name )
@@ -352,7 +352,7 @@ namespace UtilPack.NuGet.AssemblyLoading
             );
 
          NuGetAssemblyResolver retVal;
-#if NET45
+#if NET45 || NET46
          // It would be nice to do as in .NET Core - to create NuGetAssemblyResolverImpl right here.
          // However, using it would be quite annoying - since it would reside in this domain, it would need to do assembly loading in target domain.
          // That would mean serializing assembly as it would move cross-app-domains... it would simply not work.
@@ -434,7 +434,7 @@ namespace UtilPack.NuGet.AssemblyLoading
 #endif
    }
 
-#if !NET45
+#if !NET45 && !NET46
 
    /// <summary>
    /// This enumeration controls how <see cref="System.Runtime.Loader.AssemblyLoadContext"/> used by <see cref="NuGetAssemblyResolver"/> registers itself to <see cref="System.Runtime.Loader.AssemblyLoadContext.Resolving"/> event of other <see cref="System.Runtime.Loader.AssemblyLoadContext"/> instances.
@@ -476,13 +476,13 @@ namespace UtilPack.NuGet.AssemblyLoading
 
 
    internal sealed class NuGetAssemblyResolverImpl :
-#if NET45
+#if NET45 || NET46
       MarshalByRefObject,
 #endif
 
    NuGetAssemblyResolver, IDisposable
    {
-#if !NET45
+#if !NET45 && !NET46
       internal sealed class NuGetAssemblyLoadContext : System.Runtime.Loader.AssemblyLoadContext, IDisposable
       {
          private readonly ISet<String> _frameworkAssemblySimpleNames;
@@ -751,29 +751,29 @@ namespace UtilPack.NuGet.AssemblyLoading
       private readonly NuGetRestorerWrapper _restorer;
       private readonly Func<String, Assembly> _fromPathLoader;
       private readonly Func<String, String> _pathProcessor;
-#if NET45
+#if NET45 || NET46
       private readonly CallbackWrapper _callbackWrapper;
 #else
       private readonly NuGetAssemblyLoadContext _loader;
 #endif
 
       public NuGetAssemblyResolverImpl(
-#if NET45
+#if NET45 || NET46
          Object
 #else
          NuGetRestorerWrapper
 #endif
          resolver,
-#if NET45
+#if NET45 || NET46
          Object callbackWrapper,
 #endif
-#if NET45
+#if NET45 || NET46
          Object
 #else
          Func<String, String>
 #endif
          pathProcessor
-#if !NET45
+#if !NET45 && !NET46
          , LockFile thisFrameworkRestoreResult,
          Func<AssemblyName, Boolean> additionalCheckForDefaultLoader,
          OtherLoadersRegistration loadersRegistration,
@@ -783,15 +783,15 @@ namespace UtilPack.NuGet.AssemblyLoading
          )
       {
 
-#if NET45
+#if NET45 || NET46
          AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
 #endif
 
-#if !NET45
+#if !NET45 && !NET46
          createdLoader = this._loader = new NuGetAssemblyLoadContext( this, resolver.Restorer, thisFrameworkRestoreResult, additionalCheckForDefaultLoader, loadersRegistration, unmanagedAssemblyNameProcessor );
 #endif
          this._fromPathLoader =
-#if NET45
+#if NET45 || NET46
             Assembly.LoadFile
 #else
             path => this._loader.LoadFromAssemblyPath( path )
@@ -799,16 +799,16 @@ namespace UtilPack.NuGet.AssemblyLoading
             ;
 
          this._restorer =
-#if NET45
+#if NET45 || NET46
             (NuGetRestorerWrapper)
 #endif
             resolver ?? throw new ArgumentNullException( nameof( resolver ) );
 
-#if NET45
+#if NET45 || NET46
          this._callbackWrapper = (CallbackWrapper) callbackWrapper;
 #endif
          this._pathProcessor =
-#if NET45
+#if NET45 || NET46
             pathProcessor == null ? (Func<String, String>) null : ( (PathProcessorWrapper) pathProcessor ).ProcessPath
 #else
             pathProcessor
@@ -818,7 +818,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          this._assemblies = new ConcurrentDictionary<AssemblyName, AssemblyInformation>( AssemblyNameComparer.Instance );
       }
 
-#if NET45
+#if NET45 || NET46
 
       private Assembly CurrentDomain_AssemblyResolve( Object sender, ResolveEventArgs args )
       {
@@ -852,7 +852,7 @@ namespace UtilPack.NuGet.AssemblyLoading
 
       public void Dispose()
       {
-#if NET45
+#if NET45 || NET46
          AppDomain.CurrentDomain.AssemblyResolve -= this.CurrentDomain_AssemblyResolve;
 #else
          this._loader.DisposeSafely();
@@ -876,7 +876,7 @@ namespace UtilPack.NuGet.AssemblyLoading
             )
          {
             var assemblyInfos =
-#if NET45
+#if NET45 || NET46
             await this.UseResolver( packageIDs, packageVersions )
 #else
             this._restorer.Restorer.ExtractAssemblyPaths(
@@ -933,7 +933,7 @@ namespace UtilPack.NuGet.AssemblyLoading
                      else
                      {
                         this._restorer
-#if !NET45
+#if !NET45 && !NET46
                            .Restorer
 #endif
 
@@ -971,7 +971,7 @@ namespace UtilPack.NuGet.AssemblyLoading
       public event Action<AssemblyLoadSuccessEventArgs> OnAssemblyLoadSuccess;
       public event Action<AssemblyLoadFailedEventArgs> OnAssemblyLoadFail;
 
-#if !NET45
+#if !NET45 && !NET46
       public event Action<UnmanagedAssemblyLoadSuccessEventArgs> OnUnmanagedAssemblyLoadSuccess;
       public event Action<UnmanagedAssemblyLoadFailedEventArgs> OnUnmanagedAssemblyLoadFail;
 #endif
@@ -1023,7 +1023,7 @@ namespace UtilPack.NuGet.AssemblyLoading
             try
             {
                an =
-#if !NET45
+#if !NET45 && !NET46
                            System.Runtime.Loader.AssemblyLoadContext
 #else
                            AssemblyName
@@ -1046,7 +1046,7 @@ namespace UtilPack.NuGet.AssemblyLoading
       }
 
 
-#if NET45
+#if NET45 || NET46
 
       private System.Threading.Tasks.Task<TResolveResult> UseResolver(
          String[] packageIDs,
@@ -1065,7 +1065,7 @@ namespace UtilPack.NuGet.AssemblyLoading
 
    }
 
-#if NET45
+#if NET45 || NET46
    internal sealed class CallbackWrapper : MarshalByRefObject
    {
       private readonly Func<AssemblyName, String> _callback;
@@ -1100,7 +1100,7 @@ namespace UtilPack.NuGet.AssemblyLoading
 
 
    internal sealed class NuGetRestorerWrapper
-#if NET45
+#if NET45 || NET46
       : MarshalByRefObject
 #endif
    {
@@ -1117,7 +1117,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          this.SDKPackageIDs = sdkPackages?.ToList();
       }
 
-#if NET45
+#if NET45 || NET46
 
       internal void ResolveNuGetPackageAssemblies(
          String[] packageID,
@@ -1145,7 +1145,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          this.Restorer.LogAssemblyPathResolveError( packageID, possiblePaths, pathHint, seenAssemblyPath );
 #endif
 
-#if NET45
+#if NET45 || NET46
       private
 #else
       public
@@ -1153,7 +1153,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          BoundRestoreCommandUser Restorer
       { get; }
 
-#if NET45
+#if NET45 || NET46
       private
 #else
       public
@@ -1165,7 +1165,7 @@ namespace UtilPack.NuGet.AssemblyLoading
    }
 
 
-#if NET45
+#if NET45 || NET46
    internal sealed class MarshaledResultSetter<T> : MarshalByRefObject
    {
       private readonly TaskCompletionSource<T> _tcs;
@@ -1181,7 +1181,7 @@ namespace UtilPack.NuGet.AssemblyLoading
 
 #endif
 
-#if NET45
+#if NET45 || NET46
    [Serializable] // We want to be serializable instead of MarshalByRef as we want to copy these objects
 #endif
    internal sealed class ResolvedPackageInfo

@@ -37,7 +37,7 @@ Here is a small example of how to use this task within your `.csproj` file:
     <Task>
       <NuGetTaskInfo>
         <PackageID>UtilPack.NuGet.Push.MSBuild</PackageID>
-        <PackageVersion>2.0.0</PackageVersion>
+        <PackageVersion>2.1.0</PackageVersion>
       </NuGetTaskInfo>
     </Task>
   </UsingTask>

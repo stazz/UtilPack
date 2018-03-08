@@ -241,7 +241,7 @@ namespace UtilPack.NuGet
          }
          else
          {
-#if NET45
+#if NET45 || NET46
             var epAssembly = Assembly.GetEntryAssembly();
             if ( epAssembly == null )
             {
@@ -318,7 +318,7 @@ namespace UtilPack.NuGet
          }
          else
          {
-#if NET45
+#if NET45 || NET46
             switch ( Environment.OSVersion.Platform )
             {
                case PlatformID.Win32NT:
@@ -373,7 +373,7 @@ namespace UtilPack.NuGet
                )
             {
                Version osVersion;
-#if NET45
+#if NET45 || NET46
                osVersion = Environment.OSVersion.Version;
 #else
                // Append version. This is a bit tricky...
@@ -430,7 +430,7 @@ namespace UtilPack.NuGet
             if ( architectureIndex < 0 )
             {
                String architectureString;
-#if NET45
+#if NET45 || NET46
                architectureString = Environment.Is64BitProcess ? "x64" : "x86";
 #else
                architectureString = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();

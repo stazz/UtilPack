@@ -6,7 +6,7 @@
     -->
    
   <PropertyGroup>
-    <TargetFrameworks>net45;netcoreapp1.1</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(TargetFramework)' == '' ">net45;netcoreapp1.1</TargetFrameworks>
     <ActualAssemblyName>UtilPack.NuGet.MSBuild</ActualAssemblyName>
   </PropertyGroup>
 
@@ -121,7 +121,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>2.0.0</VersionPrefix>
+    <VersionPrefix>2.4.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
@@ -149,16 +149,6 @@
   <!-- NuGet package stuff -->
   <PropertyGroup>
     <NuspecFile>PackageInfo.nuspec</NuspecFile>
-    <!--<PackageId>$(AssemblyName)</PackageId>
-    <PackageVersion>$(VersionPrefix)</PackageVersion>
-    <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
-    <PackageTags>utility nuget extensions msbuild task package resolve</PackageTags>
-    <Title>MSBuild Task Factory for NuGet-Oriented MSBuild Tasks</Title>
-    <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>
-    <PackageProjectUrl>$(RepositoryUrl)/Source/$(AssemblyName)</PackageProjectUrl>
-    <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>-->
   </PropertyGroup>
 
   <!--

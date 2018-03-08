@@ -39,6 +39,17 @@ using NuGet.RuntimeModel;
 using NuGet.Packaging;
 using NuGet.Protocol;
 
+#if !NUGET_430
+using TLocalNuspecCache = NuGet.Protocol.
+#if NUGET_440 || NUGET_450
+         LocalNuspecCache
+#else
+LocalPackageFileCache
+#endif
+         ;
+#endif
+
+
 namespace UtilPack.NuGet
 {
    /// <summary>
@@ -65,7 +76,7 @@ namespace UtilPack.NuGet
       /// <param name="runtimeGraph">Optional value indicating runtime graph information: either <see cref="global::NuGet.RuntimeModel.RuntimeGraph"/> directly, or <see cref="String"/> containing package ID of package holding <c>runtime.json</c> file, containing serialized runtime graph definition. If neither is specified, then <c>"Microsoft.NETCore.Platforms"</c> package ID used to locate <c>runtime.json</c> file, as per <see href="https://docs.microsoft.com/en-us/dotnet/core/rid-catalog">official documentation</see>.</param>
       /// <param name="nugetLogger">The logger to use in restore command.</param>
       /// <param name="sourceCacheContext">The optional <see cref="SourceCacheContext"/> to use.</param>
-      /// <param name="nuspecCache">The optional <see cref="LocalNuspecCache"/> to use.</param>
+      /// <param name="nuspecCache">The optional <see cref="TLocalNuspecCache"/> to use.</param>
       /// <param name="leaveSourceCacheOpen">Whether to leave the <paramref name="sourceCacheContext"/> open when disposing this <see cref="BoundRestoreCommandUser"/>.</param>
       /// <exception cref="ArgumentNullException">If <paramref name="nugetSettings"/> is <c>null</c>.</exception>
       public BoundRestoreCommandUser(
@@ -76,7 +87,7 @@ namespace UtilPack.NuGet
          ILogger nugetLogger = null,
          SourceCacheContext sourceCacheContext = null,
 #if !NUGET_430
-         LocalNuspecCache nuspecCache = null,
+         TLocalNuspecCache nuspecCache = null,
 #endif
          Boolean leaveSourceCacheOpen = false
          )
@@ -109,7 +120,7 @@ namespace UtilPack.NuGet
             new PackageSourceProvider( nugetSettings ).LoadPackageSources().Where( s => s.IsEnabled ).Select( s => csp.CreateRepository( s ) ),
             ctx,
 #if !NUGET_430
-            nuspecCache ?? new LocalNuspecCache(),
+            nuspecCache ?? new TLocalNuspecCache(),
 #endif
             nugetLogger
             );

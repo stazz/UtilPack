@@ -18,6 +18,8 @@ The format for parameters is `/<parameter-name>[=value]`, i.e. default syntax th
 * The `DeploymentKind` is optional parameter, controlling how dependencies of the NuGet package to be deployed are handled. It has two possible values:
     * `GenerateConfigFiles`: this is default value, and this will cause generation of `.deps.json` and `.runtime.config` files in the target directory, describing the locations of the dependency assemblies. This value is not supported for frameworks that are not package-based, i.e. .NET desktop.
     * `CopyNonSDKAssemblies`: this value will cause all non-SDK assemblies that the package depends on to be copied in target directory. This is default value if the deployment target framework is .NET Desktop.
+* The `RestoreFramework` is optional parameter, controlling which NuGet framework is used when performing the restore of the target package. Both long and folder names are supported.
+* The `RuntimeIdentifier` is optional parameter, controlling which runtime identifier the restore of the target package is performed against.
 ## Monitoring-related parameters
 * The `ToolPath` is optional parameter, and should specify the executable to run instead of the directly running the deployed entrypoint assembly. Even though optional, in 99% of the scenarios especially in .NET Core, this should be a path to a `dotnet` tool.
 * The `ProcessArgumentPrefix` is optional parameter, that should contain string that process parameters will be prefixed with. By default, the value of this is `/`.

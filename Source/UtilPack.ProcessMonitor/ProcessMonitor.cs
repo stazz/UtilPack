@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2017 Stanislav Muhametsin. All rights Reserved.
  *
  * Licensed  under the  Apache License,  Version 2.0  (the "License");
@@ -389,11 +389,33 @@ namespace UtilPack.ProcessMonitor
 
       private Semaphore CreateSemaphore( String argumentName, String namePrefix, ref String argsString )
       {
+
+
          Semaphore retVal = null;
          if ( !String.IsNullOrEmpty( argumentName ) )
          {
-            retVal = this.CreateSemaphore( namePrefix, out var semaName );
-            argsString += " " + EscapeArgumentString( String.Format( "{0}{1}={2}", this._config.ProcessArgumentPrefix, argumentName, semaName ) );
+            String semaName = null;
+            try
+            {
+               retVal = this.CreateSemaphore( namePrefix, out semaName );
+            }
+            catch ( Exception e )
+            {
+               // Certain platforms can give "The named version of this synchronization primitive is not supported on this platform." error
+               if ( this._config.ShutdownAndRestartFunctionalityOptional )
+               {
+                  Console.WriteLine( "Failed to create semaphore: " + e.Message + "; continuing anyway" );
+               }
+               else
+               {
+                  throw;
+               }
+            }
+
+            if ( retVal != null && !String.IsNullOrEmpty( semaName ) )
+            {
+               argsString += " " + EscapeArgumentString( String.Format( "{0}{1}={2}", this._config.ProcessArgumentPrefix, argumentName, semaName ) );
+            }
          }
 
          return retVal;
@@ -482,6 +504,12 @@ namespace UtilPack.ProcessMonitor
       /// This property controls the amount of time that is waited before restarting the process, which should be an educated guess of how long it will take for OS to release locks and handles of the terminated process.
       /// </remarks>
       TimeSpan RestartWaitTime { get; }
+
+      /// <summary>
+      /// Gets the value indicating whether the shutdown and restart functionality is optional: i.e., don't fail whole process if some error occurs with this.
+      /// </summary>
+      /// <value>The value indicating whether the shutdown and restart functionality is optional.</value>
+      Boolean ShutdownAndRestartFunctionalityOptional { get; }
    }
 
    /// <summary>
@@ -505,7 +533,10 @@ namespace UtilPack.ProcessMonitor
       public String RestartSemaphoreProcessArgument { get; set; }
 
       /// <inheritdoc />
-      public TimeSpan RestartWaitTime { get; } = TimeSpan.Zero;
+      public TimeSpan RestartWaitTime { get; set; } = TimeSpan.Zero;
+
+      /// <inheritdoc />
+      public Boolean ShutdownAndRestartFunctionalityOptional { get; set; }
    }
 
 #if NET40

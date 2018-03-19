@@ -14,6 +14,8 @@ The input parameters of the `UtilPack.NuGet.Deployment.MSBuild.DeployNuGetPackag
 * The `DeploymentKind` is optional parameter, controlling how dependencies of the NuGet package to be deployed are handled. It has two possible values:
     * `GenerateConfigFiles`: this is default value, and this will cause generation of `.deps.json` and `.runtime.config` files in the target directory, describing the locations of the dependency assemblies. This value is not supported for frameworks that are not package-based, i.e. .NET desktop.
     * `CopyNonSDKAssemblies`: this value will cause all non-SDK assemblies that the package depends on to be copied in target directory. This is default value if the deployment target framework is .NET Desktop.
+* The `RestoreFramework` is optional parameter, controlling which NuGet framework is used when performing the restore of the target package. Both long and folder names are supported.
+* The `RuntimeIdentifier` is optional parameter, controlling which runtime identifier the restore of the target package is performed against.
 * The `NuGetConfigurationFile` is optional parameter, telling the location of the NuGet configuration file to be used when restoring NuGet package.
 * The `TargetDirectory` is optional parameter, telling the directory where deployment assemblies and possible configuration files will be deployed. The directory will be created if it does not exist. If this parameter is not specified, then a new directory with unique name will be created in user's temporary directory.
 

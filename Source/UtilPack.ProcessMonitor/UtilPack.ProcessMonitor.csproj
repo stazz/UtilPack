@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>netstandard1.3;netstandard1.5;net40;net45</TargetFrameworks>
@@ -26,7 +26,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.1.0</VersionPrefix>
+    <VersionPrefix>1.2.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
@@ -57,7 +57,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Process ID is now output when process is started and ended. Printing process output is now more robust (e.g. color change won't happen between stderr and stdout printing). Monitoring task returns true if any errors seen or process returns non-zero exit code.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added ability to declare shutdown/restart functionality as optional, so that the process would still be started even if e.g. named semaphores are not available on the platform.</PackageReleaseNotes>
     <PackageTags>utility extensions process monitor start restart shutdown</PackageTags>
     <Title>Advanced Process Monitoring</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

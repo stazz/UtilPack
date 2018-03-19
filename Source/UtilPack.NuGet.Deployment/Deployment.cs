@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2017 Stanislav Muhametsin. All rights Reserved.
  *
  * Licensed  under the  Apache License,  Version 2.0  (the "License");
@@ -98,11 +98,19 @@ namespace UtilPack.NuGet.Deployment
             if ( identity != null && fwInfo != null && !String.IsNullOrEmpty( entryPointAssembly ) )
             {
                targetFW = fwInfo.TargetFramework;
+               var targetFWString = processConfig.RestoreFramework;
+               NuGetFramework newTargetFW;
+               if ( !String.IsNullOrEmpty( targetFWString ) && ( newTargetFW = NuGetFramework.Parse( targetFWString ) ) != null )
+               {
+                  targetFW = newTargetFW;
+               }
+
                using ( var restorer = new BoundRestoreCommandUser(
                   nugetSettings,
                   sourceCacheContext: sourceCache,
                   nugetLogger: logger,
                   thisFramework: targetFW,
+                  runtimeIdentifier: processConfig.RuntimeIdentifier,
                   leaveSourceCacheOpen: true
                   ) )
                {
@@ -265,22 +273,25 @@ namespace UtilPack.NuGet.Deployment
          JToken runtimeConfig = null;
          String sdkPackageID = null;
          String sdkPackageVersion = null;
-         var runtimeConfigPath = Path.ChangeExtension( entryPointAssemblyPath, RUNTIME_CONFIG_EXTENSION );
-         if ( File.Exists( runtimeConfigPath ) )
+         if ( String.IsNullOrEmpty( config.RestoreFramework ) )
          {
-            try
+            var runtimeConfigPath = Path.ChangeExtension( entryPointAssemblyPath, RUNTIME_CONFIG_EXTENSION );
+            if ( File.Exists( runtimeConfigPath ) )
             {
-               using ( var streamReader = new StreamReader( File.OpenRead( runtimeConfigPath ) ) )
-               using ( var jsonReader = new Newtonsoft.Json.JsonTextReader( streamReader ) )
+               try
                {
-                  runtimeConfig = JToken.ReadFrom( jsonReader );
+                  using ( var streamReader = new StreamReader( File.OpenRead( runtimeConfigPath ) ) )
+                  using ( var jsonReader = new Newtonsoft.Json.JsonTextReader( streamReader ) )
+                  {
+                     runtimeConfig = JToken.ReadFrom( jsonReader );
+                  }
+                  sdkPackageID = ( runtimeConfig.SelectToken( RUNTIME_CONFIG_FW_NAME ) as JValue )?.Value?.ToString();
+                  sdkPackageVersion = ( runtimeConfig.SelectToken( RUNTIME_CONFIG_FW_VERSION ) as JValue )?.Value?.ToString();
                }
-               sdkPackageID = ( runtimeConfig.SelectToken( RUNTIME_CONFIG_FW_NAME ) as JValue )?.Value?.ToString();
-               sdkPackageVersion = ( runtimeConfig.SelectToken( RUNTIME_CONFIG_FW_VERSION ) as JValue )?.Value?.ToString();
-            }
-            catch
-            {
-               // Ignore
+               catch
+               {
+                  // Ignore
+               }
             }
          }
 
@@ -295,11 +306,26 @@ namespace UtilPack.NuGet.Deployment
 
          // In addition, check all compile assemblies from sdk package (e.g. Microsoft.NETCore.App )
          // Starting from 2.0.0, all assemblies from all dependent packages are marked as compile-assemblies stored in sdk package.
+         Version.TryParse( sdkPackageVersion, out var sdkPkgVer );
          if ( sdkPackageContainsAllPackagesAsAssemblies.IsTrue() ||
-            ( !sdkPackageContainsAllPackagesAsAssemblies.HasValue && sdkPackageID == UtilPackNuGetUtility.SDK_PACKAGE_NETCORE && Version.TryParse( sdkPackageVersion, out var sdkPkgVer ) && sdkPkgVer.Major >= 2 )
+            ( !sdkPackageContainsAllPackagesAsAssemblies.HasValue && sdkPackageID == UtilPackNuGetUtility.SDK_PACKAGE_NETCORE && sdkPkgVer != null && sdkPkgVer.Major >= 2 )
             )
          {
-            var sdkPackageLibrary = lockFile.Targets[0].Libraries.FirstOrDefault( l => l.Name == sdkPackageID );
+            var sdkPackageLibraries = lockFile.Targets[0].Libraries.Where( l => l.Name == sdkPackageID );
+
+            if ( sdkPkgVer != null )
+            {
+               sdkPackageLibraries = sdkPackageLibraries.Where( l => l.Version.Version >= sdkPkgVer );
+            }
+
+            var sdkPackageLibrary = sdkPackageLibraries.FirstOrDefault();
+
+            if ( sdkPackageLibrary == null && sdkPkgVer != null )
+            {
+               // We need to restore the correctly versioned SDK package
+               sdkPackageLibrary = ( await restorer.RestoreIfNeeded( sdkPackageID, sdkPackageVersion, token ) ).Targets[0].Libraries.Where( l => l.Name == sdkPackageID ).FirstOrDefault();
+            }
+
             if ( sdkPackageLibrary != null )
             {
                sdkPackages.UnionWith( sdkPackageLibrary.CompileTimeAssemblies.Select( cta => Path.GetFileNameWithoutExtension( cta.Path ) ) );
@@ -603,6 +629,18 @@ namespace UtilPack.NuGet.Deployment
       /// Leaving this unset (<c>null</c>) will use auto-detection (which will use <c>true</c> when deploying for .NET Core 2.0+, and will use <c>false</c> when deploying for other frameworks).
       /// </remarks>
       Boolean? SDKPackageContainsAllPackagesAsAssemblies { get; }
+
+      /// <summary>
+      /// Gets the framework to use when performing the restore for the target package. By default, the framework is auto-detected to be whichever matches the assembly that was resolved.
+      /// </summary>
+      /// <value>The framework to use when performing the restore for the target package.</value>
+      String RestoreFramework { get; }
+
+      /// <summary>
+      /// Gets the runtime identifier to use when performing the restore the target package. By default, the runtime identifier is auto-detected to be the runtime identifier matching the current platform.
+      /// </summary>
+      /// <value>The runtime identifier to use when performing the restore the target package.</value>
+      String RuntimeIdentifier { get; }
    }
 
    /// <summary>
@@ -655,6 +693,12 @@ namespace UtilPack.NuGet.Deployment
 
       /// <inheritdoc />
       public Boolean? SDKPackageContainsAllPackagesAsAssemblies { get; set; }
+
+      /// <inheritdoc />
+      public String RestoreFramework { get; set; }
+
+      /// <inheritdoc />
+      public String RuntimeIdentifier { get; set; }
    }
 
 

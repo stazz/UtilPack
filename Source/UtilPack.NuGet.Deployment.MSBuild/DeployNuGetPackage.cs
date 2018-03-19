@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2017 Stanislav Muhametsin. All rights Reserved.
  *
  * Licensed  under the  Apache License,  Version 2.0  (the "License");
@@ -71,5 +71,9 @@ namespace UtilPack.NuGet.Deployment.MSBuild
 
       [Output]
       public String EntryPointAssemblyPath { get; set; }
+
+      public String RestoreFramework { get; set; }
+
+      public String RuntimeIdentifier { get; set; }
    }
 }

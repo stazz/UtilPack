@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2017 Stanislav Muhametsin. All rights Reserved.
  *
  * Licensed  under the  Apache License,  Version 2.0  (the "License");
@@ -124,7 +124,7 @@ namespace UtilPack.NuGet.MSBuild
       private readonly Lazy<Type> _taskType;
 
       // Logger for this task factory
-      private IBuildEngine _logger;
+      //private IBuildEngine _logger;
 
       public NuGetTaskRunnerFactory()
       {
@@ -204,7 +204,7 @@ namespace UtilPack.NuGet.MSBuild
             );
          try
          {
-            this._logger = taskFactoryLoggingHost;
+            //this._logger = taskFactoryLoggingHost;
 
             var taskBodyElement = XElement.Parse( taskBody );
 

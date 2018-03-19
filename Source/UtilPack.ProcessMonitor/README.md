@@ -30,6 +30,7 @@ The properties are explained below.
 * The `ShutdownSemaphoreWaitTime is optional parameter containing the `TimeSpan` for how long to wait for process graceful shutdown. This parameter will only be used if `ShutdownSemaphoreProcessArgument` is specified. The default value is one second.
 * The `RestartSemaphoreProcessArgument` is optional parameter, that should be the name of the process parameter that accepts restart semaphore name. This semaphore will be used to implemented graceful process restart. By default, this parameter will not be used.
 * The `RestartWaitTime` is optional parameter containing the `TimeSpan` for how long to wait before restarting the process in the graceful restart situation. This parameter will only be used if `RestartSemaphoreProcessArgument` is specified. The default value is zero seconds, that is, no wait at all.
+* The `ShutdownAndRestartFunctionalityOptional` is optional parameter that is `Boolean` type, controlling how to behave when creating named semaphores required for restarting and shutting down functionality fails. Setting this to `true` will cause this application to start the target process even if the semaphore creation fails. The default is `false`, causing this application to exit if semaphore creation fails.
 
 The `KeepMonitoringAsync` method of the `ProcessMonitor` class has the following parameters.
 * `String processLocation`: The path to the process executable.

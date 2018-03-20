@@ -30,6 +30,7 @@ The format for parameters is `/<parameter-name>[=value]`, i.e. default syntax th
 ## Infrastructure-related parameters
 * The `NuGetConfigurationFile` is optional parameter specifying where the NuGet configuration file is located. By default, the default machine-specific NuGet configuration file will be used.
 * The `PauseBeforeExitIfErrorsSeen` is optional parameter specifying whether for this program to wait for console key press if it sees output in monitored process error stream, or if monitored process returns non-zero.
+* The `DeployOnly` is optional parameter specifying whether this `UtilPack.ProcessRunner` should exit after successfully deploying the target package.
 
 # Distribution
 See [NuGet package](http://www.nuget.org/packages/UtilPack.NuGet.ProcessRunner) for binary distribution.

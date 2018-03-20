@@ -58,6 +58,7 @@ namespace UtilPack.NuGet
    /// </summary>
    public class BoundRestoreCommandUser : IDisposable
    {
+      public const String DEFAULT_RUNTIME_GRAPH_PACKAGE_ID = "Microsoft.NETCore.Platforms";
 
       private readonly SourceCacheContext _cacheContext;
       private readonly RestoreCommandProviders _restoreCommandProvider;
@@ -138,7 +139,7 @@ namespace UtilPack.NuGet
                   var packageName = runtimeGraph.GetSecondOrDefault();
                   if ( String.IsNullOrEmpty( packageName ) )
                   {
-                     packageName = "Microsoft.NETCore.Platforms";
+                     packageName = DEFAULT_RUNTIME_GRAPH_PACKAGE_ID;
                   }
                   var platformsPackagePath = this.LocalRepositories.Values
                      .SelectMany( r => r.FindPackagesById( packageName ) )

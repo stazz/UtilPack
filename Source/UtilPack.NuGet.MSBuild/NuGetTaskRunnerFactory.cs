@@ -56,9 +56,52 @@ using UtilPack.NuGet.Common.MSBuild;
 using NuGet.Packaging.Core;
 using NuGet.RuntimeModel;
 
+
 namespace UtilPack.NuGet.MSBuild
 {
-   using TTaskTypeGenerationParameters = System.ValueTuple<System.Boolean, TTaskPropertyInfoDictionary>;
+   using TTaskTypeGenerationParameters = ValueTuple<Boolean, TTaskPropertyInfoDictionary>;
+
+   internal struct RestorerCacheKey : IEquatable<RestorerCacheKey>
+   {
+      public RestorerCacheKey(
+         NuGetFramework framework,
+         ISettings settings,
+         String runtimeID,
+         String runtimeGraphPackageID
+         )
+      {
+         this.NuGetFramework = framework;
+         this.PackageFolders = new HashSet<String>( SettingsUtility.GetFallbackPackageFolders( settings ).Append( SettingsUtility.GetGlobalPackagesFolder( settings ) ) );
+         this.RuntimeID = runtimeID;
+         this.RuntimeGraphPackageID = runtimeGraphPackageID;
+      }
+
+      public bool Equals( RestorerCacheKey other )
+      {
+         return ( this.NuGetFramework?.Equals( other.NuGetFramework ) ?? ( other.NuGetFramework is null ) )
+            && String.Equals( this.RuntimeID, other.RuntimeID )
+            && String.Equals( this.RuntimeGraphPackageID, other.RuntimeGraphPackageID )
+            && ( this.PackageFolders?.SetEquals( other.PackageFolders ?? Empty<String>.Enumerable ) ?? ( other.PackageFolders is null ) );
+      }
+
+      public override Boolean Equals( Object obj )
+      {
+         return obj is RestorerCacheKey && this.Equals( (RestorerCacheKey) obj );
+      }
+
+      public override int GetHashCode()
+      {
+         return this.NuGetFramework?.GetHashCode() ?? 0;
+      }
+
+      public NuGetFramework NuGetFramework { get; }
+
+      public ISet<String> PackageFolders { get; }
+
+      public String RuntimeID { get; }
+
+      public String RuntimeGraphPackageID { get; }
+   }
 
    // On first task create the task type is dynamically generated, and app domain initialized
    // On cleanup, app domain will be unloaded, but task type kept
@@ -95,6 +138,9 @@ namespace UtilPack.NuGet.MSBuild
          }
       }
 
+      // Currently only way to share state between task factory usage in different build files.
+      private static readonly ConcurrentDictionary<RestorerCacheKey, BoundRestoreCommandUser> RestorersCache = new ConcurrentDictionary<RestorerCacheKey, BoundRestoreCommandUser>();
+
       private const String PACKAGE_ID = "PackageID";
       private const String PACKAGE_ID_IS_SELF = "PackageIDIsSelf";
       private const String PACKAGE_VERSION = "PackageVersion";
@@ -115,6 +161,11 @@ namespace UtilPack.NuGet.MSBuild
       private const String UNMANAGED_ASSEMBLY_REF = "AssemblyReference";
       private const String MAPPED_NAME = "MappedTo";
 
+      private const String CACHE_USAGE = "CacheUsage";
+      private const String CACHE_USAGE_ENABLED = "Enabled";
+      private const String CACHE_USAGE_STRICT = "Strict";
+      private const String CACHE_USAGE_DISABLED = "Disabled";
+
       //private const String KNOWN_SDK_PACKAGE = "KnownSDKPackage";
 
       // We will re-create anything that needs re-creating between mutiple task usages from this same lazy.
@@ -123,12 +174,9 @@ namespace UtilPack.NuGet.MSBuild
       // We will generate task type only exactly once, no matter how many times the actual task is created.
       private readonly Lazy<Type> _taskType;
 
-      // Logger for this task factory
-      //private IBuildEngine _logger;
-
       public NuGetTaskRunnerFactory()
       {
-         this._taskType = new Lazy<Type>( () => GenerateTaskType( (this._helper.Value.TaskReference.IsCancelable, this._helper.Value.PropertyInfo) ) );
+         this._taskType = new Lazy<Type>( () => TaskCodeGenerator.GenerateTaskType( (this._helper.Value.TaskReference.IsCancelable, this._helper.Value.PropertyInfo) ) );
       }
 
       public String FactoryName => nameof( NuGetTaskRunnerFactory );
@@ -176,7 +224,7 @@ namespace UtilPack.NuGet.MSBuild
          return this._helper.Value.PropertyInfo
             .Select( kvp =>
             {
-               var propType = GetPropertyType( kvp.Value.Item1, kvp.Value.Item2 );
+               var propType = TaskCodeGenerator.GetPropertyType( kvp.Value.Item1, kvp.Value.Item2 );
                var info = kvp.Value.Item3;
                return propType == null ?
                   null :
@@ -193,7 +241,6 @@ namespace UtilPack.NuGet.MSBuild
          IBuildEngine taskFactoryLoggingHost
          )
       {
-
          var retVal = false;
          var nugetLogger = new NuGetMSBuildLogger(
             "NR0001",
@@ -215,14 +262,45 @@ namespace UtilPack.NuGet.MSBuild
                Path.GetDirectoryName( taskFactoryLoggingHost.ProjectFileOfTaskNode ),
                taskBodyElement.ElementAnyNS( NUGET_CONFIG_FILE )?.Value
                );
+            var runtimeIdentifier = ( taskBodyElement.ElementAnyNS( NUGET_RID )?.Value ).DefaultIfNullOrEmpty( () => UtilPackNuGetUtility.TryAutoDetectThisProcessRuntimeIdentifier() );
+            var runtimeGraph = ( taskBodyElement.ElementAnyNS( NUGET_RID_CATALOG_PACKAGE_ID )?.Value ).DefaultIfNullOrEmpty( BoundRestoreCommandUser.DEFAULT_RUNTIME_GRAPH_PACKAGE_ID );
 
-            var nugetResolver = new BoundRestoreCommandUser(
+            BoundRestoreCommandUser nugetResolver;
+            BoundRestoreCommandUser RestorerFactory() => new BoundRestoreCommandUser(
                nugetSettings,
                thisFramework: thisFW,
                nugetLogger: nugetLogger,
-               runtimeIdentifier: taskBodyElement.ElementAnyNS( NUGET_RID )?.Value,
-               runtimeGraph: taskBodyElement.ElementAnyNS( NUGET_RID_CATALOG_PACKAGE_ID )?.Value
+               runtimeIdentifier: runtimeIdentifier,
+               runtimeGraph: runtimeGraph
                );
+            var cachePolicy = ( taskBodyElement.ElementAnyNS( CACHE_USAGE )?.Value ).DefaultIfNullOrEmpty( CACHE_USAGE_ENABLED );
+            if ( String.Equals( cachePolicy, CACHE_USAGE_DISABLED, StringComparison.OrdinalIgnoreCase ) )
+            {
+               nugetResolver = RestorerFactory();
+            }
+            else
+            {
+               var cacheKey = String.Equals( cachePolicy, CACHE_USAGE_STRICT, StringComparison.OrdinalIgnoreCase ) ?
+                  new RestorerCacheKey( thisFW, nugetSettings, runtimeIdentifier, runtimeGraph ) :
+                  default;
+               var createdNew = false;
+               nugetResolver = RestorersCache.GetOrAdd( cacheKey, _ =>
+               {
+                  createdNew = true;
+                  return RestorerFactory();
+               } );
+
+               if ( !createdNew )
+               {
+                  taskFactoryLoggingHost.LogMessageEvent( new BuildMessageEventArgs(
+                     "Using cached NuGet restorer from previous task factory usage",
+                     null,
+                     null,
+                     MessageImportance.Normal
+                     ) );
+               }
+               ( (NuGetMSBuildLogger) nugetResolver.NuGetLogger ).BuildEngine = taskFactoryLoggingHost;
+            }
 
             taskFactoryLoggingHost.LogMessageEvent( new BuildMessageEventArgs(
                $"Detected current NuGet framework to be \"{thisFW}\", with RID \"{nugetResolver.RuntimeIdentifier}\", and local repositories: {String.Join( ";", nugetResolver.LocalRepositories.Keys )}.",
@@ -695,7 +773,128 @@ namespace UtilPack.NuGet.MSBuild
          };
       }
 
-      private static Type GenerateTaskType( TTaskTypeGenerationParameters parameters )
+
+      internal static void LoadTaskType(
+         String taskTypeName,
+         NuGetAssemblyResolver resolver,
+         String packageID,
+         String packageVersion,
+         String assemblyPath,
+         out ConstructorInfo taskConstructor,
+         out Object[] constructorArguments,
+         out Boolean usesDynamicLoading
+         )
+      {
+         // This should never cause any actual async waiting, since LockFile for task package has been already cached by restorer
+         var taskAssembly = resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath ).GetAwaiter().GetResult();
+         var taskType = taskAssembly.GetType( taskTypeName, true, false );
+         if ( taskType == null )
+         {
+            throw new Exception( $"Could not find task with type {taskTypeName} from assembly {taskAssembly}." );
+         }
+         GetTaskConstructorInfo( resolver, taskType, out taskConstructor, out constructorArguments );
+         usesDynamicLoading = ( constructorArguments?.Length ?? 0 ) > 0;
+      }
+
+      private static void GetTaskConstructorInfo(
+         NuGetAssemblyResolver resolver,
+         Type type,
+         out ConstructorInfo matchingCtor,
+         out Object[] ctorParams
+         )
+      {
+         var ctors = type
+#if !NET45
+            .GetTypeInfo()
+#endif
+            .GetConstructors();
+         matchingCtor = null;
+         ctorParams = null;
+         if ( ctors.Length > 0 )
+         {
+            if ( ctors.Length == 1 && ctors[0].GetParameters().Length == 0 )
+            {
+               // Default parameterless constructor
+               matchingCtor = ctors[0];
+            }
+
+            if ( matchingCtor == null )
+            {
+               TNuGetPackageResolverCallback nugetResolveCallback = ( packageID, packageVersion, assemblyPath ) => resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath );
+               TNuGetPackagesResolverCallback nugetsResolveCallback = ( packageIDs, packageVersions, assemblyPaths ) => resolver.LoadNuGetAssemblies( packageIDs, packageVersions, assemblyPaths );
+               TAssemblyByPathResolverCallback pathResolveCallback = ( assemblyPath ) => resolver.LoadOtherAssembly( assemblyPath );
+               TAssemblyNameResolverCallback assemblyResolveCallback = ( assemblyName ) => resolver.TryResolveFromPreviouslyLoaded( assemblyName );
+               TTypeStringResolverCallback typeStringResolveCallback = ( typeString ) => resolver.TryLoadTypeFromPreviouslyLoadedAssemblies( typeString );
+
+               MatchConstructorToParameters(
+                  ctors,
+                  new Dictionary<Type, Object>()
+                  {
+                  { typeof(TNuGetPackageResolverCallback), nugetResolveCallback },
+                  { typeof(TNuGetPackagesResolverCallback), nugetsResolveCallback },
+                  { typeof(TAssemblyByPathResolverCallback), pathResolveCallback },
+                  { typeof(TAssemblyNameResolverCallback), assemblyResolveCallback },
+                  { typeof(TTypeStringResolverCallback), typeStringResolveCallback }
+                  },
+                  ref matchingCtor,
+                  ref ctorParams
+                  );
+            }
+         }
+
+         if ( matchingCtor == null )
+         {
+            throw new Exception( $"No public suitable constructors found for type {type.AssemblyQualifiedName}." );
+         }
+
+      }
+
+      private static void MatchConstructorToParameters(
+         ConstructorInfo[] ctors,
+         IDictionary<Type, Object> allPossibleParameters,
+         ref ConstructorInfo matchingCtor,
+         ref Object[] ctorParams
+         )
+      {
+         // Find public constructor with maximum amount of parameters which has all required types, in any order
+         var ctorsAndParams = ctors
+            .Select( ctor => new KeyValuePair<ConstructorInfo, ParameterInfo[]>( ctor, ctor.GetParameters() ) )
+            .Where( info => info.Value.Select( p => p.ParameterType ).Distinct().Count() == info.Value.Length ) // All types must be unique
+            .ToArray();
+
+         // Sort descending
+         Array.Sort( ctorsAndParams, ( left, right ) => right.Value.Length.CompareTo( left.Value.Length ) );
+         // Get the first one which matches
+         var matching = ctorsAndParams.FirstOrDefault( info => info.Value.All( p => allPossibleParameters.ContainsKey( p.ParameterType ) ) );
+         if ( matching.Key != null )
+         {
+            matchingCtor = matching.Key;
+            ctorParams = new Object[matching.Value.Length];
+            for ( var i = 0; i < ctorParams.Length; ++i )
+            {
+               ctorParams[i] = allPossibleParameters[matching.Value[i].ParameterType];
+            }
+         }
+      }
+
+      private static Boolean IsMBFAssembly( AssemblyName an )
+      {
+         switch ( an.Name )
+         {
+            case "Microsoft.Build":
+            case "Microsoft.Build.Framework":
+            case "Microsoft.Build.Tasks.Core":
+            case "Microsoft.Build.Utilities.Core":
+               return true;
+            default:
+               return false;
+         }
+      }
+   }
+
+   internal static class TaskCodeGenerator
+   {
+      public static Type GenerateTaskType( TTaskTypeGenerationParameters parameters )
       {
          // Since we are executing task in different app domain, our task type must inherit MarshalByRefObject
          // However, we don't want to impose such restriction to task writers - ideal situation would be for task writer to only target .netstandard 1.3 (or .netstandard1.4+ and .net45+, but we still don't want to make such restriction).
@@ -972,7 +1171,7 @@ namespace UtilPack.NuGet.MSBuild
 
       }
 
-      private static Type GetPropertyType( WrappedPropertyKind kind, WrappedPropertyTypeModifier modifier )
+      public static Type GetPropertyType( WrappedPropertyKind kind, WrappedPropertyTypeModifier modifier )
       {
          Type retVal;
          switch ( kind )
@@ -1003,123 +1202,6 @@ namespace UtilPack.NuGet.MSBuild
          }
 
          return retVal;
-      }
-
-      internal static void LoadTaskType(
-         String taskTypeName,
-         NuGetAssemblyResolver resolver,
-         String packageID,
-         String packageVersion,
-         String assemblyPath,
-         out ConstructorInfo taskConstructor,
-         out Object[] constructorArguments,
-         out Boolean usesDynamicLoading
-         )
-      {
-         // This should never cause any actual async waiting, since LockFile for task package has been already cached by restorer
-         var taskAssembly = resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath ).GetAwaiter().GetResult();
-         var taskType = taskAssembly.GetType( taskTypeName, true, false );
-         if ( taskType == null )
-         {
-            throw new Exception( $"Could not find task with type {taskTypeName} from assembly {taskAssembly}." );
-         }
-         GetTaskConstructorInfo( resolver, taskType, out taskConstructor, out constructorArguments );
-         usesDynamicLoading = ( constructorArguments?.Length ?? 0 ) > 0;
-      }
-
-      private static void GetTaskConstructorInfo(
-         NuGetAssemblyResolver resolver,
-         Type type,
-         out ConstructorInfo matchingCtor,
-         out Object[] ctorParams
-         )
-      {
-         var ctors = type
-#if !NET45
-            .GetTypeInfo()
-#endif
-            .GetConstructors();
-         matchingCtor = null;
-         ctorParams = null;
-         if ( ctors.Length > 0 )
-         {
-            if ( ctors.Length == 1 && ctors[0].GetParameters().Length == 0 )
-            {
-               // Default parameterless constructor
-               matchingCtor = ctors[0];
-            }
-
-            if ( matchingCtor == null )
-            {
-               TNuGetPackageResolverCallback nugetResolveCallback = ( packageID, packageVersion, assemblyPath ) => resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath );
-               TNuGetPackagesResolverCallback nugetsResolveCallback = ( packageIDs, packageVersions, assemblyPaths ) => resolver.LoadNuGetAssemblies( packageIDs, packageVersions, assemblyPaths );
-               TAssemblyByPathResolverCallback pathResolveCallback = ( assemblyPath ) => resolver.LoadOtherAssembly( assemblyPath );
-               TAssemblyNameResolverCallback assemblyResolveCallback = ( assemblyName ) => resolver.TryResolveFromPreviouslyLoaded( assemblyName );
-               TTypeStringResolverCallback typeStringResolveCallback = ( typeString ) => resolver.TryLoadTypeFromPreviouslyLoadedAssemblies( typeString );
-
-               MatchConstructorToParameters(
-                  ctors,
-                  new Dictionary<Type, Object>()
-                  {
-                  { typeof(TNuGetPackageResolverCallback), nugetResolveCallback },
-                  { typeof(TNuGetPackagesResolverCallback), nugetsResolveCallback },
-                  { typeof(TAssemblyByPathResolverCallback), pathResolveCallback },
-                  { typeof(TAssemblyNameResolverCallback), assemblyResolveCallback },
-                  { typeof(TTypeStringResolverCallback), typeStringResolveCallback }
-                  },
-                  ref matchingCtor,
-                  ref ctorParams
-                  );
-            }
-         }
-
-         if ( matchingCtor == null )
-         {
-            throw new Exception( $"No public suitable constructors found for type {type.AssemblyQualifiedName}." );
-         }
-
-      }
-
-      private static void MatchConstructorToParameters(
-         ConstructorInfo[] ctors,
-         IDictionary<Type, Object> allPossibleParameters,
-         ref ConstructorInfo matchingCtor,
-         ref Object[] ctorParams
-         )
-      {
-         // Find public constructor with maximum amount of parameters which has all required types, in any order
-         var ctorsAndParams = ctors
-            .Select( ctor => new KeyValuePair<ConstructorInfo, ParameterInfo[]>( ctor, ctor.GetParameters() ) )
-            .Where( info => info.Value.Select( p => p.ParameterType ).Distinct().Count() == info.Value.Length ) // All types must be unique
-            .ToArray();
-
-         // Sort descending
-         Array.Sort( ctorsAndParams, ( left, right ) => right.Value.Length.CompareTo( left.Value.Length ) );
-         // Get the first one which matches
-         var matching = ctorsAndParams.FirstOrDefault( info => info.Value.All( p => allPossibleParameters.ContainsKey( p.ParameterType ) ) );
-         if ( matching.Key != null )
-         {
-            matchingCtor = matching.Key;
-            ctorParams = new Object[matching.Value.Length];
-            for ( var i = 0; i < ctorParams.Length; ++i )
-            {
-               ctorParams[i] = allPossibleParameters[matching.Value[i].ParameterType];
-            }
-         }
-      }
-
-      private static Boolean IsMBFAssembly( AssemblyName an )
-      {
-         switch ( an.Name )
-         {
-            case "Microsoft.Build":
-            case "Microsoft.Build.Framework":
-            case "Microsoft.Build.Tasks.Core":
-            case "Microsoft.Build.Utilities.Core":
-               return true;
-            default:
-               return false;
-         }
       }
    }
 
@@ -1559,5 +1641,15 @@ public static partial class E_UtilPack
    internal static XElement ElementAnyNS( this XContainer source, String localName )
    {
       return source.ElementsAnyNS( localName ).FirstOrDefault();
+   }
+
+   internal static String DefaultIfNullOrEmpty( this String value, String defaultValue )
+   {
+      return String.IsNullOrEmpty( value ) ? defaultValue : value;
+   }
+
+   internal static String DefaultIfNullOrEmpty( this String value, Func<String> defaultValueFactory )
+   {
+      return String.IsNullOrEmpty( value ) ? defaultValueFactory() : value;
    }
 }

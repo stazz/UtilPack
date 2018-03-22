@@ -138,6 +138,26 @@ namespace UtilPack.NuGet.MSBuild
          }
       }
 
+      private sealed class TaskUsageInfo
+      {
+         public TaskUsageInfo(
+            ReadOnlyResettableLazy<TaskReferenceHolderInfo> referenceHolder,
+            BoundRestoreCommandUser restorer,
+            GenericEventHandler<PackageSpecCreatedArgs> packageSpecCreatedHandler
+            )
+         {
+            this.ReferenceHolder = referenceHolder;
+            this.Restorer = restorer;
+            this.PackageSpecCreatedHandler = packageSpecCreatedHandler;
+         }
+
+         public ReadOnlyResettableLazy<TaskReferenceHolderInfo> ReferenceHolder { get; }
+
+         public BoundRestoreCommandUser Restorer { get; }
+
+         public GenericEventHandler<PackageSpecCreatedArgs> PackageSpecCreatedHandler { get; }
+      }
+
       // Currently only way to share state between task factory usage in different build files.
       private static readonly ConcurrentDictionary<RestorerCacheKey, BoundRestoreCommandUser> RestorersCache = new ConcurrentDictionary<RestorerCacheKey, BoundRestoreCommandUser>();
 
@@ -169,14 +189,18 @@ namespace UtilPack.NuGet.MSBuild
       //private const String KNOWN_SDK_PACKAGE = "KnownSDKPackage";
 
       // We will re-create anything that needs re-creating between mutiple task usages from this same lazy.
-      private ReadOnlyResettableLazy<TaskReferenceHolderInfo> _helper;
+      private TaskUsageInfo _helper;
 
       // We will generate task type only exactly once, no matter how many times the actual task is created.
       private readonly Lazy<Type> _taskType;
 
       public NuGetTaskRunnerFactory()
       {
-         this._taskType = new Lazy<Type>( () => TaskCodeGenerator.GenerateTaskType( (this._helper.Value.TaskReference.IsCancelable, this._helper.Value.PropertyInfo) ) );
+         this._taskType = new Lazy<Type>( () =>
+         {
+            var holder = this._helper.ReferenceHolder.Value;
+            return TaskCodeGenerator.GenerateTaskType( (holder.TaskReference.IsCancelable, holder.PropertyInfo) );
+         } );
       }
 
       public String FactoryName => nameof( NuGetTaskRunnerFactory );
@@ -191,7 +215,11 @@ namespace UtilPack.NuGet.MSBuild
 
       public void CleanupTask( ITask task )
       {
-         if ( this._helper.IsValueCreated && this._helper.Value.TaskReference.TaskUsesDynamicLoading )
+         var info = this._helper;
+
+         info.Restorer.PackageSpecCreated -= info.PackageSpecCreatedHandler;
+         var holder = info.ReferenceHolder;
+         if ( holder.IsValueCreated && holder.Value.TaskReference.TaskUsesDynamicLoading )
          {
             // In .NET Desktop, task factory logger seems to become invalid almost immediately after initialize method, so...
             // Don't log.
@@ -207,8 +235,9 @@ namespace UtilPack.NuGet.MSBuild
             // Reset tasks that do dynamic NuGet package assembly loading
             // On .NET Desktop, this will cause app domain unload
             // On .NET Core, this will cause assembly load context to be disposed
-            this._helper.Value.DisposeSafely();
-            this._helper.Reset();
+            holder.Value.DisposeSafely();
+            holder.Reset();
+
          }
       }
 
@@ -216,12 +245,13 @@ namespace UtilPack.NuGet.MSBuild
          IBuildEngine taskFactoryLoggingHost
          )
       {
-         return (ITask) this._taskType.Value.GetConstructors()[0].Invoke( new Object[] { this._helper.Value.TaskReference, this._helper.Value.Logger } );
+         var holder = this._helper.ReferenceHolder.Value;
+         return (ITask) this._taskType.Value.GetConstructors()[0].Invoke( new Object[] { holder.TaskReference, holder.Logger } );
       }
 
       public TaskPropertyInfo[] GetTaskParameters()
       {
-         return this._helper.Value.PropertyInfo
+         return this._helper.ReferenceHolder.Value.PropertyInfo
             .Select( kvp =>
             {
                var propType = TaskCodeGenerator.GetPropertyType( kvp.Value.Item1, kvp.Value.Item2 );
@@ -299,8 +329,14 @@ namespace UtilPack.NuGet.MSBuild
                      MessageImportance.Normal
                      ) );
                }
-               ( (NuGetMSBuildLogger) nugetResolver.NuGetLogger ).BuildEngine = taskFactoryLoggingHost;
+
             }
+
+            // TODO this will cause some logging to become garbled in concurrent scenarios.
+            // Luckily, I am quite sure MSBuild runs concurrently only on process level, and within the same process, the execution is always sequential.
+            // But this will need to be addressed at some point; then logging and event handler should be specified as parameters to RestoreIfNeeded method.
+            // Those would then override whatever logging and event handlers are on BoundRestoreCommandUser object itself.
+            ( (NuGetMSBuildLogger) nugetResolver.NuGetLogger ).BuildEngine = taskFactoryLoggingHost;
 
             taskFactoryLoggingHost.LogMessageEvent( new BuildMessageEventArgs(
                $"Detected current NuGet framework to be \"{thisFW}\", with RID \"{nugetResolver.RuntimeIdentifier}\", and local repositories: {String.Join( ";", nugetResolver.LocalRepositories.Keys )}.",
@@ -315,124 +351,145 @@ namespace UtilPack.NuGet.MSBuild
             (var packageID, var packageVersion) = GetPackageIDAndVersion( taskFactoryLoggingHost, taskBodyElement, nugetResolver );
             if ( !String.IsNullOrEmpty( packageID ) )
             {
-               var restoreResult = nugetResolver.RestoreIfNeeded(
-                  packageID,
-                  packageVersion
-                  ).GetAwaiter().GetResult();
-               if ( restoreResult != null
-                  && !String.IsNullOrEmpty( ( packageVersion = restoreResult.Libraries.Where( lib => String.Equals( lib.Name, packageID ) ).FirstOrDefault()?.Version?.ToNormalizedString() ) )
-                  )
+               var taskProjectFilePath = taskFactoryLoggingHost.ProjectFileOfTaskNode;
+               void OnPackageSpecCreation( PackageSpecCreatedArgs pscArgs )
                {
-                  GetFileItemsDelegate getFiles = ( rGraph, rid, lib, libs ) => GetSuitableFiles( thisFW, rGraph, rid, lib, libs );
-                  // On Desktop we must always load everything, since it's possible to have assemblies compiled against .NET Standard having references to e.g. System.IO.FileSystem.dll, which is not present in GAC
-#if NET45 || NET46
-                  String[] sdkPackages = null;
-                  AppDomainSetup appDomainSetup = null;
-#else
-
-                  var sdkPackageID = thisFW.GetSDKPackageID( taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_ID )?.Value );
-                  var sdkRestoreResult = nugetResolver.RestoreIfNeeded(
-                        sdkPackageID,
-                        thisFW.GetSDKPackageVersion( sdkPackageID, taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_VERSION )?.Value )
-                        ).GetAwaiter().GetResult();
-                  var sdkPackages = sdkRestoreResult.Libraries.Select( lib => lib.Name ).ToArray();
-#endif
-
-                  var taskAssemblies = nugetResolver.ExtractAssemblyPaths(
-                     restoreResult,
-                     getFiles,
-                     sdkPackages
-                     )[packageID];
-                  var assemblyPathHint = taskBodyElement.ElementAnyNS( ASSEMBLY_PATH )?.Value;
-                  var assemblyPath = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
+                  var pSpec = pscArgs.PackageSpec;
+                  pSpec.FilePath = taskProjectFilePath;
+               };
+               nugetResolver.PackageSpecCreated += OnPackageSpecCreation;
+               try
+               {
+                  var restoreResult = nugetResolver.RestoreIfNeeded(
                      packageID,
-                     taskAssemblies.Assemblies,
-                     assemblyPathHint,
-                     ap => File.Exists( ap )
-                     );
-                  if ( !String.IsNullOrEmpty( assemblyPath ) )
+                     packageVersion
+                     ).GetAwaiter().GetResult();
+                  if ( restoreResult != null
+                     && !String.IsNullOrEmpty( ( packageVersion = restoreResult.Libraries.Where( lib => String.Equals( lib.Name, packageID ) ).FirstOrDefault()?.Version?.ToNormalizedString() ) )
+                     )
                   {
-                     taskName = this.ProcessTaskName( taskBodyElement, taskName );
-                     var givenTempFolder = taskBodyElement.ElementAnyNS( COPY_TO_TEMPORARY_FOlDER_BEFORE_LOAD )?.Value;
-                     var wasBoolean = false;
-                     var noTempFolder = String.IsNullOrEmpty( givenTempFolder ) || ( ( wasBoolean = Boolean.TryParse( givenTempFolder, out var createTempFolder ) ) && !createTempFolder );
-                     var explicitTempFolder = !noTempFolder && !wasBoolean ? givenTempFolder : null;
-                     this._helper = LazyFactory.NewReadOnlyResettableLazy( () =>
-                     {
-                        try
-                        {
-
-                           var tempFolder = noTempFolder ?
-                              null :
-                              ( explicitTempFolder ?? Path.Combine( Path.GetTempPath(), "NuGetAssemblies_" + packageID + "_" + packageVersion + "_" + ( Guid.NewGuid().ToString() ) ) );
-                           if ( !String.IsNullOrEmpty( tempFolder ) && ( String.IsNullOrEmpty( explicitTempFolder ) || !Directory.Exists( explicitTempFolder ) ) )
-                           {
-                              Directory.CreateDirectory( tempFolder );
-                           }
-
-                           return this.CreateExecutionHelper(
-                              taskName,
-                              taskBodyElement,
-                              packageID,
-                              packageVersion,
-                              assemblyPath,
-                              assemblyPathHint,
-                              nugetResolver,
-                              new ResolverLogger( nugetLogger ),
-                              getFiles,
-                              tempFolder,
+                     GetFileItemsDelegate getFiles = ( rGraph, rid, lib, libs ) => GetSuitableFiles( thisFW, rGraph, rid, lib, libs );
+                     // On Desktop we must always load everything, since it's possible to have assemblies compiled against .NET Standard having references to e.g. System.IO.FileSystem.dll, which is not present in GAC
 #if NET45 || NET46
-                              ref appDomainSetup
+                     String[] sdkPackages = null;
+                     AppDomainSetup appDomainSetup = null;
 #else
-                              sdkRestoreResult
+
+                     var sdkPackageID = thisFW.GetSDKPackageID( taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_ID )?.Value );
+                     var sdkRestoreResult = nugetResolver.RestoreIfNeeded(
+                           sdkPackageID,
+                           thisFW.GetSDKPackageVersion( sdkPackageID, taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_VERSION )?.Value )
+                           ).GetAwaiter().GetResult();
+                     var sdkPackages = sdkRestoreResult.Libraries.Select( lib => lib.Name ).ToArray();
 #endif
+
+                     var taskAssemblies = nugetResolver.ExtractAssemblyPaths(
+                        restoreResult,
+                        getFiles,
+                        sdkPackages
+                        )[packageID];
+                     var assemblyPathHint = taskBodyElement.ElementAnyNS( ASSEMBLY_PATH )?.Value;
+                     var assemblyPath = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
+                        packageID,
+                        taskAssemblies.Assemblies,
+                        assemblyPathHint,
+                        ap => File.Exists( ap )
+                        );
+                     if ( !String.IsNullOrEmpty( assemblyPath ) )
+                     {
+                        taskName = this.ProcessTaskName( taskBodyElement, taskName );
+                        var givenTempFolder = taskBodyElement.ElementAnyNS( COPY_TO_TEMPORARY_FOlDER_BEFORE_LOAD )?.Value;
+                        var wasBoolean = false;
+                        var noTempFolder = String.IsNullOrEmpty( givenTempFolder ) || ( ( wasBoolean = Boolean.TryParse( givenTempFolder, out var createTempFolder ) ) && !createTempFolder );
+                        var explicitTempFolder = !noTempFolder && !wasBoolean ? givenTempFolder : null;
+                        this._helper = new TaskUsageInfo(
+                           LazyFactory.NewReadOnlyResettableLazy( () =>
+                           {
+                              try
+                              {
+
+                                 var tempFolder = noTempFolder ?
+                                    null :
+                                    ( explicitTempFolder ?? Path.Combine( Path.GetTempPath(), "NuGetAssemblies_" + packageID + "_" + packageVersion + "_" + ( Guid.NewGuid().ToString() ) ) );
+                                 if ( !String.IsNullOrEmpty( tempFolder ) && ( String.IsNullOrEmpty( explicitTempFolder ) || !Directory.Exists( explicitTempFolder ) ) )
+                                 {
+                                    Directory.CreateDirectory( tempFolder );
+                                 }
+
+                                 return this.CreateExecutionHelper(
+                                    taskName,
+                                    taskBodyElement,
+                                    packageID,
+                                    packageVersion,
+                                    assemblyPath,
+                                    assemblyPathHint,
+                                    nugetResolver,
+                                    new ResolverLogger( nugetLogger ),
+                                    getFiles,
+                                    tempFolder,
+#if NET45 || NET46
+                                 ref appDomainSetup
+#else
+                                 sdkRestoreResult
+#endif
+                              );
+                              }
+                              catch ( Exception exc )
+                              {
+                                 Console.Error.WriteLine( "Exception when creating task: " + exc );
+                                 throw;
+                              }
+                           }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ),
+                           nugetResolver,
+                           OnPackageSpecCreation
                            );
-                        }
-                        catch ( Exception exc )
-                        {
-                           Console.Error.WriteLine( "Exception when creating task: " + exc );
-                           throw;
-                        }
-                     }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
-                     // Force initialization right here, in order to provide better logging (since taskFactoryLoggingHost passed to this method is not useable once this method completes)
-                     var dummy = this._helper.Value.TaskReference;
-                     retVal = true;
+                        // Force initialization right here, in order to provide better logging (since taskFactoryLoggingHost passed to this method is not useable once this method completes)
+                        var dummy = this._helper.ReferenceHolder.Value.TaskReference;
+                        retVal = true;
+                     }
+                     else
+                     {
+                        nugetResolver.LogAssemblyPathResolveError( packageID, taskAssemblies.Assemblies, assemblyPathHint, assemblyPath );
+                        taskFactoryLoggingHost.LogErrorEvent(
+                           new BuildErrorEventArgs(
+                              "Task factory",
+                              "NMSBT004",
+                              null,
+                              -1,
+                              -1,
+                              -1,
+                              -1,
+                              $"Failed to find suitable assembly in {packageID}@{packageVersion}.",
+                              null,
+                              this.FactoryName
+                           )
+                        );
+                     }
                   }
                   else
                   {
-                     nugetResolver.LogAssemblyPathResolveError( packageID, taskAssemblies.Assemblies, assemblyPathHint, assemblyPath );
                      taskFactoryLoggingHost.LogErrorEvent(
                         new BuildErrorEventArgs(
                            "Task factory",
-                           "NMSBT004",
+                           "NMSBT003",
                            null,
                            -1,
                            -1,
                            -1,
                            -1,
-                           $"Failed to find suitable assembly in {packageID}@{packageVersion}.",
+                           $"Failed to find main package {packageID}@{packageVersion}.",
                            null,
                            this.FactoryName
                         )
                      );
                   }
                }
-               else
+               finally
                {
-                  taskFactoryLoggingHost.LogErrorEvent(
-                     new BuildErrorEventArgs(
-                        "Task factory",
-                        "NMSBT003",
-                        null,
-                        -1,
-                        -1,
-                        -1,
-                        -1,
-                        $"Failed to find main package {packageID}@{packageVersion}.",
-                        null,
-                        this.FactoryName
-                     )
-                  );
+                  if ( !retVal )
+                  {
+                     nugetResolver.PackageSpecCreated -= OnPackageSpecCreation;
+                  }
                }
             }
          }

@@ -53,6 +53,28 @@ LocalPackageFileCache
 namespace UtilPack.NuGet
 {
    /// <summary>
+   /// This is event argument class for <see cref="BoundRestoreCommandUser.PackageSpecCreated"/> event.
+   /// </summary>
+   public sealed class PackageSpecCreatedArgs
+   {
+      /// <summary>
+      /// Creates a new instance of <see cref="PackageSpecCreatedArgs"/> with given <see cref="global::NuGet.ProjectModel.PackageSpec"/>.
+      /// </summary>
+      /// <param name="packageSpec">The <see cref="global::NuGet.ProjectModel.PackageSpec"/> that was created.</param>
+      /// <exception cref="ArgumentNullException">If <paramref name="packageSpec"/> is <c>null</c>.</exception>
+      public PackageSpecCreatedArgs( PackageSpec packageSpec )
+      {
+         this.PackageSpec = ArgumentValidator.ValidateNotNull( nameof( packageSpec ), packageSpec );
+      }
+
+      /// <summary>
+      /// Gets the <see cref="global::NuGet.ProjectModel.PackageSpec"/> that was created.
+      /// </summary>
+      /// <value>The <see cref="global::NuGet.ProjectModel.PackageSpec"/> that was created.</value>
+      public PackageSpec PackageSpec { get; }
+   }
+
+   /// <summary>
    /// This class binds itself to specific <see cref="NuGetFramework"/> and then performs restore commands via <see cref="RestoreIfNeeded"/> method.
    /// It also caches results so that restore command is invoked only if needed.
    /// </summary>
@@ -185,6 +207,11 @@ namespace UtilPack.NuGet
       /// </summary>
       /// <value>The <see cref="Lazy{T}"/> holding the <see cref="global::NuGet.RuntimeModel.RuntimeGraph"/> of this <see cref="BoundRestoreCommandUser"/>.</value>
       public Lazy<RuntimeGraph> RuntimeGraph { get; }
+
+      /// <summary>
+      /// This event can be registered to in order to further modify the <see cref="PackageSpec"/> that was created during restore.
+      /// </summary>
+      public event GenericEventHandler<PackageSpecCreatedArgs> PackageSpecCreated;
 
       /// <summary>
       /// Performs restore command for given combinations of package and version.
@@ -320,10 +347,13 @@ namespace UtilPack.NuGet
             {
                ProjectPath = "dummy.csproj",
                ProjectName = projectName // If this is left to anything else than project name, Nuget.Commands.TransitiveNoWarnUtils.ExtractTransitiveNoWarnProperties method will fail to nullref or key-not-found
-            }
-            // TODO now that this class has its own RuntimeGraph, investigate whether we can use it here.
+            },
+            // TODO now that this class has its own RuntimeGraph, investigate whether we can use it here. On preliminar check, it seems though that only equality comparison, hash coding, and serializing uses this property.
             //RuntimeGraph = new RuntimeGraph( new RuntimeDescription( this.RuntimeIdentifier ).Singleton() )
          };
+
+         this.PackageSpecCreated?.Invoke( new PackageSpecCreatedArgs( spec ) );
+
          spec.TargetFrameworks.Add( this._restoreTargetFW );
 
          foreach ( var tuple in targets )

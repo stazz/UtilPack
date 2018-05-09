@@ -49,6 +49,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Cryptography.SASL"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Cryptography.SASL.SCRAM", "UtilPack.Cryptography.SASL.SCRAM\UtilPack.Cryptography.SASL.SCRAM.csproj", "{C11F826C-9CB6-488C-B488-2CD8A514AB0E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.Logging", "UtilPack.Logging\UtilPack.Logging.csproj", "{6BB0EB38-7766-4C4A-8D57-BA594F85FC46}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -147,6 +149,10 @@ Global
 		{C11F826C-9CB6-488C-B488-2CD8A514AB0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C11F826C-9CB6-488C-B488-2CD8A514AB0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C11F826C-9CB6-488C-B488-2CD8A514AB0E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6BB0EB38-7766-4C4A-8D57-BA594F85FC46}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6BB0EB38-7766-4C4A-8D57-BA594F85FC46}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6BB0EB38-7766-4C4A-8D57-BA594F85FC46}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6BB0EB38-7766-4C4A-8D57-BA594F85FC46}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

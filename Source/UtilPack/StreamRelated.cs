@@ -1454,14 +1454,14 @@ public static partial class E_UtilPack
    /// <exception cref="ArgumentNullException">If <paramref name="array"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentException">If <paramref name="offset"/> and <paramref name="count"/> are incorrect.</exception>
    /// <exception cref="EndOfStreamException">If end of stream encountered before given <paramref name="count"/> amount of bytes could be read.</exception>
-   public static async ValueTask<Int32> TryReadSpecificAmountAsync( this Stream stream, ResizableArray<Byte> array, Int32 offset, Int32 count, CancellationToken token )
+   public static ValueTask<Int32> TryReadSpecificAmountAsync( this Stream stream, ResizableArray<Byte> array, Int32 offset, Int32 count, CancellationToken token )
    {
       if ( array != null )
       {
          array.CurrentMaxCapacity = offset + count;
       }
 
-      return await stream.TryReadSpecificAmountAsync( array?.Array, offset, count, token );
+      return stream.TryReadSpecificAmountAsync( array?.Array, offset, count, token );
    }
 
    /// <summary>

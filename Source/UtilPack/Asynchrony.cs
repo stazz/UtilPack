@@ -1,4 +1,21 @@
-﻿using System;
+﻿/*
+ * Copyright 2017 Stanislav Muhametsin. All rights Reserved.
+ *
+ * Licensed  under the  Apache License,  Version 2.0  (the "License");
+ * you may not use  this file  except in  compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed  under the  License is distributed on an "AS IS" BASIS,
+ * WITHOUT  WARRANTIES OR CONDITIONS  OF ANY KIND, either  express  or
+ * implied.
+ *
+ * See the License for the specific language governing permissions and
+ * limitations under the License. 
+ */
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
@@ -33,62 +50,16 @@ namespace UtilPack
 
    }
 
-
-   /// <summary>
-   /// This class provides default implementation for <see cref="EventArgsWithAsyncContext{TAwaitable}"/>
-   /// </summary>
-   /// <typeparam name="TAwaitable">The type of the awaitable.</typeparam>
-   /// <remarks>
-   /// Because of how <c>public async void</c> methods behave, they only make sense when they are run in UI thread or similar (otherwise, they will cause hard crash, <see href="https://msdn.microsoft.com/en-us/magazine/jj991977.aspx"/>).
-   /// </remarks>
-   public class EventArgsWithAsyncContextImpl<TAwaitable> : EventArgsWithAsyncContext<TAwaitable>
-   {
-      private List<TAwaitable> _awaitables;
-
-      /// <summary>
-      /// Creates a new instance of <see cref="EventArgsWithAsyncContext{TAwaitable}"/>
-      /// </summary>
-      public EventArgsWithAsyncContextImpl()
-      {
-         this._awaitables = null;
-      }
-
-      /// <summary>
-      /// Adds the given awaitable to the list of awaitables.
-      /// </summary>
-      public void AddAwaitable( TAwaitable awaitable )
-      {
-         if ( this._awaitables == null )
-         {
-            this._awaitables = new List<TAwaitable>();
-         }
-         this._awaitables.Add( awaitable );
-      }
-
-      /// <summary>
-      /// Gets the array of awaitables added to the list of awaitables, or <c>null</c> if no awaitables have been added.
-      /// </summary>
-      /// <returns>The array of awaitables added to the list of awaitables, or <c>null</c> if no awaitables have been added.</returns>
-      public TAwaitable[] GetAwaitableArray()
-      {
-         var list = this._awaitables;
-         return ( list?.Count ?? 0 ) > 0 ? list.ToArray() : null;
-      }
-   }
-
-   /// <summary>
-   /// This class restricts the type argument of <see cref="EventArgsWithAsyncContextImpl{TAwaitable}"/> to <see cref="System.Threading.Tasks.Task"/>.
-   /// </summary>
-   public class EventArgsWithAsyncContextImpl : EventArgsWithAsyncContextImpl<System.Threading.Tasks.Task>
-   {
-
-   }
-
    /// <summary>
    /// The .NET Standard library does not have Task.CompletedTask property (at least for all versions).
    /// Hence, this class provides it.
    /// </summary>
-   public static class TaskUtils
+#if INTERNALIZE
+   internal
+#else
+   public
+#endif
+      static class TaskUtils
    {
       /// <summary>
       /// Gets the task which is completed.
@@ -178,6 +149,57 @@ namespace UtilPack
          }
          return new Task<T>( () => default( T ), token, TaskCreationOptions.None );
       }
+
+   }
+
+   /// <summary>
+   /// This class provides default implementation for <see cref="EventArgsWithAsyncContext{TAwaitable}"/>
+   /// </summary>
+   /// <typeparam name="TAwaitable">The type of the awaitable.</typeparam>
+   /// <remarks>
+   /// Because of how <c>public async void</c> methods behave, they only make sense when they are run in UI thread or similar (otherwise, they will cause hard crash, <see href="https://msdn.microsoft.com/en-us/magazine/jj991977.aspx"/>).
+   /// </remarks>
+   public class EventArgsWithAsyncContextImpl<TAwaitable> : EventArgsWithAsyncContext<TAwaitable>
+   {
+      private List<TAwaitable> _awaitables;
+
+      /// <summary>
+      /// Creates a new instance of <see cref="EventArgsWithAsyncContext{TAwaitable}"/>
+      /// </summary>
+      public EventArgsWithAsyncContextImpl()
+      {
+         this._awaitables = null;
+      }
+
+      /// <summary>
+      /// Adds the given awaitable to the list of awaitables.
+      /// </summary>
+      public void AddAwaitable( TAwaitable awaitable )
+      {
+         if ( this._awaitables == null )
+         {
+            this._awaitables = new List<TAwaitable>();
+         }
+         this._awaitables.Add( awaitable );
+      }
+
+      /// <summary>
+      /// Gets the array of awaitables added to the list of awaitables, or <c>null</c> if no awaitables have been added.
+      /// </summary>
+      /// <returns>The array of awaitables added to the list of awaitables, or <c>null</c> if no awaitables have been added.</returns>
+      public TAwaitable[] GetAwaitableArray()
+      {
+         var list = this._awaitables;
+         return ( list?.Count ?? 0 ) > 0 ? list.ToArray() : null;
+      }
+   }
+
+   /// <summary>
+   /// This class restricts the type argument of <see cref="EventArgsWithAsyncContextImpl{TAwaitable}"/> to <see cref="System.Threading.Tasks.Task"/>.
+   /// </summary>
+   public class EventArgsWithAsyncContextImpl : EventArgsWithAsyncContextImpl<System.Threading.Tasks.Task>
+   {
+
    }
 
    /// <summary>
@@ -221,6 +243,8 @@ namespace UtilPack
 
       private readonly SemaphoreSlim _semaphore;
       private readonly Task<LockUseScope> _completed;
+      private readonly Task<LockUseScope?> _completedNullable;
+      private readonly Task<LockUseScope?> _notCompletedNullable;
 
       /// <summary>
       /// Creates a new instance of <see cref="AsyncLock"/>.
@@ -235,9 +259,79 @@ namespace UtilPack
             Task
 #endif
             .FromResult( new LockUseScope( this ) );
+         this._completedNullable =
+#if NET40
+            TaskEx
+#else
+            Task
+#endif
+            .FromResult<LockUseScope?>( new LockUseScope( this ) );
+         this._notCompletedNullable =
+#if NET40
+            TaskEx
+#else
+            Task
+#endif
+            .FromResult<LockUseScope?>( null );
       }
 
-      // TODO maybe ValueTask<LockUseScope?> TryLockAsync( CancellationToken token = default, TimeSpan timeout = default)... ?
+      /// <summary>
+      /// Tries to asynchronously acquire this <see cref="AsyncLock"/>.
+      /// </summary>
+      /// <param name="timeout">The maximum amout of time to wait for the lock.</param>
+      /// <param name="token">The optional cancellation token to use.</param>
+      /// <returns></returns>
+      public Task<LockUseScope?> TryLockAsync( TimeSpan timeout, CancellationToken token = default )
+      {
+         var task = this._semaphore.WaitAsync( timeout, token );
+         if ( task.IsCompleted )
+         {
+            if ( task.Status == TaskStatus.RanToCompletion )
+            {
+               return task.Result ? this._completedNullable : this._notCompletedNullable;
+            }
+            else
+            {
+               throw ( task.IsCanceled ? new OperationCanceledException() : task.Exception ?? new Exception( "Something went wrong when waiting for semaphore" ) );
+            }
+         }
+         else
+         {
+            return task.ContinueWith<LockUseScope?>(
+               ( t
+#if !NET40
+               , state
+#endif
+               ) =>
+               {
+                  if ( t.Status == TaskStatus.RanToCompletion )
+                  {
+                     if ( t.Result )
+                     {
+                        return new LockUseScope(
+#if NET40
+                     this
+#else
+                     (AsyncLock) state
+#endif
+                     );
+                     }
+                     else
+                     {
+                        return null;
+                     }
+                  }
+                  else
+                  {
+                     throw ( t.IsCanceled ? new OperationCanceledException() : t.Exception ?? new Exception( "Something went wrong when waiting for semaphore" ) );
+                  }
+               },
+#if !NET40
+               this,
+#endif
+               TaskContinuationOptions.ExecuteSynchronously );
+         }
+      }
 
       /// <summary>
       /// Asynchronously acquires this <see cref="AsyncLock"/> or throws an exception.
@@ -262,7 +356,7 @@ namespace UtilPack
             return task.ContinueWith(
                ( t
 #if !NET40
-               , state 
+               , state
 #endif
                ) =>
             {
@@ -392,6 +486,25 @@ public static partial class E_UtilPack
    /// Helper extension method to wait for <see cref="SemaphoreSlim"/> asynchronously in .NET 4.0.
    /// </summary>
    /// <param name="semaphore">This <see cref="SemaphoreSlim"/>.</param>
+   /// <param name="tick">The tick to wait between checking on <see cref="SemaphoreSlim"/>.</param>
+   /// <returns>Task which will complete when it acquies this <see cref="SemaphoreSlim"/> access.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="SemaphoreSlim"/> is <c>null</c>.</exception>
+   /// <remarks>
+   /// At least current implementation is most likely not very efficient...
+   /// </remarks>
+   public static async Task WaitAsync( this SemaphoreSlim semaphore, Int32 tick = 100 )
+   {
+      while ( !semaphore.Wait( 0 ) )
+      {
+         await TaskEx.Delay( tick );
+      }
+   }
+
+   /// <summary>
+   /// Helper extension method to wait for <see cref="SemaphoreSlim"/> asynchronously in .NET 4.0.
+   /// </summary>
+   /// <param name="semaphore">This <see cref="SemaphoreSlim"/>.</param>
+   /// <param name="timeout">Maximum amount to wait for the lock.</param>
    /// <param name="token">The optional <see cref="CancellationToken"/> to use.</param>
    /// <param name="tick">The tick to wait between checking on <see cref="SemaphoreSlim"/>.</param>
    /// <returns>Task which will complete when it acquies this <see cref="SemaphoreSlim"/> access.</returns>
@@ -399,12 +512,17 @@ public static partial class E_UtilPack
    /// <remarks>
    /// At least current implementation is most likely not very efficient...
    /// </remarks>
-   public static async Task WaitAsync( this SemaphoreSlim semaphore, CancellationToken token = default, Int32 tick = 100 )
+   public static async Task<Boolean> WaitAsync( this SemaphoreSlim semaphore, TimeSpan timeout, CancellationToken token = default, Int32 tick = 100 )
    {
-      while ( !semaphore.Wait( 0 ) )
+      var curTimeout = 0L;
+      Boolean retVal;
+      while ( !( retVal = semaphore.Wait( 0 ) ) && curTimeout < timeout.TotalMilliseconds )
       {
          await TaskEx.Delay( tick, token );
+         curTimeout += tick;
       }
+
+      return retVal && curTimeout < timeout.TotalMilliseconds;
    }
 #endif
 }

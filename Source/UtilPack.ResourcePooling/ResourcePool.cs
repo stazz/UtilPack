@@ -38,7 +38,7 @@ namespace UtilPack.ResourcePooling
       /// <param name="user">The asynchronous callback to use the resource.</param>
       /// <param name="token">The optional <see cref="CancellationToken"/> to use during asynchronous operations inside <paramref name="user"/> callback.</param>
       /// <returns>A task which completes when <paramref name="user"/> callback completes and resource is returned back to the pool.</returns>
-      Task UseResourceAsync( Func<TResource, Task> user, CancellationToken token = default( CancellationToken ) );
+      Task UseResourceAsync( Func<TResource, Task> user, CancellationToken token = default ); // We could use special "AsyncResourceUsageScope : IDisposable" struct, but it does not allow asynchronous disposing! i.e. we need Task DisposeAsync() instead of void Dispose()!
    }
 
    /// <summary>

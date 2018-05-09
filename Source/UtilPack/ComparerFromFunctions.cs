@@ -253,7 +253,7 @@ namespace UtilPack
          var method = typeof( ListEqualityComparer<,> )
             .MakeGenericType( listType, listType.
 #if IS_NETSTANDARD
-            GetTypeInfo().GenericTypeParameters
+            GenericTypeArguments
 #else
             GetGenericArguments()
 #endif
@@ -275,7 +275,7 @@ namespace UtilPack
          var method = typeof( CollectionEqualityComparer<,> )
             .MakeGenericType( collectionType, collectionType.
 #if IS_NETSTANDARD
-            GetTypeInfo().GenericTypeParameters
+            GenericTypeArguments
 #else
             GetGenericArguments()
 #endif

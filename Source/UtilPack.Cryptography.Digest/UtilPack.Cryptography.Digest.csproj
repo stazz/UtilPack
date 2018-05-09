@@ -18,7 +18,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.1.0</VersionPrefix>
+    <VersionPrefix>2.0.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
@@ -49,7 +49,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Added ability to create HMAC version of BlockDigestAlgorithm.</PackageReleaseNotes>
+    <PackageReleaseNotes>Binary-incompatible API changes: BlockDigestAlgorithm interface now extends DigestAlgorithm interface. Also added utility method to shuffle binary encoding characters (e.g. base64) using DigestBasedRandomGenerator seeded with given seed material.</PackageReleaseNotes>
     <PackageTags>utility cryptography random block hash digest md5 sha128 sha256 sha384 sha512</PackageTags>
     <Title>Cryptographic Digest Functions</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

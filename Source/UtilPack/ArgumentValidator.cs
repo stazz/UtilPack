@@ -28,7 +28,12 @@ namespace UtilPack
    /// <summary>
    /// Helper class to easily verify whether some method parameter is <c>null</c> or empty.
    /// </summary>
-   public static class ArgumentValidator
+#if INTERNALIZE
+   internal
+#else
+   public
+#endif
+      static class ArgumentValidator
    {
       /// <summary>
       /// Checks whether a method parameter is <c>null</c>.

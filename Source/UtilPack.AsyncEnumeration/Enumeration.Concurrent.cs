@@ -445,7 +445,8 @@ public static partial class E_UtilPack
          action,
          ( enumerator, actionParam ) => enumerator.EnumerateSequentiallyAsync( actionParam ),
          ( actionParam, item ) => { actionParam( item ); return null; },
-         arguments );
+         arguments
+         );
 
    /// <summary>
    /// Enumerates this <see cref="IAsyncConcurrentEnumerable{T}"/> concurrently as specified by given <see cref="ConcurrentEnumerationArguments"/>.
@@ -495,7 +496,7 @@ public static partial class E_UtilPack
       //var synchronousGracefulEnd = false;
       try
       {
-         foreach ( var asyncEnumerator in source.GetAsyncEnumeratorsEnumerable() )
+         foreach ( var asyncEnumerator in enumerators )
          {
             var task = sequentialCall( asyncEnumerator, arg );
             if ( task.IsCompleted )
@@ -724,7 +725,7 @@ public static partial class E_UtilPack
          lock ( allExceptions )
          {
 #endif
-         allExceptions.Add( exception );
+            allExceptions.Add( exception );
 #if NETSTANDARD1_0
          }
 #endif

@@ -25,7 +25,7 @@ namespace UtilPack
    /// <summary>
    /// This is helper class to invoke code finally block by using <c>using</c> word in C#.
    /// </summary>
-   public class UsingHelper : AbstractDisposable
+   public struct UsingHelper : IDisposable
    {
       private readonly Action _action;
 
@@ -40,16 +40,9 @@ namespace UtilPack
       }
 
       /// <inheritdoc />
-      protected override void Dispose( Boolean disposing )
+      public void Dispose()
       {
-         if ( disposing )
-         {
-            var action = this._action;
-            if ( action != null )
-            {
-               action();
-            }
-         }
+         this._action?.Invoke();
       }
    }
 }

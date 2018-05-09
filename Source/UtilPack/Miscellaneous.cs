@@ -96,17 +96,7 @@ namespace UtilPack
    }
 #endif
 
-   /// <summary>
-   /// This delegate type is alternative for <see cref="EventHandler{TEventArgs}"/>.
-   /// It differs from the <see cref="EventHandler{TEventArgs}"/> in the following three ways:
-   /// <list type="bullet">
-   /// <item><description>The generic argument <typeparamref name="TArgs"/> has <c>in</c> contravariance specification,</description></item>
-   /// <item><description>The generic argument <typeparamref name="TArgs"/> no longer has a inheritance constraint, and</description></item>
-   /// <item><description>The <c>sender</c> parameter of the <see cref="EventHandler{TEventArgs}"/> is missing.</description></item>
-   /// </list>
-   /// </summary>
-   /// <typeparameter name="TArgs">The type of the arguments this delegate will receive.</typeparameter>
-   public delegate void GenericEventHandler<in TArgs>( TArgs args );
+
 
    /// <summary>
    /// This class contains extension method which are for types not contained in this library.
@@ -825,6 +815,7 @@ namespace UtilPack
             && ReferenceEquals( Interlocked.CompareExchange( ref this._state, this._originalState, oldState ), oldState );
       }
    }
+
 }
 
 
@@ -1255,8 +1246,7 @@ public static partial class E_UtilPack
    {
       paramType = IsNullable( type ) ? type.
 #if IS_NETSTANDARD
-         GetTypeInfo()
-         .GenericTypeParameters
+         GenericTypeArguments
 #else
 
          GetGenericArguments()
@@ -1297,8 +1287,7 @@ public static partial class E_UtilPack
 
       paramType = IsLazy( type ) ? type.
 #if IS_NETSTANDARD
-         GetTypeInfo()
-         .GenericTypeParameters
+         GenericTypeArguments
 #else
 
          GetGenericArguments()
@@ -1382,6 +1371,5 @@ public static partial class E_UtilPack
    /// <returns>The result of <see cref="EitherOr{T1, T2}.Second"/> or default value for type <typeparamref name="T2"/>.</returns>
    public static T2 GetSecondOrDefault<T1, T2>( this EitherOr<T1, T2> eitherOr )
       => eitherOr.IsSecond ? eitherOr.Second : default;
-
 
 }

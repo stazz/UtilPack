@@ -135,6 +135,74 @@ namespace UtilPack.AsyncEnumeration
          EnumerationEndedDelegate dispose
          ) => new ConcurrentEnumerationStartInfo<T, TState>( hasNext, getNext, dispose );
 
+      /// <summary>
+      /// This creates a <see cref="IAsyncEnumerable{T}"/> that will behave like the given set of delegates.
+      /// Each enumeration is assumed to have inner state, meaning that the call to create delegates is done on every call to <see cref="IAsyncEnumerable{T}.GetAsyncEnumerator"/>.
+      /// </summary>
+      /// <typeparam name="T">The type of items being enumerated.</typeparam>
+      /// <param name="startInfoFactory">The callback creating a structure containing all the delegates that the calls to methods of <see cref="IAsyncEnumerator{T}"/> will be call-through to.</param>
+      /// <returns>A new <see cref="IAsyncEnumerable{T}"/>, which will call the given <paramref name="startInfoFactory"/> on each call to <see cref="IAsyncEnumerable{T}.GetAsyncEnumerator"/>, and the resulting <see cref="IAsyncEnumerator{T}"/> will pass each invocation of its methods the set of delegates returned by <paramref name="startInfoFactory"/>.</returns>
+      /// <exception cref="ArgumentNullException">If <paramref name="startInfoFactory"/> is <c>null</c>.</exception>
+      /// <seealso cref="WrappingEnumerationStartInfo{T}"/>
+      /// <seealso cref="CreateWrappingStartInfo"/>
+      public static IAsyncEnumerable<T> CreateStatefulWrappingEnumerable<T>(
+         Func<WrappingEnumerationStartInfo<T>> startInfoFactory
+         )
+      {
+         return new StatefulAsyncEnumerableWrapper<T>( startInfoFactory );
+      }
+
+      /// <summary>
+      /// This creates a <see cref="IAsyncEnumerable{T}"/> that will behave like the given set of delegates.
+      /// Each enumeration is assumed to be stateless, meaning that the same set of delegates is shared by all instances returned by <see cref="IAsyncEnumerable{T}.GetAsyncEnumerator"/>.
+      /// </summary>
+      /// <typeparam name="T">The type of items being enumerated.</typeparam>
+      /// <param name="startInfo">The <see cref="WrappingEnumerationStartInfo{T}"/> containing delegates that capture all signatures of all methods of <see cref="IAsyncEnumerator{T}"/> interface.</param>
+      /// <returns>A new <see cref="IAsyncEnumerable{T}"/>, which will share the given delegates by all instances returned by <see cref="IAsyncEnumerable{T}.GetAsyncEnumerator"/>.</returns>
+      /// <exception cref="ArgumentNullException">If either of <see cref="WrappingEnumerationStartInfo{T}.WaitForNext"/> or <see cref="WrappingEnumerationStartInfo{T}.TryGetNext"/> delegates of <paramref name="startInfo"/> are <c>null</c>.</exception>
+      /// <seealso cref="WrappingEnumerationStartInfo{T}"/>
+      /// <seealso cref="CreateWrappingStartInfo"/>
+      public static IAsyncEnumerable<T> CreateStatelessWrappingEnumerable<T>(
+         WrappingEnumerationStartInfo<T> startInfo
+         )
+      {
+         return new StatelessAsyncEnumerableWrapper<T>( startInfo );
+      }
+
+      /// <summary>
+      /// This creates a <see cref="IAsyncEnumerator{T}"/> that will behave like the given set of delegates.
+      /// </summary>
+      /// <typeparam name="T">The type of items being enumerated.</typeparam>
+      /// <param name="startInfo">The <see cref="WrappingEnumerationStartInfo{T}"/> containing delegates that capture all signatures of all methods of <see cref="IAsyncEnumerator{T}"/> interface.</param>
+      /// <returns>A new <see cref="IAsyncEnumerator{T}"/>, which will behave like the given set of delegates.</returns>
+      /// <exception cref="ArgumentNullException">If either of <see cref="WrappingEnumerationStartInfo{T}.WaitForNext"/> or <see cref="WrappingEnumerationStartInfo{T}.TryGetNext"/> delegates of <paramref name="startInfo"/> are <c>null</c>.</exception>
+      /// <seealso cref="WrappingEnumerationStartInfo{T}"/>
+      /// <seealso cref="CreateWrappingStartInfo"/>
+      public static IAsyncEnumerator<T> CreateWrappingEnumerator<T>(
+         WrappingEnumerationStartInfo<T> startInfo
+         )
+      {
+         return new AsyncEnumeratorWrapper<T>( startInfo );
+      }
+
+      /// <summary>
+      ///  Helper method to invoke constructor of <see cref="WrappingEnumerationStartInfo{T}"/> without explicitly specifying generic type arguments.
+      /// </summary>
+      /// <typeparam name="T">The type of items being enumerated.</typeparam>
+      /// <param name="waitForNext">The callback that will be used by <see cref="IAsyncEnumerator{T}.WaitForNextAsync"/>.</param>
+      /// <param name="tryGetNext">The callback that will be used by <see cref="IAsyncEnumerator{T}.TryGetNext"/>.</param>
+      /// <param name="dispose">The optional callback that will be used by <see cref="IAsyncDisposable.DisposeAsync"/>.</param>
+      /// <returns>A new instance of <see cref="WrappingEnumerationStartInfo{T}"/>.</returns>
+      /// <exception cref="ArgumentNullException">If either of <paramref name="waitForNext"/> or <paramref name="tryGetNext"/> is <c>null</c>.</exception>
+      /// <seealso cref="WrappingEnumerationStartInfo{T}"/>
+      public static WrappingEnumerationStartInfo<T> CreateWrappingStartInfo<T>(
+         WaitForNextDelegate waitForNext,
+         TryGetNextDelegate<T> tryGetNext,
+         EnumerationEndedDelegate dispose
+         )
+      {
+         return new WrappingEnumerationStartInfo<T>( waitForNext, tryGetNext, dispose );
+      }
    }
 
    internal static class SequentialCurrentInfoFactory
@@ -292,6 +360,68 @@ namespace UtilPack.AsyncEnumeration
       /// Gets the optional callback to dispose the enumerator.
       /// </summary>
       /// <value>The optional callback to dispose the enumerator.</value>
+      public EnumerationEndedDelegate Dispose { get; }
+   }
+
+   /// <summary>
+   /// This delegate captures signature of <see cref="IAsyncEnumerator{T}.WaitForNextAsync"/>, and is used by <see cref="WrappingEnumerationStartInfo{T}"/>.
+   /// </summary>
+   /// <returns>Potentially asynchronously returns value indicating whether there are more elements to be enumerated.</returns>
+   public delegate Task<Boolean> WaitForNextDelegate();
+
+   /// <summary>
+   /// This delegate captures signature of <see cref="IAsyncEnumerator{T}.TryGetNext"/>, and is used by <see cref="WrappingEnumerationStartInfo{T}"/>.
+   /// </summary>
+   /// <typeparam name="T">The type of items being enumerated.</typeparam>
+   /// <param name="success">Whether this call was successful in retrieving next item.</param>
+   /// <returns>The next item.</returns>
+   public delegate T TryGetNextDelegate<T>( out Boolean success );
+
+   /// <summary>
+   /// This type contains a set of delegates required to mimic <see cref="IAsyncEnumerator{T}"/>.
+   /// It is used by <see cref="AsyncEnumerationFactory.CreateStatefulWrappingEnumerable"/> and <see cref="AsyncEnumerationFactory.CreateStatelessWrappingEnumerable"/> methods to capture required delegates as single type.
+   /// The <see cref="AsyncEnumerationFactory.CreateWrappingStartInfo"/> can be used to create instances of this type when the type arguments can be implicitly deduced.
+   /// </summary>
+   /// <typeparam name="T">The type of items being enumerated.</typeparam>
+   public struct WrappingEnumerationStartInfo<T>
+   {
+      /// <summary>
+      /// Creates a new instance of <see cref="WrappingEnumerationStartInfo{T}"/>.
+      /// </summary>
+      /// <param name="waitForNext">The callback that will be used by <see cref="IAsyncEnumerator{T}.WaitForNextAsync"/>.</param>
+      /// <param name="tryGetNext">The callback that will be used by <see cref="IAsyncEnumerator{T}.TryGetNext"/>.</param>
+      /// <param name="dispose">The optional callback that will be used by <see cref="IAsyncDisposable.DisposeAsync"/>.</param>
+      /// <exception cref="ArgumentNullException">If either of <paramref name="waitForNext"/> or <paramref name="tryGetNext"/> is <c>null</c>.</exception>
+      public WrappingEnumerationStartInfo(
+         WaitForNextDelegate waitForNext,
+         TryGetNextDelegate<T> tryGetNext,
+         EnumerationEndedDelegate dispose
+         )
+      {
+         this.WaitForNext = waitForNext;
+         this.TryGetNext = tryGetNext;
+         this.Dispose = dispose;
+      }
+
+      /// <summary>
+      /// Gets the callback for <see cref="IAsyncEnumerator{T}.WaitForNextAsync"/> method.
+      /// </summary>
+      /// <value>The callback for <see cref="IAsyncEnumerator{T}.WaitForNextAsync"/> method.</value>
+      /// <seealso cref="WaitForNextDelegate"/>
+      public WaitForNextDelegate WaitForNext { get; }
+
+      /// <summary>
+      /// Gets the callback for <see cref="IAsyncEnumerator{T}.TryGetNext"/> method.
+      /// </summary>
+      /// <value>The callback for <see cref="IAsyncEnumerator{T}.TryGetNext"/> method.</value>
+      /// <seealso cref="WaitForNextDelegate"/>
+      public TryGetNextDelegate<T> TryGetNext { get; }
+
+      /// <summary>
+      /// Gets the callback for <see cref="IAsyncDisposable.DisposeAsync"/> method.
+      /// </summary>
+      /// <value>The callback for <see cref="IAsyncDisposable.DisposeAsync"/> method.</value>
+      /// <seealso cref="EnumerationEndedDelegate"/>
       public EnumerationEndedDelegate Dispose { get; }
    }
 }

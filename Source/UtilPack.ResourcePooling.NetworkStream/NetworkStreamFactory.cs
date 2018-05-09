@@ -548,7 +548,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// <remarks>
       /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will assume SSL is not possible.
       /// </remarks>
-      public Func<Boolean> IsSSLPossible { get; set; }
+      public Func<Task<Boolean>> IsSSLPossible { get; set; }
 
       /// <summary>
       /// Gets or sets the callback to get <see cref="System.Security.Authentication.SslProtocols"/> when authenticating as client over SSL stream.
@@ -600,7 +600,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// <remarks>
       /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will assume SSL is not possible.
       /// </remarks>
-      public Func<TState, ValueTask<Boolean>> IsSSLPossible { get; set; }
+      public Func<TState, Task<Boolean>> IsSSLPossible { get; set; }
 
       /// <summary>
       /// Gets or sets the callback to get <see cref="System.Security.Authentication.SslProtocols"/> when authenticating as client over SSL stream.
@@ -740,7 +740,7 @@ public static partial class E_UtilPack
       var retVal = new NetworkStreamFactoryConfiguration<TState>()
       {
          // Call-thru for stateful callbacks
-         IsSSLPossible = ( state ) => new ValueTask<Boolean>( configuration.IsSSLPossible?.Invoke() ?? default ),
+         IsSSLPossible = ( state ) => configuration.IsSSLPossible?.Invoke() ?? TaskUtils.TaskFromBoolean( default ),
          GetSSLProtocols = ( state ) => configuration.GetSSLProtocols?.Invoke() ?? AbstractNetworkStreamFactoryConfiguration.DEFAULT_SSL_PROTOCOLS,
          ProvideSSLHost = ( state ) => configuration.ProvideSSLHost?.Invoke(),
          ConnectionSSLMode = ( state ) => configuration.ConnectionSSLMode?.Invoke() ?? ConnectionSSLMode.NotRequired,

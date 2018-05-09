@@ -102,6 +102,7 @@ public static partial class E_UtilPack
    /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
    /// <returns><see cref="IAsyncEnumerable{T}"/> which will return only those items which are of given type.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+   /// <seealso cref="System.Linq.Enumerable.OfType{TResult}(System.Collections.IEnumerable)"/>
    public static IAsyncEnumerable<U> OfType<T, U>( this IAsyncEnumerable<T> enumerable )
    {
       ArgumentValidator.ValidateNotNullReference( enumerable );
@@ -129,6 +130,7 @@ public static partial class E_UtilPack
    /// <param name="type">The <see cref="OfTypeInfo{T}"/> containing target type information, so that this method could be invoked without using two generic type parameters. This parameter is present only to make this method easy to use, it is not used by the body of this method.</param>
    /// <returns><see cref="IAsyncEnumerable{T}"/> which will return only those items which are of given type.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+   /// <seealso cref="System.Linq.Enumerable.OfType{TResult}(System.Collections.IEnumerable)"/>
    public static IAsyncEnumerable<U> OfType<T, U>( this IAsyncEnumerable<T> enumerable, OfTypeInfo<U> type )
    {
       ArgumentValidator.ValidateNotNullReference( enumerable );
@@ -154,6 +156,7 @@ public static partial class E_UtilPack
    /// <param name="enumerator">This <see cref="IAsyncEnumerator{T}"/>.</param>
    /// <returns><see cref="IAsyncEnumerator{T}"/> which will return only those items which are of given type.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerator{T}"/> is <c>null</c>.</exception>
+   /// <seealso cref="System.Linq.Enumerable.OfType{TResult}(System.Collections.IEnumerable)"/>
    public static IAsyncEnumerator<U> OfType<T, U>( this IAsyncEnumerator<T> enumerator )
    {
       ArgumentValidator.ValidateNotNullReference( enumerator );
@@ -181,6 +184,7 @@ public static partial class E_UtilPack
    /// <param name="type">The <see cref="OfTypeInfo{T}"/> containing target type information, so that this method could be invoked without using two generic type parameters. This parameter is present only to make this method easy to use, it is not used by the body of this method.</param>
    /// <returns><see cref="IAsyncEnumerator{T}"/> which will return only those items which are of given type.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerator{T}"/> is <c>null</c>.</exception>
+   /// <seealso cref="System.Linq.Enumerable.OfType{TResult}(System.Collections.IEnumerable)"/>
    public static IAsyncEnumerator<U> OfType<T, U>( this IAsyncEnumerator<T> enumerator, OfTypeInfo<U> type )
    {
       ArgumentValidator.ValidateNotNullReference( enumerator );

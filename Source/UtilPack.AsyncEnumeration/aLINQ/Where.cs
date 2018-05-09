@@ -123,6 +123,7 @@ public static partial class E_UtilPack
    /// <returns><see cref="IAsyncEnumerable{T}"/> which will filter items based on given predicate callback.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="predicate"/> is <c>null</c>.</exception>
+   /// <seealso cref="System.Linq.Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/>
    public static IAsyncEnumerable<T> Where<T>( this IAsyncEnumerable<T> enumerable, Func<T, Boolean> predicate )
    {
       ArgumentValidator.ValidateNotNullReference( enumerable );
@@ -139,6 +140,7 @@ public static partial class E_UtilPack
    /// <returns><see cref="IAsyncEnumerable{T}"/> which will filter items based on given predicate callback.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="asyncPredicate"/> is <c>null</c>.</exception>
+   /// <seealso cref="System.Linq.Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/>
    public static IAsyncEnumerable<T> Where<T>( this IAsyncEnumerable<T> enumerable, Func<T, ValueTask<Boolean>> asyncPredicate )
    {
       ArgumentValidator.ValidateNotNullReference( enumerable );
@@ -156,6 +158,7 @@ public static partial class E_UtilPack
    /// <returns><see cref="IAsyncEnumerator{T}"/> which will filter items based on given predicate callback.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerator{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="predicate"/> is <c>null</c>.</exception>
+   /// <seealso cref="System.Linq.Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/>
    public static IAsyncEnumerator<T> Where<T>( this IAsyncEnumerator<T> enumerator, Func<T, Boolean> predicate )
    {
       ArgumentValidator.ValidateNotNullReference( enumerator );
@@ -172,6 +175,7 @@ public static partial class E_UtilPack
    /// <returns><see cref="IAsyncEnumerator{T}"/> which will filter items based on given predicate callback.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerator{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="asyncPredicate"/> is <c>null</c>.</exception>
+   /// <seealso cref="System.Linq.Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/>
    public static IAsyncEnumerator<T> Where<T>( this IAsyncEnumerator<T> enumerator, Func<T, ValueTask<Boolean>> asyncPredicate )
    {
       ArgumentValidator.ValidateNotNullReference( enumerator );

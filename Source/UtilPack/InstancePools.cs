@@ -210,7 +210,7 @@ namespace UtilPack
          do
          {
             result = this._firstInstance;
-         } while ( result != null && !Object.ReferenceEquals( result, Interlocked.CompareExchange( ref this._firstInstance, result.Next, result ) ) );
+         } while ( result != null && !ReferenceEquals( result, Interlocked.CompareExchange( ref this._firstInstance, result.Next, result ) ) );
 
          return result;
       }
@@ -225,8 +225,96 @@ namespace UtilPack
             {
                first = this._firstInstance;
                instance.Next = first;
-            } while ( !Object.ReferenceEquals( first, Interlocked.CompareExchange( ref this._firstInstance, instance, first ) ) );
+            } while ( !ReferenceEquals( first, Interlocked.CompareExchange( ref this._firstInstance, instance, first ) ) );
          }
+      }
+   }
+
+   /// <summary>
+   /// This class wraps another <see cref="LocklessInstancePoolForClasses{TInstance}"/> to provide easy-to-use API (with <c>using</c> keyword) for renting instances from the instance pool.
+   /// The requirement is that it should be able to create a new instance of <typeparamref name="TInstance"/> without parameters.
+   /// </summary>
+   /// <typeparam name="TInstance">The type of instances to rent from the pool.</typeparam>
+   /// <seealso cref="UseInstance"/>
+   public sealed class InstancePoolForContextlessCreation<TInstance> : LocklessInstancePoolForClasses<TInstance>
+      where TInstance : class
+   {
+      private readonly LocklessInstancePoolForClasses<TInstance> _pool;
+      private readonly Func<TInstance> _factory;
+
+      /// <summary>
+      /// Creates a new instance of <see cref="InstancePoolForContextlessCreation{TInstance}"/>.
+      /// </summary>
+      /// <param name="pool">The pool to wrap.</param>
+      /// <param name="factory">The callback to use to create a new instance of type <typeparamref name="TInstance"/>.</param>
+      /// <exception cref="ArgumentNullException">If either or <paramref name="pool"/> or <paramref name="factory"/> is <c>null</c>.</exception>
+      public InstancePoolForContextlessCreation(
+         LocklessInstancePoolForClasses<TInstance> pool,
+         Func<TInstance> factory
+         )
+      {
+         this._pool = ArgumentValidator.ValidateNotNull( nameof( pool ), pool );
+         this._factory = ArgumentValidator.ValidateNotNull( nameof( factory ), factory );
+      }
+
+      void LocklessInstancePoolForClasses<TInstance>.ReturnInstance( TInstance instance )
+      {
+         this._pool.ReturnInstance( instance );
+      }
+
+      TInstance LocklessInstancePoolForClasses<TInstance>.TakeInstance()
+      {
+         return this._pool.TakeInstance();
+      }
+
+      /// <summary>
+      /// Returns <see cref="InstanceUsage{TInstance}"/> to use the instance of type <typeparamref name="TInstance"/>.
+      /// </summary>
+      /// <returns>A <see cref="InstanceUsage{TInstance}"/> to be used in <c>using</c> statement.</returns>
+      public InstanceUsage<TInstance> UseInstance()
+      {
+         return new InstanceUsage<TInstance>( this._pool, this._factory );
+      }
+
+   }
+
+   /// <summary>
+   /// This struct helps to capture the span of code using instance rented from <see cref="LocklessInstancePoolForClasses{TInstance}"/>.
+   /// One should use <c>using</c> statement with this struct.
+   /// </summary>
+   /// <typeparam name="TInstance">The type of instances to rent from <see cref="LocklessInstancePoolForClasses{TInstance}"/>.</typeparam>
+   public struct InstanceUsage<TInstance> : IDisposable
+      where TInstance : class
+   {
+      private readonly LocklessInstancePoolForClasses<TInstance> _pool;
+
+      /// <summary>
+      /// Creates a new instance of <see cref="InstanceUsage{TInstance}"/>.
+      /// </summary>
+      /// <param name="pool">The <see cref="LocklessInstancePoolForClasses{TInstance}"/>.</param>
+      /// <param name="factory">The callback to create a new instance of <typeparamref name="TInstance"/>, if the pool currently does not have instances available.</param>
+      /// <exception cref="ArgumentNullException">If either of <paramref name="pool"/> or <paramref name="factory"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentException">If <paramref name="factory"/> is used and it returns <c>null</c>.</exception>
+      public InstanceUsage(
+         LocklessInstancePoolForClasses<TInstance> pool,
+         Func<TInstance> factory
+         )
+      {
+         this._pool = ArgumentValidator.ValidateNotNull( nameof( pool ), pool );
+         this.Instance = ( pool.TakeInstance() ?? ArgumentValidator.ValidateNotNull( nameof( factory ), factory )() ) ?? throw new ArgumentException( "instance" );
+      }
+
+      /// <summary>
+      /// Gets the instance being rented from <see cref="LocklessInstancePoolForClasses{TInstance}"/>.
+      /// </summary>
+      public TInstance Instance { get; }
+
+      /// <summary>
+      /// Returns the current 
+      /// </summary>
+      public void Dispose()
+      {
+         this._pool.ReturnInstance( this.Instance );
       }
    }
 

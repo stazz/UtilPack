@@ -26,7 +26,7 @@
   
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.4.0</VersionPrefix>
+    <VersionPrefix>1.5.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
@@ -57,7 +57,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Fixed a bug in CopyTo&lt;T&gt;( this T[] array, T[] targetArray ) method. Added read and write methods to directly decode and encode base64 (and other encodings) strings using IEncodingInfo, without having to use System.String in between.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added "InvokeAllEventHandlers" extension method to GenericEventHandler delegate, Log10 methods for integers, and TryLock method to AsyncLock.</PackageReleaseNotes>
     <PackageTags>bcl utility binary serialization collection extensions</PackageTags>
     <Title>Utility Package for CLR</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

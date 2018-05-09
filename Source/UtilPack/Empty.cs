@@ -26,33 +26,25 @@ namespace UtilPack
    /// Helper class to provide easy access to cached empty array and <see cref="IEnumerable{T}"/>.
    /// </summary>
    /// <typeparam name="T">The type of array or enumerable elements.</typeparam>
-   public static class Empty<T>
+#if INTERNALIZE
+   internal
+#else
+   public
+#endif
+      static class Empty<T>
    {
-      private static readonly T[] ARRAY = new T[0];
       private static readonly IEnumerable<T> ENUMERABLE = System.Linq.Enumerable.Empty<T>();
 
       /// <summary>
       /// Returns instance of array with zero elements.
       /// </summary>
       /// <value>Instance of array with zero elements.</value>
-      public static T[] Array
-      {
-         get
-         {
-            return ARRAY;
-         }
-      }
+      public static T[] Array { get; } = new T[0];
 
       /// <summary>
       /// Returns instance of <see cref="IEnumerable{T}"/> with no elements.
       /// </summary>
       /// <value>Instance of <see cref="IEnumerable{T}"/> with no elements.</value>
-      public static IEnumerable<T> Enumerable
-      {
-         get
-         {
-            return ENUMERABLE;
-         }
-      }
+      public static IEnumerable<T> Enumerable { get; } = System.Linq.Enumerable.Empty<T>();
    }
 }

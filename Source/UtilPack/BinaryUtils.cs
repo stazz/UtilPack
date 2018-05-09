@@ -31,6 +31,12 @@ namespace UtilPack
       // The log base 2 of an integer is the same as the position of the highest bit set (or most significant bit set, MSB).
 
       internal static readonly Int32[] LOG_TABLE_256;
+
+      // From http://graphics.stanford.edu/~seander/bithacks.html#IntegerLog10
+      internal static readonly UInt32[] POWERS_OF_10_32;
+
+      internal static readonly UInt64[] POWERS_OF_10_64;
+
       static LogTableHolder()
       {
          var arr = new Int32[256];
@@ -40,8 +46,13 @@ namespace UtilPack
          }
          arr[0] = BinaryUtils.LOG_2_OF_0;
          LOG_TABLE_256 = arr;
+
+         POWERS_OF_10_32 = new UInt32[] { 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000 };
+
+         POWERS_OF_10_64 = new UInt64[] { 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 10000000000, 100000000000, 1000000000000, 10000000000000, 100000000000000, 1000000000000000, 10000000000000000, 100000000000000000, 1000000000000000000, 10000000000000000000 };
       }
    }
+
    /// <summary>
    /// This class provides utility methods related to binary operations, which are not sensible to create as extension methods.
    /// </summary>
@@ -121,7 +132,7 @@ namespace UtilPack
 #endif
       public static Int32 Log2( UInt64 value )
       {
-         var highest = Log2( (UInt32) ( value >> ( sizeof( UInt32 ) * 8 ) ) );
+         var highest = Log2( (UInt32) ( value >> 32 ) );
          if ( highest == BinaryUtils.LOG_2_OF_0 )
          {
             highest = Log2( (UInt32) value );
@@ -131,6 +142,42 @@ namespace UtilPack
             highest += 32;
          }
          return highest;
+      }
+
+      /// <summary>
+      /// Returns the log base 10 of a given <paramref name="value"/>.
+      /// </summary>
+      /// <param name="value">The value</param>
+      /// <returns>Log base 10 of <paramref name="value"/>.</returns>
+      /// <remarks>
+      /// This method uses <see cref="Log2(uint)"/> and lookup table to compute returned value.
+      /// </remarks>
+      [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Int32 Log10( UInt32 value )
+      {
+         var tmp = ( Log2( value ) + 1 ) * 1233 >> 12;
+         return tmp - ( value < LogTableHolder.POWERS_OF_10_32[tmp] ? 1 : 0 );
+      }
+
+      /// <summary>
+      /// Returns the log base 10 of a given <paramref name="value"/>.
+      /// </summary>
+      /// <param name="value">The value</param>
+      /// <returns>Log base 10 of <paramref name="value"/>.</returns>
+      /// <remarks>
+      /// This method uses <see cref="Log2(ulong)"/> and lookup table to compute returned value.
+      /// </remarks>
+      [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Int32 Log10( UInt64 value )
+      {
+         var tmp = ( Log2( value ) + 1 ) * 1233 >> 12;
+         return tmp - ( value < LogTableHolder.POWERS_OF_10_64[tmp] ? 1 : 0 );
       }
 
 

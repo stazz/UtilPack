@@ -363,7 +363,7 @@ public static partial class E_UtilPack
 
    /// <summary>
    /// This is helper method to sequentially enumerate a <see cref="IAsyncEnumerable{T}"/> and properly dispose it in case of an exception.
-   /// For each item, a task from given callback is awaited for, if it is not <c>null</c>.
+   /// For each item, a task from given callback is awaited for, if the callback is not <c>null</c>.
    /// </summary>
    /// <typeparam name="T">The type of the items being enumerated.</typeparam>
    /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
@@ -372,7 +372,7 @@ public static partial class E_UtilPack
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="OverflowException">If there are more than <see cref="Int64.MaxValue"/> amount of items encountered.</exception>
    /// <remarks>
-   ///  Sequential enumeration means that the next invocation of <see cref="IAsyncEnumerator{T}.WaitForNextAsync"/> will not start until the given callback <paramref name="asyncAction"/> is completed, synchronously or asynchronously.
+   /// Sequential enumeration means that the next invocation of <see cref="IAsyncEnumerator{T}.WaitForNextAsync"/> will not start until the given callback <paramref name="asyncAction"/> is completed, synchronously or asynchronously.
    /// </remarks>
    public static ValueTask<Int64> EnumerateSequentiallyAsync<T>( this IAsyncEnumerable<T> enumerable, Func<T, Task> asyncAction )
    {
@@ -381,9 +381,46 @@ public static partial class E_UtilPack
          .EnumerateSequentiallyAsync( asyncAction );
    }
 
+   /// <summary>
+   /// This is helper method to sequentially enumerate a <see cref="IAsyncEnumerable{T}"/> and properly dispose it in case of an exception, while allowing early exit.
+   /// </summary>
+   /// <typeparam name="T">The type of the items being enumerated.</typeparam>
+   /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+   /// <param name="callback">The synchronous callback invoked for each element of this <see cref="IAsyncEnumerable{T}"/>.</param>
+   /// <returns>A task which will have enumerated the <see cref="IAsyncEnumerable{T}"/> on completion. The return value is amount of items encountered during enumeration.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+   /// <exception cref="OverflowException">If there are more than <see cref="Int64.MaxValue"/> amount of items encountered.</exception>
+   /// <remarks>
+   /// Sequential enumeration means that the next invocation of <see cref="IAsyncEnumerator{T}.WaitForNextAsync"/> will not start until the given callback <paramref name="callback"/> is completed, synchronously or asynchronously.
+   /// </remarks>
+   public static ValueTask<Int64> EnumerateSequentiallyAsync<T>( this IAsyncEnumerable<T> enumerable, Func<T, Boolean> callback )
+   {
+      return ArgumentValidator.ValidateNotNullReference( enumerable )
+         .GetAsyncEnumerator()
+         .EnumerateSequentiallyAsync( callback );
+   }
+
+   /// <summary>
+   /// This is helper method to sequentially enumerate a <see cref="IAsyncEnumerable{T}"/> and properly dispose it in case of an exception, while allowing early exit.
+   /// </summary>
+   /// <typeparam name="T">The type of the items being enumerated.</typeparam>
+   /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+   /// <param name="asyncCallback">The potentially asynchronous callback invoked for each element of this <see cref="IAsyncEnumerable{T}"/>.</param>
+   /// <returns>A task which will have enumerated the <see cref="IAsyncEnumerable{T}"/> on completion. The return value is amount of items encountered during enumeration.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+   /// <exception cref="OverflowException">If there are more than <see cref="Int64.MaxValue"/> amount of items encountered.</exception>
+   /// <remarks>
+   /// Sequential enumeration means that the next invocation of <see cref="IAsyncEnumerator{T}.WaitForNextAsync"/> will not start until the given callback <paramref name="asyncCallback"/> is completed, synchronously or asynchronously.
+   /// </remarks>
+   public static ValueTask<Int64> EnumerateSequentiallyAsync<T>( this IAsyncEnumerable<T> enumerable, Func<T, Task<Boolean>> asyncCallback )
+   {
+      return ArgumentValidator.ValidateNotNullReference( enumerable )
+         .GetAsyncEnumerator()
+         .EnumerateSequentiallyAsync( asyncCallback );
+   }
+
    private static async ValueTask<Int64> EnumerateSequentiallyAsync<T>( this IAsyncEnumerator<T> enumerator, Action<T> action, Boolean skipDisposeCall = false )
    {
-      //var gracefulEnd = false;
       try
       {
          var retVal = 0L;
@@ -400,21 +437,19 @@ public static partial class E_UtilPack
                }
             } while ( success );
          }
-         //gracefulEnd = true;
          return retVal;
       }
       finally
       {
          if ( !skipDisposeCall )
          {
-            await enumerator.DisposeAsync(); // enumerator.CallEnumerationEndedWithinFinally( gracefulEnd );
+            await enumerator.DisposeAsync();
          }
       }
    }
 
    private static async ValueTask<Int64> EnumerateSequentiallyAsync<T>( this IAsyncEnumerator<T> enumerator, Func<T, Task> asyncAction )
    {
-      //var gracefulEnd = false;
       try
       {
          var retVal = 0L;
@@ -435,12 +470,72 @@ public static partial class E_UtilPack
                }
             } while ( success );
          }
-         //gracefulEnd = true;
          return retVal;
       }
       finally
       {
-         await enumerator.DisposeAsync(); //.CallEnumerationEndedWithinFinally( gracefulEnd );
+         await enumerator.DisposeAsync();
+      }
+   }
+
+   private static async ValueTask<Int64> EnumerateSequentiallyAsync<T>( this IAsyncEnumerator<T> enumerator, Func<T, Boolean> action )
+   {
+      try
+      {
+         var retVal = 0L;
+         var shouldContinue = true;
+         while ( shouldContinue && await enumerator.WaitForNextAsync() )
+         {
+            Boolean success;
+            do
+            {
+               var item = enumerator.TryGetNext( out success );
+               if ( success )
+               {
+                  ++retVal;
+                  if ( action != null )
+                  {
+                     shouldContinue = action( item );
+                  }
+               }
+            } while ( shouldContinue && success );
+         }
+         return retVal;
+      }
+      finally
+      {
+         await enumerator.DisposeAsync();
+      }
+   }
+
+   private static async ValueTask<Int64> EnumerateSequentiallyAsync<T>( this IAsyncEnumerator<T> enumerator, Func<T, Task<Boolean>> asyncAction )
+   {
+      try
+      {
+         var retVal = 0L;
+         var shouldContinue = true;
+         while ( shouldContinue && await enumerator.WaitForNextAsync() )
+         {
+            Boolean success;
+            do
+            {
+               var item = enumerator.TryGetNext( out success );
+               if ( success )
+               {
+                  ++retVal;
+                  var task = asyncAction?.Invoke( item );
+                  if ( task != null )
+                  {
+                     shouldContinue = await task;
+                  }
+               }
+            } while ( shouldContinue && success );
+         }
+         return retVal;
+      }
+      finally
+      {
+         await enumerator.DisposeAsync();
       }
    }
 

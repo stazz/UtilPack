@@ -282,7 +282,7 @@ namespace UtilPack.ResourcePooling
       /// <returns>A new instance of <see cref="ResourceUsageInfo{TResource}"/> which should have its <see cref="IDisposable.Dispose"/> method called when the usage scenario ends.</returns>
       public ResourceUsageInfo<TPublicResource> GetResourceUsageForToken( CancellationToken token )
       {
-         return new CancelableResourceUsageInfo<TPublicResource>(
+         var retVal = new CancelableResourceUsageInfo<TPublicResource>(
             this.PublicResource,
             token,
             token.Register( () =>
@@ -301,6 +301,20 @@ namespace UtilPack.ResourcePooling
             this._setCancellationToken,
             this._resetCancellationToken
             );
+
+         return this.CreateResourceUsageInfoWrapper( retVal, token ) ?? retVal;
+      }
+
+      /// <summary>
+      /// Derived classes may override this method in order to create a custom wrapper around the <see cref="ResourceUsageInfo{TResource}"/> about to be returned by <see cref="GetResourceUsageForToken"/>.
+      /// Return <c>null</c> to signal that no wrapper should be created - this is what this method always returns.
+      /// </summary>
+      /// <param name="resourceUsageInfo">The <see cref="ResourceUsageInfo{TResource}"/> about to be returned by <see cref="GetResourceUsageForToken"/>.</param>
+      /// <param name="token">The <see cref="CancellationToken"/> given to <see cref="GetResourceUsageForToken"/>.</param>
+      /// <returns>A wrapper around <paramref name="resourceUsageInfo"/>, or <c>null</c>.</returns>
+      protected virtual ResourceUsageInfo<TPublicResource> CreateResourceUsageInfoWrapper( ResourceUsageInfo<TPublicResource> resourceUsageInfo, CancellationToken token )
+      {
+         return null;
       }
 
       /// <summary>

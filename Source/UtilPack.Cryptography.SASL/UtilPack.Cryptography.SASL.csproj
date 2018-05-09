@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFrameworks>net40;net45;netstandard1.0</TargetFrameworks>
@@ -17,8 +17,8 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>RC1</VersionSuffix>
+    <VersionPrefix>2.0.0</VersionPrefix>
+    <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
@@ -48,7 +48,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
+    <PackageReleaseNotes>Updating to newer version of UtilPack.Cryptography.Digest. This introduces binary-incompatible change, resulting in major version number increase.</PackageReleaseNotes>
     <PackageTags>utility cryptography sasl</PackageTags>
     <Title>SASL Generic Library</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

@@ -1624,9 +1624,22 @@ namespace UtilPack
 #endif
       public static Guid ReadGUIDFromBytes( this Byte[] array, ref Int32 idx )
       {
-         var arrayCopy = array.CreateArrayCopy( idx, GUID_SIZE );
+         // Serialized Guid is: Int32 LE format, Int16 LE format, Int16 LE format, and then 8 bytes
+         var retVal = new Guid(
+            array.ReadInt32LEFromBytesNoRef( idx ),
+            array.ReadInt16LEFromBytesNoRef( idx + 4 ),
+            array.ReadInt16LEFromBytesNoRef( idx + 6 ),
+            array[idx + 8],
+            array[idx + 9],
+            array[idx + 10],
+            array[idx + 11],
+            array[idx + 12],
+            array[idx + 13],
+            array[idx + 14],
+            array[idx + 15]
+            );
          idx += GUID_SIZE;
-         return new Guid( arrayCopy );
+         return retVal;
       }
 
 
@@ -1858,14 +1871,17 @@ namespace UtilPack
 #endif
       public static Byte[] WriteASCIIString( this Byte[] array, ref Int32 idx, String str, Boolean terminatingZero )
       {
-         for ( var i = 0; i < str.Length; ++i )
+         var len = str.Length;
+         for ( var i = 0; i < len; ++i )
          {
-            array[idx++] = (Byte) str[i];
+            array[idx + i] = (Byte) str[i];
          }
+         idx += len;
          if ( terminatingZero )
          {
             array[idx++] = 0;
          }
+
          return array;
       }
 

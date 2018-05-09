@@ -33,7 +33,7 @@
   <ItemGroup Condition="'$(TargetFramework)' != 'netcoreapp1.1' ">
     <PackageReference Include="Microsoft.Build.Framework" Version="14.3" />
     <PackageReference Include="System.Reflection.Emit" Version="4.3.0" />
-    <PackageReference Include="System.ValueTuple" Version="4.4.0"/>
+    <PackageReference Include="System.ValueTuple" Version="4.4.0" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp1.1'">
@@ -67,6 +67,7 @@
     <Compile Include="..\UtilPack.NuGet\Frameworks.cs" Link="UtilPack.NuGet.Frameworks.cs" />
     <Compile Include="..\UtilPack.NuGet\Restoring.cs" Link="UtilPack.NuGet.Restoring.cs" />
     <Compile Include="..\UtilPack\Asynchrony.cs" Link="UtilPack.Asynchrony.cs" />
+    <Compile Include="..\UtilPack\Events.cs" Link="UtilPack.Events.cs" />
     <Compile Include="..\UtilPack\Miscellaneous.cs" Link="UtilPack.Miscellaneous.cs" />
     <Compile Include="..\UtilPack\CollectionExtensions.cs" Link="UtilPack.CollectionExtensions.cs" />
     <Compile Include="..\UtilPack\SequenceEqualityComparer.cs" Link="UtilPack.SequenceEqualityComparer.cs" />

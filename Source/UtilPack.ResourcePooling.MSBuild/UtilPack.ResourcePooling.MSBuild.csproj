@@ -24,7 +24,7 @@
   <!-- Assembly information stuff -->
   <PropertyGroup>
     <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>RC4</VersionSuffix>
+    <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
@@ -54,7 +54,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Added protected property to get the CancellationToken and CancellationTokenSource used by the task.</PackageReleaseNotes>
+    <PackageReleaseNotes>Following release of UtilPack.ResourcePooling.</PackageReleaseNotes>
     <PackageTags>utility async resource pool msbuild task</PackageTags>
     <Title>MSBuild Resource Pooling Support</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

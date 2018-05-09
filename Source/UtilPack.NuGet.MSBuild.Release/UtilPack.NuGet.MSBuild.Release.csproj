@@ -86,6 +86,7 @@
     <Compile Include="..\UtilPack\SequenceEqualityComparer.cs" Link="UtilPack.SequenceEqualityComparer.cs" />
     <Compile Include="..\UtilPack\Lazies.cs" Link="UtilPack.Lazies.cs" />
     <Compile Include="..\UtilPack\ArgumentValidator.cs" Link="UtilPack.ArgumentValidator.cs" />
+    <Compile Include="..\UtilPack\Events.cs" Link="UtilPack.Events.cs" />
     <Compile Include="..\UtilPack\Empty.cs" Link="UtilPack.Empty.cs" />
     <Compile Include="..\UtilPack\ComparerFromFunctions.cs" Link="UtilPack.ComparerFromFunctions.cs" />
     <Compile Include="..\UtilPack.NuGet.Common.MSBuild\Logger.cs" Link="UtilPack.NuGet.Common.MSBuild.Logger.cs" />

@@ -43,7 +43,7 @@ namespace UtilPack.TabularData
       /// </summary>
       /// <param name="index">The index. Typically is zero-based, but depending on a context, may not be.</param>
       /// <returns>An instance of <see cref="AsyncDataColumn"/> containing information about the column of current <see cref="AsyncDataRow"/>.</returns>
-      /// <exception cref="ArgumentNullException">If given <paramref name="index"/> was not in a valid range.</exception>
+      /// <exception cref="ArgumentException">If given <paramref name="index"/> was not in a valid range.</exception>
       TDataColumn GetColumn( Int32 index );
 
       /// <summary>
@@ -360,5 +360,187 @@ public static partial class E_UtilPack
       return rowMD.GetIndexFor( columnLabel ) ?? throw new ArgumentException( $"No column labeled \"{columnLabel}\"." );
    }
 
+   /// <summary>
+   /// Asynchronously retrieves 1 value from this <see cref="AsyncDataRow"/> and transforms it into a <see cref="ValueTuple{T1}"/>.
+   /// </summary>
+   /// <typeparam name="T1">The type of the value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <param name="row">This <see cref="AsyncDataRow"/>.</param>
+   /// <param name="index">The index at which to get the value.</param>
+   /// <returns>Potentially asynchronously returns a <see cref="ValueTuple{T1}"/> containing the retrieved value.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncDataRow"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentException">If the <paramref name="index"/> is out of range for this <see cref="AsyncDataRow"/>.</exception>
+   public static async ValueTask<ValueTuple<T1>> TransformToTuple<T1>( this AsyncDataRow row, Int32 index = 0 )
+   {
+      return new ValueTuple<T1>( await row.GetValueAsync<T1>( index ) );
+   }
+
+   /// <summary>
+   /// Asynchronously retrieves 2 subsequent values from this <see cref="AsyncDataRow"/> and transforms them into a <see cref="ValueTuple{T1,T2}"/>.
+   /// </summary>
+   /// <typeparam name="T1">The type of the first value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T2">The type of the second value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <param name="row">This <see cref="AsyncDataRow"/>.</param>
+   /// <param name="startIndex">The index at which to get the first value. The second value is retrieved from subsequent index (<paramref name="startIndex"/> + 1).</param>
+   /// <returns>Potentially asynchronously returns a <see cref="ValueTuple{T1,T2}"/> containing the retrieved value.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncDataRow"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentException">If any of the value indices is out of range for this <see cref="AsyncDataRow"/>.</exception>
+   public static async ValueTask<ValueTuple<T1, T2>> TransformToTuple<T1, T2>( this AsyncDataRow row, Int32 startIndex = 0 )
+   {
+      return (
+         await row.GetValueAsync<T1>( startIndex ),
+         await row.GetValueAsync<T2>( startIndex + 1 )
+         );
+   }
+
+   /// <summary>
+   /// Asynchronously retrieves 3 subsequent values from this <see cref="AsyncDataRow"/> and transforms them into a <see cref="ValueTuple{T1,T2,T3}"/>.
+   /// </summary>
+   /// <typeparam name="T1">The type of the first value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T2">The type of the second value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T3">The type of the third value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <param name="row">This <see cref="AsyncDataRow"/>.</param>
+   /// <param name="startIndex">The index at which to get the first value. The rest of the values are retrieved from subsequent indices.</param>
+   /// <returns>Potentially asynchronously returns a <see cref="ValueTuple{T1,T2,T3}"/> containing the retrieved value.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncDataRow"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentException">If any of the value indices is out of range for this <see cref="AsyncDataRow"/>.</exception>
+   public static async ValueTask<ValueTuple<T1, T2, T3>> TransformToTuple<T1, T2, T3>( this AsyncDataRow row, Int32 startIndex = 0 )
+   {
+      return (
+         await row.GetValueAsync<T1>( startIndex ),
+         await row.GetValueAsync<T2>( startIndex + 1 ),
+         await row.GetValueAsync<T3>( startIndex + 2 )
+         );
+   }
+
+   /// <summary>
+   /// Asynchronously retrieves 4 subsequent values from this <see cref="AsyncDataRow"/> and transforms them into a <see cref="ValueTuple{T1,T2,T3,T4}"/>.
+   /// </summary>
+   /// <typeparam name="T1">The type of the first value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T2">The type of the second value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T3">The type of the third value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T4">The type of the fourth value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <param name="row">This <see cref="AsyncDataRow"/>.</param>
+   /// <param name="startIndex">The index at which to get the first value. The rest of the values are retrieved from subsequent indices.</param>
+   /// <returns>Potentially asynchronously returns a <see cref="ValueTuple{T1,T2,T3,T4}"/> containing the retrieved value.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncDataRow"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentException">If any of the value indices is out of range for this <see cref="AsyncDataRow"/>.</exception>
+   public static async ValueTask<ValueTuple<T1, T2, T3, T4>> TransformToTuple<T1, T2, T3, T4>( this AsyncDataRow row, Int32 startIndex = 0 )
+   {
+      return (
+         await row.GetValueAsync<T1>( startIndex ),
+         await row.GetValueAsync<T2>( startIndex + 1 ),
+         await row.GetValueAsync<T3>( startIndex + 2 ),
+         await row.GetValueAsync<T4>( startIndex + 3 )
+         );
+   }
+
+   /// <summary>
+   /// Asynchronously retrieves 5 subsequent values from this <see cref="AsyncDataRow"/> and transforms them into a <see cref="ValueTuple{T1,T2,T3,T4,T5}"/>.
+   /// </summary>
+   /// <typeparam name="T1">The type of the first value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T2">The type of the second value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T3">The type of the third value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T4">The type of the fourth value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T5">The type of the fifth value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <param name="row">This <see cref="AsyncDataRow"/>.</param>
+   /// <param name="startIndex">The index at which to get the first value. The rest of the values are retrieved from subsequent indices.</param>
+   /// <returns>Potentially asynchronously returns a <see cref="ValueTuple{T1,T2,T3,T4,T5}"/> containing the retrieved value.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncDataRow"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentException">If any of the value indices is out of range for this <see cref="AsyncDataRow"/>.</exception>
+   public static async ValueTask<ValueTuple<T1, T2, T3, T4, T5>> TransformToTuple<T1, T2, T3, T4, T5>( this AsyncDataRow row, Int32 startIndex = 0 )
+   {
+      return (
+         await row.GetValueAsync<T1>( startIndex ),
+         await row.GetValueAsync<T2>( startIndex + 1 ),
+         await row.GetValueAsync<T3>( startIndex + 2 ),
+         await row.GetValueAsync<T4>( startIndex + 3 ),
+         await row.GetValueAsync<T5>( startIndex + 4 )
+         );
+   }
+
+   /// <summary>
+   /// Asynchronously retrieves 6 subsequent values from this <see cref="AsyncDataRow"/> and transforms them into a <see cref="ValueTuple{T1,T2,T3,T4,T5,T6}"/>.
+   /// </summary>
+   /// <typeparam name="T1">The type of the first value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T2">The type of the second value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T3">The type of the third value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T4">The type of the fourth value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T5">The type of the fifth value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T6">The type of the sixth value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <param name="row">This <see cref="AsyncDataRow"/>.</param>
+   /// <param name="startIndex">The index at which to get the first value. The rest of the values are retrieved from subsequent indices.</param>
+   /// <returns>Potentially asynchronously returns a <see cref="ValueTuple{T1,T2,T3,T4,T5,T6}"/> containing the retrieved value.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncDataRow"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentException">If any of the value indices is out of range for this <see cref="AsyncDataRow"/>.</exception>
+   public static async ValueTask<ValueTuple<T1, T2, T3, T4, T5, T6>> TransformToTuple<T1, T2, T3, T4, T5, T6>( this AsyncDataRow row, Int32 startIndex = 0 )
+   {
+      return (
+         await row.GetValueAsync<T1>( startIndex ),
+         await row.GetValueAsync<T2>( startIndex + 1 ),
+         await row.GetValueAsync<T3>( startIndex + 2 ),
+         await row.GetValueAsync<T4>( startIndex + 3 ),
+         await row.GetValueAsync<T5>( startIndex + 4 ),
+         await row.GetValueAsync<T6>( startIndex + 5 )
+         );
+   }
+
+   /// <summary>
+   /// Asynchronously retrieves 7 subsequent values from this <see cref="AsyncDataRow"/> and transforms them into a <see cref="ValueTuple{T1,T2,T3,T4,T5,T6,T7}"/>.
+   /// </summary>
+   /// <typeparam name="T1">The type of the first value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T2">The type of the second value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T3">The type of the third value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T4">The type of the fourth value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T5">The type of the fifth value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T6">The type of the sixth value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T7">The type of the seventh value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <param name="row">This <see cref="AsyncDataRow"/>.</param>
+   /// <param name="startIndex">The index at which to get the first value. The rest of the values are retrieved from subsequent indices.</param>
+   /// <returns>Potentially asynchronously returns a <see cref="ValueTuple{T1,T2,T3,T4,T5,T6,T7}"/> containing the retrieved value.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncDataRow"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentException">If any of the value indices is out of range for this <see cref="AsyncDataRow"/>.</exception>
+   public static async ValueTask<ValueTuple<T1, T2, T3, T4, T5, T6, T7>> TransformToTuple<T1, T2, T3, T4, T5, T6, T7>( this AsyncDataRow row, Int32 startIndex = 0 )
+   {
+      return (
+         await row.GetValueAsync<T1>( startIndex ),
+         await row.GetValueAsync<T2>( startIndex + 1 ),
+         await row.GetValueAsync<T3>( startIndex + 2 ),
+         await row.GetValueAsync<T4>( startIndex + 3 ),
+         await row.GetValueAsync<T5>( startIndex + 4 ),
+         await row.GetValueAsync<T6>( startIndex + 5 ),
+         await row.GetValueAsync<T7>( startIndex + 6 )
+         );
+   }
+
+   /// <summary>
+   /// Asynchronously retrieves 8 or more subsequent values from this <see cref="AsyncDataRow"/> and transforms them into a <see cref="ValueTuple{T1,T2,T3,T4,T5,T6,T7,TRest}"/>.
+   /// </summary>
+   /// <typeparam name="T1">The type of the first value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T2">The type of the second value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T3">The type of the third value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T4">The type of the fourth value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T5">The type of the fifth value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T6">The type of the sixth value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="T7">The type of the seventh value to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <typeparam name="TRest">The type of the rest of the values to get from this <see cref="AsyncDataRow"/>.</typeparam>
+   /// <param name="row">This <see cref="AsyncDataRow"/>.</param>
+   /// <param name="startIndex">The index at which to get the first value. The rest of the values are retrieved from subsequent indices.</param>
+   /// <returns>Potentially asynchronously returns a <see cref="ValueTuple{T1,T2,T3,T4,T5,T6,T7,TRest}"/> containing the retrieved value.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncDataRow"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentException">If any of the value indices is out of range for this <see cref="AsyncDataRow"/>.</exception>
+   public static async ValueTask<ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest>> TransformToTuple<T1, T2, T3, T4, T5, T6, T7, TRest>( this AsyncDataRow row, Int32 startIndex = 0 )
+      where TRest : struct
+   {
+      return new ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest>(
+         await row.GetValueAsync<T1>( startIndex ),
+         await row.GetValueAsync<T2>( startIndex + 1 ),
+         await row.GetValueAsync<T3>( startIndex + 2 ),
+         await row.GetValueAsync<T4>( startIndex + 3 ),
+         await row.GetValueAsync<T5>( startIndex + 4 ),
+         await row.GetValueAsync<T6>( startIndex + 5 ),
+         await row.GetValueAsync<T7>( startIndex + 6 ),
+         await row.GetValueAsync<TRest>( startIndex + 7 )
+         );
+   }
 
 }

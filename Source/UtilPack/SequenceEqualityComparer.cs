@@ -441,6 +441,11 @@ namespace UtilPack
          return ArrayEquality_NoCheck( x, y, equality ?? EqualityComparer<T>.Default.Equals );
       }
 
+      //public static Boolean RangeEquality( T[] x, Int32 xOffset, Int32 xCount, T[] y, Int32 yOffset, Int32 yCount, Equality<T> equality = null )
+      //{
+      //   return RangeEquality_NoCheck( x, xOffset, xCount, y, yOffset, yCount, equality ?? EqualityComparer<T>.Default.Equals );
+      //}
+
       /// <summary>
       /// Helper method to calculate hash code for array.
       /// </summary>
@@ -498,6 +503,29 @@ namespace UtilPack
                result = true;
             }
          }
+         return result;
+      }
+
+      private static Boolean RangeEquality_NoCheck( T[] x, Int32 xOffset, Int32 xCount, T[] y, Int32 yOffset, Int32 yCount, Equality<T> equality )
+      {
+         var result = x != null && y != null && xOffset >= 0 && yOffset >= 0 && xCount == yCount;
+         if ( result && !( ReferenceEquals( x, y ) && xOffset == yOffset ) )
+         {
+            if ( xCount > 0 )
+            {
+               var i = 0;
+               while ( i < xCount && equality( x[i + xOffset], y[i + yOffset] ) )
+               {
+                  ++i;
+               }
+               result = i == xCount;
+            }
+            else
+            {
+               result = xOffset < x.Length && yOffset < y.Length;
+            }
+         }
+
          return result;
       }
 

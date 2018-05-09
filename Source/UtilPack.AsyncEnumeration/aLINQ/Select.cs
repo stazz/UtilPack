@@ -67,8 +67,6 @@ namespace UtilPack.AsyncEnumeration.LINQ
          this._stack = new Stack<U>();
       }
 
-      //public Boolean IsConcurrentEnumerationSupported => this._source.IsConcurrentEnumerationSupported;
-
       public async Task<Boolean> WaitForNextAsync()
       {
          var stack = this._stack;
@@ -114,6 +112,7 @@ public static partial class E_UtilPack
    /// <returns><see cref="IAsyncEnumerable{T}"/> which will return items as transformed by given selector callback.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="selector"/> is <c>null</c>.</exception>
+   /// <seealso cref="Enumerable.Select{TSource, TResult}(IEnumerable{TSource}, Func{TSource, TResult})"/>
    public static IAsyncEnumerable<U> Select<T, U>( this IAsyncEnumerable<T> enumerable, Func<T, U> selector )
    {
       ArgumentValidator.ValidateNotNullReference( enumerable );
@@ -131,6 +130,7 @@ public static partial class E_UtilPack
    /// <returns><see cref="IAsyncEnumerable{T}"/> which will return items as transformed by given selector callback.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="asyncSelector"/> is <c>null</c>.</exception>
+   /// <seealso cref="Enumerable.Select{TSource, TResult}(IEnumerable{TSource}, Func{TSource, TResult})"/>
    public static IAsyncEnumerable<U> Select<T, U>( this IAsyncEnumerable<T> enumerable, Func<T, ValueTask<U>> asyncSelector )
    {
       ArgumentValidator.ValidateNotNullReference( enumerable );
@@ -148,6 +148,7 @@ public static partial class E_UtilPack
    /// <returns><see cref="IAsyncEnumerator{T}"/> which will return items as transformed by given selector callback.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerator{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="selector"/> is <c>null</c>.</exception>
+   /// <seealso cref="Enumerable.Select{TSource, TResult}(IEnumerable{TSource}, Func{TSource, TResult})"/>
    public static IAsyncEnumerator<U> Select<T, U>( this IAsyncEnumerator<T> enumerator, Func<T, U> selector )
    {
       ArgumentValidator.ValidateNotNullReference( enumerator );
@@ -165,6 +166,7 @@ public static partial class E_UtilPack
    /// <returns><see cref="IAsyncEnumerator{T}"/> which will return items as transformed by given selector callback.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerator{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="asyncSelector"/> is <c>null</c>.</exception>
+   /// <seealso cref="Enumerable.Select{TSource, TResult}(IEnumerable{TSource}, Func{TSource, TResult})"/>
    public static IAsyncEnumerator<U> Select<T, U>( this IAsyncEnumerator<T> enumerator, Func<T, ValueTask<U>> asyncSelector )
    {
       ArgumentValidator.ValidateNotNullReference( enumerator );

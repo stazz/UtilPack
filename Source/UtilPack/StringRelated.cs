@@ -62,6 +62,8 @@ namespace UtilPack
       /// <returns>This object.</returns>
       IEncodingInfo WriteASCIIByte( Byte[] array, ref Int32 idx, Byte asciiByte );
 
+      // TODO ReadASCIIString and WriteASCIIString -> ASCIIEncodingInfo can do Array.Copy !
+
       /// <summary>
       /// Gets the minimum amount of bytes that is required for any character.
       /// </summary>
@@ -74,6 +76,8 @@ namespace UtilPack
       /// <value>The maximum amount of bytes that is required for any character.</value>
       Int32 MaxCharByteCount { get; }
    }
+
+
 
    /// <summary>
    /// This class implements <see cref="IEncodingInfo"/> for <see cref="UTF8Encoding"/>.
@@ -303,7 +307,7 @@ namespace UtilPack
       }
    }
 
-#if NET_40 || NETSTANDARD1_5 || NET_45
+#if !NETSTANDARD1_0 && !NETSTANDARD1_1
 
    /// <summary>
    /// This class contains information about UTF-32 encoding.
@@ -386,6 +390,74 @@ namespace UtilPack
       }
    }
 
+   /// <summary>
+   /// This class contains information about SCII encoding.
+   /// </summary>
+   /// <remarks>
+   /// This class is stateless singleton accessible via <see cref="Instance"/> property.
+   /// </remarks>
+   public sealed class ASCIIEncodingInfo : IEncodingInfo
+   {
+
+      /// <summary>
+      /// Gets the instance of <see cref="ASCIIEncodingInfo"/>.
+      /// </summary>
+      public static ASCIIEncodingInfo Instance { get; } = new ASCIIEncodingInfo();
+
+      private ASCIIEncodingInfo()
+      {
+
+      }
+
+      /// <summary>
+      /// Always returns <see cref="Encoding.ASCII"/>.
+      /// </summary>
+      /// <value>The <see cref="Encoding.ASCII"/> instance.</value>
+      public Encoding Encoding => Encoding.ASCII;
+
+      /// <summary>
+      /// Always returns <c>1</c>.
+      /// </summary>
+      /// <value><c>1</c></value>
+      public Int32 BytesPerASCIICharacter => 1;
+
+      /// <summary>
+      /// Always returns <c>1</c>.
+      /// </summary>
+      /// <value><c>1</c></value>
+      public Int32 MinCharByteCount => 1;
+
+      /// <summary>
+      /// Always returns <c>1</c>.
+      /// </summary>
+      /// <value><c>1</c></value>
+      public Int32 MaxCharByteCount => 1;
+
+      /// <summary>
+      /// Gets the ASCII byte at specified index.
+      /// </summary>
+      /// <param name="array">The byte array to read from.</param>
+      /// <param name="idx">The index to read byte from, will be increased by one.</param>
+      /// <returns>The ASCII byte at specified inex.</returns>
+      public Byte ReadASCIIByte( Byte[] array, ref Int32 idx )
+      {
+         return array[idx++];
+      }
+
+      /// <summary>
+      /// Writes the ASCII byte at specified index.
+      /// </summary>
+      /// <param name="array">The byte array to write.</param>
+      /// <param name="idx">The index to write byte to, will be increased by one.</param>
+      /// <param name="asciiByte">The ASCII byte to write to <paramref name="array"/>.</param>
+      /// <returns>This <see cref="ASCIIEncodingInfo"/>.</returns>
+      public IEncodingInfo WriteASCIIByte( Byte[] array, ref Int32 idx, Byte asciiByte )
+      {
+         array[idx++] = asciiByte;
+         return this;
+      }
+   }
+
 #endif
 
    public static partial class UtilPackExtensions
@@ -402,6 +474,10 @@ namespace UtilPack
 
          switch ( encoding )
          {
+#if !NETSTANDARD1_0 && !NETSTANDARD1_1
+            case ASCIIEncoding ascii:
+               return ASCIIEncodingInfo.Instance;
+#endif
             case UTF8Encoding utf8:
                return new UTF8EncodingInfo( utf8 );
             case UnicodeEncoding utf16:
@@ -481,7 +557,7 @@ public static partial class E_UtilPack
       (Int32 CharCount, Boolean CharCountExactMatch)? charCount = null
       )
    {
-      if ( !encoding.TryParseInt32Textual( array, ref offset, charCount.HasValue ? charCount.Value.CharCount : -1, out Int32 retVal, out String errorString, out Int32 max ) )
+      if ( !encoding.TryParseInt32Textual( array, ref offset, charCount?.CharCount ?? -1, !charCount.HasValue || !charCount.Value.CharCountExactMatch, out Int32 retVal, out String errorString, out Int32 max ) )
       {
          throw new FormatException( errorString );
       }
@@ -520,7 +596,7 @@ public static partial class E_UtilPack
       (Int32 CharCount, Boolean CharCountExactMatch)? charCount = null
       )
    {
-      if ( !encoding.TryParseInt64Textual( array, ref offset, charCount.HasValue ? charCount.Value.CharCount : -1, out Int64 retVal, out String errorString, out Int32 max ) )
+      if ( !encoding.TryParseInt64Textual( array, ref offset, charCount?.CharCount ?? -1, !charCount.HasValue || !charCount.Value.CharCountExactMatch, out Int64 retVal, out String errorString, out Int32 max ) )
       {
          throw new FormatException( errorString );
       }
@@ -546,7 +622,8 @@ public static partial class E_UtilPack
    /// <param name="encoding">This <see cref="IEncodingInfo"/>.</param>
    /// <param name="array">The byte array containing encoded string.</param>
    /// <param name="offset">The offset in <paramref name="array"/> where to start reading from.</param>
-   /// <param name="charCount">The optional character count. Negative values mean that no character count is specified.</param>
+   /// <param name="charCount">The optional character count. Negative values mean that the remaining bytes are character count.</param>
+   /// <param name="canEndPrematurely">If true, will interpret the <paramref name="charCount"/> as "maximum char count"; otherwise will interpret the <paramref name="charCount"/> as "exact char count".</param>
    /// <param name="result">This will contain parsed integer.</param>
    /// <param name="errorString">This will contain error string, if format error is encountered.</param>
    /// <param name="max">The offset in array which was reached when integer ended.</param>
@@ -559,6 +636,7 @@ public static partial class E_UtilPack
       Byte[] array,
       ref Int32 offset,
       Int32 charCount,
+      Boolean canEndPrematurely,
       out Int32 result,
       out String errorString,
       out Int32 max
@@ -576,7 +654,7 @@ public static partial class E_UtilPack
             {
                result = 10 * result + ( b - 0x30 );
             }
-            else if ( charCount < 0 )
+            else if ( canEndPrematurely )
             {
                // Char count was not specified, so this is graceful end
                offset = prevOffset;
@@ -603,7 +681,8 @@ public static partial class E_UtilPack
    /// <param name="encoding">This <see cref="IEncodingInfo"/>.</param>
    /// <param name="array">The byte array containing encoded string.</param>
    /// <param name="offset">The offset in <paramref name="array"/> where to start reading from.</param>
-   /// <param name="charCount">The optional character count. Negative values mean that no character count is specified.</param>
+   /// <param name="charCount">The optional character count. Negative values mean that the remaining bytes are character count.</param>
+   /// <param name="canEndPrematurely">If true, will interpret the <paramref name="charCount"/> as "maximum char count"; otherwise will interpret the <paramref name="charCount"/> as "exact char count".</param>
    /// <param name="result">This will contain parsed integer.</param>
    /// <param name="errorString">This will contain error string, if format error is encountered.</param>
    /// <param name="max">The offset in array which was reached when integer ended.</param>
@@ -616,6 +695,7 @@ public static partial class E_UtilPack
       Byte[] array,
       ref Int32 offset,
       Int32 charCount,
+      Boolean canEndPrematurely,
       out Int64 result,
       out String errorString,
       out Int32 max
@@ -633,7 +713,7 @@ public static partial class E_UtilPack
             {
                result = 10 * result + ( b - 0x30 );
             }
-            else if ( charCount < 0 )
+            else if ( canEndPrematurely )
             {
                // Char count was not specified, so this is graceful end
                offset = prevOffset;
@@ -768,10 +848,21 @@ public static partial class E_UtilPack
          integer = Math.Abs( integer );
       }
 
-      while ( ( integer /= numberBase ) >= 1 )
+      if ( numberBase == 10 )
       {
-         ++size;
+         if ( integer > 0 )
+         {
+            size += BinaryUtils.Log10( (UInt64) integer );
+         }
       }
+      else
+      {
+         while ( ( integer /= numberBase ) >= 1 )
+         {
+            ++size;
+         }
+      }
+
       return size * encoding.BytesPerASCIICharacter;
    }
 

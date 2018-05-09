@@ -40,13 +40,13 @@ namespace UtilPack.Cryptography.Digest
       /// <summary>
       /// Creates a new instance of <see cref="DigestBasedRandomGenerator"/> with given parameters.
       /// </summary>
-      /// <param name="algorithm">The <see cref="BlockDigestAlgorithm"/> to use when producing random data.</param>
+      /// <param name="algorithm">The <see cref="DigestAlgorithm"/> to use when producing random data.</param>
       /// <param name="seedCycleCount">How often to re-seed the state. Minimum value will be <c>1</c> if if <c>0</c> or less is specified.</param>
       /// <param name="skipDisposeAlgorithm">Optional parameter controlling whether this <see cref="DigestBasedRandomGenerator"/> will, when disposed, dispose also the given <paramref name="algorithm"/>.</param>
       /// <seealso cref="CreateAndSeedWithDefaultLogic"/>
       /// <exception cref="ArgumentNullException">If <paramref name="algorithm"/> is <c>null</c>.</exception>
       public DigestBasedRandomGenerator(
-         BlockDigestAlgorithm algorithm,
+         DigestAlgorithm algorithm,
          Int32 seedCycleCount = 10,
          Boolean skipDisposeAlgorithm = false
          )
@@ -62,7 +62,7 @@ namespace UtilPack.Cryptography.Digest
       }
 
       /// <summary>
-      /// Uses <see cref="BlockDigestAlgorithm.ProcessBlock"/> and <see cref="BlockDigestAlgorithm.WriteDigest"/> methods to mutate the state of this <see cref="DigestBasedRandomGenerator"/>.
+      /// Uses <see cref="DigestAlgorithm.ProcessBlock"/> and <see cref="DigestAlgorithm.WriteDigest"/> methods to mutate the state of this <see cref="DigestBasedRandomGenerator"/>.
       /// </summary>
       /// <param name="material">The random data.</param>
       /// <param name="offset">The offset in <paramref name="material"/> array where to start reading.</param>
@@ -77,7 +77,7 @@ namespace UtilPack.Cryptography.Digest
       }
 
       /// <summary>
-      /// Keeps computing digests using <see cref="BlockDigestAlgorithm.ProcessBlock"/> and <see cref="BlockDigestAlgorithm.WriteDigest"/> methods and writing them to given byte array until specified amount of bytes has been written to the array.
+      /// Keeps computing digests using <see cref="DigestAlgorithm.ProcessBlock"/> and <see cref="DigestAlgorithm.WriteDigest"/> methods and writing them to given byte array until specified amount of bytes has been written to the array.
       /// </summary>
       /// <param name="array">The array where to write random data to.</param>
       /// <param name="offset">The offset in <paramref name="array"/> where to start writing.</param>
@@ -99,7 +99,7 @@ namespace UtilPack.Cryptography.Digest
       }
 
       /// <summary>
-      /// Disposes underlying <see cref="BlockDigestAlgorithm"/> and clears internal state.
+      /// Disposes underlying <see cref="DigestAlgorithm"/> and clears internal state.
       /// </summary>
       /// <param name="disposing">Whether disposing from <see cref="IDisposable.Dispose"/> method.</param>
       protected override void Dispose( Boolean disposing )
@@ -117,10 +117,10 @@ namespace UtilPack.Cryptography.Digest
       }
 
       /// <summary>
-      /// Gets the <see cref="BlockDigestAlgorithm"/> that this <see cref="DigestBasedRandomGenerator"/> uses.
+      /// Gets the <see cref="DigestAlgorithm"/> that this <see cref="DigestBasedRandomGenerator"/> uses.
       /// </summary>
-      /// <value>The <see cref="BlockDigestAlgorithm"/> that this <see cref="DigestBasedRandomGenerator"/> uses.</value>
-      protected BlockDigestAlgorithm Algorithm { get; }
+      /// <value>The <see cref="DigestAlgorithm"/> that this <see cref="DigestBasedRandomGenerator"/> uses.</value>
+      protected DigestAlgorithm Algorithm { get; }
 
       private void PopulateState()
       {
@@ -173,6 +173,101 @@ namespace UtilPack.Cryptography.Digest
          // Use Guid again
          retVal.AddSeedMaterial( Guid.NewGuid().ToByteArray() );
          return retVal;
+      }
+
+      /// <summary>
+      /// Creates default base64 lookup character array, and reorders it using <see cref="DigestBasedRandomGenerator"/> with given parameters.
+      /// </summary>
+      /// <param name="seed">The seed material to <see cref="DigestBasedRandomGenerator"/>, as <see cref="Int64"/>.</param>
+      /// <param name="algorithm">The <see cref="DigestAlgorithm"/> to use. If <c>null</c>, then <see cref="SHA512"/> will be used.</param>
+      /// <param name="seedCycleCount">How often the seed will be re-digested.</param>
+      /// <param name="isURLSafe">Whether to use url-safe base64 characters.</param>
+      /// <returns>A base64 lookup character array, shuffled using the given <paramref name="seed"/>.</returns>
+      /// <seealso cref="StringConversions.EncodeBinary(byte[], char[])"/>
+      /// <seealso cref="UtilPackExtensions.Shuffle{T}(T[], Random)"/>
+      public static Char[] ShuffleBase64CharactersFromSeed(
+         Int64 seed,
+         DigestAlgorithm algorithm = null,
+         Int32 seedCycleCount = 10,
+         Boolean isURLSafe = true
+         )
+      {
+         var chars = StringConversions.CreateBase64EncodeLookupTable( isURLSafe );
+         ShuffleBinaryEncodingCharactersFromSeed( chars, seed, algorithm: algorithm, seedCycleCount: seedCycleCount );
+         return chars;
+      }
+
+      /// <summary>
+      /// Using the given lookup character array, reorders it using <see cref="DigestBasedRandomGenerator"/> with given parameters.
+      /// </summary>
+      /// <param name="chars">The lookup character array.</param>
+      /// <param name="seed">The seed material to <see cref="DigestBasedRandomGenerator"/>, as <see cref="Int64"/>.</param>
+      /// <param name="algorithm">The <see cref="DigestAlgorithm"/> to use. If <c>null</c>, then <see cref="SHA512"/> will be used.</param>
+      /// <param name="seedCycleCount">How often the seed will be re-digested.</param>
+      /// <seealso cref="StringConversions.EncodeBinary(byte[], char[])"/>
+      /// <seealso cref="UtilPackExtensions.Shuffle{T}(T[], Random)"/>
+      public static void ShuffleBinaryEncodingCharactersFromSeed(
+         Char[] chars,
+         Int64 seed,
+         DigestAlgorithm algorithm = null,
+         Int32 seedCycleCount = 10
+         )
+      {
+         using ( var rng = new DigestBasedRandomGenerator( algorithm ?? new SHA512(), seedCycleCount: seedCycleCount, skipDisposeAlgorithm: false ) )
+         {
+            rng.AddSeedMaterial( seed );
+            using ( var secRandom = new SecureRandom( rng ) )
+            {
+               chars.Shuffle( secRandom );
+            }
+         }
+      }
+
+      /// <summary>
+      /// Creates default base64 lookup character array, and reorders it using <see cref="DigestBasedRandomGenerator"/> with given parameters.
+      /// </summary>
+      /// <param name="seed">The seed material to <see cref="DigestBasedRandomGenerator"/>, as <see cref="Byte"/> array.</param>
+      /// <param name="algorithm">The <see cref="DigestAlgorithm"/> to use. If <c>null</c>, then <see cref="SHA512"/> will be used.</param>
+      /// <param name="seedCycleCount">How often the seed will be re-digested.</param>
+      /// <param name="isURLSafe">Whether to use url-safe base64 characters.</param>
+      /// <returns>A base64 lookup character array, shuffled using the given <paramref name="seed"/>.</returns>
+      /// <seealso cref="StringConversions.EncodeBinary(byte[], char[])"/>
+      public static Char[] ShuffleBase64CharactersFromSeed(
+         Byte[] seed,
+         DigestAlgorithm algorithm = null,
+         Int32 seedCycleCount = 10,
+         Boolean isURLSafe = true
+         )
+      {
+         var chars = StringConversions.CreateBase64EncodeLookupTable( isURLSafe );
+         ShuffleBinaryEncodingCharactersFromSeed( chars, seed, algorithm: algorithm, seedCycleCount: seedCycleCount );
+         return chars;
+      }
+
+      /// <summary>
+      /// Using the given lookup character array, reorders it using <see cref="DigestBasedRandomGenerator"/> with given parameters.
+      /// </summary>
+      /// <param name="chars">The lookup character array.</param>
+      /// <param name="seed">The seed material to <see cref="DigestBasedRandomGenerator"/>, as <see cref="Byte"/> array.</param>
+      /// <param name="algorithm">The <see cref="DigestAlgorithm"/> to use. If <c>null</c>, then <see cref="SHA512"/> will be used.</param>
+      /// <param name="seedCycleCount">How often the seed will be re-digested.</param>
+      /// <seealso cref="StringConversions.EncodeBinary(byte[], char[])"/>
+      /// <seealso cref="UtilPackExtensions.Shuffle{T}(T[], Random)"/>
+      public static void ShuffleBinaryEncodingCharactersFromSeed(
+         Char[] chars,
+         Byte[] seed,
+         DigestAlgorithm algorithm = null,
+         Int32 seedCycleCount = 10
+         )
+      {
+         using ( var rng = new DigestBasedRandomGenerator( algorithm ?? new SHA512(), seedCycleCount: seedCycleCount, skipDisposeAlgorithm: false ) )
+         {
+            rng.AddSeedMaterial( seed );
+            using ( var secRandom = new SecureRandom( rng ) )
+            {
+               chars.Shuffle( secRandom );
+            }
+         }
       }
 
    }

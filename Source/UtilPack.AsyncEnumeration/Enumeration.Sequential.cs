@@ -419,6 +419,22 @@ public static partial class E_UtilPack
          .EnumerateSequentiallyAsync( asyncCallback );
    }
 
+   /// <summary>
+   /// This is helper method to sequentially enumerate a <see cref="IAsyncEnumerable{T}"/> and properly dispose it in case of an exception, while not reacting to any of the encountered elements.
+   /// </summary>
+   /// <typeparam name="T">The type of the items being enumerated.</typeparam>
+   /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+   /// <returns>A task which will have enumerated the <see cref="IAsyncEnumerable{T}"/> on completion. The return value is amount of items encountered during enumeration.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+   /// <exception cref="OverflowException">If there are more than <see cref="Int64.MaxValue"/> amount of items encountered.</exception>
+   /// <remarks>
+   /// Sequential enumeration means that the next invocation of <see cref="IAsyncEnumerator{T}.WaitForNextAsync"/> will not start until all the elements are seen throught <see cref="IAsyncEnumerator{T}.TryGetNext"/>.
+   /// </remarks>
+   public static ValueTask<Int64> EnumerateSequentiallyAsync<T>( this IAsyncEnumerable<T> enumerable )
+   {
+      return enumerable.EnumerateSequentiallyAsync( (Action<T>) null );
+   }
+
    private static async ValueTask<Int64> EnumerateSequentiallyAsync<T>( this IAsyncEnumerator<T> enumerator, Action<T> action, Boolean skipDisposeCall = false )
    {
       try

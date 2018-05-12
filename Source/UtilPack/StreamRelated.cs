@@ -1507,4 +1507,78 @@ public static partial class E_UtilPack
       return count;
    }
 
+
+   /// <summary>
+   /// Using given chunk read size, read at least the given amount of bytes into the given array from this stream.
+   /// </summary>
+   /// <param name="stream">This stream.</param>
+   /// <param name="array">The byte array to write data to.</param>
+   /// <param name="offset">The offset in <paramref name="array"/> where to start writing.</param>
+   /// <param name="minAmount">The minimum amount to read.</param>
+   /// <param name="chunkCount">The maximum amount of bytes to read at a time.</param>
+   /// <returns>Asynchronously returns amount of bytes read.</returns>
+   public static async Task<Int32> ReadAtLeastAsync( this Stream stream, Byte[] array, Int32 offset, Int32 minAmount, Int32 chunkCount )
+   {
+      var originalOffset = offset;
+      while ( minAmount > 0 )
+      {
+         var readCount = await stream.ReadAsync( array, offset, chunkCount, default );
+         if ( readCount <= 0 )
+         {
+            throw new EndOfStreamException();
+         }
+         minAmount -= readCount;
+         offset += readCount;
+      }
+      return offset - originalOffset;
+   }
+
+   /// <summary>
+   /// Given the current bytes in <see cref="ResizableArray{T}"/>, reads until end mark, be that in the <see cref="ResizableArray{T}"/> or pending from this stream.
+   /// </summary>
+   /// <param name="stream">This stream.</param>
+   /// <param name="buffer">The <see cref="ResizableArray{T}"/> potentially containing data from previous reads.</param>
+   /// <param name="alreadyRead">The amount of data in <paramref name="buffer"/> that has been already read.</param>
+   /// <param name="totalExisting">The total amount of data in <paramref name="buffer"/> that has been previously read.</param>
+   /// <param name="endMark">The byte sequence signifying when to stop.</param>
+   /// <param name="streamReadCount">The maximum amount of bytes to read from this <see cref="Stream"/>, if needed.</param>
+   /// <returns>Potentially asynchronously returns offset where the end mark starts, and the total amount of bytes read from stream in <paramref name="buffer"/>.</returns>
+   public static async ValueTask<(Int32 Offset, Int32 TotalReadBytes)> ReadUntilMaybeAsync(
+      this Stream stream,
+      ResizableArray<Byte> buffer,
+      Int32 alreadyRead,
+      Int32 totalExisting,
+      Byte[] endMark,
+      Int32 streamReadCount
+      )
+   {
+      ArgumentValidator.ValidateNotNullReference( stream );
+      // Scan to see if we have endMark already
+      var end = ArgumentValidator.ValidateNotNull( nameof( buffer ), buffer ).Array.IndexOfArray( alreadyRead, totalExisting - alreadyRead, endMark );
+      if ( end == -1 )
+      {
+         //beforeAsyncRead?.Invoke();
+         (end, totalExisting) = await stream.ReadUntilAsync( buffer, totalExisting, endMark, streamReadCount );
+      }
+      return (end, totalExisting);
+   }
+
+   private static async Task<(Int32 Offset, Int32 TotalReadBytes)> ReadUntilAsync( this Stream stream, ResizableArray<Byte> buffer, Int32 offset, Byte[] endMark, Int32 streamReadCount )
+   {
+      Int32 originalBufferOffset, bytesRead, retVal;
+
+      do
+      {
+         bytesRead = await stream.ReadAsync( buffer.SetCapacityAndReturnArray( offset + streamReadCount ), offset, streamReadCount, default );
+         if ( bytesRead <= 0 )
+         {
+            throw new EndOfStreamException();
+         }
+         originalBufferOffset = Math.Max( 0, offset + 1 - endMark.Length );
+         offset += bytesRead;
+      } while ( ( retVal = buffer.Array.IndexOfArray( originalBufferOffset, bytesRead, endMark, EqualityComparer<Byte>.Default ) ) < 0 );
+
+      return (retVal, offset);
+   }
+
 }

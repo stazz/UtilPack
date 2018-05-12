@@ -1553,5 +1553,63 @@ namespace UtilPack
 
          return true;
       }
+
+      /// <summary>
+      /// This method searches for sub-array within this array, just like <see cref="String.IndexOf(String)"/> does.
+      /// </summary>
+      /// <typeparam name="T">The type of array elements.</typeparam>
+      /// <param name="array">This array.</param>
+      /// <param name="startIndex">Where to start searching in this array.</param>
+      /// <param name="maxLength">The maximum amount of elements to serch within this array.</param>
+      /// <param name="subArray">The content to search for.</param>
+      /// <param name="comparer">The <see cref="IEqualityComparer{T}"/> to use when checking array element equality.</param>
+      /// <returns>The index which will be <c>≥ 0</c> if this array has the <paramref name="subArray"/> with it; otherwise will return <c>-1</c>.</returns>
+      /// <exception cref="NullReferenceException">If this <paramref name="array"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="subArray"/> is <c>null</c>.</exception>
+      public static Int32 IndexOfArray<T>( this T[] array, Int32 startIndex, Int32 maxLength, T[] subArray, IEqualityComparer<T> comparer = null )
+      {
+         ArgumentValidator.ValidateNotNullReference( array );
+         var subLength = ArgumentValidator.ValidateNotNull( nameof( subArray ), subArray ).Length;
+         if ( maxLength >= subLength )
+         {
+            if ( subLength > 0 )
+            {
+               if ( comparer == null )
+               {
+                  comparer = EqualityComparer<T>.Default;
+               }
+               if ( subLength == 1 )
+               {
+                  var target = subArray[0];
+                  startIndex = Array.FindIndex( array, startIndex, maxLength, el => comparer.Equals( el, target ) );
+               }
+               else
+               {
+                  var max = startIndex + maxLength - subLength + 1;
+                  var i = startIndex;
+                  startIndex = -1;
+                  for ( ; i < max; ++i )
+                  {
+                     var original = i;
+                     for ( var j = 0; j < subArray.Length && comparer.Equals( array[i], subArray[j] ); ++j )
+                     {
+                        ++i;
+                     }
+                     if ( i - original == subLength )
+                     {
+                        startIndex = original;
+                        break;
+                     }
+                  }
+               }
+            }
+         }
+         else
+         {
+            startIndex = -1;
+         }
+
+         return startIndex;
+      }
    }
 }

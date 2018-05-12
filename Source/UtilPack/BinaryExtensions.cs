@@ -1593,6 +1593,43 @@ namespace UtilPack
       }
 
       /// <summary>
+      /// Helper method to write the given ASCII string (as byte array) to this byte array.
+      /// Essentially, this is call-through to <see cref="Array.Copy(Array, int, Array, int, int)"/>.
+      /// </summary>
+      /// <param name="array">This array where to write ASCII string to.</param>
+      /// <param name="idx">The index in this array where to start writing.</param>
+      /// <param name="asciiContent">The ASCII string to write, as byte array.</param>
+      /// <returns>This <paramref name="array"/>.</returns>
+      /// <exception cref="NullReferenceException">If this <paramref name="array"/> is <c>null</c>.</exception>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Byte[] WriteASCIIString( this Byte[] array, ref Int32 idx, Byte[] asciiContent )
+      {
+         Array.Copy( asciiContent, 0, array, idx, asciiContent.Length );
+         idx += asciiContent.Length;
+         return array;
+      }
+
+      /// <summary>
+      /// Helper method to write the given ASCII string (as single byte) to this byte array.
+      /// Essentially, this just sets a byte.
+      /// </summary>
+      /// <param name="array">This array where to write ASCII string to.</param>
+      /// <param name="idx">The index in this array where to start writing.</param>
+      /// <param name="asciiChar">The ASCII string to write, as a single byte.</param>
+      /// <returns>This <paramref name="array"/>.</returns>
+      /// <exception cref="NullReferenceException">If this <paramref name="array"/> is <c>null</c>.</exception>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Byte[] WriteASCIIString( this Byte[] array, ref Int32 idx, Byte asciiChar )
+      {
+         array[idx++] = asciiChar;
+         return array;
+      }
+
+      /// <summary>
       /// Reads a string at specified index in byte array using specified <see cref="Encoding"/>.
       /// </summary>
       /// <param name="array">The byte array.</param>

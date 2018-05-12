@@ -38,21 +38,10 @@ namespace UtilPack.ResourcePooling.NetworkStream
       public static ReadOnlyResettableAsyncLazy<IPAddress> CreateAddressOrHostNameResolvingLazy(
          this String addressOrHostName,
          Func<IPAddress[], IPAddress> addressSelector,
-         Func<String, ValueTask<IPAddress[]>> dnsResolve = null
+         Func<String, Task<IPAddress[]>> dnsResolve = null
          )
       {
-#if !NETSTANDARD1_3
-         if ( dnsResolve == null )
-         {
-            dnsResolve = async host => await
-#if NET40
-                  DnsEx
-#else
-                  Dns
-#endif
-                  .GetHostAddressesAsync( host );
-         }
-#endif
+
          ReadOnlyResettableAsyncLazy<IPAddress> retVal;
 
          if ( IPAddress.TryParse( addressOrHostName, out var thisAddress ) )
@@ -61,9 +50,27 @@ namespace UtilPack.ResourcePooling.NetworkStream
          }
          else
          {
+#if !NETSTANDARD1_3
+            if ( dnsResolve == null )
+            {
+               dnsResolve = host =>
+#if NET40
+                  DnsEx
+#else
+                  Dns
+#endif
+                  .GetHostAddressesAsync( host );
+            }
+#endif
             retVal = new ReadOnlyResettableAsyncLazy<IPAddress>( async () =>
             {
-               var allIPs = await ( dnsResolve?.Invoke( addressOrHostName ) ?? new ValueTask<IPAddress[]>( (IPAddress[]) null ) );
+               var allIPs = await ( dnsResolve?.Invoke( addressOrHostName ) ??
+#if NET40
+               TaskEx
+#else
+               Task
+#endif
+               .FromResult<IPAddress[]>( null ) );
                IPAddress resolvedAddress = null;
                if ( ( allIPs?.Length ?? 0 ) > 1 )
                {

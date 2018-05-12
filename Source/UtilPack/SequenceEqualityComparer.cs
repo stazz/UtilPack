@@ -441,10 +441,21 @@ namespace UtilPack
          return ArrayEquality_NoCheck( x, y, equality ?? EqualityComparer<T>.Default.Equals );
       }
 
-      //public static Boolean RangeEquality( T[] x, Int32 xOffset, Int32 xCount, T[] y, Int32 yOffset, Int32 yCount, Equality<T> equality = null )
-      //{
-      //   return RangeEquality_NoCheck( x, xOffset, xCount, y, yOffset, yCount, equality ?? EqualityComparer<T>.Default.Equals );
-      //}
+      /// <summary>
+      /// Helper method to check whether two ranges of arrays are considered to be equal given optional equality comparer for items.
+      /// </summary>
+      /// <param name="x">The first array. May be <c>null</c>.</param>
+      /// <param name="xOffset">The offset in the first array where to start comparing.</param>
+      /// <param name="xCount">The amount of elements in the first array to compare.</param>
+      /// <param name="y">The second array. May be <c>null</c>.</param>
+      /// <param name="yOffset">The offset in the second array where to start comparing.</param>
+      /// <param name="yCount">The amount of elements in the second array to compare.</param>
+      /// <param name="equality">The optional equality callback for items. If not supplied, a default callback (the <see cref="IEqualityComparer{T}.Equals(T, T)" /> method from the <see cref="EqualityComparer{T}.Default"/> ) will be used.</param>
+      /// <returns><c>true</c> if both arrays are not <c>null</c> and the ranges match; <c>false</c> otherwise.</returns>
+      public static Boolean RangeEquality( T[] x, Int32 xOffset, Int32 xCount, T[] y, Int32 yOffset, Int32 yCount, Equality<T> equality = null )
+      {
+         return RangeEquality_NoCheck( x, xOffset, xCount, y, yOffset, yCount, equality ?? EqualityComparer<T>.Default.Equals );
+      }
 
       /// <summary>
       /// Helper method to calculate hash code for array.

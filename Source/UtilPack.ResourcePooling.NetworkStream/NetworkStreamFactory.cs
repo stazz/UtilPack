@@ -24,6 +24,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
+using UtilPack.Configuration.NetworkStream;
 using UtilPack.ResourcePooling.NetworkStream;
 
 using TNetworkStream = System.Net.Sockets.NetworkStream;
@@ -333,6 +334,16 @@ namespace UtilPack.ResourcePooling.NetworkStream
             throw new InvalidOperationException( "Unable to acquire stream." );
          }
 
+         var transformer = parameters.TransformStreamAfterCreation;
+         if ( transformer != null )
+         {
+            var newStream = transformer( stream );
+            if ( newStream != null )
+            {
+               stream = newStream;
+            }
+         }
+
          return (socket, stream, state);
       }
    }
@@ -340,6 +351,8 @@ namespace UtilPack.ResourcePooling.NetworkStream
    /// <summary>
    /// This is base class for <see cref="NetworkStreamFactoryConfiguration"/> and <see cref="NetworkStreamFactoryConfiguration{TState}"/> containing properties which are common for both.
    /// </summary>
+   /// <seealso cref="E_UtilPack.CreateNetworkStreamFactoryConfiguration"/>
+   /// <seealso cref="E_UtilPack.CreateStatefulNetworkStreamFactoryConfiguration"/>
    public abstract class AbstractNetworkStreamFactoryConfiguration
    {
 
@@ -525,19 +538,30 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// The first parameter is the catched exception. If this callback is needed, and it is <c>null</c> or returns <c>null</c>, the exception is re-thrown.
       /// </remarks>
       public Func<Exception, Exception> SSLStreamOtherError { get; set; }
+
+      /// <summary>
+      /// Gets or sets optional callback to transform a stream into another after successful stream creation and initialization (including creating SSL stream).
+      /// </summary>
+      /// <value>Optional callback to transform a stream into another after successful stream creation and initialization (including creating SSL stream).</value>
+      /// <remarks>
+      /// This callback is useful to e.g. use <see cref="DuplexBufferedAsyncStream"/>.
+      /// </remarks>
+      public Func<Stream, Stream> TransformStreamAfterCreation { get; set; }
    }
 
    /// <summary>
    /// This class extends <see cref="AbstractNetworkStreamFactoryConfiguration"/> to provide required callbacks for stateless network stream initialization.
    /// </summary>
+   /// <seealso cref="E_UtilPack.CreateNetworkStreamFactoryConfiguration"/>
+   /// <seealso cref="E_UtilPack.CreateStatefulNetworkStreamFactoryConfiguration"/>
    public class NetworkStreamFactoryConfiguration : AbstractNetworkStreamFactoryConfiguration
    {
       /// <summary>
-      /// Gets or sets the callback to get <see cref="NetworkStream.ConnectionSSLMode"/>.
+      /// Gets or sets the callback to get <see cref="Configuration.NetworkStream.ConnectionSSLMode"/>.
       /// </summary>
-      /// <value>The callback to get <see cref="NetworkStream.ConnectionSSLMode"/>.</value>
+      /// <value>The callback to get <see cref="Configuration.NetworkStream.ConnectionSSLMode"/>.</value>
       /// <remarks>
-      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will default to <see cref="NetworkStream.ConnectionSSLMode.NotRequired"/>.
+      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will default to <see cref="Configuration.NetworkStream.ConnectionSSLMode.NotRequired"/>.
       /// </remarks>
       public Func<ConnectionSSLMode> ConnectionSSLMode { get; set; }
 
@@ -572,7 +596,9 @@ namespace UtilPack.ResourcePooling.NetworkStream
    /// <summary>
    /// This class extends <see cref="AbstractNetworkStreamFactoryConfiguration"/> to provide required callbacks for stateful network stream initialization.
    /// </summary>
-   /// <typeparam name="TState"></typeparam>
+   /// <typeparam name="TState">The type of the intermediate state that is passed to callbacks.</typeparam>
+   /// <seealso cref="E_UtilPack.CreateNetworkStreamFactoryConfiguration"/>
+   /// <seealso cref="E_UtilPack.CreateStatefulNetworkStreamFactoryConfiguration"/>
    public class NetworkStreamFactoryConfiguration<TState> : AbstractNetworkStreamFactoryConfiguration
    {
       /// <summary>
@@ -585,11 +611,11 @@ namespace UtilPack.ResourcePooling.NetworkStream
       public Func<Socket, TNetworkStream, CancellationToken, TState> CreateState { get; set; }
 
       /// <summary>
-      /// Gets or sets the callback to get <see cref="NetworkStream.ConnectionSSLMode"/>.
+      /// Gets or sets the callback to get <see cref="Configuration.NetworkStream.ConnectionSSLMode"/>.
       /// </summary>
-      /// <value>The callback to get <see cref="NetworkStream.ConnectionSSLMode"/>.</value>
+      /// <value>The callback to get <see cref="Configuration.NetworkStream.ConnectionSSLMode"/>.</value>
       /// <remarks>
-      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will default to <see cref="NetworkStream.ConnectionSSLMode.NotRequired"/>.
+      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will default to <see cref="Configuration.NetworkStream.ConnectionSSLMode.NotRequired"/>.
       /// </remarks>
       public Func<TState, ConnectionSSLMode> ConnectionSSLMode { get; set; }
 
@@ -620,104 +646,6 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// </remarks>
       public Func<TState, String> ProvideSSLHost { get; set; }
    }
-
-   /// <summary>
-   /// This enumeration tells the behaviour of SSL stream establishment when creating connection.
-   /// </summary>
-   public enum ConnectionSSLMode
-   {
-      /// <summary>
-      /// This is the default value, that will cause SSL stream establishment never to occur - all data will be passed as-is to the underlying <see cref="Stream"/>.
-      /// </summary>
-      NotRequired,
-
-      /// <summary>
-      /// This mode will cause initiation of SSL stream establishment, but in case of error will silently fallback to non-SSL stream.
-      /// </summary>
-      Preferred,
-
-      /// <summary>
-      /// This mode will cause initiation of SSL stream establishment, and if any error occurs, an exception will be thrown.
-      /// </summary>
-      Required
-   }
-
-
-   /// <summary>
-   /// This delegate is used in signature of <see cref="AbstractNetworkStreamFactoryConfiguration.ProvideSSLStream"/> in order to customize providing of SSL stream.
-   /// It is rarely needed to use, since the constructor of <see cref="NetworkStreamFactoryConfiguration"/> sets the default value for it in all other platforms except .NET Standard 1.6. or earlier.
-   /// </summary>
-   /// <param name="innerStream">The inner, unencrypted stream.</param>
-   /// <param name="leaveInnerStreamOpen">Whether to leave inner stream opened.</param>
-   /// <param name="userCertificateValidationCallback">The callback to validate user certificates.</param>
-   /// <param name="userCertificateSelectionCallback">The callback to select user certificates.</param>
-   /// <param name="authenticateAsClientAsync">This parameter should contain the <see cref="AuthenticateAsClientAsync"/> callback that will be used by by this library to authenticate the connection.</param>
-   /// <returns>The constructed SSL stream.</returns>
-   /// <remarks>
-   /// The <paramref name="authenticateAsClientAsync"/> parameter typically is a call to <see cref="M:System.Net.Security.SslStream.AuthenticateAsClientAsync(System.String,System.Security.Cryptography.X509Certificates.X509CertificateCollection,System.Security.Authentication.SslProtocols,System.Boolean)"/> method.
-   /// </remarks>
-   public delegate Stream ProvideSSLStream(
-      Stream innerStream,
-      Boolean leaveInnerStreamOpen,
-      RemoteCertificateValidationCallback userCertificateValidationCallback,
-      LocalCertificateSelectionCallback userCertificateSelectionCallback,
-      out AuthenticateAsClientAsync authenticateAsClientAsync
-      );
-
-
-   /// <summary>
-   /// This delegate is used by <see cref="AbstractNetworkStreamFactoryConfiguration.ValidateServerCertificate"/> in order to validate the certificate of the PostgreSQL backend.
-   /// The signature is just a copy of <see cref="T:System.Net.Security.RemoteCertificateValidationCallback"/> which is not available on all platforms.
-   /// </summary>
-   /// <param name="sender">The sender.</param>
-   /// <param name="certificate">The certificate of the PostgreSQL backend.</param>
-   /// <param name="chain">The chain of certificate authorities associated with the <paramref name="certificate"/>.</param>
-   /// <param name="sslPolicyErrors">One or more errors associated with the remote certificate.</param>
-   /// <returns><c>true</c> if PostgreSQL backend certificate is OK; <c>false</c> otherwise.</returns>
-   public delegate Boolean RemoteCertificateValidationCallback(
-      Object sender,
-      System.Security.Cryptography.X509Certificates.X509Certificate certificate,
-      System.Security.Cryptography.X509Certificates.X509Chain chain,
-      System.Net.Security.SslPolicyErrors sslPolicyErrors
-      );
-
-   /// <summary>
-   /// This delegate is used by <see cref="AbstractNetworkStreamFactoryConfiguration.SelectLocalCertificate"/> in order to select one local certificate to use from possibly many local certificates.
-   /// The signature is just a copy of <see cref="T:System.Net.Security.LocalCertificateSelectionCallback"/> which is not available on all platforms.
-   /// </summary>
-   /// <param name="sender">The sender.</param>
-   /// <param name="targetHost">The host server specified by client.</param>
-   /// <param name="localCertificates">Local certificates used.</param>
-   /// <param name="remoteCertificate">Remote certificate of PostgreSQL backend.</param>
-   /// <param name="acceptableIssuers">Certificate issuers acceptable to PostgreSQL backend.</param>
-   /// <returns>A certificate from <paramref name="localCertificates"/> collection that should be used in SSL connection.</returns>
-   public delegate System.Security.Cryptography.X509Certificates.X509Certificate LocalCertificateSelectionCallback(
-      Object sender,
-      String targetHost,
-      System.Security.Cryptography.X509Certificates.X509CertificateCollection localCertificates,
-      System.Security.Cryptography.X509Certificates.X509Certificate remoteCertificate,
-      String[] acceptableIssuers
-      );
-
-   /// <summary>
-   /// This delegate is used by <see cref="ProvideSSLStream"/> delegate in its signature.
-   /// The signature captures the one of <see cref="M:System.Net.Security.SslStream.AuthenticateAsClientAsync(System.String,System.Security.Cryptography.X509Certificates.X509CertificateCollection,System.Security.Authentication.SslProtocols,System.Boolean)"/> method.
-   /// </summary>
-   /// <param name="stream">The stream provided by <see cref="ProvideSSLStream"/> callback.</param>
-   /// <param name="targetHost">The host server sepcified by client.</param>
-   /// <param name="clientCertificates">The client certificates.</param>
-   /// <param name="enabledSslProtocols">The <see cref="System.Security.Authentication.SslProtocols"/> to use in SSL connection.</param>
-   /// <param name="checkCertificateRevocation">Whether to check that certificate has been revoked.</param>
-   /// <returns>A task which is completed once authentication is completed.</returns>
-   public delegate Task AuthenticateAsClientAsync(
-      Stream stream,
-      String targetHost,
-      System.Security.Cryptography.X509Certificates.X509CertificateCollection clientCertificates,
-      System.Security.Authentication.SslProtocols enabledSslProtocols,
-      Boolean checkCertificateRevocation
-      );
-
-
 }
 
 /// <summary>
@@ -745,6 +673,7 @@ public static partial class E_UtilPack
          ProvideSSLHost = ( state ) => configuration.ProvideSSLHost?.Invoke(),
          ConnectionSSLMode = ( state ) => configuration.ConnectionSSLMode?.Invoke() ?? ConnectionSSLMode.NotRequired,
          CreateState = createState,
+         TransformStreamAfterCreation = configuration.TransformStreamAfterCreation,
 
          // The rest are copypaste
          RemoteAddress = async ( token ) => await configuration.RemoteAddress( token ),

@@ -29,21 +29,20 @@ namespace UtilPack.Configuration.NetworkStream
    /// This class represents typical creation parameters for resource pools using some kind of network protocol.
    /// This class should be subclassed by actual network protocol implementations to bind generic parameters and include protocol-specific information.
    /// </summary>
-   /// <typeparam name="TCreationData">The type of typically serializable configuration data, which only has passive properties. Must be or inherit <see cref="NetworkConnectionCreationInfoData{TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>.</typeparam>
+   /// <typeparam name="TCreationData">The type of typically serializable configuration data, which only has passive properties. Must be or inherit <see cref="NetworkConnectionCreationInfoData{TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/>.</typeparam>
    /// <typeparam name="TConnectionConfiguration">The type of network connection configuration of <typeparamref name="TCreationData"/>. Must be or inherit <see cref="NetworkConnectionConfiguration"/>.</typeparam>
-   /// <typeparam name="TInitializationConfiguration">The type of initialization configuration of <typeparamref name="TCreationData"/>. Must be or inherit <see cref="NetworkInitializationConfiguration{TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>.</typeparam>
+   /// <typeparam name="TInitializationConfiguration">The type of initialization configuration of <typeparamref name="TCreationData"/>. Must be or inherit <see cref="NetworkInitializationConfiguration{TProtocolConfiguration, TPoolingConfiguration}"/>.</typeparam>
    /// <typeparam name="TProtocolConfiguration">The type of protocol configuration of <typeparamref name="TCreationData"/>.</typeparam>
-   /// <typeparam name="TAuthenticationConfiguration">The type of authentication configuration of <typeparamref name="TCreationData"/>.</typeparam>
    /// <typeparam name="TPoolingConfiguration">The type of resource pool configuration of <typeparamref name="TCreationData"/> controlling behaviour of the resource pool. Must be or inherit <see cref="NetworkPoolingConfiguration"/>.</typeparam>
-   /// <seealso cref="NetworkConnectionCreationInfoData{TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>
-   public class NetworkConnectionCreationInfo<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration>
-      where TCreationData : NetworkConnectionCreationInfoData<TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration>
+   /// <seealso cref="NetworkConnectionCreationInfoData{TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/>
+   public class NetworkConnectionCreationInfo<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration>
+      where TCreationData : NetworkConnectionCreationInfoData<TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration>
       where TConnectionConfiguration : NetworkConnectionConfiguration
-      where TInitializationConfiguration : NetworkInitializationConfiguration<TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration>
+      where TInitializationConfiguration : NetworkInitializationConfiguration<TProtocolConfiguration, TPoolingConfiguration>
       where TPoolingConfiguration : NetworkPoolingConfiguration
    {
       /// <summary>
-      /// Creates a new instance of <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/> with given <typeparamref name="TCreationData"/>.
+      /// Creates a new instance of <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/> with given <typeparamref name="TCreationData"/>.
       /// </summary>
       /// <param name="data">The <typeparamref name="TCreationData"/>.</param>
       /// <exception cref="ArgumentNullException">If <paramref name="data"/> is <c>null</c>.</exception>
@@ -111,9 +110,9 @@ namespace UtilPack.Configuration.NetworkStream
       }
 
       /// <summary>
-      /// Gets the <typeparamref name="TCreationData"/> associated with this <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>.
+      /// Gets the <typeparamref name="TCreationData"/> associated with this <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/>.
       /// </summary>
-      /// <value>The <typeparamref name="TCreationData"/> associated with this <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>.</value>
+      /// <value>The <typeparamref name="TCreationData"/> associated with this <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/>.</value>
       public TCreationData CreationData { get; }
 
 #if !NETSTANDARD1_0
@@ -198,17 +197,16 @@ namespace UtilPack.Configuration.NetworkStream
    /// This class should be subclassed by actual network protocol implementations to bind generic parameters and include protocol-specific information.
    /// </summary>
    /// <typeparam name="TConnectionConfiguration">The type of network connection configuration. Must be or inherit <see cref="NetworkConnectionConfiguration"/>.</typeparam>
-   /// <typeparam name="TInitializationConfiguration">The type of initialization configuration. Must be or inherit <see cref="NetworkInitializationConfiguration{TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>.</typeparam>
+   /// <typeparam name="TInitializationConfiguration">The type of initialization configuration. Must be or inherit <see cref="NetworkInitializationConfiguration{TProtocolConfiguration, TPoolingConfiguration}"/>.</typeparam>
    /// <typeparam name="TProtocolConfiguration">The type of protocol configuration.</typeparam>
-   /// <typeparam name="TAuthenticationConfiguration">The type of authentication configuration.</typeparam>
    /// <typeparam name="TPoolingConfiguration">The type of resource pool configuration controlling behaviour of the resource pool. Must be or inherit <see cref="NetworkPoolingConfiguration"/>.</typeparam>
    /// <remarks>
    /// This is a passive class with gettable and settable properties, and should be used as strong-typed configration read from some external configuration file or other source.
    /// </remarks>
-   /// <seealso cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>
-   public class NetworkConnectionCreationInfoData<TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration>
+   /// <seealso cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/>
+   public class NetworkConnectionCreationInfoData<TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration>
       where TConnectionConfiguration : NetworkConnectionConfiguration
-      where TInitializationConfiguration : NetworkInitializationConfiguration<TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration>
+      where TInitializationConfiguration : NetworkInitializationConfiguration<TProtocolConfiguration, TPoolingConfiguration>
       where TPoolingConfiguration : NetworkPoolingConfiguration
    {
 #if !NETSTANDARD1_0
@@ -236,7 +234,7 @@ namespace UtilPack.Configuration.NetworkStream
    /// <remarks>
    /// This is a passive class with gettable and settable properties, and should be used as strong-typed configration read from some external configuration file or other source.
    /// </remarks>
-   /// <seealso cref="NetworkConnectionCreationInfoData{TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>
+   /// <seealso cref="NetworkConnectionCreationInfoData{TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/>
    public class NetworkConnectionConfiguration
    {
 
@@ -319,8 +317,8 @@ namespace UtilPack.Configuration.NetworkStream
    /// <remarks>
    /// This is a passive class with gettable and settable properties, and should be used as strong-typed configration read from some external configuration file or other source.
    /// </remarks>
-   /// <seealso cref="NetworkConnectionCreationInfoData{TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>
-   public class NetworkInitializationConfiguration<TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration>
+   /// <seealso cref="NetworkConnectionCreationInfoData{TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/>
+   public class NetworkInitializationConfiguration<TProtocolConfiguration, TPoolingConfiguration>
       where TPoolingConfiguration : NetworkPoolingConfiguration
    {
       /// <summary>
@@ -328,12 +326,6 @@ namespace UtilPack.Configuration.NetworkStream
       /// </summary>
       /// <value>The type containing passive configuration data about the communication protocol -specific settings.</value>
       public TProtocolConfiguration Protocol { get; set; }
-
-      /// <summary>
-      /// Gets or sets the type containing passive configuration data about the authentication configuration for the underlying protocol.
-      /// </summary>
-      /// <value>The type containing passive configuration data about the authentication configuration for the underlying protocol.</value>
-      public TAuthenticationConfiguration Authentication { get; set; }
 
       /// <summary>
       /// Gets or sets the type containing passive configuration data about the behaviour of the connections when they are used within the connection pool.
@@ -349,7 +341,7 @@ namespace UtilPack.Configuration.NetworkStream
    /// <remarks>
    /// This is a passive class with gettable and settable properties, and should be used as strong-typed configration read from some external configuration file or other source.
    /// </remarks>
-   /// <seealso cref="NetworkConnectionCreationInfoData{TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>
+   /// <seealso cref="NetworkConnectionCreationInfoData{TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/>
    public class NetworkPoolingConfiguration
    {
       /// <summary>
@@ -386,7 +378,7 @@ namespace UtilPack.Configuration.NetworkStream
 
 
    /// <summary>
-   /// This delegate is used by signature of <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}.ProvideSSLStream"/> in order to customize providing of SSL stream.
+   /// This delegate is used by signature of <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}.ProvideSSLStream"/> in order to customize providing of SSL stream.
    /// </summary>
    /// <param name="innerStream">The inner, unencrypted stream.</param>
    /// <param name="leaveInnerStreamOpen">Whether to leave inner stream opened.</param>

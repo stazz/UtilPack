@@ -33,32 +33,31 @@ namespace UtilPack.ResourcePooling.NetworkStream
 {
 
    /// <summary>
-   /// This class exists in order to avoid specifying *all* generic parameters when creating <see cref="NetworkStreamFactoryConfiguration{TState}"/> from <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>.
+   /// This class exists in order to avoid specifying *all* generic parameters when creating <see cref="NetworkStreamFactoryConfiguration{TState}"/> from <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/>.
    /// </summary>
-   /// <typeparam name="TCreationData">The type of typically serializable configuration data, which only has passive properties. Must be or inherit <see cref="NetworkConnectionCreationInfoData{TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>.</typeparam>
+   /// <typeparam name="TCreationData">The type of typically serializable configuration data, which only has passive properties. Must be or inherit <see cref="NetworkConnectionCreationInfoData{TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/>.</typeparam>
    /// <typeparam name="TConnectionConfiguration">The type of network connection configuration of <typeparamref name="TCreationData"/>. Must be or inherit <see cref="NetworkConnectionConfiguration"/>.</typeparam>
-   /// <typeparam name="TInitializationConfiguration">The type of initialization configuration of <typeparamref name="TCreationData"/>. Must be or inherit <see cref="NetworkInitializationConfiguration{TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>.</typeparam>
+   /// <typeparam name="TInitializationConfiguration">The type of initialization configuration of <typeparamref name="TCreationData"/>. Must be or inherit <see cref="NetworkInitializationConfiguration{TProtocolConfiguration, TPoolingConfiguration}"/>.</typeparam>
    /// <typeparam name="TProtocolConfiguration">The type of protocol configuration of <typeparamref name="TCreationData"/>.</typeparam>
-   /// <typeparam name="TAuthenticationConfiguration">The type of authentication configuration of <typeparamref name="TCreationData"/>.</typeparam>
    /// <typeparam name="TPoolingConfiguration">The type of resource pool configuration of <typeparamref name="TCreationData"/> controlling behaviour of <see cref="AsyncResourcePool{TResource}"/>. Must be or inherit <see cref="NetworkPoolingConfiguration"/>.</typeparam>
    /// <seealso cref="E_UtilPack.CreateStatefulNetworkStreamFactoryConfiguration"/>
-   public sealed class StatefulNetworkStreamFactoryCreator<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration>
-      where TCreationData : NetworkConnectionCreationInfoData<TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration>
+   public sealed class StatefulNetworkStreamFactoryCreator<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration>
+      where TCreationData : NetworkConnectionCreationInfoData<TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration>
       where TConnectionConfiguration : NetworkConnectionConfiguration
-      where TInitializationConfiguration : NetworkInitializationConfiguration<TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration>
+      where TInitializationConfiguration : NetworkInitializationConfiguration<TProtocolConfiguration, TPoolingConfiguration>
       where TPoolingConfiguration : NetworkPoolingConfiguration
    {
-      private readonly NetworkConnectionCreationInfo<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration> _creationInfo;
+      private readonly NetworkConnectionCreationInfo<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration> _creationInfo;
 
       internal StatefulNetworkStreamFactoryCreator(
-          NetworkConnectionCreationInfo<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration> creationInfo
+          NetworkConnectionCreationInfo<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration> creationInfo
          )
       {
          this._creationInfo = ArgumentValidator.ValidateNotNull( nameof( creationInfo ), creationInfo );
       }
 
       /// <summary>
-      /// Creates a <see cref="NetworkStreamFactoryConfiguration{TState}"/> along with other items based on the <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/> this instance has.
+      /// Creates a <see cref="NetworkStreamFactoryConfiguration{TState}"/> along with other items based on the <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/> this instance has.
       /// </summary>
       /// <typeparam name="TIntermediateState">The type of generic parameter of <see cref="NetworkStreamFactoryConfiguration{TState}"/>.</typeparam>
       /// <param name="stateFactory">The callback to create intermediate state.</param>
@@ -66,10 +65,10 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// <param name="isSSLPossible">Callback to check whether SSL is possible. If <c>null</c>, then SSL stream creation will not be possible.</param>
       /// <param name="noSSLStreamProvider">The callback to create an <see cref="Exception"/> to be thrown when there are no SSL stream provider, but should be one.</param>
       /// <param name="remoteNoSSLSupport">The callback to create an <see cref="Exception"/> to be thrown when remote does not support SSL when it should.</param>
-      /// <param name="sslStreamProviderNoStream">The callback to create an <see cref="Exception"/> to be thrown when <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}.ProvideSSLStream"/> returns <c>null</c>.</param>
-      /// <param name="sslStreamProviderNoAuthenticationCallback">The callback to create an <see cref="Exception"/> when <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}.ProvideSSLStream"/> does not provide authentication callback.</param>
+      /// <param name="sslStreamProviderNoStream">The callback to create an <see cref="Exception"/> to be thrown when <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}.ProvideSSLStream"/> returns <c>null</c>.</param>
+      /// <param name="sslStreamProviderNoAuthenticationCallback">The callback to create an <see cref="Exception"/> when <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}.ProvideSSLStream"/> does not provide authentication callback.</param>
       /// <param name="sslStreamOtherError">The callback to create an <see cref="Exception"/> when other SSL-related error occurs.</param>
-      /// <returns>A tuple containing <see cref="NetworkStreamFactoryConfiguration{TState}"/> based on the <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/> this instance holds, along with awaitable to get remote <see cref="IPAddress"/>, and <see cref="BinaryStringPool"/> instance.</returns>
+      /// <returns>A tuple containing <see cref="NetworkStreamFactoryConfiguration{TState}"/> based on the <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/> this instance holds, along with awaitable to get remote <see cref="IPAddress"/>, and <see cref="BinaryStringPool"/> instance.</returns>
       public (NetworkStreamFactoryConfiguration<TIntermediateState>, ReadOnlyResettableAsyncLazy<IPAddress>, BinaryStringPool) Create<TIntermediateState>(
          Func<Socket, TNetworkStream, CancellationToken, TIntermediateState> stateFactory,
          Encoding encoding,
@@ -125,20 +124,20 @@ namespace UtilPack.ResourcePooling.NetworkStream
 public static partial class E_UtilPack
 {
    /// <summary>
-   /// Creates a <see cref="NetworkStreamFactoryConfiguration"/> along with other items based on this <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>.
+   /// Creates a <see cref="NetworkStreamFactoryConfiguration"/> along with other items based on this <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/>.
    /// </summary>
-   /// <param name="creationInfo">This <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>.</param>
+   /// <param name="creationInfo">This <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/>.</param>
    /// <param name="encoding">The <see cref="Encoding"/> to use to read strings from stream. Affects the returned <see cref="BinaryStringPool"/> only.</param>
    /// <param name="isSSLPossible">Callback to check whether SSL is possible. If <c>null</c>, then SSL stream creation will not be possible.</param>
    /// <param name="noSSLStreamProvider">The callback to create an <see cref="Exception"/> to be thrown when there are no SSL stream provider, but should be one.</param>
    /// <param name="remoteNoSSLSupport">The callback to create an <see cref="Exception"/> to be thrown when remote does not support SSL when it should.</param>
-   /// <param name="sslStreamProviderNoStream">The callback to create an <see cref="Exception"/> to be thrown when <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}.ProvideSSLStream"/> returns <c>null</c>.</param>
-   /// <param name="sslStreamProviderNoAuthenticationCallback">The callback to create an <see cref="Exception"/> when <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}.ProvideSSLStream"/> does not provide authentication callback.</param>
+   /// <param name="sslStreamProviderNoStream">The callback to create an <see cref="Exception"/> to be thrown when <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}.ProvideSSLStream"/> returns <c>null</c>.</param>
+   /// <param name="sslStreamProviderNoAuthenticationCallback">The callback to create an <see cref="Exception"/> when <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}.ProvideSSLStream"/> does not provide authentication callback.</param>
    /// <param name="sslStreamOtherError">The callback to create an <see cref="Exception"/> when other SSL-related error occurs.</param>
-   /// <returns>A tuple containing <see cref="NetworkStreamFactoryConfiguration"/> based on the <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/> this instance holds, along with awaitable to get remote <see cref="IPAddress"/>, and <see cref="BinaryStringPool"/> instance.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/> is <c>null</c>.</exception>
-   public static (NetworkStreamFactoryConfiguration, ReadOnlyResettableAsyncLazy<IPAddress>, BinaryStringPool) CreateNetworkStreamFactoryConfiguration<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration>(
-      this NetworkConnectionCreationInfo<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration> creationInfo,
+   /// <returns>A tuple containing <see cref="NetworkStreamFactoryConfiguration"/> based on the <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/> this instance holds, along with awaitable to get remote <see cref="IPAddress"/>, and <see cref="BinaryStringPool"/> instance.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/> is <c>null</c>.</exception>
+   public static (NetworkStreamFactoryConfiguration, ReadOnlyResettableAsyncLazy<IPAddress>, BinaryStringPool) CreateNetworkStreamFactoryConfiguration<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration>(
+      this NetworkConnectionCreationInfo<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration> creationInfo,
       Encoding encoding,
       Func<Task<Boolean>> isSSLPossible,
       Func<Exception> noSSLStreamProvider,
@@ -147,9 +146,9 @@ public static partial class E_UtilPack
       Func<Exception> sslStreamProviderNoAuthenticationCallback,
       Func<Exception, Exception> sslStreamOtherError
       )
-      where TCreationData : NetworkConnectionCreationInfoData<TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration>
+      where TCreationData : NetworkConnectionCreationInfoData<TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration>
       where TConnectionConfiguration : NetworkConnectionConfiguration
-      where TInitializationConfiguration : NetworkInitializationConfiguration<TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration>
+      where TInitializationConfiguration : NetworkInitializationConfiguration<TProtocolConfiguration, TPoolingConfiguration>
       where TPoolingConfiguration : NetworkPoolingConfiguration
    {
       var data = creationInfo.CreationData;
@@ -185,25 +184,24 @@ public static partial class E_UtilPack
    }
 
    /// <summary>
-   /// Creates a <see cref="StatefulNetworkStreamFactoryCreator{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/> to use to create <see cref="NetworkStreamFactoryConfiguration{TState}"/> instances based on this <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>.
+   /// Creates a <see cref="StatefulNetworkStreamFactoryCreator{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/> to use to create <see cref="NetworkStreamFactoryConfiguration{TState}"/> instances based on this <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/>.
    /// </summary>
-   /// <typeparam name="TCreationData">The type of typically serializable configuration data, which only has passive properties. Must be or inherit <see cref="NetworkConnectionCreationInfoData{TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>.</typeparam>
+   /// <typeparam name="TCreationData">The type of typically serializable configuration data, which only has passive properties. Must be or inherit <see cref="NetworkConnectionCreationInfoData{TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/>.</typeparam>
    /// <typeparam name="TConnectionConfiguration">The type of network connection configuration of <typeparamref name="TCreationData"/>. Must be or inherit <see cref="NetworkConnectionConfiguration"/>.</typeparam>
-   /// <typeparam name="TInitializationConfiguration">The type of initialization configuration of <typeparamref name="TCreationData"/>. Must be or inherit <see cref="NetworkInitializationConfiguration{TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>.</typeparam>
+   /// <typeparam name="TInitializationConfiguration">The type of initialization configuration of <typeparamref name="TCreationData"/>. Must be or inherit <see cref="NetworkInitializationConfiguration{TProtocolConfiguration, TPoolingConfiguration}"/>.</typeparam>
    /// <typeparam name="TProtocolConfiguration">The type of protocol configuration of <typeparamref name="TCreationData"/>.</typeparam>
-   /// <typeparam name="TAuthenticationConfiguration">The type of authentication configuration of <typeparamref name="TCreationData"/>.</typeparam>
    /// <typeparam name="TPoolingConfiguration">The type of resource pool configuration of <typeparamref name="TCreationData"/> controlling behaviour of <see cref="UtilPack.ResourcePooling.AsyncResourcePool{TResource}"/>. Must be or inherit <see cref="NetworkPoolingConfiguration"/>.</typeparam>
-   /// <param name="creationInfo">This <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/>.</param>
+   /// <param name="creationInfo">This <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/>.</param>
    /// <returns>An class that can be used to create <see cref="NetworkStreamFactoryConfiguration{TState}"/> instances.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration}"/> is <c>null</c>.</exception>
-   public static StatefulNetworkStreamFactoryCreator<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration> CreateStatefulNetworkStreamFactoryConfiguration<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration>(
-      this NetworkConnectionCreationInfo<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration> creationInfo
+   /// <exception cref="NullReferenceException">If this <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/> is <c>null</c>.</exception>
+   public static StatefulNetworkStreamFactoryCreator<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration> CreateStatefulNetworkStreamFactoryConfiguration<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration>(
+      this NetworkConnectionCreationInfo<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration> creationInfo
       )
-      where TCreationData : NetworkConnectionCreationInfoData<TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration>
+      where TCreationData : NetworkConnectionCreationInfoData<TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration>
       where TConnectionConfiguration : NetworkConnectionConfiguration
-      where TInitializationConfiguration : NetworkInitializationConfiguration<TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration>
+      where TInitializationConfiguration : NetworkInitializationConfiguration<TProtocolConfiguration, TPoolingConfiguration>
       where TPoolingConfiguration : NetworkPoolingConfiguration
    {
-      return new StatefulNetworkStreamFactoryCreator<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TAuthenticationConfiguration, TPoolingConfiguration>( ArgumentValidator.ValidateNotNullReference( creationInfo ) );
+      return new StatefulNetworkStreamFactoryCreator<TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration>( ArgumentValidator.ValidateNotNullReference( creationInfo ) );
    }
 }

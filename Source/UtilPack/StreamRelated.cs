@@ -1277,6 +1277,60 @@ namespace UtilPack
 
 #endif
 
+   public sealed class BufferAdvanceState
+   {
+      public Int32 BufferOffset { get; private set; }
+      public Int32 BufferTotal { get; private set; }
+
+      public Boolean TryAdvance( Int32 amount )
+      {
+         Boolean retVal;
+         if ( amount > 0 )
+         {
+            var newOffset = this.BufferOffset + amount;
+            if ( newOffset <= this.BufferTotal )
+            {
+               retVal = true;
+               this.BufferOffset = newOffset;
+            }
+            else
+            {
+               retVal = false;
+            }
+         }
+         else
+         {
+            retVal = amount == 0;
+         }
+
+         return retVal;
+      }
+
+      public Boolean TryReadMore( Int32 amount )
+      {
+         Boolean retVal;
+         if ( amount > 0 )
+         {
+            retVal = true;
+            this.BufferTotal += amount;
+         }
+         else
+         {
+            retVal = amount == 0;
+         }
+         return retVal;
+      }
+
+      // TODO TryAdvanceTo - would take absolute offset 
+      // TODO Reset(offset, total)
+
+      public void Reset()
+      {
+         this.BufferOffset = 0;
+         this.BufferTotal = 0;
+      }
+   }
+
 }
 
 
@@ -1543,30 +1597,44 @@ public static partial class E_UtilPack
    /// <param name="endMark">The byte sequence signifying when to stop.</param>
    /// <param name="streamReadCount">The maximum amount of bytes to read from this <see cref="Stream"/>, if needed.</param>
    /// <returns>Potentially asynchronously returns offset where the end mark starts, and the total amount of bytes read from stream in <paramref name="buffer"/>.</returns>
-   public static async ValueTask<(Int32 Offset, Int32 TotalReadBytes)> ReadUntilMaybeAsync(
+   public static Task ReadUntilMaybeAsync(
       this Stream stream,
       ResizableArray<Byte> buffer,
-      Int32 alreadyRead,
-      Int32 totalExisting,
+      BufferAdvanceState advanceState,
       Byte[] endMark,
       Int32 streamReadCount
       )
    {
       ArgumentValidator.ValidateNotNullReference( stream );
       // Scan to see if we have endMark already
+      var alreadyRead = advanceState.BufferOffset;
+      var totalExisting = advanceState.BufferTotal;
       var end = ArgumentValidator.ValidateNotNull( nameof( buffer ), buffer ).Array.IndexOfArray( alreadyRead, totalExisting - alreadyRead, endMark );
+      Task retVal;
       if ( end == -1 )
       {
-         //beforeAsyncRead?.Invoke();
-         (end, totalExisting) = await stream.ReadUntilAsync( buffer, totalExisting, endMark, streamReadCount );
+         retVal = stream.ReadUntilAsync( buffer, advanceState, endMark, streamReadCount );
       }
-      return (end, totalExisting);
+      else
+      {
+         advanceState.Advance( end - alreadyRead );
+         retVal = TaskUtils.CompletedTask;
+      }
+      return retVal;
    }
 
-   private static async Task<(Int32 Offset, Int32 TotalReadBytes)> ReadUntilAsync( this Stream stream, ResizableArray<Byte> buffer, Int32 offset, Byte[] endMark, Int32 streamReadCount )
+   private static async Task ReadUntilAsync(
+      this Stream stream,
+      ResizableArray<Byte> buffer,
+      BufferAdvanceState advanceState,
+      Byte[] endMark,
+      Int32 streamReadCount
+      )
    {
-      Int32 originalBufferOffset, bytesRead, retVal;
-
+      Int32 originalBufferOffset, bytesRead;
+      var originalOffset = advanceState.BufferOffset;
+      var offset = originalOffset;
+      Int32 end;
       do
       {
          bytesRead = await stream.ReadAsync( buffer.SetCapacityAndReturnArray( offset + streamReadCount ), offset, streamReadCount, default );
@@ -1576,9 +1644,26 @@ public static partial class E_UtilPack
          }
          originalBufferOffset = Math.Max( 0, offset + 1 - endMark.Length );
          offset += bytesRead;
-      } while ( ( retVal = buffer.Array.IndexOfArray( originalBufferOffset, bytesRead, endMark, EqualityComparer<Byte>.Default ) ) < 0 );
+         advanceState.ReadMore( bytesRead );
+      } while ( ( end = buffer.Array.IndexOfArray( originalBufferOffset, bytesRead, endMark, EqualityComparer<Byte>.Default ) ) < 0 );
+      advanceState.Advance( end - originalOffset );
 
-      return (retVal, offset);
+   }
+
+   public static void Advance( this BufferAdvanceState state, Int32 amount )
+   {
+      if ( !state.TryAdvance( amount ) )
+      {
+         throw new InvalidOperationException( $"Could not advance by { amount }." );
+      }
+   }
+
+   public static void ReadMore( this BufferAdvanceState state, Int32 amount )
+   {
+      if ( !state.TryReadMore( amount ) )
+      {
+         throw new InvalidOperationException( $"Could not read more by { amount }." );
+      }
    }
 
 }

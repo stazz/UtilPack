@@ -23,6 +23,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+#if !NETSTANDARD1_0
+using System.Security.Authentication;
+#endif
+
 namespace UtilPack.Configuration.NetworkStream
 {
    /// <summary>
@@ -209,7 +213,6 @@ namespace UtilPack.Configuration.NetworkStream
       where TInitializationConfiguration : NetworkInitializationConfiguration<TProtocolConfiguration, TPoolingConfiguration>
       where TPoolingConfiguration : NetworkPoolingConfiguration
    {
-#if !NETSTANDARD1_0
 
       /// <summary>
       /// Gets or sets the <typeparamref name="TConnectionConfiguration"/>, holding data related to socket-based connections.
@@ -217,7 +220,6 @@ namespace UtilPack.Configuration.NetworkStream
       /// <value>The <typeparamref name="TConnectionConfiguration"/>, holding data related to socket-based connections.</value>
       public TConnectionConfiguration Connection { get; set; }
 
-#endif
 
       /// <summary>
       /// Gets or sets the <typeparamref name="TInitializationConfiguration"/>, holding data related to initialization process of the underlying protocol.
@@ -238,14 +240,13 @@ namespace UtilPack.Configuration.NetworkStream
    public class NetworkConnectionConfiguration
    {
 
-#if !NETSTANDARD1_0
       /// <summary>
       /// This constant defines default SSL protocol, if SSL is enabled.
       /// </summary>
       /// <remarks>
       /// In .NET 4.0 environment, this is Tls. In other environments, it is Tls1.2.
       /// </remarks>
-      public const System.Security.Authentication.SslProtocols DEFAULT_SSL_PROTOCOL = System.Security.Authentication.SslProtocols
+      public const SslProtocols DEFAULT_SSL_PROTOCOL = SslProtocols
 #if NET40
             .Tls
 #else
@@ -299,16 +300,44 @@ namespace UtilPack.Configuration.NetworkStream
       public ConnectionSSLMode ConnectionSSLMode { get; set; }
 
       /// <summary>
-      /// Gets or sets the <see cref="System.Security.Authentication.SslProtocols"/> controlling what kind of SSL encryption will be used for the socket connection.
+      /// Gets or sets the <see cref="SslProtocols"/> controlling what kind of SSL encryption will be used for the socket connection.
       /// </summary>
-      /// <value>The <see cref="System.Security.Authentication.SslProtocols"/> controlling what kind of SSL encryption will be used for the socket connection.</value>
+      /// <value>The <see cref="SslProtocols"/> controlling what kind of SSL encryption will be used for the socket connection.</value>
       /// <remarks>
-      /// This field will only be used of <see cref="ConnectionSSLMode"/> property will be something else than <see cref="UtilPack.Configuration.NetworkStream.ConnectionSSLMode.NotRequired"/>
+      /// This field will only be used of <see cref="ConnectionSSLMode"/> property will be something else than <see cref="NetworkStream.ConnectionSSLMode.NotRequired"/>
       /// </remarks>
-      public System.Security.Authentication.SslProtocols SSLProtocols { get; set; }
-#endif
+      public SslProtocols SSLProtocols { get; set; }
 
    }
+
+#if NETSTANDARD1_0
+
+   /// <inheritdoc />
+   [Flags]
+   public enum SslProtocols
+   {
+      /// <inheritdoc />
+      None = 0,
+
+      /// <inheritdoc />
+      Ssl2 = 12,
+
+      /// <inheritdoc />
+      Ssl3 = 48,
+
+      /// <inheritdoc />
+      Tls = 192,
+
+      /// <inheritdoc />
+      Default = 240,
+
+      /// <inheritdoc />
+      Tls11 = 768,
+
+      /// <inheritdoc />
+      Tls12 = 3072
+   }
+#endif
 
    /// <summary>
    /// This class represents typical configuration data for initializing a network connection to remote endpoint when utilizing network.
@@ -354,7 +383,6 @@ namespace UtilPack.Configuration.NetworkStream
       public Boolean ConnectionsOwnStringPool { get; set; }
    }
 
-#if !NETSTANDARD1_0
    /// <summary>
    /// This enumeration tells the behaviour of SSL stream establishment when creating connection.
    /// </summary>
@@ -376,6 +404,7 @@ namespace UtilPack.Configuration.NetworkStream
       Required
    }
 
+#if !NETSTANDARD1_0
 
    /// <summary>
    /// This delegate is used by signature of <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}.ProvideSSLStream"/> in order to customize providing of SSL stream.

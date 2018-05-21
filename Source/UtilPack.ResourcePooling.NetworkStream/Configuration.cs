@@ -84,9 +84,10 @@ namespace UtilPack.ResourcePooling.NetworkStream
 
          var data = creationInfo.CreationData;
          var host = data.Connection?.Host;
-         var remoteAddress = host.CreateAddressOrHostNameResolvingLazy(
-               creationInfo.SelectRemoteIPAddress,
-               creationInfo.DNSResolve
+         var remoteAddress = UtilPackMiscellaneous.CreateAddressOrHostNameResolvingLazy(
+            host,
+            creationInfo.SelectRemoteIPAddress,
+            creationInfo.DNSResolve
             );
 
          return (new NetworkStreamFactoryConfiguration<TIntermediateState>()
@@ -153,10 +154,11 @@ public static partial class E_UtilPack
    {
       var data = creationInfo.CreationData;
       var host = data.Connection?.Host;
-      var remoteAddress = host.CreateAddressOrHostNameResolvingLazy(
-            creationInfo.SelectRemoteIPAddress,
-            creationInfo.DNSResolve
-            );
+      var remoteAddress = UtilPackMiscellaneous.CreateAddressOrHostNameResolvingLazy(
+         host,
+         creationInfo.SelectRemoteIPAddress,
+         creationInfo.DNSResolve
+         );
       return (new NetworkStreamFactoryConfiguration()
       {
          SelectLocalIPEndPoint = creationInfo.SelectLocalIPEndPoint,

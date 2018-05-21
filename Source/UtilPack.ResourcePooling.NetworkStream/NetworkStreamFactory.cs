@@ -237,83 +237,164 @@ namespace UtilPack.ResourcePooling.NetworkStream
                state = stateInit( socket, nwStream, token );
             }
             stream = nwStream;
+            var remoteCanSSL = await ( parameters.IsSSLPossible?.Invoke( state ) ?? TaskUtils.False );
             var connectionMode = parameters.ConnectionSSLMode?.Invoke( state ) ?? ConnectionSSLMode.NotRequired;
             var isSSLRequired = connectionMode == ConnectionSSLMode.Required;
-            if ( isSSLRequired || connectionMode == ConnectionSSLMode.Preferred )
+            var isSSLPreferred = connectionMode == ConnectionSSLMode.Preferred;
+            if ( remoteCanSSL && ( isSSLRequired || isSSLPreferred ) )
             {
-               if ( await ( parameters.IsSSLPossible?.Invoke( state ) ?? default ) )
+               // Start SSL session
+               Stream sslStream = null;
+               try
                {
-                  // Start SSL session
-                  Stream sslStream = null;
-                  try
+                  var provideSSLStream = parameters.ProvideSSLStream;
+                  if ( provideSSLStream != null )
                   {
-                     var provideSSLStream = parameters.ProvideSSLStream;
-                     if ( provideSSLStream != null )
+                     var clientCerts = new System.Security.Cryptography.X509Certificates.X509CertificateCollection();
+                     parameters.ProvideClientCertificates?.Invoke( clientCerts );
+                     sslStream = provideSSLStream( stream, false, parameters.ValidateServerCertificate, parameters.SelectLocalCertificate, out AuthenticateAsClientAsync authenticateAsClient );
+                     if ( isSSLRequired )
                      {
-                        var clientCerts = new System.Security.Cryptography.X509Certificates.X509CertificateCollection();
-                        parameters.ProvideClientCertificates?.Invoke( clientCerts );
-                        sslStream = provideSSLStream( stream, false, parameters.ValidateServerCertificate, parameters.SelectLocalCertificate, out AuthenticateAsClientAsync authenticateAsClient );
-                        if ( isSSLRequired )
+                        if ( sslStream == null )
                         {
-                           if ( sslStream == null )
-                           {
-                              throw parameters.SSLStreamProviderNoStream?.Invoke() ?? new InvalidOperationException( "SSL stream creation callback returned null." );
-                           }
-                           else if ( authenticateAsClient == null )
-                           {
-                              throw parameters.SSLStreamProviderNoAuthenticationCallback?.Invoke() ?? new InvalidOperationException( "Authentication callback given by SSL stream creation callback was null." );
-                           }
+                           throw parameters.SSLStreamProviderNoStream?.Invoke() ?? new InvalidOperationException( "SSL stream creation callback returned null." );
                         }
-
-                        if ( sslStream != null && authenticateAsClient != null )
+                        else if ( authenticateAsClient == null )
                         {
-                           await authenticateAsClient(
-                              sslStream,
-                              parameters.ProvideSSLHost?.Invoke( state ) ?? throw new ArgumentException( "Please specify remote host in connection configuration." ),
-                              clientCerts,
-                              parameters.GetSSLProtocols?.Invoke( state ) ?? AbstractNetworkStreamFactoryConfiguration.DEFAULT_SSL_PROTOCOLS,
-                              true
-                              );
-                           stream = sslStream;
+                           throw parameters.SSLStreamProviderNoAuthenticationCallback?.Invoke() ?? new InvalidOperationException( "Authentication callback given by SSL stream creation callback was null." );
                         }
                      }
-                     else if ( isSSLRequired )
+
+                     if ( sslStream != null && authenticateAsClient != null )
                      {
-                        throw parameters.NoSSLStreamProvider() ?? new InvalidOperationException( "Creation parameters did not have callback to create SSL stream." );
+                        await authenticateAsClient(
+                           sslStream,
+                           parameters.ProvideSSLHost?.Invoke( state ) ?? throw new ArgumentException( "Please specify remote host in connection configuration." ),
+                           clientCerts,
+                           parameters.GetSSLProtocols?.Invoke( state ) ?? AbstractNetworkStreamFactoryConfiguration.DEFAULT_SSL_PROTOCOLS,
+                           true
+                           );
+                        stream = sslStream;
                      }
                   }
-                  catch ( Exception exc )
+                  else if ( isSSLRequired )
                   {
-                     if ( !isSSLRequired )
+                     throw parameters.NoSSLStreamProvider() ?? new InvalidOperationException( "Creation parameters did not have callback to create SSL stream." );
+                  }
+               }
+               catch ( Exception exc )
+               {
+                  if ( !isSSLRequired )
+                  {
+                     // We close SSL stream in case authentication failed.
+                     // Closing SSL stream will close underlying stream, which will close the socket...
+                     // So we have to reconnect afterwards.
+                     ( sslStream ?? stream ).DisposeSafely();
+                     // ... so re-create it
+                     socket = CreateSocket();
+                     stream = await InitNetworkStream( socket );
+                  }
+                  else
+                  {
+                     var otherExc = parameters.SSLStreamOtherError?.Invoke( exc );
+                     if ( otherExc == null )
                      {
-                        // We close SSL stream in case authentication failed.
-                        // Closing SSL stream will close underlying stream, which will close the socket...
-                        // So we have to reconnect afterwards.
-                        ( sslStream ?? stream ).DisposeSafely();
-                        // ... so re-create it
-                        socket = CreateSocket();
-                        stream = await InitNetworkStream( socket );
+                        throw;
                      }
                      else
                      {
-                        var otherExc = parameters.SSLStreamOtherError?.Invoke( exc );
-                        if ( otherExc == null )
-                        {
-                           throw;
-                        }
-                        else
-                        {
-                           throw otherExc;
-                        }
+                        throw otherExc;
                      }
                   }
                }
-               else if ( isSSLRequired )
-               {
-                  // SSL session start was unsuccessful, and it is required -> can not continue
-                  throw parameters.RemoteNoSSLSupport?.Invoke() ?? new InvalidOperationException( "Remote does not support SSL." );
-               }
             }
+            else if ( !remoteCanSSL && ( connectionMode == ConnectionSSLMode.NotRequired || isSSLPreferred ) )
+            {
+               // Nothing to do - continue normally
+            }
+            else
+            {
+               // SSL session start was unsuccessful, and it is required -> can not continue
+               throw parameters.RemoteNoSSLSupport?.Invoke() ?? new InvalidOperationException( "Remote does not support SSL." );
+            }
+
+
+
+            //if ( isSSLRequired || connectionMode == ConnectionSSLMode.Preferred )
+            //{
+            //   if ( await ( parameters.IsSSLPossible?.Invoke( state ) ?? TaskUtils.False ) )
+            //   {
+            //      // Start SSL session
+            //      Stream sslStream = null;
+            //      try
+            //      {
+            //         var provideSSLStream = parameters.ProvideSSLStream;
+            //         if ( provideSSLStream != null )
+            //         {
+            //            var clientCerts = new System.Security.Cryptography.X509Certificates.X509CertificateCollection();
+            //            parameters.ProvideClientCertificates?.Invoke( clientCerts );
+            //            sslStream = provideSSLStream( stream, false, parameters.ValidateServerCertificate, parameters.SelectLocalCertificate, out AuthenticateAsClientAsync authenticateAsClient );
+            //            if ( isSSLRequired )
+            //            {
+            //               if ( sslStream == null )
+            //               {
+            //                  throw parameters.SSLStreamProviderNoStream?.Invoke() ?? new InvalidOperationException( "SSL stream creation callback returned null." );
+            //               }
+            //               else if ( authenticateAsClient == null )
+            //               {
+            //                  throw parameters.SSLStreamProviderNoAuthenticationCallback?.Invoke() ?? new InvalidOperationException( "Authentication callback given by SSL stream creation callback was null." );
+            //               }
+            //            }
+
+            //            if ( sslStream != null && authenticateAsClient != null )
+            //            {
+            //               await authenticateAsClient(
+            //                  sslStream,
+            //                  parameters.ProvideSSLHost?.Invoke( state ) ?? throw new ArgumentException( "Please specify remote host in connection configuration." ),
+            //                  clientCerts,
+            //                  parameters.GetSSLProtocols?.Invoke( state ) ?? AbstractNetworkStreamFactoryConfiguration.DEFAULT_SSL_PROTOCOLS,
+            //                  true
+            //                  );
+            //               stream = sslStream;
+            //            }
+            //         }
+            //         else if ( isSSLRequired )
+            //         {
+            //            throw parameters.NoSSLStreamProvider() ?? new InvalidOperationException( "Creation parameters did not have callback to create SSL stream." );
+            //         }
+            //      }
+            //      catch ( Exception exc )
+            //      {
+            //         if ( !isSSLRequired )
+            //         {
+            //            // We close SSL stream in case authentication failed.
+            //            // Closing SSL stream will close underlying stream, which will close the socket...
+            //            // So we have to reconnect afterwards.
+            //            ( sslStream ?? stream ).DisposeSafely();
+            //            // ... so re-create it
+            //            socket = CreateSocket();
+            //            stream = await InitNetworkStream( socket );
+            //         }
+            //         else
+            //         {
+            //            var otherExc = parameters.SSLStreamOtherError?.Invoke( exc );
+            //            if ( otherExc == null )
+            //            {
+            //               throw;
+            //            }
+            //            else
+            //            {
+            //               throw otherExc;
+            //            }
+            //         }
+            //      }
+            //   }
+            //   else if ( isSSLRequired )
+            //   {
+            //      // SSL session start was unsuccessful, and it is required -> can not continue
+            //      throw parameters.RemoteNoSSLSupport?.Invoke() ?? new InvalidOperationException( "Remote does not support SSL." );
+            //   }
+            //}
 
          }
          catch
@@ -661,7 +742,7 @@ public static partial class E_UtilPack
    /// <param name="createState">The optional callback for <see cref="NetworkStreamFactoryConfiguration{TState}.CreateState"/>.</param>
    /// <returns>A new instance of <see cref="NetworkStreamFactoryConfiguration{TState}"/> which will delegate all of its functionality to this <see cref="NetworkStreamFactoryConfiguration"/>.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="NetworkStreamFactoryConfiguration"/> is <c>null</c>.</exception>
-   public static NetworkStreamFactoryConfiguration<TState> AsStateful<TState>( this NetworkStreamFactoryConfiguration configuration, Func<Socket, NetworkStream, CancellationToken, TState> createState = null )
+   public static NetworkStreamFactoryConfiguration<TState> AsStateful<TState>( this NetworkStreamFactoryConfiguration configuration, Func<Socket, TNetworkStream, CancellationToken, TState> createState = null )
    {
       ArgumentValidator.ValidateNotNullReference( configuration );
 

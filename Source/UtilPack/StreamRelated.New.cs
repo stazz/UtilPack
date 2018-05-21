@@ -436,18 +436,27 @@ namespace UtilPack
       private async Task<Int32> ReadFromUnderlyingStreamAsync( Byte[] buffer, Int32 offset, Int32 count, CancellationToken cancellationToken )
       {
          var thisBuffer = this._readBuffer;
-         var bytesRead = await this._stream.ReadAsync( thisBuffer, 0, thisBuffer.Length, cancellationToken );
-         if ( bytesRead > 0 )
+         Int32 bytesRead;
+         if ( count >= thisBuffer.Length )
          {
-            var bytesCopied = Math.Min( bytesRead, count );
-            Buffer.BlockCopy( thisBuffer, 0, buffer, offset, bytesCopied );
-            this._readPosition = bytesCopied;
-            this._readLength = bytesRead;
-            bytesRead = bytesCopied;
+            // Just read directly into target array and skip this buffer
+            bytesRead = await this._stream.ReadAsync( buffer, offset, count, cancellationToken );
          }
          else
          {
-            this._readPosition = this._readLength = 0;
+            bytesRead = await this._stream.ReadAsync( thisBuffer, 0, thisBuffer.Length, cancellationToken );
+            if ( bytesRead > 0 )
+            {
+               var bytesCopied = Math.Min( bytesRead, count );
+               Buffer.BlockCopy( thisBuffer, 0, buffer, offset, bytesCopied );
+               this._readPosition = bytesCopied;
+               this._readLength = bytesRead;
+               bytesRead = bytesCopied;
+            }
+            else
+            {
+               this._readPosition = this._readLength = 0;
+            }
          }
 
          this._cachedReadTask =

@@ -23,9 +23,9 @@ using UtilPack;
 namespace UtilPack.ResourcePooling.NetworkStream
 {
    /// <summary>
-   /// This class contains extensions methods for types not defined in this assembly.
+   /// This class contains miscellaneous methods.
    /// </summary>
-   public static class UtilPackExtensions
+   public static class UtilPackMiscellaneous
    {
       /// <summary>
       /// This is helper method to create a <see cref="ReadOnlyResettableAsyncLazy{T}"/> which will resolve host name or textual IP address into <see cref="IPAddress"/>.
@@ -36,7 +36,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// <param name="dnsResolve">The optional callback to perform DNS resolve. If <c>null</c>, then <paramref name="addressSelector"/> will get <c>null</c> as its argument.</param>
       /// <returns>A new <see cref="ReadOnlyResettableAsyncLazy{T}"/> which will asynchronously </returns>
       public static ReadOnlyResettableAsyncLazy<IPAddress> CreateAddressOrHostNameResolvingLazy(
-         this String addressOrHostName,
+         String addressOrHostName,
          Func<IPAddress[], IPAddress> addressSelector,
          Func<String, Task<IPAddress[]>> dnsResolve = null
          )

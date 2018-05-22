@@ -1277,11 +1277,27 @@ namespace UtilPack
 
 #endif
 
+   /// <summary>
+   /// This class describes which range of the <see cref="ResizableArray{T}"/> contains read data, and how much of that read data has been read.
+   /// </summary>
+   /// <seealso cref="E_UtilPack.ReadUntilMaybeAsync(Stream, ResizableArray{byte}, BufferAdvanceState, byte[], int)"/>
    public sealed class BufferAdvanceState
    {
+      /// <summary>
+      /// Gets the current buffer offset. This is the index into the array of <see cref="ResizableArray{T}"/> where the next non-read item is.
+      /// </summary>
       public Int32 BufferOffset { get; private set; }
+
+      /// <summary>
+      /// Gets the current buffer total read count. This is the amount of items in the array of <see cref="ResizableArray{T}"/> that contain useful data.
+      /// </summary>
       public Int32 BufferTotal { get; private set; }
 
+      /// <summary>
+      /// Tries to add the given <paramref name="amount"/> to <see cref="BufferOffset"/>.
+      /// </summary>
+      /// <param name="amount">The amount to add.</param>
+      /// <returns><c>true</c> if <paramref name="amount"/> is <c> ≥ 0</c> and if <see cref="BufferOffset"/> <c>+</c> <paramref name="amount"/> is <c>≤</c> <see cref="BufferTotal"/>; <c>false</c> otherwise.</returns>
       public Boolean TryAdvance( Int32 amount )
       {
          Boolean retVal;
@@ -1306,6 +1322,11 @@ namespace UtilPack
          return retVal;
       }
 
+      /// <summary>
+      /// Tries to add the given <paramref name="amount"/> to <see cref="BufferTotal"/>.
+      /// </summary>
+      /// <param name="amount">The amount to add.</param>
+      /// <returns><c>true</c> if <paramref name="amount"/> is <c> ≥ 0</c>; <c>false</c> otherwise.</returns>
       public Boolean TryReadMore( Int32 amount )
       {
          Boolean retVal;
@@ -1322,10 +1343,31 @@ namespace UtilPack
       }
 
       // TODO TryAdvanceTo - would take absolute offset 
-      // TODO Reset(offset, total)
 
-      public void Reset()
+      /// <summary>
+      /// Explicitly resets the <see cref="BufferOffset"/> and <see cref="BufferTotal"/> to given values, while still maintaining sane values to both.
+      /// </summary>
+      /// <param name="offset">The new value for <see cref="BufferOffset"/>. Will be <c>0</c> if it is <c>&lt; 0</c>. Will be <paramref name="total"/> if it is <c>&gt;</c> <paramref name="total"/>.</param>
+      /// <param name="total">The new value for <see cref="BufferTotal"/>. Will be <c>0</c> if it is <c>&lt; 0</c>.</param>
+      public void Reset(
+         Int32 offset = 0,
+         Int32 total = 0
+         )
       {
+         if ( total < 0 )
+         {
+            total = 0;
+         }
+
+         if ( offset > total )
+         {
+            offset = total;
+         }
+         else if ( offset < 0 )
+         {
+            offset = 0;
+         }
+
          this.BufferOffset = 0;
          this.BufferTotal = 0;
       }
@@ -1592,11 +1634,11 @@ public static partial class E_UtilPack
    /// </summary>
    /// <param name="stream">This stream.</param>
    /// <param name="buffer">The <see cref="ResizableArray{T}"/> potentially containing data from previous reads.</param>
-   /// <param name="alreadyRead">The amount of data in <paramref name="buffer"/> that has been already read.</param>
-   /// <param name="totalExisting">The total amount of data in <paramref name="buffer"/> that has been previously read.</param>
+   /// <param name="advanceState">The <see cref="BufferAdvanceState"/> describing current read state of <paramref name="buffer"/>.</param>
    /// <param name="endMark">The byte sequence signifying when to stop.</param>
    /// <param name="streamReadCount">The maximum amount of bytes to read from this <see cref="Stream"/>, if needed.</param>
-   /// <returns>Potentially asynchronously returns offset where the end mark starts, and the total amount of bytes read from stream in <paramref name="buffer"/>.</returns>
+   /// <returns>Task which will complete.</returns>
+   /// <exception cref="EndOfStreamException">If stream ends before given end mark is seen.</exception>
    public static Task ReadUntilMaybeAsync(
       this Stream stream,
       ResizableArray<Byte> buffer,
@@ -1650,19 +1692,33 @@ public static partial class E_UtilPack
 
    }
 
+   /// <summary>
+   /// This is helper method to call <see cref="BufferAdvanceState.TryAdvance(int)"/> and throw and exception if <c>false</c> is returned.
+   /// </summary>
+   /// <param name="state">This <see cref="BufferAdvanceState"/>.</param>
+   /// <param name="amount">The amount to add to <see cref="BufferAdvanceState.BufferOffset"/>.</param>
+   /// <exception cref="NullReferenceException">If this <see cref="BufferAdvanceState"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentException">If <see cref="BufferAdvanceState.TryAdvance(int)"/> returns <c>false</c> for given <paramref name="amount"/>.</exception>
    public static void Advance( this BufferAdvanceState state, Int32 amount )
    {
       if ( !state.TryAdvance( amount ) )
       {
-         throw new InvalidOperationException( $"Could not advance by { amount }." );
+         throw new ArgumentException( $"Could not advance by { amount }." );
       }
    }
 
+   /// <summary>
+   /// This is helper method to call <see cref="BufferAdvanceState.TryReadMore(int)"/> and throw and exception if <c>false</c> is returned.
+   /// </summary>
+   /// <param name="state">This <see cref="BufferAdvanceState"/>.</param>
+   /// <param name="amount">The amount to add to <see cref="BufferAdvanceState.BufferTotal"/>.</param>
+   /// <exception cref="NullReferenceException">If this <see cref="BufferAdvanceState"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentException">If <see cref="BufferAdvanceState.TryReadMore(int)"/> returns <c>false</c> for given <paramref name="amount"/>.</exception>
    public static void ReadMore( this BufferAdvanceState state, Int32 amount )
    {
       if ( !state.TryReadMore( amount ) )
       {
-         throw new InvalidOperationException( $"Could not read more by { amount }." );
+         throw new ArgumentException( $"Could not read more by { amount }." );
       }
    }
 

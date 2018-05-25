@@ -642,7 +642,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// </summary>
       /// <value>The callback to get <see cref="Configuration.NetworkStream.ConnectionSSLMode"/>.</value>
       /// <remarks>
-      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will default to <see cref="Configuration.NetworkStream.ConnectionSSLMode.NotRequired"/>.
+      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory"/> will default to <see cref="Configuration.NetworkStream.ConnectionSSLMode.NotRequired"/>.
       /// </remarks>
       public Func<ConnectionSSLMode> ConnectionSSLMode { get; set; }
 
@@ -651,7 +651,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// </summary>
       /// <value>The callback to check whether SSL is possible.</value>
       /// <remarks>
-      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will assume SSL is not possible.
+      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory"/> will assume SSL is not possible.
       /// </remarks>
       public Func<Task<Boolean>> IsSSLPossible { get; set; }
 
@@ -660,7 +660,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// </summary>
       /// <value>The callback to get <see cref="System.Security.Authentication.SslProtocols"/> when authenticating as client over SSL stream.</value>
       /// <remarks>
-      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will use default value, which varies based on platform.
+      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory"/> will use default value, which varies based on platform.
       /// </remarks>
       public Func<System.Security.Authentication.SslProtocols> GetSSLProtocols { get; set; }
 
@@ -669,7 +669,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// </summary>
       /// <value>The callback to get host name when authenticating as client over SSL stream.</value>
       /// <remarks>
-      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will throw <see cref="ArgumentException"/>.
+      /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory"/> will throw <see cref="ArgumentException"/>.
       /// </remarks>
       public Func<String> ProvideSSLHost { get; set; }
    }

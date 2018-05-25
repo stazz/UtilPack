@@ -28,74 +28,31 @@ using System.Threading.Tasks;
 namespace UtilPack
 {
 
-#if SILVERLIGHT
    /// <summary>
-   /// This is helper class to provide similar functionality to <see cref="T:System.Threading.ThreadLocal`1"/>, which is missing in Silverlight.
+   /// This is simple class which acts as <see cref="IDisposable"/> with no state and no functionality.
    /// </summary>
-   /// <typeparam name="T">The type of the values to hold.</typeparam>
-   public sealed class ThreadLocal<T>
+   public sealed class NoOpDisposable : IDisposable
    {
-      // Helper class to hold values, so T typeparam wouldn't have any generic constraints.
-      private sealed class ValueHolder
-      {
-         internal T _value;
-         internal ValueHolder( T value )
-         {
-            this._value = value;
-         }
-      }
-
-      private static readonly Func<T> _defaultFactory = () => default( T );
-
-      // Table holding all instances of ThreadLocals in this thread. Since they are weak references, they should get GC'd without big issues.
-      [ThreadStatic]
-      private static System.Runtime.CompilerServices.ConditionalWeakTable<ThreadLocal<T>, ValueHolder> _table;
-
-      // Factory callback
-      private readonly Func<T> _factory;
-
       /// <summary>
-      /// Creates a new instance of <see cref="ThreadLocal{T}"/> with optional factory callback.
+      /// Gets the singleton <see cref="NoOpDisposable"/> instance.
       /// </summary>
-      /// <param name="factory">The optional factory callback. If not supplied (i.e. is <c>null</c>), then a factory callback will return default value ofr type <typeparamref name="T"/>.</param>
-      public ThreadLocal( Func<T> factory = null )
+      /// <value>The singleton <see cref="NoOpDisposable"/> instance.</value>
+
+      public static NoOpDisposable Instance { get; } = new NoOpDisposable();
+
+      private NoOpDisposable()
       {
-         this._factory = factory ?? _defaultFactory;
+
       }
 
       /// <summary>
-      /// Gets or sets value that this <see cref="ThreadLocal{T}"/> holds in current thread.
+      /// This method is a no-op.
       /// </summary>
-      /// <value>The value that this <see cref="ThreadLocal{T}"/> holds in current thread.</value>
-      public T Value
+      public void Dispose()
       {
-         get
-         {
-            ValueHolder holder;
-            T retVal;
-            if ( _table != null && _table.TryGetValue( this, out holder ) )
-            {
-               retVal = holder._value;
-            }
-            else
-            {
-               retVal = this._factory();
-               this.Value = retVal;
-            }
-            return retVal;
-         }
-         set
-         {
-            if ( _table == null )
-            {
-               _table = new System.Runtime.CompilerServices.ConditionalWeakTable<ThreadLocal<T>, ValueHolder>();
-            }
-            _table.GetOrCreateValue( this )._value = value;
-         }
+         // Nothing to do
       }
    }
-#endif
-
 
 
    /// <summary>

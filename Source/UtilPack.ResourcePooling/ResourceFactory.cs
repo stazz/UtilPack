@@ -40,7 +40,7 @@ namespace UtilPack.ResourcePooling
    /// </summary>
    /// <typeparam name="TResource">The type of resource.</typeparam>
    /// <typeparam name="TParams">The type of parameters used to create a resource.</typeparam>
-   public interface AsyncResourceFactory<TResource, in TParams>
+   public interface AsyncResourceFactory<out TResource, in TParams>
    {
       /// <summary>
       /// Binds the creation parameters and returns version of <see cref="AsyncResourceFactory{TResource}"/> which allows creation of resource without specifying parameter.
@@ -54,8 +54,17 @@ namespace UtilPack.ResourcePooling
    /// This is class to <see cref="AsyncResourceFactory{TResource, TParams}"/> instances which have no state.
    /// </summary>
    /// <typeparam name="TResource">The type of resources this factory creates.</typeparam>
-   public abstract class StatelessAsyncResourceFactory<TResource> : AsyncResourceFactory<TResource, Object>, AsyncResourceFactory<TResource>
+   public sealed class StatelessAsyncResourceFactory<TResource> : AsyncResourceFactory<TResource, Object>, AsyncResourceFactory<TResource>
    {
+      private readonly Func<CancellationToken, ValueTask<AsyncResourceAcquireInfo<TResource>>> _acquireResource;
+
+      public StatelessAsyncResourceFactory(
+          Func<CancellationToken, ValueTask<AsyncResourceAcquireInfo<TResource>>> acquireResource
+         )
+      {
+         this._acquireResource = ArgumentValidator.ValidateNotNull( nameof( acquireResource ), acquireResource );
+      }
+
       /// <summary>
       /// Implements <see cref="AsyncResourceFactory{TResource, TParams}.BindCreationParameters"/> by returning this factory.
       /// </summary>
@@ -66,12 +75,11 @@ namespace UtilPack.ResourcePooling
          return this;
       }
 
-      /// <summary>
-      /// Derived classes should implement this method to create resource.
-      /// </summary>
-      /// <param name="token">The <see cref="CancellationToken"/>.</param>
-      /// <returns>Potentially asynchronously returns <see cref="AsyncResourceAcquireInfo{TResource}"/>.</returns>
-      public abstract ValueTask<AsyncResourceAcquireInfo<TResource>> AcquireResourceAsync( CancellationToken token );
+      /// <inheritdoc />
+      public AsyncResourceAcquireContext<TResource> CreateAcquireResourceContext( CancellationToken token )
+      {
+         return new ValueTaskAsyncResourceAcquireContext<TResource>( this._acquireResource( token ) );
+      }
 
       /// <summary>
       /// Implements <see cref="ResourceFactoryInformation.ResetFactoryState"/> and is no-op.
@@ -116,14 +124,80 @@ namespace UtilPack.ResourcePooling
    /// This interface is bound <see cref="AsyncResourceFactory{TResource, TParams}"/>, which knows the creation parameters and can contain some state calculated based on the parameters.
    /// </summary>
    /// <typeparam name="TResource">The type of resource.</typeparam>
-   public interface AsyncResourceFactory<TResource> : ResourceFactoryInformation
+   public interface AsyncResourceFactory<out TResource> : ResourceFactoryInformation
    {
       /// <summary>
       /// Potentially asynchronously acquires the resource, given the <see cref="CancellationToken"/>.
       /// </summary>
       /// <param name="token">The <see cref="CancellationToken"/>.</param>
       /// <returns>Potentially asynchronously acquired resource, as <see cref="AsyncResourceAcquireInfo{TResource}"/>.</returns>
-      ValueTask<AsyncResourceAcquireInfo<TResource>> AcquireResourceAsync( CancellationToken token );
+
+      AsyncResourceAcquireContext<TResource> CreateAcquireResourceContext( CancellationToken token ); // ValueTask<AsyncResourceAcquireInfo<TResource>>
+   }
+
+   public interface AsyncResourceAcquireContext<out TResource>
+   {
+      Task WaitTillAcquiredAsync();
+
+      AsyncResourceAcquireInfo<TResource> AcquiredResourceInfo { get; }
+   }
+
+   public sealed class ValueTaskAsyncResourceAcquireContext<TResource> : AsyncResourceAcquireContext<TResource>
+   {
+      private readonly ValueTask<AsyncResourceAcquireInfo<TResource>> _task;
+
+      public ValueTaskAsyncResourceAcquireContext( ValueTask<AsyncResourceAcquireInfo<TResource>> task )
+      {
+         this._task = task;
+      }
+
+      public AsyncResourceAcquireInfo<TResource> AcquiredResourceInfo => this._task.Result;
+
+      public Task WaitTillAcquiredAsync()
+      {
+         return this._task.IsCompleted ?
+            TaskUtils.CompletedTask :
+            this._task.AsTask();
+      }
+   }
+
+   /// <summary>
+   /// 
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource.</typeparam>
+   /// <typeparam name="TParams">The type of parameters used to create a resource.</typeparam>
+   public abstract class DefaultBoundAsyncResourceFactory<TResource, TParams> : AsyncResourceFactory<TResource>
+   {
+
+      /// <summary>
+      /// Creates a new instance of <see cref="DefaultBoundAsyncResourceFactory{TResource, TParams}"/> with given creation parameters and callback to create a <see cref="AsyncResourceAcquireInfo{TResource}"/>.
+      /// </summary>
+      /// <param name="parameters">The resource creation parameters.</param>
+      /// <param name="factory">The callback to create <see cref="AsyncResourceAcquireInfo{TResource}"/>.</param>
+      /// <exception cref="ArgumentNullException">If <paramref name="factory"/> is <c>null</c>.</exception>
+      public DefaultBoundAsyncResourceFactory(
+         TParams parameters
+         )
+      {
+         this.CreationParameters = parameters;
+
+      }
+
+      protected TParams CreationParameters { get; }
+
+      /// <summary>
+      /// Implements <see cref="AsyncResourceFactory{TResource}.CreateAcquireResourceContext"/> by calling callback given to constructor.
+      /// </summary>
+      /// <param name="token">The <see cref="CancellationToken"/>.</param>
+      /// <returns>The result of callback given to constructor.</returns>
+      public AsyncResourceAcquireContext<TResource> CreateAcquireResourceContext( CancellationToken token )
+      {
+         return new ValueTaskAsyncResourceAcquireContext<TResource>( this.AcquireResourceAsync( token ) );
+      }
+
+      protected abstract ValueTask<AsyncResourceAcquireInfo<TResource>> AcquireResourceAsync( CancellationToken token );
+
+      public abstract void ResetFactoryState();
    }
 
    /// <summary>
@@ -131,9 +205,9 @@ namespace UtilPack.ResourcePooling
    /// </summary>
    /// <typeparam name="TResource">The type of resource.</typeparam>
    /// <typeparam name="TParams">The type of parameters used to create a resource.</typeparam>
-   public class StatelessBoundAsyncResourceFactory<TResource, TParams> : AsyncResourceFactory<TResource>
+   public sealed class StatelessBoundAsyncResourceFactory<TResource, TParams> : DefaultBoundAsyncResourceFactory<TResource, TParams>
    {
-      private readonly TParams _params;
+
       private readonly Func<TParams, CancellationToken, ValueTask<AsyncResourceAcquireInfo<TResource>>> _factory;
 
       /// <summary>
@@ -145,24 +219,20 @@ namespace UtilPack.ResourcePooling
       public StatelessBoundAsyncResourceFactory(
          TParams parameters,
          Func<TParams, CancellationToken, ValueTask<AsyncResourceAcquireInfo<TResource>>> factory
-         )
+         ) : base( parameters )
       {
-         this._params = parameters;
          this._factory = ArgumentValidator.ValidateNotNull( nameof( factory ), factory );
       }
 
-      /// <summary>
-      /// Implements <see cref="AsyncResourceFactory{TResource}.AcquireResourceAsync"/> by calling callback given to constructor.
-      /// </summary>
-      /// <param name="token">The <see cref="CancellationToken"/>.</param>
-      /// <returns>The result of callback given to constructor.</returns>
-      public ValueTask<AsyncResourceAcquireInfo<TResource>> AcquireResourceAsync( CancellationToken token ) =>
-         this._factory( this._params, token );
+      protected override ValueTask<AsyncResourceAcquireInfo<TResource>> AcquireResourceAsync( CancellationToken token )
+      {
+         return this._factory( this.CreationParameters, token );
+      }
 
       /// <summary>
       /// Implements <see cref="ResourceFactoryInformation.ResetFactoryState"/> and is no-op.
       /// </summary>
-      public void ResetFactoryState()
+      public override void ResetFactoryState()
       {
 
       }
@@ -436,4 +506,10 @@ public static partial class E_UtilPack
    public static ValueTask<AsyncResourceAcquireInfo<TResource>> AcquireResourceAsync<TResource, TParams>( this AsyncResourceFactory<TResource, TParams> factory, TParams parameters, CancellationToken token )
        => factory.BindCreationParameters( parameters ).AcquireResourceAsync( token );
 
+   public static async ValueTask<AsyncResourceAcquireInfo<TResource>> AcquireResourceAsync<TResource>( this AsyncResourceFactory<TResource> factory, CancellationToken token )
+   {
+      var ctx = factory.CreateAcquireResourceContext( token );
+      await ctx.WaitTillAcquiredAsync();
+      return ctx.AcquiredResourceInfo;
+   }
 }

@@ -47,7 +47,7 @@ namespace UtilPack.ResourcePooling
       /// <returns>The return value of the <paramref name="func"/> - which will typically be the <see cref="AsyncResourcePool{TResource}"/> or one of its derived interfaces.</returns>
       /// <exception cref="ArgumentNullException">If <paramref name="func"/> is <c>null</c>. May also throw is <paramref name="creationParameters"/> is <c>null</c>.</exception>
       /// <exception cref="ArgumentException">If a combination of <typeparamref name="TResource"/> and <typeparamref name="TResult"/> type parameters is not understood by this <see cref="AsyncResourceFactoryProvider"/>.</exception>
-      TResult UseFactoryToCreatePool<TResource, TResult>( Func<AsyncResourceFactory<TResource>, TResult> func, Object creationParameters );
+      AsyncResourceFactory<TResource> BindCreationParameters<TResource>( Object creationParameters );
 
    }
 
@@ -79,24 +79,36 @@ namespace UtilPack.ResourcePooling
       /// <returns>The return value of the <paramref name="func"/> - which will typically be the <see cref="AsyncResourcePool{TResource}"/> or one of its derived interfaces.</returns>
       /// <exception cref="ArgumentNullException">If <paramref name="func"/> is <c>null</c>. May also throw is <paramref name="creationParameters"/> is <c>null</c>.</exception>
       /// <exception cref="ArgumentException">If a combination of <typeparamref name="TResource"/> and <typeparamref name="TResult"/> type parameters is not understood by this <see cref="AsyncResourceFactoryProvider"/>.</exception>
-      public TResult UseFactoryToCreatePool<TResource, TResult>( Func<AsyncResourceFactory<TResource>, TResult> func, Object creationParameters )
+      public AsyncResourceFactory<TResource> BindCreationParameters<TResource>( Object creationParameters )
       {
-         ArgumentValidator.ValidateNotNull( nameof( func ), func );
+         var boundFactory = ( this.CreateFactory() ?? throw new InvalidOperationException( "Failed to create unbound factory." ) )
+            .BindCreationParameters( this.TransformFactoryParameters( creationParameters ) ) ?? throw new InvalidOperationException( "Failed to create bound factory." );
+         if ( !( boundFactory is AsyncResourceFactory<TResource> retVal ) )
+         {
+            throw new ArgumentException( $"The type { typeof( TResource ) } is not assignable from { typeof( TFactoryResource ) }." );
+         }
 
-         var transformedParameters = this.TransformFactoryParameters( creationParameters );
-         var factoryWrapper = (AsyncResourceFactory<TResource>) typeof( FactoryWrapper<,> )
-            .MakeGenericType( typeof( TFactoryResource ), typeof( TResource ) )
-#if NETSTANDARD1_0
-            .GetTypeInfo()
-            .DeclaredConstructors
-            .First()
-#else
-            .GetConstructors()
-            [0]
-#endif
-            .Invoke( new Object[] { this.CreateFactory().BindCreationParameters( transformedParameters ) } );
-         return func( factoryWrapper );
+         return retVal;
+
       }
+      //      public TResult UseFactoryToCreatePool<TResource, TResult>( Func<AsyncResourceFactory<TResource>, TResult> func, Object creationParameters )
+      //      {
+      //         ArgumentValidator.ValidateNotNull( nameof( func ), func );
+
+      //         var transformedParameters = this.TransformFactoryParameters( creationParameters );
+      //         var factoryWrapper = (AsyncResourceFactory<TResource>) typeof( FactoryWrapper<,> )
+      //            .MakeGenericType( typeof( TFactoryResource ), typeof( TResource ) )
+      //#if NETSTANDARD1_0
+      //            .GetTypeInfo()
+      //            .DeclaredConstructors
+      //            .First()
+      //#else
+      //            .GetConstructors()
+      //            [0]
+      //#endif
+      //            .Invoke( new Object[] { this.CreateFactory().BindCreationParameters( transformedParameters ) } );
+      //         return func( factoryWrapper );
+      //      }
 
       /// <summary>
       /// Gets the type which can be used when e.g. deserializing pool creation parameters from configuration.
@@ -118,22 +130,27 @@ namespace UtilPack.ResourcePooling
       protected abstract TCreationParameters TransformFactoryParameters( Object untyped );
    }
 
-   internal sealed class FactoryWrapper<TActualResource, TSeenResource> : AsyncResourceFactory<TSeenResource>
-      where TActualResource : class, TSeenResource
-   {
-      private readonly AsyncResourceFactory<TActualResource> _factory;
+   //public sealed class PoolFactory<TResource>
+   //{
 
-      public FactoryWrapper(
-         AsyncResourceFactory<TActualResource> factory
-         )
-      {
-         this._factory = ArgumentValidator.ValidateNotNull( nameof( factory ), factory );
-      }
+   //}
 
-      public async ValueTask<AsyncResourceAcquireInfo<TSeenResource>> AcquireResourceAsync( CancellationToken token ) =>
-         await this._factory.AcquireResourceAsync( token );
+   //internal sealed class FactoryWrapper<TActualResource, TSeenResource> : AsyncResourceFactory<TSeenResource>
+   //   where TActualResource : class, TSeenResource
+   //{
+   //   private readonly AsyncResourceFactory<TActualResource> _factory;
 
-      public void ResetFactoryState() => this._factory.ResetFactoryState();
+   //   public FactoryWrapper(
+   //      AsyncResourceFactory<TActualResource> factory
+   //      )
+   //   {
+   //      this._factory = ArgumentValidator.ValidateNotNull( nameof( factory ), factory );
+   //   }
 
-   }
+   //   public async ValueTask<AsyncResourceAcquireInfo<TSeenResource>> AcquireResourceAsync( CancellationToken token ) =>
+   //      await this._factory.AcquireResourceAsync( token );
+
+   //   public void ResetFactoryState() => this._factory.ResetFactoryState();
+
+   //}
 }

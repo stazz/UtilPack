@@ -17,6 +17,8 @@
  */
 using Microsoft.Build.Framework;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Primitives;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,6 +33,122 @@ using TNuGetPackageResolverCallback = System.Func<System.String, System.String, 
 
 namespace UtilPack.ResourcePooling.MSBuild
 {
+   // TODO maybe move to some more generic project?
+   internal sealed class StringContentFileProvider : Microsoft.Extensions.FileProviders.IFileProvider
+   {
+      public const String PATH = ":::non-existing:::";
+
+      private readonly FileInfo _fileInfo;
+
+
+      public StringContentFileProvider( String stringContents )
+         : this( new FileInfo( stringContents ) )
+      {
+
+      }
+
+      public StringContentFileProvider( Byte[] serializedContents )
+         : this( new FileInfo( serializedContents ) )
+      {
+      }
+
+      private StringContentFileProvider( FileInfo info )
+      {
+         this._fileInfo = ArgumentValidator.ValidateNotNull( nameof( info ), info );
+      }
+
+
+
+      public Microsoft.Extensions.FileProviders.IDirectoryContents GetDirectoryContents( String subpath )
+      {
+         return NotFoundDirectoryContents.Singleton;
+      }
+
+      public Microsoft.Extensions.FileProviders.IFileInfo GetFileInfo( String subpath )
+      {
+         return String.Equals( PATH, subpath, StringComparison.Ordinal ) ?
+            this._fileInfo :
+            null;
+      }
+
+      public Microsoft.Extensions.Primitives.IChangeToken Watch( String filter )
+      {
+         return ChangeToken.Instance;
+      }
+
+      private sealed class FileInfo : Microsoft.Extensions.FileProviders.IFileInfo
+      {
+
+         private static readonly Encoding TheEncoding = new UTF8Encoding( false, false );
+
+         private readonly Byte[] _contentsAsBytes;
+
+         public FileInfo( String stringContents )
+            : this( TheEncoding.GetBytes( stringContents ) )
+         {
+
+         }
+
+         public FileInfo( Byte[] serializedContents )
+         {
+            this._contentsAsBytes = serializedContents;
+         }
+
+         public Boolean Exists => true;
+
+         public Int64 Length => this._contentsAsBytes.Length;
+
+         public String PhysicalPath => PATH;
+
+         public String Name => PATH;
+
+         public DateTimeOffset LastModified => DateTimeOffset.MinValue;
+
+         public Boolean IsDirectory => false;
+
+         public System.IO.Stream CreateReadStream()
+         {
+            return new System.IO.MemoryStream( this._contentsAsBytes, 0, this._contentsAsBytes.Length, false, false );
+         }
+      }
+
+      private sealed class ChangeToken : Microsoft.Extensions.Primitives.IChangeToken
+      {
+         public static ChangeToken Instance = new ChangeToken();
+
+         private ChangeToken()
+         {
+
+         }
+         public Boolean HasChanged => false;
+
+         public Boolean ActiveChangeCallbacks => true;
+
+         public IDisposable RegisterChangeCallback(
+            Action<Object> callback,
+            Object state
+            )
+         {
+            return NoOpDisposable.Instance;
+         }
+      }
+
+
+   }
+
+   internal static class Extensions
+   {
+      public static IConfigurationBuilder AddJsonContents( this IConfigurationBuilder builder, String textualContents )
+      {
+         return builder.AddJsonFile( new StringContentFileProvider( textualContents ), StringContentFileProvider.PATH, false, false );
+      }
+
+      public static IConfigurationBuilder AddJsonContents( this IConfigurationBuilder builder, Byte[] stringAsBytes )
+      {
+         return builder.AddJsonFile( new StringContentFileProvider( stringAsBytes ), StringContentFileProvider.PATH, false, false );
+      }
+   }
+
    /// <summary>
    /// This class contains skeleton implementation for MSBuild task, which will create <see cref="AsyncResourcePool{TResource}"/> and use the resource once.
    /// </summary>
@@ -184,14 +302,31 @@ namespace UtilPack.ResourcePooling.MSBuild
          AsyncResourceFactoryProvider poolProvider
          )
       {
-         var path = this.PoolConfigurationFilePath;
-         if ( String.IsNullOrEmpty( path ) )
+         var contents = this.PoolConfigurationFileContents;
+         IFileProvider fileProvider;
+         String path;
+         if ( !String.IsNullOrEmpty( contents ) )
          {
-            throw new InvalidOperationException( "Configuration file path was not provided." );
+            path = StringContentFileProvider.PATH;
+            fileProvider = new StringContentFileProvider( contents );
+         }
+         else
+         {
+            path = this.PoolConfigurationFilePath;
+            if ( String.IsNullOrEmpty( path ) )
+            {
+               throw new InvalidOperationException( "Configuration file path was not provided." );
+            }
+            else
+            {
+               path = System.IO.Path.GetFullPath( path );
+               fileProvider = null; // Use defaults
+            }
          }
 
+
          return new ValueTask<Object>( new ConfigurationBuilder()
-            .AddJsonFile( System.IO.Path.GetFullPath( path ) )
+            .AddJsonFile( fileProvider, path, false, false )
             .Build()
             .Get( poolProvider.DataTypeForCreationParameter ) );
       }
@@ -210,9 +345,11 @@ namespace UtilPack.ResourcePooling.MSBuild
          Object poolCreationArgs
          )
       {
-         return new ValueTask<AsyncResourcePool<TResource>>( poolProvider.UseFactoryToCreatePool<TResource, AsyncResourcePoolObservable<TResource>>(
-            ( factory ) => factory.CreateOneTimeUseResourcePool().WithoutExplicitAPI(),
-            poolCreationArgs ) );
+         return new ValueTask<AsyncResourcePool<TResource>>( poolProvider
+            .BindCreationParameters<TResource>( poolCreationArgs )
+            .CreateOneTimeUseResourcePool()
+            .WithoutExplicitAPI()
+            );
       }
 
       /// <summary>
@@ -360,8 +497,21 @@ namespace UtilPack.ResourcePooling.MSBuild
       /// <value>The path to the configuration file holding creation parameter for <see cref="AsyncResourceFactoryProvider.UseFactoryToCreatePool{TResource, TResult}"/>.</value>
       /// <remarks>
       /// This property is used by <see cref="ProvideResourcePoolCreationParameters"/> method.
+      /// This property should not be used together with <see cref="PoolConfigurationFileContents"/>, because <see cref="PoolConfigurationFileContents"/> takes precedence over this property.
       /// </remarks>
       /// <seealso cref="ProvideResourcePoolCreationParameters"/>
+      /// <seealso cref="PoolConfigurationFileContents"/>
       public String PoolConfigurationFilePath { get; set; }
+
+      /// <summary>
+      /// Gets or sets the configuration file contents in-place, instead of using <see cref="PoolConfigurationFilePath"/> file path.
+      /// This property takes precedence over <see cref="PoolConfigurationFilePath"/>
+      /// </summary>
+      /// <remarks>
+      /// This property is used by <see cref="ProvideResourcePoolCreationParameters"/> method.
+      /// </remarks>
+      /// <seealso cref="ProvideResourcePoolCreationParameters"/>
+      /// <seealso cref="PoolConfigurationFilePath"/>
+      public String PoolConfigurationFileContents { get; set; }
    }
 }

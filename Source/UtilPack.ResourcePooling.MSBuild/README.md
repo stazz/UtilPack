@@ -10,7 +10,7 @@ Most of other methods are virtual, allowing derived classes to override them.
 ## Abstract methods
 ### CheckTaskParametersBeforeResourcePoolUsage
 
-This method is used as a sanity check before actually starting to search for `AsyncResourcePoolProvider` type from [UtilPack.ResourcePooling](../UtilPack.ResourcePooling) project.
+This method is used as a sanity check before actually starting to search for `AsyncResourceFactoryProvider` type from [UtilPack.ResourcePooling](../UtilPack.ResourcePooling) project.
 The SQL dump running task could here e.g. check whether file exists.
 
 ### UseResource
@@ -22,13 +22,14 @@ The SQL dump running task would here read the SQL statements from file and execu
 
 The `AbstractResourceUsingTask` introduces a number of task parameters, none of them statically marked as required, since most of the implementation can be overridden.
 However, the default implementation, unless overridden, requires the following parameters:
-* `PoolProviderPackageID` of type `String`: should specify the NuGet package ID of the package holding type implementing the `AsyncResourcePoolProvider` type from [UtilPack.ResourcePooling](../UtilPack.ResourcePooling) project.
-* `PoolConfigurationFilePath` of type `String`: should specify the path to JSON file containing serialized configuration for object passed as parameter to `CreateOneTimeUseResourcePool` method of `AsyncResourcePoolProvider` type from [UtilPack.ResourcePooling](../UtilPack.ResourcePooling) project. The [Microsoft.Extensions.Configuration.Json](https://www.nuget.org/packages/Microsoft.Extensions.Configuration.Json/) package will be used to deserialize the value.
+* `PoolProviderPackageID` of type `String`: should specify the NuGet package ID of the package holding type implementing the `AsyncResourceFactoryProvider` type from [UtilPack.ResourcePooling](../UtilPack.ResourcePooling) project.
+* `PoolConfigurationFileContents` of type `String`: sometimes it is more conventient to give configuration file contents directly, then this property should be used. This property takes precedence over `PoolConfigurationFilePath`.
+* `PoolConfigurationFilePath` of type `String`: should specify the path to JSON file containing serialized configuration for object passed as parameter to `CreateOneTimeUseResourcePool` method of `AsyncResourceFactoryProvider` type from [UtilPack.ResourcePooling](../UtilPack.ResourcePooling) project. The [Microsoft.Extensions.Configuration.Json](https://www.nuget.org/packages/Microsoft.Extensions.Configuration.Json/) package will be used to deserialize the value.
 
 The default implementation, unless overridden, has the following optional parameters:
-* `PoolProviderVersion` of type `String`: the version part paired with `PoolProviderPackageID`, should specify the version of the NuGet package holding type implementing `AsyncResourcePoolProvider` type from [UtilPack.ResourcePooling](../UtilPack.ResourcePooling) project. If not specified, newest version will be used.
-* `PoolProviderAssemblyPath` of type `String`: the path within the NuGet package specified by `PoolProviderPackageID` and `PoolProviderVersion` parameters, where the assembly holding type implementing `AsyncResourcePoolProvider` type from [UtilPack.ResourcePooling](../UtilPack.ResourcePooling) project resides. Is used only for NuGet packages with more than one assembly in their framework-specific folder.
-* `PoolProviderTypeName` of type `String`: once the assembly is loaded using `PoolProviderPackageID`, `PoolProviderVersion` and `PoolProviderAssemblyPath` parameters, this parameter may be used to specify the name of the type implementing `AsyncResourcePoolProvider` type from [UtilPack.ResourcePooling](../UtilPack.ResourcePooling) project. If left out, the first suitable type from all types defined in the assembly will be used.
+* `PoolProviderVersion` of type `String`: the version part paired with `PoolProviderPackageID`, should specify the version of the NuGet package holding type implementing `AsyncResourceFactoryProvider` type from [UtilPack.ResourcePooling](../UtilPack.ResourcePooling) project. If not specified, newest version will be used.
+* `PoolProviderAssemblyPath` of type `String`: the path within the NuGet package specified by `PoolProviderPackageID` and `PoolProviderVersion` parameters, where the assembly holding type implementing `AsyncResourceFactoryProvider` type from [UtilPack.ResourcePooling](../UtilPack.ResourcePooling) project resides. Is used only for NuGet packages with more than one assembly in their framework-specific folder.
+* `PoolProviderTypeName` of type `String`: once the assembly is loaded using `PoolProviderPackageID`, `PoolProviderVersion` and `PoolProviderAssemblyPath` parameters, this parameter may be used to specify the name of the type implementing `AsyncResourceFactoryProvider` type from [UtilPack.ResourcePooling](../UtilPack.ResourcePooling) project. If left out, the first suitable type from all types defined in the assembly will be used.
 * `RunSynchronously` of type `Boolean`: this is infrastructure-related parameter, and actually is always used, since the usage is in non-virtual method. This parameter, if `true`, will skip calling [Yield](https://docs.microsoft.com/en-us/dotnet/api/microsoft.build.framework.ibuildengine3.yield) method.
 
 # Distribution

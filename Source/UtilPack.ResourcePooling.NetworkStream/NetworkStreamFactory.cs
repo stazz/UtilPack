@@ -174,19 +174,55 @@ namespace UtilPack.ResourcePooling.NetworkStream
 
       }
 
+      /// <summary>
+      /// This class extends <see cref="EndPoint"/> in order to provide functionality specific for Unix domain sockets.
+      /// </summary>
       public sealed class UnixEndPoint : EndPoint
       {
          private static readonly Encoding _Encoding = new UTF8Encoding( false, false );
 
-         public UnixEndPoint( String filename )
+         private String _filePath;
+
+         /// <summary>
+         /// Creates a new <see cref="UnixEndPoint"/> with given file path as Unix domain socket.
+         /// </summary>
+         /// <param name="filePath">The file path where the server socket resides.</param>
+         /// <remarks>
+         /// Empty file path will be used if <paramref name="filePath"/> is <c>null</c>.
+         /// </remarks>
+         public UnixEndPoint( String filePath )
          {
-            this.Filename = ArgumentValidator.ValidateNotNull( nameof( filename ), filename );
+            this.FilePath = filePath;
          }
 
-         public String Filename { get; }
+         /// <summary>
+         /// Gets or sets the file path of the Unix domain socket.
+         /// </summary>
+         /// <value>The file path of the Unix domain socket.</value>
+         public String FilePath
+         {
+            get
+            {
+               return this._filePath;
+            }
+            set
+            {
+               this._filePath = value ?? String.Empty;
+            }
+         }
 
+         /// <summary>
+         /// Returns <see cref="AddressFamily.Unix"/>.
+         /// </summary>
+         /// <value>The <see cref="AddressFamily.Unix"/>.</value>
          public override AddressFamily AddressFamily => AddressFamily.Unix;
 
+         /// <summary>
+         /// Creates a new <see cref="UnixEndPoint"/> from serialized <see cref="SocketAddress"/>.
+         /// </summary>
+         /// <param name="socketAddress">A serialized <see cref="SocketAddress"/>.</param>
+         /// <returns>A deserialized <see cref="UnixEndPoint"/>.</returns>
+         /// <exception cref="ArgumentException">If given <paramref name="socketAddress"/> does not represent address family of <see cref="System.Net.Sockets.AddressFamily.Unix"/>.</exception>
          public override EndPoint Create( SocketAddress socketAddress )
          {
             var serializedAddressFamily = (AddressFamily) ( socketAddress[0] | ( socketAddress[1] << 8 ) );
@@ -218,10 +254,14 @@ namespace UtilPack.ResourcePooling.NetworkStream
             return new UnixEndPoint( fileName );
          }
 
+         /// <summary>
+         /// Serializes this instance into <see cref="SocketAddress"/>.
+         /// </summary>
+         /// <returns>A serialized <see cref="SocketAddress"/>.</returns>
          public override SocketAddress Serialize()
          {
             // We must allocate new array and then copy manually, as there is no copy method provided for socket address...
-            var bytes = _Encoding.GetBytes( this.Filename );
+            var bytes = _Encoding.GetBytes( this.FilePath );
             // 2 extra bytes for address family, 1 for null terminator
             var address = new SocketAddress( AddressFamily.Unix, bytes.Length + 3 );
             // Address family in first bytes, set by SocketAddress constructor
@@ -236,11 +276,24 @@ namespace UtilPack.ResourcePooling.NetworkStream
             return address;
          }
 
-         public override String ToString() => this.Filename;
+         /// <summary>
+         /// Returns <see cref="FilePath"/>.
+         /// </summary>
+         /// <returns>The value of <see cref="FilePath"/>.</returns>
+         public override String ToString() => this.FilePath;
 
-         public override Int32 GetHashCode() => this.Filename?.GetHashCode() ?? 0;
+         /// <summary>
+         /// Gets the hash code of this <see cref="UnixEndPoint"/>.
+         /// </summary>
+         /// <returns></returns>
+         public override Int32 GetHashCode() => this.FilePath?.GetHashCode() ?? 0;
 
-         public override Boolean Equals( Object obj ) => obj is UnixEndPoint other && String.Equals( this.Filename, other.Filename );
+         /// <summary>
+         /// Checks that given object is <see cref="UnixEndPoint"/> and that it equals to this <see cref="UnixEndPoint"/>.
+         /// </summary>
+         /// <param name="obj">The object to check.</param>
+         /// <returns><c>true</c> if <paramref name="obj"/> is <see cref="UnixEndPoint"/> and equals to this <see cref="UnixEndPoint"/>; <c>false</c> otherwise.</returns>
+         public override Boolean Equals( Object obj ) => obj is UnixEndPoint other && String.Equals( this.FilePath, other.FilePath );
       }
 
       /// <summary>
@@ -266,7 +319,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
          var remoteAddressGetter = parameters.RemoteAddress;
          if ( remoteAddressGetter == null )
          {
-            remoteEP = new UnixEndPoint( parameters.GetUnixSocketAddress?.Invoke() ?? throw new ArgumentException( "No remote IP address getter nor Unix socket filename specified." ) );
+            remoteEP = new UnixEndPoint( parameters.GetUnixSocketFilePath?.Invoke() ?? throw new ArgumentException( "No remote IP address getter nor Unix socket filename specified." ) );
             localEP = null;
             socketType = SocketType.Stream;
             protocolType = ProtocolType.IP;
@@ -494,7 +547,11 @@ namespace UtilPack.ResourcePooling.NetworkStream
 #endif
       }
 
-      public Func<String> GetUnixSocketAddress { get; set; }
+      /// <summary>
+      /// Gets or sets the callback to get file path of unix domain socket. Note that <see cref="RemoteAddress"/> takes precedence over this property, if both are specified.
+      /// </summary>
+      /// <value>The callback to get file path of unix domain socket.</value>
+      public Func<String> GetUnixSocketFilePath { get; set; }
 
       /// <summary>
       /// Gets or sets the callback to potentially asynchronously get remote <see cref="IPAddress"/>.
@@ -755,7 +812,7 @@ public static partial class E_UtilPack
 
          // The rest are copypaste
          RemoteAddress = configuration.RemoteAddress == null ? null : new Func<CancellationToken, ValueTask<IPAddress>>( async token => await configuration.RemoteAddress( token ) ),
-         GetUnixSocketAddress = configuration.GetUnixSocketAddress,
+         GetUnixSocketFilePath = configuration.GetUnixSocketFilePath,
          RemotePort = addr => configuration.RemotePort?.Invoke( addr ) ?? 0,
          SocketType = configuration.SocketType,
          ProtocolType = configuration.ProtocolType,

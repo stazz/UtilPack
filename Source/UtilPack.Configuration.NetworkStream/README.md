@@ -1,4 +1,4 @@
-﻿# UtilPack.Configuration.NetworkStream
+# UtilPack.Configuration.NetworkStream
 
 This library contains types commonly used to define configurable remote endpoint information, and other information related to protocols that work over networks.
 The `NetworkConnectionCreationInfo` is the entrypoint type, containing passive data information (`NetworkConnectionCreationInfoData`), which can be deserialized e.g. using [Microsoft.Extensions.Configuration.Binder](http://www.nuget.org/packages/Microsoft.Extensions.Configuration.Binder) package.

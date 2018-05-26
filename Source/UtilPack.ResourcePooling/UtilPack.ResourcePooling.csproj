@@ -49,7 +49,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Adapting to changes done in UtilPack (IAsyncDisposable and IAsyncDisposableWithToken interfaces).</PackageReleaseNotes>
+    <PackageReleaseNotes>Adapting to changes done in UtilPack (IAsyncDisposable and IAsyncDisposableWithToken interfaces), and also streamlining API for this release.</PackageReleaseNotes>
     <PackageTags>utility async resource pool</PackageTags>
     <Title>Resource Pooling Support</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

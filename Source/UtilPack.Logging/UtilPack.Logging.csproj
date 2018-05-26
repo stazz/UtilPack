@@ -41,7 +41,7 @@
    <PropertyGroup Condition=" '$(Configuration)' == 'Release'">
       <DebugType>none</DebugType>
       <DebugSymbols>False</DebugSymbols>
-      <!--<GenerateDocumentationFile>true</GenerateDocumentationFile>-->
+      <GenerateDocumentationFile>true</GenerateDocumentationFile>
    </PropertyGroup>
 
    <!-- NuGet package stuff -->

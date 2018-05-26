@@ -100,7 +100,7 @@ namespace UtilPack.Logging.Consume
       /// Creates a new instance of <see cref="TextWriterLogger{TMetaData}"/> and binds it to given <see cref="TextWriter"/>.
       /// </summary>
       /// <param name="writer">The <see cref="TextWriter"/>.</param>
-      /// <param name="writeNewLine">Whether to use <see cref="TextWriter.WriteLineAsync"/>. If <c>false</c>, the <see cref="TextWriter.WriteAsync(string)"/> will be used.</param>
+      /// <param name="writeNewLine">Whether to use <see cref="TextWriter.WriteLineAsync(String)"/>. If <c>false</c>, the <see cref="TextWriter.WriteAsync(String)"/> will be used.</param>
       /// <param name="messageGetter">Optional callback to extract the textual message. By default, will use <see cref="LogEvent{TMetaData}.Message"/> directly.</param>
       /// <exception cref="ArgumentNullException">If <paramref name="writer"/> is <c>null</c>.</exception>
       public TextWriterLogger(

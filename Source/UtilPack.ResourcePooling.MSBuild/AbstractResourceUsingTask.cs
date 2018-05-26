@@ -120,6 +120,7 @@ namespace UtilPack.ResourcePooling.MSBuild
          {
 
          }
+
          public Boolean HasChanged => false;
 
          public Boolean ActiveChangeCallbacks => true;
@@ -290,14 +291,16 @@ namespace UtilPack.ResourcePooling.MSBuild
       protected abstract Boolean CheckTaskParametersBeforeResourcePoolUsage();
 
       /// <summary>
-      /// This method is called by <see cref="Execute"/> after calling <see cref="AcquireResourcePoolProvider"/> in order to potentially asynchronously provide argument object for <see cref="AsyncResourceFactoryProvider.UseFactoryToCreatePool"/> method.
+      /// This method is called by <see cref="Execute"/> after calling <see cref="AcquireResourcePoolProvider"/> in order to potentially asynchronously provide argument object for <see cref="AsyncResourceFactoryProvider.BindCreationParameters"/> method.
       /// </summary>
       /// <param name="poolProvider">The pool provider returned by <see cref="AcquireResourcePoolProvider"/> method.</param>
-      /// <returns>A parameter for <see cref="AsyncResourceFactoryProvider.UseFactoryToCreatePool"/> method.</returns>
+      /// <returns>A parameter for <see cref="AsyncResourceFactoryProvider.BindCreationParameters"/> method.</returns>
       /// <remarks>
-      /// This implementation uses <see cref="ConfigurationBuilder"/> in conjunction of <see cref="JsonConfigurationExtensions.AddJsonFile(IConfigurationBuilder, string)"/> method to add configuration JSON file located in <see cref="PoolConfigurationFilePath"/>.
+      /// This implementation uses <see cref="ConfigurationBuilder"/> in conjunction of <see cref="JsonConfigurationExtensions.AddJsonFile(IConfigurationBuilder, string)"/> method to add configuration JSON file, contents of which are specified by <see cref="PoolConfigurationFileContents"/> property, or it is located in path specified by <see cref="PoolConfigurationFilePath"/> property.
       /// Then, the <see cref="ConfigurationBinder.Get(IConfiguration, Type)"/> method is used on resulting <see cref="IConfiguration"/> to obtain the return value of this method.
       /// </remarks>
+      /// <seealso cref="PoolConfigurationFileContents"/>
+      /// <seealso cref="PoolConfigurationFilePath"/>
       protected virtual ValueTask<Object> ProvideResourcePoolCreationParameters(
          AsyncResourceFactoryProvider poolProvider
          )
@@ -492,9 +495,9 @@ namespace UtilPack.ResourcePooling.MSBuild
       public String PoolProviderTypeName { get; set; }
 
       /// <summary>
-      /// Gets or sets the path to the configuration file holding creation parameter for <see cref="AsyncResourceFactoryProvider.UseFactoryToCreatePool{TResource, TResult}"/>.
+      /// Gets or sets the path to the configuration file holding creation parameter for <see cref="AsyncResourceFactoryProvider.BindCreationParameters"/>.
       /// </summary>
-      /// <value>The path to the configuration file holding creation parameter for <see cref="AsyncResourceFactoryProvider.UseFactoryToCreatePool{TResource, TResult}"/>.</value>
+      /// <value>The path to the configuration file holding creation parameter for <see cref="AsyncResourceFactoryProvider.BindCreationParameters"/>.</value>
       /// <remarks>
       /// This property is used by <see cref="ProvideResourcePoolCreationParameters"/> method.
       /// This property should not be used together with <see cref="PoolConfigurationFileContents"/>, because <see cref="PoolConfigurationFileContents"/> takes precedence over this property.

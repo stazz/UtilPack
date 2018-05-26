@@ -58,6 +58,10 @@ namespace UtilPack.ResourcePooling
    {
       private readonly Func<CancellationToken, ValueTask<AsyncResourceAcquireInfo<TResource>>> _acquireResource;
 
+      /// <summary>
+      /// Creates a new instance of <see cref="StatelessAsyncResourceFactory{TResource}"/> with given callback to acquire resource.
+      /// </summary>
+      /// <param name="acquireResource">A callback to potentially asynchronously acquire <see cref="AsyncResourceAcquireInfo{TResource}"/>.</param>
       public StatelessAsyncResourceFactory(
           Func<CancellationToken, ValueTask<AsyncResourceAcquireInfo<TResource>>> acquireResource
          )
@@ -104,7 +108,9 @@ namespace UtilPack.ResourcePooling
       /// </summary>
       /// <param name="creator">The callback to create <see cref="AsyncResourceFactory{TResource}"/>.</param>
       /// <exception cref="ArgumentNullException">If <paramref name="creator"/> is <c>null</c>.</exception>
-      public DefaultAsyncResourceFactory( Func<TParams, AsyncResourceFactory<TResource>> creator )
+      public DefaultAsyncResourceFactory(
+         Func<TParams, AsyncResourceFactory<TResource>> creator
+         )
       {
          this._creator = ArgumentValidator.ValidateNotNull( nameof( creator ), creator );
       }
@@ -135,24 +141,63 @@ namespace UtilPack.ResourcePooling
       AsyncResourceAcquireContext<TResource> CreateAcquireResourceContext( CancellationToken token ); // ValueTask<AsyncResourceAcquireInfo<TResource>>
    }
 
+   /// <summary>
+   /// This interface splits asynchronous acquiring of <see cref="AsyncResourceAcquireInfo{TResource}"/> into two stages: waiting for asynchronous action to complete, and then getting the <see cref="AcquiredResourceInfo"/> property.
+   /// This way, it is possible to have <c>out</c> modifier for <typeparamref name="TResource"/>, a very important property, since it also cascades to <see cref="AsyncResourceFactory{TResource}"/> and <see cref="AsyncResourceFactory{TResource, TParams}"/>.
+   /// </summary>
+   /// <typeparam name="TResource">The type of resource being acquired.</typeparam>
    public interface AsyncResourceAcquireContext<out TResource>
    {
+      /// <summary>
+      /// Gets the task to wait until the <see cref="AcquiredResourceInfo"/> property becomes available.
+      /// </summary>
+      /// <returns>The task to wait until the <see cref="AcquiredResourceInfo"/> property becomes available.</returns>
       Task WaitTillAcquiredAsync();
 
+      /// <summary>
+      /// Gets the <see cref="AsyncResourceAcquireInfo{TResource}"/> that has been acquired after awaiting for task returned by <see cref="WaitTillAcquiredAsync"/>.
+      /// </summary>
+      /// <value>The <see cref="AsyncResourceAcquireInfo{TResource}"/> that has been acquired after awaiting for task returned by <see cref="WaitTillAcquiredAsync"/>.</value>
+      /// <exception cref="InvalidOperationException">If the underlying asynchronous operation is not yet completed.</exception>
       AsyncResourceAcquireInfo<TResource> AcquiredResourceInfo { get; }
    }
 
+   /// <summary>
+   /// This class implements <see cref="AsyncResourceAcquireContext{TResource}"/> by wrapping a single <see cref="ValueTask{TResult}"/>.
+   /// </summary>
+   /// <typeparam name="TResource">The type of the resource being acquired.</typeparam>
    public sealed class ValueTaskAsyncResourceAcquireContext<TResource> : AsyncResourceAcquireContext<TResource>
    {
       private readonly ValueTask<AsyncResourceAcquireInfo<TResource>> _task;
 
+      /// <summary>
+      /// Creates a new instance of <see cref="ValueTaskAsyncResourceAcquireContext{TResource}"/> with given <see cref="ValueTask{TResult}"/>.
+      /// </summary>
+      /// <param name="task">The potentially asynchronously completing task returning <see cref="AsyncResourceAcquireInfo{TResource}"/>.</param>
       public ValueTaskAsyncResourceAcquireContext( ValueTask<AsyncResourceAcquireInfo<TResource>> task )
       {
          this._task = task;
       }
 
-      public AsyncResourceAcquireInfo<TResource> AcquiredResourceInfo => this._task.Result;
+      /// <summary>
+      /// Gets the result of current <see cref="ValueTask{TResult}"/>.
+      /// </summary>
+      /// <value>The result of current <see cref="ValueTask{TResult}"/>.</value>
+      /// <exception cref="InvalidOperationException">If current <see cref="ValueTask{TResult}"/> is not yet completed.</exception>
+      /// <seealso cref="WaitTillAcquiredAsync"/>
+      public AsyncResourceAcquireInfo<TResource> AcquiredResourceInfo
+      {
+         get
+         {
+            return this._task.IsCompleted ? this._task.Result : throw new InvalidOperationException( "Task is not yet completed." );
+         }
+      }
 
+      /// <summary>
+      /// Asynchronously waits until wrapped <see cref="ValueTask{TResult}"/> completes.
+      /// Will return completed task if wrapped <see cref="ValueTask{TResult}"/> is completed.
+      /// </summary>
+      /// <returns><see cref="Task"/> which will asynchronously complete once wrapped <see cref="ValueTask{TResult}"/> has completed.</returns>
       public Task WaitTillAcquiredAsync()
       {
          return this._task.IsCompleted ?
@@ -162,7 +207,52 @@ namespace UtilPack.ResourcePooling
    }
 
    /// <summary>
-   /// 
+   /// This class implements <see cref="AsyncResourceAcquireContext{TResource}"/> by wrapping a single <see cref="Task{TResult}"/>.
+   /// </summary>
+   /// <typeparam name="TResource">The type of the resource being acquired.</typeparam>
+   public sealed class TaskAsyncResourceAcquireContext<TResource> : AsyncResourceAcquireContext<TResource>
+   {
+      private readonly Task<AsyncResourceAcquireInfo<TResource>> _task;
+
+      /// <summary>
+      /// Creates a new <see cref="TaskAsyncResourceAcquireContext{TResource}"/> with given <see cref="Task{TResult}"/>.
+      /// </summary>
+      /// <param name="task">The potentially asynchronously completing task returning <see cref="AsyncResourceAcquireInfo{TResource}"/>.</param>
+      /// <exception cref="ArgumentNullException">If <paramref name="task"/> is <c>null</c>.</exception>
+      public TaskAsyncResourceAcquireContext(
+         Task<AsyncResourceAcquireInfo<TResource>> task
+         )
+      {
+         this._task = ArgumentValidator.ValidateNotNull( nameof( task ), task );
+      }
+
+      /// <summary>
+      /// Gets the result of current <see cref="Task{TResult}"/>.
+      /// </summary>
+      /// <value>The result of current <see cref="Task{TResult}"/>.</value>
+      /// <exception cref="InvalidOperationException">If current <see cref="Task{TResult}"/> is not yet completed.</exception>
+      /// <seealso cref="WaitTillAcquiredAsync"/>
+      public AsyncResourceAcquireInfo<TResource> AcquiredResourceInfo
+      {
+         get
+         {
+            return this._task.IsCompleted ? this._task.Result : throw new InvalidOperationException( "Task is not yet completed." );
+         }
+      }
+
+      /// <summary>
+      /// Asynchronously waits until wrapped <see cref="Task{TResult}"/> completes.
+      /// Will return completed task if wrapped <see cref="Task{TResult}"/> is completed.
+      /// </summary>
+      /// <returns><see cref="Task"/> which will asynchronously complete once wrapped <see cref="Task{TResult}"/> has completed.</returns>
+      public Task WaitTillAcquiredAsync()
+      {
+         return this._task;
+      }
+   }
+
+   /// <summary>
+   /// This class provides default skeleton implementation for <see cref="AsyncResourceFactory{TResource}"/>, which stores the creation parameters used to create resources.
    /// </summary>
    /// <typeparam name="TResource">The type of resource.</typeparam>
    /// <typeparam name="TParams">The type of parameters used to create a resource.</typeparam>
@@ -173,8 +263,6 @@ namespace UtilPack.ResourcePooling
       /// Creates a new instance of <see cref="DefaultBoundAsyncResourceFactory{TResource, TParams}"/> with given creation parameters and callback to create a <see cref="AsyncResourceAcquireInfo{TResource}"/>.
       /// </summary>
       /// <param name="parameters">The resource creation parameters.</param>
-      /// <param name="factory">The callback to create <see cref="AsyncResourceAcquireInfo{TResource}"/>.</param>
-      /// <exception cref="ArgumentNullException">If <paramref name="factory"/> is <c>null</c>.</exception>
       public DefaultBoundAsyncResourceFactory(
          TParams parameters
          )
@@ -183,10 +271,14 @@ namespace UtilPack.ResourcePooling
 
       }
 
+      /// <summary>
+      /// Gets the creation parameters passed to constructor.
+      /// </summary>
+      /// <value>The creation parameters passed to constructor.</value>
       protected TParams CreationParameters { get; }
 
       /// <summary>
-      /// Implements <see cref="AsyncResourceFactory{TResource}.CreateAcquireResourceContext"/> by calling callback given to constructor.
+      /// Implements <see cref="AsyncResourceFactory{TResource}.CreateAcquireResourceContext"/> by calling <see cref="AcquireResourceAsync(CancellationToken)"/>.
       /// </summary>
       /// <param name="token">The <see cref="CancellationToken"/>.</param>
       /// <returns>The result of callback given to constructor.</returns>
@@ -195,8 +287,16 @@ namespace UtilPack.ResourcePooling
          return new ValueTaskAsyncResourceAcquireContext<TResource>( this.AcquireResourceAsync( token ) );
       }
 
+      /// <summary>
+      /// Derived classes should implement this to provide potentially asynchronous functionality to create <see cref="AsyncResourceAcquireInfo{TResource}"/>.
+      /// </summary>
+      /// <param name="token">The <see cref="CancellationToken"/> being used.</param>
+      /// <returns>Potentially asynchronously returns <see cref="AsyncResourceAcquireInfo{TResource}"/>.</returns>
       protected abstract ValueTask<AsyncResourceAcquireInfo<TResource>> AcquireResourceAsync( CancellationToken token );
 
+      /// <summary>
+      /// Derived classes should implement this to reset factory state, if any such state exists.
+      /// </summary>
       public abstract void ResetFactoryState();
    }
 
@@ -224,6 +324,11 @@ namespace UtilPack.ResourcePooling
          this._factory = ArgumentValidator.ValidateNotNull( nameof( factory ), factory );
       }
 
+      /// <summary>
+      /// Implements <see cref="DefaultBoundAsyncResourceFactory{TResource, TParams}.AcquireResourceAsync(CancellationToken)"/> by calling the callback given to constructor.
+      /// </summary>
+      /// <param name="token">The <see cref="CancellationToken"/> to use.</param>
+      /// <returns>Potentially asynchronously returns <see cref="AsyncResourceAcquireInfo{TResource}"/>.</returns>
       protected override ValueTask<AsyncResourceAcquireInfo<TResource>> AcquireResourceAsync( CancellationToken token )
       {
          return this._factory( this.CreationParameters, token );
@@ -494,18 +599,26 @@ namespace UtilPack.ResourcePooling
 
 public static partial class E_UtilPack
 {
+   ///// <summary>
+   ///// Asynchronously creates a new instance of resource with given parameters.
+   ///// </summary>
+   ///// <typeparam name="TResource">The type of resource.</typeparam>
+   ///// <typeparam name="TParams">The type of parameters used to create a resource.</typeparam>
+   ///// <param name="factory">This <see cref="AsyncResourceFactory{TResource, TParams}"/>.</param>
+   ///// <param name="parameters">Parameters that are required for resource creation.</param>
+   ///// <param name="token">Cancellation token to use during resource creation.</param>
+   ///// <returns>A task which returns a <see cref="AsyncResourceAcquireInfo{TResource}"/> upon completion.</returns>
+   //public static ValueTask<AsyncResourceAcquireInfo<TResource>> AcquireResourceAsync<TResource, TParams>( this AsyncResourceFactory<TResource, TParams> factory, TParams parameters, CancellationToken token )
+   //    => factory.BindCreationParameters( parameters ).AcquireResourceAsync( token );
+
    /// <summary>
-   /// Asynchronously creates a new instance of resource with given parameters.
+   /// This is helper method to call <see cref="AsyncResourceFactory{TResource}.CreateAcquireResourceContext(CancellationToken)"/>, and use it correctly to potentially asynchronously extract <see cref="AsyncResourceAcquireInfo{TResource}"/>.
    /// </summary>
    /// <typeparam name="TResource">The type of resource.</typeparam>
-   /// <typeparam name="TParams">The type of parameters used to create a resource.</typeparam>
-   /// <param name="factory">This <see cref="AsyncResourceFactory{TResource, TParams}"/>.</param>
-   /// <param name="parameters">Parameters that are required for resource creation.</param>
-   /// <param name="token">Cancellation token to use during resource creation.</param>
-   /// <returns>A task which returns a <see cref="AsyncResourceAcquireInfo{TResource}"/> upon completion.</returns>
-   public static ValueTask<AsyncResourceAcquireInfo<TResource>> AcquireResourceAsync<TResource, TParams>( this AsyncResourceFactory<TResource, TParams> factory, TParams parameters, CancellationToken token )
-       => factory.BindCreationParameters( parameters ).AcquireResourceAsync( token );
-
+   /// <param name="factory">This <see cref="AsyncResourceFactory{TResource}"/>.</param>
+   /// <param name="token">The <see cref="CancellationToken"/> to use.</param>
+   /// <returns>Potentially asynchronously returns <see cref="AsyncResourceAcquireInfo{TResource}"/>.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="AsyncResourceFactory{TResource}"/> is <c>null</c>.</exception>
    public static async ValueTask<AsyncResourceAcquireInfo<TResource>> AcquireResourceAsync<TResource>( this AsyncResourceFactory<TResource> factory, CancellationToken token )
    {
       var ctx = factory.CreateAcquireResourceContext( token );

@@ -8,6 +8,7 @@
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
     <TreatSpecificWarningsAsErrors />
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,8 +29,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\UtilPack.AsyncEnumeration\UtilPack.AsyncEnumeration.csproj" />
+    <ProjectReference Include="..\UtilPack.Configuration.NetworkStream\UtilPack.Configuration.NetworkStream.csproj" />
     <ProjectReference Include="..\UtilPack.Cryptography.SASL.SCRAM\UtilPack.Cryptography.SASL.SCRAM.csproj" />
     <ProjectReference Include="..\UtilPack.NuGet.AssemblyLoading\UtilPack.NuGet.AssemblyLoading.csproj" />
+    <ProjectReference Include="..\UtilPack.ResourcePooling.NetworkStream\UtilPack.ResourcePooling.NetworkStream.csproj" />
     <ProjectReference Include="..\UtilPack.ResourcePooling\UtilPack.ResourcePooling.csproj" />
     <ProjectReference Include="..\UtilPack\UtilPack.csproj" />
     <ProjectReference Include="..\UtilPack.JSON\UtilPack.JSON.csproj" />

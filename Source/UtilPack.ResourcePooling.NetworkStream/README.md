@@ -7,6 +7,10 @@ The `NetworkStreamFactory` classes (the one without generic type parameters, and
 This allows to easily create resource pools which behave in various ways by using extension methods on `NetworkStreamFactory`.
 These resource pools may be then used to easily get and return instances of `System.IO.Stream`, abstracting away the actual logic of possible DNS resolve and SSL stream creation.
 
+The most common usecase it to have a configuration object inheriting from the ones defined in [UtilPack.Configuration.NetworkStream](../UtilPack.Configuration.NetworkStream), and then use extension methods in this library to create `NetworkStreamFactoryConfiguration`.
+This created object may be used to call asynchronous socket and stream initialization method `NetworkStreamFactory.AcquireNetworkStreamFromConfiguration`.
+Typically the socket and stream are then hidden behind some protocol-specific facade, like the ones in [CBAM](../../CBAM) project, but that is out of scope of this library.
+
 # Distribution
 
 See [NuGet package](http://www.nuget.org/packages/UtilPack.ResourcePooling.NetworkStream) for binary distribution.

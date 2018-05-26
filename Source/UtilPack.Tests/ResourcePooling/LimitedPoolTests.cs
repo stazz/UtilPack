@@ -49,25 +49,23 @@ namespace UtilPack.Tests.ResourcePooling
       }
    }
 
-   public class AsyncTestResourceFactory : AsyncResourceFactory<TestResource>
+   public class AsyncTestResourceFactory : DefaultBoundAsyncResourceFactory<TestResource, Func<Int32>>
    {
       private Int32 _id;
 
-      private readonly Func<Int32> _config;
-
       public AsyncTestResourceFactory( Func<Int32> config )
+         : base( config )
       {
-         this._config = ArgumentValidator.ValidateNotNull( nameof( config ), config );
       }
 
-      public async ValueTask<AsyncResourceAcquireInfo<TestResource>> AcquireResourceAsync( CancellationToken token )
+      protected override async ValueTask<AsyncResourceAcquireInfo<TestResource>> AcquireResourceAsync( CancellationToken token )
       {
-         await Task.Delay( this._config(), token );
+         await Task.Delay( this.CreationParameters(), token );
 
          return new TestResourceAcquireInfo( new TestResource( Interlocked.Increment( ref this._id ) ) );
       }
 
-      public void ResetFactoryState()
+      public override void ResetFactoryState()
       {
          Interlocked.Exchange( ref this._id, 0 );
       }

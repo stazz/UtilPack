@@ -26,7 +26,7 @@
       <NeutralLanguage>en-US</NeutralLanguage>
       <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
       <Product>UtilPack</Product>
-      <Description>Library containing types which support publishing logging events and reacting to them.</Description>
+      <Description>Library containing types which supports synchronously and asynchronously publishing logging events, and reacting to them.</Description>
       <Copyright>Stanislav Muhametsin</Copyright>
       <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
    </PropertyGroup>

@@ -44,7 +44,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Added common configuration for most usecases of this library.</PackageReleaseNotes>
+    <PackageReleaseNotes>Separated common configuration into its own project, and added easy-to-use methods to default usecases of transforming that configuration into NetworkStreamFactoryConfiguration. Added possibility to connect to Unix sockets.</PackageReleaseNotes>
     <PackageTags>utilpack async resource pool network stream factory socket</PackageTags>
     <Title>NetworkStream Pooling</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

@@ -81,21 +81,37 @@ namespace UtilPack.ResourcePooling.NetworkStream
          )
       {
          var creationInfo = this._creationInfo;
-
          var data = creationInfo.CreationData;
-         var host = data.Connection?.Host;
-         var remoteAddress = UtilPackMiscellaneous.CreateAddressOrHostNameResolvingLazy(
-            host,
-            creationInfo.SelectRemoteIPAddress,
-            creationInfo.DNSResolve
-            );
+         var conn = data.Connection;
+         var host = conn?.Host;
+         ReadOnlyResettableAsyncLazy<IPAddress> remoteAddress;
+         Func<CancellationToken, ValueTask<IPAddress>> remoteAddressFunc;
+         Func<String> unixSocketFunc;
+         if ( host == null )
+         {
+            unixSocketFunc = () => conn?.UnixSocketFilePath;
+            remoteAddress = null;
+            remoteAddressFunc = null;
+         }
+         else
+         {
+            remoteAddress = UtilPackMiscellaneous.CreateAddressOrHostNameResolvingLazy(
+               host,
+               creationInfo.SelectRemoteIPAddress,
+               creationInfo.DNSResolve
+               );
+            // TODO use token
+            remoteAddressFunc = async ( token ) => await remoteAddress;
+            unixSocketFunc = null;
+         }
 
          return (new NetworkStreamFactoryConfiguration<TIntermediateState>()
          {
             CreateState = stateFactory,
             SelectLocalIPEndPoint = creationInfo.SelectLocalIPEndPoint,
-            RemoteAddress = async ( token ) => await remoteAddress,
-            RemotePort = addr => creationInfo.CreationData?.Connection?.Port ?? 5432,
+            RemoteAddress = remoteAddressFunc,
+            RemotePort = addr => creationInfo.CreationData?.Connection?.Port ?? throw new ArgumentException( "No port specified" ),
+            GetUnixSocketAddress = unixSocketFunc,
 
             // SSL stuff here
             ConnectionSSLMode = ( state ) => data.Connection?.ConnectionSSLMode ?? ConnectionSSLMode.NotRequired,
@@ -153,17 +169,35 @@ public static partial class E_UtilPack
       where TPoolingConfiguration : NetworkPoolingConfiguration
    {
       var data = creationInfo.CreationData;
-      var host = data.Connection?.Host;
-      var remoteAddress = UtilPackMiscellaneous.CreateAddressOrHostNameResolvingLazy(
-         host,
-         creationInfo.SelectRemoteIPAddress,
-         creationInfo.DNSResolve
-         );
+      var conn = data.Connection;
+      var host = conn?.Host;
+      ReadOnlyResettableAsyncLazy<IPAddress> remoteAddress;
+      Func<CancellationToken, ValueTask<IPAddress>> remoteAddressFunc;
+      Func<String> unixSocketFunc;
+      if ( host == null )
+      {
+         unixSocketFunc = () => conn?.UnixSocketFilePath;
+         remoteAddress = null;
+         remoteAddressFunc = null;
+      }
+      else
+      {
+         remoteAddress = UtilPackMiscellaneous.CreateAddressOrHostNameResolvingLazy(
+            host,
+            creationInfo.SelectRemoteIPAddress,
+            creationInfo.DNSResolve
+            );
+         // TODO use token
+         remoteAddressFunc = async ( token ) => await remoteAddress;
+         unixSocketFunc = null;
+      }
+
       return (new NetworkStreamFactoryConfiguration()
       {
          SelectLocalIPEndPoint = creationInfo.SelectLocalIPEndPoint,
-         RemoteAddress = async ( token ) => await remoteAddress,
-         RemotePort = addr => creationInfo.CreationData?.Connection?.Port ?? 5432,
+         RemoteAddress = remoteAddressFunc,
+         RemotePort = addr => creationInfo.CreationData?.Connection?.Port ?? throw new ArgumentException( "No port specified" ),
+         GetUnixSocketAddress = unixSocketFunc,
 
          // SSL stuff here
          ConnectionSSLMode = () => data.Connection?.ConnectionSSLMode ?? ConnectionSSLMode.NotRequired,

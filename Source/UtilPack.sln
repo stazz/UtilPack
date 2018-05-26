@@ -51,7 +51,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Cryptography.SASL.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Logging", "UtilPack.Logging\UtilPack.Logging.csproj", "{6BB0EB38-7766-4C4A-8D57-BA594F85FC46}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.Configuration.NetworkStream", "UtilPack.Configuration.NetworkStream\UtilPack.Configuration.NetworkStream.csproj", "{3D166A33-E02B-4368-93A7-B18B00505AF3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Configuration.NetworkStream", "UtilPack.Configuration.NetworkStream\UtilPack.Configuration.NetworkStream.csproj", "{3D166A33-E02B-4368-93A7-B18B00505AF3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

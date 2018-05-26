@@ -98,7 +98,7 @@ namespace UtilPack.Configuration.NetworkStream
 #endif
 
 #if !NETSTANDARD1_0 && !NETSTANDARD1_3
-         this.DNSResolve = host =>
+         this.DNSResolve = (host) =>
 #if NET40
             Task.Factory.FromAsync(
                ( hostArg, cb, state ) => Dns.BeginGetHostAddresses( hostArg, cb, state ),
@@ -266,18 +266,19 @@ namespace UtilPack.Configuration.NetworkStream
       }
 
       /// <summary>
-      /// Gets or sets the host name of the PostgreSQL backend process.
+      /// Gets or sets the host name of the remote endpoint. Note that this property takes precedence over <see cref="UnixSocketFilePath"/>, if both are specified.
       /// </summary>
-      /// <value>The host name of the PostgreSQL backend process.</value>
+      /// <value>The host name of the remote endpoint.</value>
       /// <remarks>
       /// This should be either textual IP address, or host name.
       /// </remarks>
+      /// <seealso cref="UnixSocketFilePath"/>
       public String Host { get; set; }
 
       /// <summary>
-      /// Gets or sets the port of the PostgreSQL backend process.
+      /// Gets or sets the port of the remote endpoint.
       /// </summary>
-      /// <value>The port of the PostgreSQL backend process.</value>
+      /// <value>The port of the remote endpoint.</value>
       public Int32 Port { get; set; }
 
       ///// <summary>
@@ -307,6 +308,12 @@ namespace UtilPack.Configuration.NetworkStream
       /// This field will only be used of <see cref="ConnectionSSLMode"/> property will be something else than <see cref="NetworkStream.ConnectionSSLMode.NotRequired"/>
       /// </remarks>
       public SslProtocols SSLProtocols { get; set; }
+
+      /// <summary>
+      /// Gets or sets the file path for unix socket connection. Note that <see cref="Host"/> takes precedence over this property, if both are specified.
+      /// </summary>
+      /// <value>The file path for unix socket connection.</value>
+      public String UnixSocketFilePath { get; set; }
 
    }
 
@@ -428,14 +435,14 @@ namespace UtilPack.Configuration.NetworkStream
 
 
    /// <summary>
-   /// This delegate is used by signature of <see cref="ProvideSSLStream"/> in order to validate the certificate of the PostgreSQL backend.
+   /// This delegate is used by signature of <see cref="ProvideSSLStream"/> in order to validate the certificate of the remote endpoint.
    /// The signature is just a copy of <see cref="T:System.Net.Security.RemoteCertificateValidationCallback"/> which is not available on all platforms.
    /// </summary>
    /// <param name="sender">The sender.</param>
-   /// <param name="certificate">The certificate of the PostgreSQL backend.</param>
+   /// <param name="certificate">The certificate of the remote endpoint.</param>
    /// <param name="chain">The chain of certificate authorities associated with the <paramref name="certificate"/>.</param>
    /// <param name="sslPolicyErrors">One or more errors associated with the remote certificate.</param>
-   /// <returns><c>true</c> if PostgreSQL backend certificate is OK; <c>false</c> otherwise.</returns>
+   /// <returns><c>true</c> if remote endpoint certificate is OK; <c>false</c> otherwise.</returns>
    public delegate Boolean RemoteCertificateValidationCallback(
       Object sender,
       System.Security.Cryptography.X509Certificates.X509Certificate certificate,
@@ -450,8 +457,8 @@ namespace UtilPack.Configuration.NetworkStream
    /// <param name="sender">The sender.</param>
    /// <param name="targetHost">The host server specified by client.</param>
    /// <param name="localCertificates">Local certificates used.</param>
-   /// <param name="remoteCertificate">Remote certificate of PostgreSQL backend.</param>
-   /// <param name="acceptableIssuers">Certificate issuers acceptable to PostgreSQL backend.</param>
+   /// <param name="remoteCertificate">Remote certificate of remote endpoint.</param>
+   /// <param name="acceptableIssuers">Certificate issuers acceptable to remote endpoint.</param>
    /// <returns>A certificate from <paramref name="localCertificates"/> collection that should be used in SSL connection.</returns>
    public delegate System.Security.Cryptography.X509Certificates.X509Certificate LocalCertificateSelectionCallback(
       Object sender,

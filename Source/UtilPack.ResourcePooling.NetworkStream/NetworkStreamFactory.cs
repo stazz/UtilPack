@@ -174,19 +174,74 @@ namespace UtilPack.ResourcePooling.NetworkStream
 
       }
 
-      ///// <summary>
-      ///// Implements <see cref="AbstractNetworkStreamFactory{TConfiguration}.AcquireStreamAndSocket"/> by connecting to remote endpoing using only information in <see cref="NetworkStreamFactoryConfiguration{TState}"/>.
-      ///// </summary>
-      ///// <param name="parameters">The <see cref="NetworkStreamFactoryConfiguration{TState}"/> to use.</param>
-      ///// <param name="token">The cancellation token to use.</param>
-      ///// <returns>Acquired socket and stream.</returns>
-      ///// <seealso cref="NetworkStreamFactoryConfiguration{TState}"/>
-      ///// <seealso cref="AcquireNetworkStreamFromConfiguration"/>
-      //protected override async ValueTask<(Socket, Stream)> AcquireStreamAndSocket( NetworkStreamFactoryConfiguration<TState> parameters, CancellationToken token )
-      //{
-      //   var tuple = await AcquireNetworkStreamFromConfiguration( parameters, token );
-      //   return (tuple.Item1, tuple.Item2);
-      //}
+      public sealed class UnixEndPoint : EndPoint
+      {
+         private static readonly Encoding _Encoding = new UTF8Encoding( false, false );
+
+         public UnixEndPoint( String filename )
+         {
+            this.Filename = ArgumentValidator.ValidateNotNull( nameof( filename ), filename );
+         }
+
+         public String Filename { get; }
+
+         public override AddressFamily AddressFamily => AddressFamily.Unix;
+
+         public override EndPoint Create( SocketAddress socketAddress )
+         {
+            var serializedAddressFamily = (AddressFamily) ( socketAddress[0] | ( socketAddress[1] << 8 ) );
+            if ( serializedAddressFamily != AddressFamily.Unix )
+            {
+               throw new ArgumentException( "Given socket address is not a Unix socket address." );
+            }
+
+            var socketSize = socketAddress.Size;
+            String fileName;
+            if ( socketSize <= 2 )
+            {
+               fileName = String.Empty;
+            }
+            else
+            {
+               //There may be junk after null terminator so we need to examine every byte
+               var i = 0;
+               var max = socketAddress.Size - 2;
+               var bytes = new Byte[max];
+               Byte b;
+               while ( i < max && ( b = socketAddress[i] ) != 0 )
+               {
+                  bytes[i++] = b;
+               }
+               fileName = _Encoding.GetString( bytes, 0, i );
+            }
+
+            return new UnixEndPoint( fileName );
+         }
+
+         public override SocketAddress Serialize()
+         {
+            // We must allocate new array and then copy manually, as there is no copy method provided for socket address...
+            var bytes = _Encoding.GetBytes( this.Filename );
+            // 2 extra bytes for address family, 1 for null terminator
+            var address = new SocketAddress( AddressFamily.Unix, bytes.Length + 3 );
+            // Address family in first bytes, set by SocketAddress constructor
+            // No copying into socket address API, so iterate byte by byte
+            for ( var i = 0; i < bytes.Length; ++i )
+            {
+               address[i + 2] = bytes[i];
+            }
+
+            // Explicitly set null terminator in case socket address got some junk in its array
+            address[bytes.Length + 2] = 0;
+            return address;
+         }
+
+         public override String ToString() => this.Filename;
+
+         public override Int32 GetHashCode() => this.Filename?.GetHashCode() ?? 0;
+
+         public override Boolean Equals( Object obj ) => obj is UnixEndPoint other && String.Equals( this.Filename, other.Filename );
+      }
 
       /// <summary>
       /// Acquires the <see cref="Socket"/>, <see cref="Stream"/> and <typeparamref name="TState"/> given <see cref="NetworkStreamFactoryConfiguration{TState}"/> and <see cref="CancellationToken"/>.
@@ -204,14 +259,32 @@ namespace UtilPack.ResourcePooling.NetworkStream
          CancellationToken token
          )
       {
-         var remoteAddress = await ArgumentValidator.ValidateNotNull( nameof( parameters.RemoteAddress ), parameters.RemoteAddress )( token );
-         var remoteEP = new IPEndPoint( remoteAddress, ArgumentValidator.ValidateNotNull( nameof( parameters.RemotePort ), parameters.RemotePort )( remoteAddress ) );
+         EndPoint remoteEP;
+         EndPoint localEP;
+         SocketType socketType;
+         ProtocolType protocolType;
+         var remoteAddressGetter = parameters.RemoteAddress;
+         if ( remoteAddressGetter == null )
+         {
+            remoteEP = new UnixEndPoint( parameters.GetUnixSocketAddress?.Invoke() ?? throw new ArgumentException( "No remote IP address getter nor Unix socket filename specified." ) );
+            localEP = null;
+            socketType = SocketType.Stream;
+            protocolType = ProtocolType.IP;
+         }
+         else
+         {
+            var remoteAddress = await ArgumentValidator.ValidateNotNull( nameof( parameters.RemoteAddress ), parameters.RemoteAddress )( token );
+            var remoteIPEP = new IPEndPoint( remoteAddress, ArgumentValidator.ValidateNotNull( nameof( parameters.RemotePort ), parameters.RemotePort )( remoteAddress ) );
+            remoteEP = remoteIPEP;
+            localEP = parameters.SelectLocalIPEndPoint?.Invoke( remoteIPEP );
+            socketType = parameters.SocketType;
+            protocolType = parameters.ProtocolType;
+         }
 
          Socket CreateSocket()
          {
-            return new Socket( remoteAddress.AddressFamily, parameters.SocketType, parameters.ProtocolType );
+            return new Socket( remoteEP.AddressFamily, socketType, protocolType );
          }
-         var localEP = parameters.SelectLocalIPEndPoint?.Invoke( remoteEP );
 
          async Task<TNetworkStream> InitNetworkStream( Socket thisSocket )
          {
@@ -318,84 +391,6 @@ namespace UtilPack.ResourcePooling.NetworkStream
                throw parameters.RemoteNoSSLSupport?.Invoke() ?? new InvalidOperationException( "Remote does not support SSL." );
             }
 
-
-
-            //if ( isSSLRequired || connectionMode == ConnectionSSLMode.Preferred )
-            //{
-            //   if ( await ( parameters.IsSSLPossible?.Invoke( state ) ?? TaskUtils.False ) )
-            //   {
-            //      // Start SSL session
-            //      Stream sslStream = null;
-            //      try
-            //      {
-            //         var provideSSLStream = parameters.ProvideSSLStream;
-            //         if ( provideSSLStream != null )
-            //         {
-            //            var clientCerts = new System.Security.Cryptography.X509Certificates.X509CertificateCollection();
-            //            parameters.ProvideClientCertificates?.Invoke( clientCerts );
-            //            sslStream = provideSSLStream( stream, false, parameters.ValidateServerCertificate, parameters.SelectLocalCertificate, out AuthenticateAsClientAsync authenticateAsClient );
-            //            if ( isSSLRequired )
-            //            {
-            //               if ( sslStream == null )
-            //               {
-            //                  throw parameters.SSLStreamProviderNoStream?.Invoke() ?? new InvalidOperationException( "SSL stream creation callback returned null." );
-            //               }
-            //               else if ( authenticateAsClient == null )
-            //               {
-            //                  throw parameters.SSLStreamProviderNoAuthenticationCallback?.Invoke() ?? new InvalidOperationException( "Authentication callback given by SSL stream creation callback was null." );
-            //               }
-            //            }
-
-            //            if ( sslStream != null && authenticateAsClient != null )
-            //            {
-            //               await authenticateAsClient(
-            //                  sslStream,
-            //                  parameters.ProvideSSLHost?.Invoke( state ) ?? throw new ArgumentException( "Please specify remote host in connection configuration." ),
-            //                  clientCerts,
-            //                  parameters.GetSSLProtocols?.Invoke( state ) ?? AbstractNetworkStreamFactoryConfiguration.DEFAULT_SSL_PROTOCOLS,
-            //                  true
-            //                  );
-            //               stream = sslStream;
-            //            }
-            //         }
-            //         else if ( isSSLRequired )
-            //         {
-            //            throw parameters.NoSSLStreamProvider() ?? new InvalidOperationException( "Creation parameters did not have callback to create SSL stream." );
-            //         }
-            //      }
-            //      catch ( Exception exc )
-            //      {
-            //         if ( !isSSLRequired )
-            //         {
-            //            // We close SSL stream in case authentication failed.
-            //            // Closing SSL stream will close underlying stream, which will close the socket...
-            //            // So we have to reconnect afterwards.
-            //            ( sslStream ?? stream ).DisposeSafely();
-            //            // ... so re-create it
-            //            socket = CreateSocket();
-            //            stream = await InitNetworkStream( socket );
-            //         }
-            //         else
-            //         {
-            //            var otherExc = parameters.SSLStreamOtherError?.Invoke( exc );
-            //            if ( otherExc == null )
-            //            {
-            //               throw;
-            //            }
-            //            else
-            //            {
-            //               throw otherExc;
-            //            }
-            //         }
-            //      }
-            //   }
-            //   else if ( isSSLRequired )
-            //   {
-            //      // SSL session start was unsuccessful, and it is required -> can not continue
-            //      throw parameters.RemoteNoSSLSupport?.Invoke() ?? new InvalidOperationException( "Remote does not support SSL." );
-            //   }
-            //}
-
          }
          catch
          {
@@ -498,6 +493,8 @@ namespace UtilPack.ResourcePooling.NetworkStream
          };
 #endif
       }
+
+      public Func<String> GetUnixSocketAddress { get; set; }
 
       /// <summary>
       /// Gets or sets the callback to potentially asynchronously get remote <see cref="IPAddress"/>.
@@ -757,7 +754,8 @@ public static partial class E_UtilPack
          TransformStreamAfterCreation = configuration.TransformStreamAfterCreation,
 
          // The rest are copypaste
-         RemoteAddress = async ( token ) => await configuration.RemoteAddress( token ),
+         RemoteAddress = configuration.RemoteAddress == null ? null : new Func<CancellationToken, ValueTask<IPAddress>>( async token => await configuration.RemoteAddress( token ) ),
+         GetUnixSocketAddress = configuration.GetUnixSocketAddress,
          RemotePort = addr => configuration.RemotePort?.Invoke( addr ) ?? 0,
          SocketType = configuration.SocketType,
          ProtocolType = configuration.ProtocolType,

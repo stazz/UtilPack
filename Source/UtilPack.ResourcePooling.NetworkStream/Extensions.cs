@@ -17,6 +17,7 @@
  */
 using System;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
 
@@ -53,7 +54,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
 #if !NETSTANDARD1_3
             if ( dnsResolve == null )
             {
-               dnsResolve = host =>
+               dnsResolve = ( host ) =>
 #if NET40
                   DnsEx
 #else

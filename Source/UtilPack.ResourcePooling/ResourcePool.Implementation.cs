@@ -173,7 +173,7 @@ namespace UtilPack.ResourcePooling
 
       /// <summary>
       /// This method is called by <see cref="UseResourceAsync(Func{TResource, Task}, CancellationToken)"/> before invoking the given asynchronous callback.
-      /// The implementation in this class always uses <see cref="AsyncResourceFactory{TResource}.AcquireResourceAsync"/> method of this <see cref="Factory"/>, but derived classes may override this method to cache previously used resources into a pool.
+      /// The implementation in this class always uses <see cref="AsyncResourceFactory{TResource}.CreateAcquireResourceContext(CancellationToken)"/> method of this <see cref="Factory"/>, but derived classes may override this method to cache previously used resources into a pool.
       /// </summary>
       /// <param name="token">The <see cref="CancellationToken"/> to use.</param>
       /// <returns>A task which will have instance of <typeparamref name="TResourceInstance"/> upon completion.</returns>

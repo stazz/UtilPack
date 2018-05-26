@@ -111,7 +111,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
             SelectLocalIPEndPoint = creationInfo.SelectLocalIPEndPoint,
             RemoteAddress = remoteAddressFunc,
             RemotePort = addr => creationInfo.CreationData?.Connection?.Port ?? throw new ArgumentException( "No port specified" ),
-            GetUnixSocketAddress = unixSocketFunc,
+            GetUnixSocketFilePath = unixSocketFunc,
 
             // SSL stuff here
             ConnectionSSLMode = ( state ) => data.Connection?.ConnectionSSLMode ?? ConnectionSSLMode.NotRequired,
@@ -197,7 +197,7 @@ public static partial class E_UtilPack
          SelectLocalIPEndPoint = creationInfo.SelectLocalIPEndPoint,
          RemoteAddress = remoteAddressFunc,
          RemotePort = addr => creationInfo.CreationData?.Connection?.Port ?? throw new ArgumentException( "No port specified" ),
-         GetUnixSocketAddress = unixSocketFunc,
+         GetUnixSocketFilePath = unixSocketFunc,
 
          // SSL stuff here
          ConnectionSSLMode = () => data.Connection?.ConnectionSSLMode ?? ConnectionSSLMode.NotRequired,

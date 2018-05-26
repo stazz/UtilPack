@@ -1,4 +1,4 @@
-﻿# UtilPack.Logging
+# UtilPack.Logging
 
 This is compact library aimed to solve three things:
 

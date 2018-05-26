@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
    <PropertyGroup>
       <TargetFrameworks>netstandard1.3</TargetFrameworks>
@@ -54,7 +54,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Following release of UtilPack.ResourcePooling.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added property for specifying configuration file contents directly as string.</PackageReleaseNotes>
     <PackageTags>utility async resource pool msbuild task</PackageTags>
     <Title>MSBuild Resource Pooling Support</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

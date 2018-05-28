@@ -10,7 +10,7 @@ Just like the synchronous `System.Collections.Generic.IEnumerator<T>` interface,
 
 # IAsyncEnumerable
 This is just like its synchronous counterpart `IEnumerable<T>` interface, except for asynchronous environment.
-One should use `EnumerateSequentiallyAsync` extension method to enumerate the items of `IAsyncEnumerable<T>`.
+One should use `EnumerateSequentiallyAsync` extension method to enumerate the items of `IAsyncEnumerable<T>`, as the proper language syntax is still lacking.
 
 # aLINQ
 This library also provides a number of methods that correspond to the ones available as LINQ methods to normal `IEnumerable<T>` interface.

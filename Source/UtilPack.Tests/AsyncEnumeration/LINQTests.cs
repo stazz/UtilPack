@@ -42,5 +42,21 @@ namespace UtilPack.Tests.AsyncEnumeration
          var array = await AsyncEnumerable.Neverending( 1 ).Take( 3 ).ToArrayAsync();
          Assert.IsTrue( ArrayEqualityComparer<Int32>.ArrayEquality( array, Enumerable.Repeat( 1, 3 ).ToArray() ) );
       }
+
+      [TestMethod, Timeout( 1000 )]
+      public async Task TestTakeWhile()
+      {
+         var idx = 0;
+         var array = await AsyncEnumerable.Neverending( 1 ).TakeWhile( item => ++idx <= 3 ).ToArrayAsync();
+         Assert.IsTrue( ArrayEqualityComparer<Int32>.ArrayEquality( array, Enumerable.Repeat( 1, 3 ).ToArray() ) );
+      }
+
+      [TestMethod]
+      public async Task TestTakeWhileAsync()
+      {
+         var idx = 0;
+         var array = await AsyncEnumerable.Neverending( 1 ).TakeWhile( async item => { await Task.Delay( 100 ); return ++idx <= 3; } ).ToArrayAsync();
+         Assert.IsTrue( ArrayEqualityComparer<Int32>.ArrayEquality( array, Enumerable.Repeat( 1, 3 ).ToArray() ) );
+      }
    }
 }

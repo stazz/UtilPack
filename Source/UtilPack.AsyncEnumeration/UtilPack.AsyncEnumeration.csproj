@@ -24,14 +24,14 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionPrefix>1.0.1</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
     <NeutralLanguage>en-US</NeutralLanguage>
     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Product>UtilPack</Product>
-    <Description>Library containing types which support asynchronously fetching next item in a sequence of items.</Description>
+    <Description>Library containing IAsyncEnumerable, and async LINQ methods.</Description>
     <Copyright>Stanislav Muhametsin</Copyright>
     <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
   </PropertyGroup>
@@ -55,7 +55,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Added new aLINQ methods: Take, TakeWhile, Skip, SkipWhile, Aggregate, SelectMany. Added also generation classes.</PackageReleaseNotes>
+    <PackageReleaseNotes>Fixed a bug occuring under special circumstances in the async version of TakeWhile aLINQ method, causing the enumeration not to stop when needed.</PackageReleaseNotes>
     <PackageTags>utility async enumerable enumerator</PackageTags>
     <Title>Asynchronous Enumeration</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

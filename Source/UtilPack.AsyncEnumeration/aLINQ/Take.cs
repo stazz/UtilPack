@@ -173,7 +173,8 @@ namespace UtilPack.AsyncEnumeration.LINQ
          var stack = this._stack;
          // Discard any previous items
          stack.Clear();
-         while ( stack.Count == 0 && await this._source.WaitForNextAsync() )
+         var falseNotSeen = true;
+         while ( falseNotSeen && stack.Count == 0 && await this._source.WaitForNextAsync() )
          {
             Boolean success;
             do
@@ -188,6 +189,8 @@ namespace UtilPack.AsyncEnumeration.LINQ
                   else
                   {
                      this._state = FALSE_SEEN;
+                     success = false;
+                     falseNotSeen = false;
                   }
                }
             } while ( success );

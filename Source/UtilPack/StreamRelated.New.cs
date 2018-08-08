@@ -291,6 +291,18 @@ namespace UtilPack
       public override Int64 Position { get => this._stream.Position; set => this._stream.Position = value; }
 
       /// <summary>
+      /// Will call <see cref="IDisposable.Dispose"/> on underlying stream, if <paramref name="disposing"/> is <c>true</c>.
+      /// </summary>
+      /// <param name="disposing"><c>true</c> if we are disposing ourselves; <c>false</c> if by GC.</param>
+      protected override void Dispose( Boolean disposing )
+      {
+         if ( disposing )
+         {
+            this._stream.Dispose();
+         }
+      }
+
+      /// <summary>
       /// This method always throws <see cref="NotSupportedException"/>, as synchronous API is not supported by this class.
       /// </summary>
       public override void Flush()

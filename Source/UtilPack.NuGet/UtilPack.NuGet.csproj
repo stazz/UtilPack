@@ -1,7 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.3;net46</TargetFrameworks>
+    <TargetFrameworks>netstandard1.6;net46</TargetFrameworks>
   </PropertyGroup>
   
   <PropertyGroup>
@@ -13,7 +13,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <NuGetTargetVersion>4.6.0</NuGetTargetVersion>
+    <NuGetTargetVersion>4.7.0</NuGetTargetVersion>
     <DefineConstants>$(DefineConstants);NUGET_$(NuGetTargetVersion.Replace('.', ''))</DefineConstants>
   </PropertyGroup>
   
@@ -28,7 +28,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>2.1.0</VersionPrefix>
+    <VersionPrefix>2.2.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
@@ -59,7 +59,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>Updated to newest NuGet version.</PackageReleaseNotes>
+    <PackageReleaseNotes>Updated to newest (4.7.0) NuGet version.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions restore</PackageTags>
     <Title>NuGet Restore Helper</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

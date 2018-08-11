@@ -18,7 +18,7 @@
     <dependencies/>
   </metadata>
   <files>
-    <file src="bin\Release\net45\*.dll" exclude="bin\Release\net45\Microsoft.Build.Framework.dll" target="build\net45\" />
+    <file src="bin\Release\net46\*.dll" exclude="bin\Release\net46\Microsoft.Build.Framework.dll" target="build\net46\" />
     <file src="bin\Release\netcoreapp1.1\UtilPack.NuGet.MSBuild.dll" target="build\netcoreapp1.1\" />
     <file src="bin\Release\NuGetSpecific\*.dll" target="build\netcoreapp1.1\" />
     <file src="build\*.*" target="build\" />

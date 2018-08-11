@@ -6,7 +6,7 @@
     -->
    
   <PropertyGroup>
-    <TargetFrameworks Condition=" '$(TargetFramework)' == '' ">net45;netcoreapp1.1</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(TargetFramework)' == '' ">net46;netcoreapp1.1</TargetFrameworks>
     <ActualAssemblyName>UtilPack.NuGet.MSBuild</ActualAssemblyName>
   </PropertyGroup>
 
@@ -15,7 +15,7 @@
     <TreatSpecificWarningsAsErrors />
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
     <LangVersion>7.1</LangVersion>
-    <DefineConstants Condition=" '$(TargetFramework)' != 'net45' ">$(DefineConstants);IS_NETSTANDARD</DefineConstants>
+    <DefineConstants Condition=" '$(TargetFramework)' != 'net46' ">$(DefineConstants);IS_NETSTANDARD</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -27,11 +27,11 @@
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(NuGetTargetVersion)' != '' ">
-    <AssemblyName Condition=" '$(TargetFramework)' != 'net45' ">$(ActualAssemblyName).NuGet.$(NuGetTargetVersion)</AssemblyName>
+    <AssemblyName Condition=" '$(TargetFramework)' != 'net46' ">$(ActualAssemblyName).NuGet.$(NuGetTargetVersion)</AssemblyName>
     <DefineConstants>$(DefineConstants);NUGET_$(NuGetTargetVersion.Replace('.', ''))</DefineConstants>
   </PropertyGroup>
   
-  <PropertyGroup Condition=" '$(NuGetTargetVersion)' == '' or '$(TargetFramework)' == 'net45' ">
+  <PropertyGroup Condition=" '$(NuGetTargetVersion)' == '' or '$(TargetFramework)' == 'net46' ">
     <AssemblyName>$(ActualAssemblyName)</AssemblyName>
   </PropertyGroup>
 
@@ -44,13 +44,13 @@
     </ProjectReference>
   </ItemDefinitionGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net45' ">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net46' ">
     <PackageReference Include="System.ValueTuple" Version="4.4.0" />
     <PackageReference Include="Microsoft.Build.Framework" Version="14.3" />
     <PackageReference Include="System.Reflection.Emit" Version="4.3.0" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' != 'net45'">
+  <ItemGroup Condition="'$(TargetFramework)' != 'net46'">
     <PackageReference Include="System.ValueTuple" Version="4.3.0" />
     <PackageReference Include="Microsoft.Build.Framework" Version="15.1.548" />
     <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
@@ -102,7 +102,7 @@
          In release build, we want to save that so that it can be packaged later.
          -->
     <Copy
-      Condition=" '$(Configuration)' == 'Release' and '$(TargetFramework)' != 'net45' and '$(NuGetTargetVersion)' != ''"
+      Condition=" '$(Configuration)' == 'Release' and '$(TargetFramework)' != 'net46' and '$(NuGetTargetVersion)' != ''"
       SourceFiles="$(MSBuildThisFileDirectory)$(OutputPath)$(AssemblyName).dll"
       DestinationFolder="$(MSBuildThisFileDirectory)$(OutputPath)..\NuGetSpecific"
       />

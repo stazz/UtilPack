@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
-#if NET45 ||NET46
+#if !IS_NETSTANDARD
 using NuGet.Frameworks;
 using NuGet.Repositories;
 using System;

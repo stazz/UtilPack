@@ -42,6 +42,9 @@ namespace UtilPack.NuGet
 #if NUGET_430
       private static readonly NuGetFramework NETCOREAPP20 = new NuGetFramework( FrameworkConstants.FrameworkIdentifiers.NetCoreApp, new Version( 2, 0, 0, 0 ) );
 #endif
+#if NUGET_430 || NUGET_440 || NUGET_450
+      private static readonly NuGetFramework NETCOREAPP21 = new NuGetFramework( FrameworkConstants.FrameworkIdentifiers.NetCoreApp, new Version( 2, 1, 0, 0 ) );
+#endif
 
       /// <summary>
       /// Gets the matching assembly path from set of assembly paths, the expanded home path of the package, and optional assembly path from "outside world", e.g. configuration.
@@ -157,7 +160,7 @@ namespace UtilPack.NuGet
             switch ( sdkPackageID )
             {
                case SDK_PACKAGE_NETSTANDARD:
-                  retVal = "1.6.1";
+                  retVal = "2.0.3";
                   //if ( String.Equals( framework.Framework, FrameworkConstants.FrameworkIdentifiers.NetStandard, StringComparison.OrdinalIgnoreCase ) )
                   //{
                   //   retVal = framework.Version.ToString();
@@ -277,13 +280,38 @@ namespace UtilPack.NuGet
                      // The strings are a bit messed up, e.g.:
                      // Core 1.1: ".NET Core 4.6.25211.01"
                      // Core 2.0: ".NET Core 4.6.00001.0"
+                     // Core 2.1: ".NET Core 4.6.26614.01"
+                     switch ( netCoreVersion.Build )
+                     {
+                        case 25211:
+                           retVal = FrameworkConstants.CommonFrameworks.NetCoreApp11;
+                           break;
+                        case 00001:
+                           retVal =
+#if NUGET_430
+                           NETCOREAPP20
+#else
+                           FrameworkConstants.CommonFrameworks.NetCoreApp20
+#endif
+                           ;
+                           break;
+                        default:
+                           retVal =
+#if !NUGET_430 && !NUGET_440 && !NUGET_450
+                              FrameworkConstants.CommonFrameworks.NetCoreApp21
+#else
+                              NETCOREAPP21
+#endif
+                              ;
+                           break;
+                     }
                      if ( netCoreVersion.Build == 25211 )
                      {
                         retVal = FrameworkConstants.CommonFrameworks.NetCoreApp11;
                      }
                      else
                      {
-                        // NET Core 2.0
+                        // NET Core 2.x
                         retVal =
 #if NUGET_430
                            NETCOREAPP20

@@ -21,12 +21,12 @@
   </ItemGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == 'net40' ">
-    <PackageReference Include="Theraot.Core" Version="1.0.3" />
+    <PackageReference Include="Theraot.Core" Version="1.0.5" />
   </ItemGroup>
   
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.5.1</VersionPrefix>
+    <VersionPrefix>1.5.2</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>
@@ -57,7 +57,7 @@
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>DuplexBufferedAsyncStream now propagates its Dispose call to underlying stream.</PackageReleaseNotes>
+    <PackageReleaseNotes>Updated to newest (1.0.5) Theraot.Core version. Also minor fix in AsyncEventArgs class hierarchy.</PackageReleaseNotes>
     <PackageTags>bcl utility binary serialization collection extensions</PackageTags>
     <Title>Utility Package for CLR</Title>
     <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>

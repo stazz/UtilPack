@@ -115,7 +115,6 @@ namespace UtilPack.NuGet
          Boolean leaveSourceCacheOpen = false
          )
       {
-
          ArgumentValidator.ValidateNotNull( nameof( nugetSettings ), nugetSettings );
          this.ThisFramework = thisFramework ?? UtilPackNuGetUtility.TryAutoDetectThisProcessFramework();
          if ( nugetLogger == null )

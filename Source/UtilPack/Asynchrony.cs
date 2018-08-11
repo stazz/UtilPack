@@ -195,9 +195,9 @@ namespace UtilPack
    }
 
    /// <summary>
-   /// This class restricts the type argument of <see cref="EventArgsWithAsyncContextImpl{TAwaitable}"/> to <see cref="System.Threading.Tasks.Task"/>.
+   /// This class restricts the type argument of <see cref="EventArgsWithAsyncContextImpl{TAwaitable}"/> to <see cref="Task"/>.
    /// </summary>
-   public class EventArgsWithAsyncContextImpl : EventArgsWithAsyncContextImpl<System.Threading.Tasks.Task>
+   public class EventArgsWithAsyncContextImpl : EventArgsWithAsyncContextImpl<Task>, EventArgsWithAsyncContext
    {
 
    }

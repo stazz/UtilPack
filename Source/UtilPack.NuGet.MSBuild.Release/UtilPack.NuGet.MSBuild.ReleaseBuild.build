@@ -15,7 +15,7 @@
     
     <!-- Build .NET Desktop version with newest NuGet version (since NuGet assemblies will be included). -->
     <Exec
-      Command="$(MSBuildExecCMD) /t:Restore;Build /p:Configuration=Release;TargetFramework=net45;NuGetTargetVersion=4.5.0 $(TargetProjectFile)"
+      Command="$(MSBuildExecCMD) /t:Restore;Build /p:Configuration=Release;TargetFramework=net46;NuGetTargetVersion=$(NewestNuGetVersion) $(TargetProjectFile)"
       />
 
     <!-- Build .NET Core for all supported NuGet versions. -->

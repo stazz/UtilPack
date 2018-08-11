@@ -370,7 +370,7 @@ namespace UtilPack.NuGet.MSBuild
                   {
                      GetFileItemsDelegate getFiles = ( rGraph, rid, lib, libs ) => GetSuitableFiles( thisFW, rGraph, rid, lib, libs );
                      // On Desktop we must always load everything, since it's possible to have assemblies compiled against .NET Standard having references to e.g. System.IO.FileSystem.dll, which is not present in GAC
-#if NET45 || NET46
+#if !IS_NETSTANDARD
                      String[] sdkPackages = null;
                      AppDomainSetup appDomainSetup = null;
 #else
@@ -427,7 +427,7 @@ namespace UtilPack.NuGet.MSBuild
                                     new ResolverLogger( nugetLogger ),
                                     getFiles,
                                     tempFolder,
-#if NET45 || NET46
+#if !IS_NETSTANDARD
                                  ref appDomainSetup
 #else
                                  sdkRestoreResult
@@ -814,7 +814,7 @@ namespace UtilPack.NuGet.MSBuild
       {
          resolver.OnAssemblyLoadSuccess += args => logger.Log( $"Resolved {args.AssemblyName} located in {args.OriginalPath} and loaded from {( String.Equals( args.OriginalPath, args.ActualPath ) ? "same path" : args.ActualPath )}." );
          resolver.OnAssemblyLoadFail += args => logger.Log( $"Failed to resolve {args.AssemblyName}." );
-#if !NET45
+#if IS_NETSTANDARD
          resolver.OnUnmanagedAssemblyLoadSuccess += args => logger.Log( $"Resolved unmanaged assembly \"{args.AssemblyName}\" located in {args.OriginalPath} and loaded from {( String.Equals( args.OriginalPath, args.ActualPath ) ? "same path" : args.ActualPath )}." );
          resolver.OnUnmanagedAssemblyLoadFail += args => logger.Log( $"Failed to resolve unmanaged assembly \"{args.AssemblyName}\", with all seen unmanaged DLL paths: {String.Join( ";", args.AllSeenUnmanagedAssembliesPaths )}." );
 #endif
@@ -861,7 +861,7 @@ namespace UtilPack.NuGet.MSBuild
          )
       {
          var ctors = type
-#if !NET45
+#if IS_NETSTANDARD
             .GetTypeInfo()
 #endif
             .GetConstructors();
@@ -986,7 +986,7 @@ namespace UtilPack.NuGet.MSBuild
 
          var ab = AssemblyBuilder.DefineDynamicAssembly( new AssemblyName( "NuGetTaskWrapperDynamicAssembly" ), AssemblyBuilderAccess.RunAndCollect );
          var mb = ab.DefineDynamicModule( "NuGetTaskWrapperDynamicAssembly.dll"
-#if NET45 || NET46
+#if !IS_NETSTANDARD
                , false
 #endif
                );
@@ -1217,7 +1217,7 @@ namespace UtilPack.NuGet.MSBuild
 
          // We are ready
          return tb.
-#if NET45 || NET46
+#if !IS_NETSTANDARD
             CreateType()
 #else
             CreateTypeInfo().AsType()
@@ -1264,7 +1264,7 @@ namespace UtilPack.NuGet.MSBuild
 
    // Instances of this class reside in target task app domain, so we must be careful not to use any UtilPack stuff here! So no ArgumentValidator. etc.
    public sealed class TaskReferenceHolder
-#if NET45 || NET46
+#if !IS_NETSTANDARD
       : MarshalByRefObject
 #endif
    {
@@ -1447,7 +1447,7 @@ namespace UtilPack.NuGet.MSBuild
    // Instances of this class reside in task factory app domain.
    // Has to be public, since it is used by dynamically generated task type.
    public sealed class ResolverLogger
-#if NET45 || NET46
+#if !IS_NETSTANDARD
       : MarshalByRefObject
 #endif
    {
@@ -1519,7 +1519,7 @@ namespace UtilPack.NuGet.MSBuild
 
 
 
-#if NET45 || NET46
+#if !IS_NETSTANDARD
    [Serializable] // We want to be serializable instead of MarshalByRef as we want to copy these objects
 #endif
    internal sealed class ResolvedPackageInfo
@@ -1596,7 +1596,7 @@ namespace UtilPack.NuGet.MSBuild
                      kind = null;
                   }
                   break;
-#if NET45 || NET46
+#if !IS_NETSTANDARD
                case TypeCode.DBNull:
 #endif
                case TypeCode.Empty:
@@ -1639,7 +1639,7 @@ namespace UtilPack.NuGet.MSBuild
       private static Boolean ISMFBType( Type type, AssemblyName mfbAssembly )
       {
          var an = type
-#if !NET45
+#if IS_NETSTANDARD
                      .GetTypeInfo()
 #endif
                      .Assembly.GetName();

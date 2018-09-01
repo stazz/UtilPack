@@ -16,45 +16,41 @@
  * limitations under the License. 
  */
 using Microsoft.Build.Framework;
-using NuGet.Common;
-using NuGet.Repositories;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.IO;
-using System.Xml.Linq;
-using NuGet.Versioning;
-using System.Reflection;
-using NuGet.Frameworks;
-
-using TPropertyInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyTypeModifier, UtilPack.NuGet.MSBuild.WrappedPropertyInfo, System.Reflection.PropertyInfo>;
-using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
-using TNuGetPackagesResolverCallback = System.Func<System.String[], System.String[], System.String[], System.Threading.Tasks.Task<System.Reflection.Assembly[]>>;
-using TAssemblyByPathResolverCallback = System.Func<System.String, System.Reflection.Assembly>;
-using TAssemblyNameResolverCallback = System.Func<System.Reflection.AssemblyName, System.Reflection.Assembly>;
-using TTypeStringResolverCallback = System.Func<System.String, System.Type>;
-
-using System.Collections.Concurrent;
-using NuGet.Configuration;
-using NuGet.ProjectModel;
 using NuGet.Commands;
-using NuGet.Protocol.Core.Types;
-using NuGet.Packaging;
+using NuGet.Common;
+using NuGet.Configuration;
+using NuGet.Frameworks;
 using NuGet.LibraryModel;
-
-using TResolveResult = System.Collections.Generic.IDictionary<System.String, UtilPack.NuGet.MSBuild.ResolvedPackageInfo>;
+using NuGet.Packaging;
+using NuGet.Packaging.Core;
+using NuGet.ProjectModel;
+using NuGet.Protocol.Core.Types;
+using NuGet.Repositories;
+using NuGet.RuntimeModel;
+using NuGet.Versioning;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
-
-using TTaskPropertyInfoDictionary = System.Collections.Generic.IDictionary<System.String, System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyTypeModifier, UtilPack.NuGet.MSBuild.WrappedPropertyInfo>>;
 using System.Threading.Tasks;
-using UtilPack.NuGet;
-using UtilPack.NuGet.MSBuild;
+using System.Xml.Linq;
 using UtilPack;
+using UtilPack.NuGet;
 using UtilPack.NuGet.AssemblyLoading;
 using UtilPack.NuGet.Common.MSBuild;
-using NuGet.Packaging.Core;
-using NuGet.RuntimeModel;
+using UtilPack.NuGet.MSBuild;
+using TAssemblyByPathResolverCallback = System.Func<System.String, System.Reflection.Assembly>;
+using TAssemblyNameResolverCallback = System.Func<System.Reflection.AssemblyName, System.Reflection.Assembly>;
+using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
+using TNuGetPackagesResolverCallback = System.Func<System.String[], System.String[], System.String[], System.Threading.Tasks.Task<System.Reflection.Assembly[]>>;
+using TPropertyInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyTypeModifier, UtilPack.NuGet.MSBuild.WrappedPropertyInfo, System.Reflection.PropertyInfo>;
+using TResolveResult = System.Collections.Generic.IDictionary<System.String, UtilPack.NuGet.MSBuild.ResolvedPackageInfo>;
+using TTaskPropertyInfoDictionary = System.Collections.Generic.IDictionary<System.String, System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyTypeModifier, UtilPack.NuGet.MSBuild.WrappedPropertyInfo>>;
+using TTypeStringResolverCallback = System.Func<System.String, System.Type>;
 
 
 namespace UtilPack.NuGet.MSBuild
@@ -76,7 +72,7 @@ namespace UtilPack.NuGet.MSBuild
          this.RuntimeGraphPackageID = runtimeGraphPackageID;
       }
 
-      public bool Equals( RestorerCacheKey other )
+      public Boolean Equals( RestorerCacheKey other )
       {
          return ( this.NuGetFramework?.Equals( other.NuGetFramework ) ?? ( other.NuGetFramework is null ) )
             && String.Equals( this.RuntimeID, other.RuntimeID )
@@ -89,7 +85,7 @@ namespace UtilPack.NuGet.MSBuild
          return obj is RestorerCacheKey && this.Equals( (RestorerCacheKey) obj );
       }
 
-      public override int GetHashCode()
+      public override Int32 GetHashCode()
       {
          return this.NuGetFramework?.GetHashCode() ?? 0;
       }
@@ -348,7 +344,7 @@ namespace UtilPack.NuGet.MSBuild
 
             // Restore task package
             // TODO cancellation token source + cancel on Ctrl-C (since Inititalize method offers no support for asynchrony/cancellation)
-            (var packageID, var packageVersion) = GetPackageIDAndVersion( taskFactoryLoggingHost, taskBodyElement, nugetResolver );
+            (var packageID, var packageVersion) = this.GetPackageIDAndVersion( taskFactoryLoggingHost, taskBodyElement, nugetResolver );
             if ( !String.IsNullOrEmpty( packageID ) )
             {
                var taskProjectFilePath = taskFactoryLoggingHost.ProjectFileOfTaskNode;
@@ -1018,11 +1014,15 @@ namespace UtilPack.NuGet.MSBuild
          // Properties
          var taskRefGetter = typeof( TaskReferenceHolder ).GetMethod( nameof( TaskReferenceHolder.GetProperty ) ) ?? throw new Exception( "Internal error: no property getter." );
          var taskRefSetter = typeof( TaskReferenceHolder ).GetMethod( nameof( TaskReferenceHolder.SetProperty ) ) ?? throw new Exception( "Internal error: no property getter." );
-         var toStringCall = typeof( Convert ).GetMethod( nameof( Convert.ToString ), new Type[] { typeof( Object ) } ) ?? throw new Exception( "Internal error: no Convert.ToString." ); ;
-         var requiredAttribute = typeof( RequiredAttribute ).GetConstructor( new Type[] { } ) ?? throw new Exception( "Internal error: no Required attribute constructor." ); ;
-         var outAttribute = typeof( OutputAttribute ).GetConstructor( new Type[] { } ) ?? throw new Exception( "Internal error: no Out attribute constructor." ); ;
+         var toStringCall = typeof( Convert ).GetMethod( nameof( Convert.ToString ), new Type[] { typeof( Object ) } ) ?? throw new Exception( "Internal error: no Convert.ToString." );
+         ;
+         var requiredAttribute = typeof( RequiredAttribute ).GetConstructor( new Type[] { } ) ?? throw new Exception( "Internal error: no Required attribute constructor." );
+         ;
+         var outAttribute = typeof( OutputAttribute ).GetConstructor( new Type[] { } ) ?? throw new Exception( "Internal error: no Out attribute constructor." );
+         ;
          var beSetter = typeof( ResolverLogger ).GetMethod( nameof( ResolverLogger.TaskBuildEngineSet ) ) ?? throw new Exception( "Internal error: no log setter." );
-         var beReady = typeof( ResolverLogger ).GetMethod( nameof( ResolverLogger.TaskBuildEngineIsReady ) ) ?? throw new Exception( "Internal error: no log state updater." ); ;
+         var beReady = typeof( ResolverLogger ).GetMethod( nameof( ResolverLogger.TaskBuildEngineIsReady ) ) ?? throw new Exception( "Internal error: no log state updater." );
+         ;
 
          var outPropertyInfos = new List<(String, WrappedPropertyKind, Type, FieldBuilder)>();
          void EmitPropertyConversionCode( ILGenerator curIL, WrappedPropertyKind curKind, Type curPropType )
@@ -1136,10 +1136,10 @@ namespace UtilPack.NuGet.MSBuild
             switch ( info )
             {
                case WrappedPropertyInfo.Required:
-                  prop.SetCustomAttribute( new CustomAttributeBuilder( requiredAttribute, new object[] { } ) );
+                  prop.SetCustomAttribute( new CustomAttributeBuilder( requiredAttribute, new Object[] { } ) );
                   break;
                case WrappedPropertyInfo.Out:
-                  prop.SetCustomAttribute( new CustomAttributeBuilder( outAttribute, new object[] { } ) );
+                  prop.SetCustomAttribute( new CustomAttributeBuilder( outAttribute, new Object[] { } ) );
                   break;
             }
          }
@@ -1501,8 +1501,7 @@ namespace UtilPack.NuGet.MSBuild
                   null,
                   "NuGetPackageAssemblyResolver",
                   MessageImportance.Low,
-                  DateTime.UtcNow,
-                  null
+                  DateTime.UtcNow
                ) );
                break;
             default:

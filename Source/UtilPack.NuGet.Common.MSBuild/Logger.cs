@@ -16,10 +16,10 @@
  * limitations under the License. 
  */
 using Microsoft.Build.Framework;
+using NuGet.Common;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using NuGet.Common;
 using System.Threading.Tasks;
 
 namespace UtilPack.NuGet.Common.MSBuild
@@ -106,13 +106,7 @@ namespace UtilPack.NuGet.Common.MSBuild
       public override Task LogAsync( ILogMessage message )
       {
          this.Log( message );
-         return
-#if NETSTANDARD1_3
-            Task.CompletedTask
-#else
-            TaskUtils.CompletedTask
-#endif
-            ;
+         return Task.CompletedTask;
 
       }
 

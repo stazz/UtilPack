@@ -119,6 +119,7 @@ namespace UtilPack.NuGet.Push.MSBuild
          var apiKey = sourceItem.GetMetadata( "ApiKey" );
          var symbolSource = sourceItem.GetMetadata( "SymbolSource" );
          var symbolApiKey = sourceItem.GetMetadata( "SymbolApiKey" );
+         var noServiceEndPoint = sourceItem.GetMetadata( "NoServiceEndPoint" ).ParseAsBooleanSafe();
 
          var source = sourceItem.ItemSpec;
          var isLocal = IsLocalFeed( psp, source, out var localPath );
@@ -155,7 +156,8 @@ namespace UtilPack.NuGet.Push.MSBuild
                   symbolApiKey,
                   timeout,
                   false,
-                  string.IsNullOrEmpty( symbolSource ),
+                  String.IsNullOrEmpty( symbolSource ),
+                  noServiceEndPoint,
                   logger
                   );
             }

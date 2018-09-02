@@ -11,7 +11,7 @@
     <repository url="https://github.com/CometaSolutions/UtilPack" />
     <projectUrl>https://github.com/CometaSolutions/UtilPack/tree/develop/Source/UtilPack.NuGet.MSBuild</projectUrl>
     <description>Provides easy way to execute NuGet-based MSBuild tasks.</description>
-    <releaseNotes>Updated to NuGet 4.7.0.</releaseNotes>
+    <releaseNotes>Updated to NuGet 4.8.0.</releaseNotes>
     <copyright>Stanislav Muhametsin</copyright>
     <tags>utility nuget extensions msbuild task package resolve</tags>
     <developmentDependency>true</developmentDependency>

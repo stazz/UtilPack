@@ -10,7 +10,7 @@
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
     <LangVersion>latest</LangVersion>
     <DefineConstants Condition=" '$(TargetFramework)' == 'netcoreapp1.1' ">$(DefineConstants);IS_NETSTANDARD</DefineConstants>
-    <DefineConstants>$(DefineConstants);NUGET_470</DefineConstants>
+    <DefineConstants>$(DefineConstants);NUGET_480</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -44,7 +44,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NuGet.Commands" Version="4.7.0" />
+    <PackageReference Include="NuGet.Commands" Version="4.8.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard1.3</TargetFramework>
+    <TargetFramework>netstandard1.6</TargetFramework>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -13,12 +13,12 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Build.Framework" Version="15.1.1012" />
-    <PackageReference Include="NuGet.Common" Version="4.5.0" />
+    <PackageReference Include="NuGet.Common" Version="4.8.0" />
   </ItemGroup>
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>2.1.0</VersionPrefix>
+    <VersionPrefix>2.2.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>

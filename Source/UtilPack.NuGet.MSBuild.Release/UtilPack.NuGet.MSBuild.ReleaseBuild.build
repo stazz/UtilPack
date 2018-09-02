@@ -1,13 +1,13 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <TargetProjectFile>"$(MSBuildThisFileDirectory)UtilPack.NuGet.MSBuild.Release.csproj"</TargetProjectFile>
-    <NewestNuGetVersion>4.7.0</NewestNuGetVersion>
+    <NewestNuGetVersion>4.8.0</NewestNuGetVersion>
     <MSBuildExecCMD Condition=" '$(MSBuildRuntimeType)' == 'Core' ">dotnet msbuild</MSBuildExecCMD>
     <MSBuildExecCMD Condition=" '$(MSBuildRuntimeType)' != 'Core' ">"$(MSBuildBinPath)\MSBuild.exe"</MSBuildExecCMD>
   </PropertyGroup>
   
   <ItemGroup>
-    <SupportedNuGetVersions Include="$(NewestNuGetVersion);4.6.0;4.5.0;4.4.0;4.3.0"/>
+    <SupportedNuGetVersions Include="$(NewestNuGetVersion);4.7.0;4.6.0;4.5.0;4.4.0;4.3.0"/>
   </ItemGroup>
   
   <Target Name="Build">

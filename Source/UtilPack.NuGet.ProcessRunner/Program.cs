@@ -16,22 +16,22 @@
  * limitations under the License. 
  */
 using Microsoft.Extensions.Configuration;
-using System;
-using Newtonsoft.Json.Linq;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.IO;
-using System.Reflection;
 using NuGet.Frameworks;
-using UtilPack.ProcessMonitor;
-using UtilPack.NuGet.Deployment;
+using System;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
+using UtilPack.NuGet.Deployment;
+using UtilPack.ProcessMonitor;
 
 namespace UtilPack.NuGet.ProcessRunner
 {
    class Program
    {
+      private const String DEFAULT_TOOL_PATH = "dotnet";
+
       async static Task<Int32> Main( String[] args )
       {
          var retVal = -1;
@@ -39,14 +39,25 @@ namespace UtilPack.NuGet.ProcessRunner
          DeploymentConfiguration deployConfig = null;
          DefaultMonitoringConfiguration monitorConfig = null;
          ProcessRunnerConfiguration programConfig = null;
+         var isConfigFile = false;
          try
          {
-            var config = new ConfigurationBuilder()
+            var configRoot = new ConfigurationBuilder()
                .AddCommandLine( args )
                .Build();
-            deployConfig = config.Get<DefaultDeploymentConfiguration>();
-            monitorConfig = config.Get<DefaultMonitoringConfiguration>();
-            programConfig = config.Get<ProcessRunnerConfiguration>();
+            var configConfig = configRoot.Get<ConfigurationConfiguration>();
+            if ( configConfig != null
+               && configConfig.ConfigurationFileLocation is var configFileLocation
+               && configFileLocation.Length > 0
+               )
+            {
+               configRoot = new ConfigurationBuilder()
+                  .AddJsonFile( Path.GetFullPath( configFileLocation ) )
+                  .Build();
+               isConfigFile = true;
+            }
+
+            (deployConfig, monitorConfig, programConfig) = GetConfigs( configRoot );
          }
          catch ( Exception exc )
          {
@@ -89,10 +100,21 @@ namespace UtilPack.NuGet.ProcessRunner
                {
                   if ( !programConfig.DeployOnly )
                   {
+#if !IS_GLOBAL_TOOL
                      if ( framework != null && String.IsNullOrEmpty( monitorConfig.ToolPath ) )
                      {
-                        monitorConfig.ToolPath = TryAutoDetectTool( framework );
+#endif
+                        monitorConfig.ToolPath =
+#if IS_GLOBAL_TOOL
+                           DEFAULT_TOOL_PATH
+#else
+                           TryAutoDetectTool( framework )
+#endif
+                           ;
+
+#if !IS_GLOBAL_TOOL
                      }
+#endif
 
                      Console.Out.Write( $"\n\nInitialization is complete, starting process located in {assemblyPath}.\n\n" );
 
@@ -105,8 +127,10 @@ namespace UtilPack.NuGet.ProcessRunner
                      // So we need to parse these ourselves
                      var monitoring = new ProcessMonitor.ProcessMonitor(
                         monitorConfig,
-                        args.Where( arg => arg.StartsWith( PROCESS_ARG_PREFIX ) )
-                        .Select( arg => arg.Substring( PROCESS_ARG_PREFIX.Length ) )
+                        isConfigFile ?
+                           programConfig.ProcessArguments :
+                           args.Where( arg => arg.StartsWith( PROCESS_ARG_PREFIX ) )
+                              .Select( arg => arg.Substring( PROCESS_ARG_PREFIX.Length ) )
                         );
                      errorsSeen = await monitoring.KeepMonitoringAsync(
                         assemblyPath,
@@ -159,7 +183,7 @@ namespace UtilPack.NuGet.ProcessRunner
             switch ( targetFW.Framework )
             {
                case FrameworkConstants.FrameworkIdentifiers.NetCoreApp:
-                  retVal = "dotnet";
+                  retVal = DEFAULT_TOOL_PATH;
                   break;
                default:
                   retVal = null;
@@ -171,6 +195,13 @@ namespace UtilPack.NuGet.ProcessRunner
          return retVal;
       }
 
+      private static (DeploymentConfiguration, DefaultMonitoringConfiguration, ProcessRunnerConfiguration) GetConfigs(
+         IConfigurationRoot config
+         )
+      {
+         return (config.Get<DefaultDeploymentConfiguration>(), config.Get<DefaultMonitoringConfiguration>(), config.Get<ProcessRunnerConfiguration>());
+      }
+
    }
 
    internal class ProcessRunnerConfiguration
@@ -179,6 +210,14 @@ namespace UtilPack.NuGet.ProcessRunner
 
       public Boolean PauseBeforeExitIfErrorsSeen { get; set; }
 
+      // TODO: make separate global tool for deploying.
       public Boolean DeployOnly { get; set; }
+
+      public String[] ProcessArguments { get; set; }
+   }
+
+   internal class ConfigurationConfiguration
+   {
+      public String ConfigurationFileLocation { get; set; }
    }
 }

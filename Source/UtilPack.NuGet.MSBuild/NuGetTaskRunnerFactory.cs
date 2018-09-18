@@ -171,6 +171,7 @@ namespace UtilPack.NuGet.MSBuild
       private const String COPY_TO_TEMPORARY_FOlDER_BEFORE_LOAD = "CopyToFolderBeforeLoad";
       private const String TASK_NAME = "TaskName";
       private const String UNMANAGED_ASSEMBLIES_MAP = "UnmanagedAssemblyReferenceMap";
+      private const String NO_DEDICATED_APPDOMAIN = "NoDedicatedAppDomain";
 
       private const String MATCH_PLATFORM = "MatchPlatform";
       private const String EXCEPT_PLATFORM = "ExceptPlatform";

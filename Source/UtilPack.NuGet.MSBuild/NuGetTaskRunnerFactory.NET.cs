@@ -20,23 +20,22 @@ using NuGet.Frameworks;
 using NuGet.Repositories;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.IO;
+using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Text;
 using System.Threading;
-using System.Reflection.Emit;
-using System.Xml.Linq;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using UtilPack.NuGet.AssemblyLoading;
-
-using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
-using TAssemblyByPathResolverCallback = System.Func<System.String, System.Reflection.Assembly>;
 
 namespace UtilPack.NuGet.MSBuild
 {
    partial class NuGetTaskRunnerFactory
    {
+
+      private static Boolean IsMono { get; } = Type.GetType( "Mono.Runtime", false, false ) != null;
 
       private TaskReferenceHolderInfo CreateExecutionHelper(
          String taskName,
@@ -52,7 +51,9 @@ namespace UtilPack.NuGet.MSBuild
          ref AppDomainSetup appDomainSetup
          )
       {
-         if ( appDomainSetup == null )
+         // Only create dedicated app domain if we are not running on Mono, since AppDomains are broken in Mono. (According to discussion on https://github.com/xunit/xunit/issues/1357 )
+         // ... Unless the value is overridden in task body options element.
+         if ( appDomainSetup == null && !( taskBodyElement.ElementAnyNS( NO_DEDICATED_APPDOMAIN )?.Value?.ParseAsBooleanSafe() ?? IsMono ) )
          {
             Interlocked.CompareExchange( ref appDomainSetup, this.CreateAppDomainSetup( taskAssemblyFullPath ), null );
          }
@@ -61,7 +62,7 @@ namespace UtilPack.NuGet.MSBuild
          var mbfAssemblyDir = Path.GetDirectoryName( new Uri( mbfAssembly.CodeBase ).LocalPath );
          var thisLoader = NuGetAssemblyResolverFactory.NewNuGetAssemblyResolver(
             restorer,
-            appDomainSetup,
+            appDomainSetup, // This will always be null on Mono, causing current AppDomain to be used instead of dedicated one
             out var createdDomain,
             defaultGetFiles: getFiles,
             overrideLocation: ( assemblyName ) =>

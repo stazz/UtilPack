@@ -91,6 +91,7 @@ The following information is optional:
     * `false` case insensitively: The __default value__, disables copying, and assemblies are loaded directly from within the package repository.
     * `true` case insensitively: enables copying to randomly-name-generated folder in system's temporary folder.
     * any non-empty string: enables copying to folder specified by string.
+* `NoDedicatedAppDomain`: This boolean controls how AppDomains are handled in .NET Desktop version. Setting this to `true` will load the task in the same AppDomain as task factory is, otherwise the dedicated AppDomain is created for the task. This defaults to `true` only when Mono framework is detected at runtime, otherwise the default value is `false`.
 
 ### Example
 There is an example of explicitly using `UtilPack.NuGet.MSBuild` in [here](../UtilPack.NuGet.MSBuild.TestProject).

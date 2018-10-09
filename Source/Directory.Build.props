@@ -1,0 +1,33 @@
+<Project>
+  <PropertyGroup>
+    <BuildCommonBaseDir>$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildThisFileDirectory)', 'BuildMarker.txt'))</BuildCommonBaseDir>
+    <BuildCommonBaseDir Condition=" '$(BuildCommonBaseDir)' == '' ">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)/../../'))</BuildCommonBaseDir>
+    <BuildCommonOutputDir Condition=" '$(BuildCommonOutputDir)' == '' ">$(BuildCommonBaseDir)\BuildTarget\</BuildCommonOutputDir>
+    <BuildCommonObjDir>$(BuildCommonOutputDir)obj\</BuildCommonObjDir>
+    <BuildCommonBinDir>$(BuildCommonOutputDir)bin\</BuildCommonBinDir>
+    <BaseIntermediateOutputPath>$(BuildCommonObjDir)$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(BuildCommonBinDir)\$(MSBuildProjectName)\</BaseOutputPath>
+    <RestoreOutputPath>$(BaseIntermediateOutputPath)</RestoreOutputPath>
+    <Authors>Stanislav Muhametsin</Authors>
+    <Company></Company>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <Product>UtilPack</Product>
+    <Copyright>Stanislav Muhametsin</Copyright>
+    <AssemblyOriginatorKeyFilePath>$(MSBuildThisFileDirectory)\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
+    <RepositoryUrl>https://github.com/stazz/UtilPack</RepositoryUrl>
+    <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' and Exists('$(AssemblyOriginatorKeyFilePath)')">
+    <AssemblyOriginatorKeyFile>$(AssemblyOriginatorKeyFilePath)</AssemblyOriginatorKeyFile>
+    <SignAssembly>true</SignAssembly>
+  </PropertyGroup>
+  
+  <!-- Disable all debug information in release mode-->
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>False</DebugSymbols>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+</Project>

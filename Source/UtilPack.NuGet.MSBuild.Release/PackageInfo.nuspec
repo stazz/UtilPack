@@ -8,8 +8,8 @@
     <owners>Stanislav Muhametsin</owners>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <licenseUrl>https://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
-    <repository url="https://github.com/CometaSolutions/UtilPack" />
-    <projectUrl>https://github.com/CometaSolutions/UtilPack/tree/develop/Source/UtilPack.NuGet.MSBuild</projectUrl>
+    <repository url="https://github.com/stazz/UtilPack" />
+    <projectUrl>https://github.com/stazz/UtilPack/tree/develop/Source/UtilPack.NuGet.MSBuild</projectUrl>
     <description>Provides easy way to execute NuGet-based MSBuild tasks.</description>
     <releaseNotes>The dedicated AppDomain is no longer used if the value for option "NoDedicatedAppDomain" is true. This value is only used in .NET Desktop version, and defaults to true when Mono framework is detected. Otherwise it is false.</releaseNotes>
     <copyright>Stanislav Muhametsin</copyright>

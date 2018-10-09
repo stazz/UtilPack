@@ -2,7 +2,7 @@
 
 Acting as a bridge between [UtilPack.ResourcePooling](../UtilPack.ResourcePooling) project and MSBuild world, this project provides only one type, `AbstractResourceUsingTask`.
 This type should be extended by MSBuild custom tasks, which intend to use the [UtilPack.ResourcePooling](../UtilPack.ResourcePooling) project to deliver their functionality.
-One such example of task is a [task](https://github.com/CometaSolutions/CBAM/tree/develop/Source/CBAM.SQL.MSBuild) which dumps the contents of SQL file into the database.
+One such example of task is a [task](https://github.com/stazz/CBAM/tree/develop/Source/CBAM.SQL.MSBuild) which dumps the contents of SQL file into the database.
 
 The `AbstractResourceUsingTask` class implements canceability fully, and leaves two abstract methods for derived classes to implement.
 Most of other methods are virtual, allowing derived classes to override them.
@@ -16,7 +16,7 @@ The SQL dump running task could here e.g. check whether file exists.
 ### UseResource
 
 This method should perform the actual domain-specific functionality, using the resource it receives as parameter.
-The SQL dump running task would here read the SQL statements from file and execute them using the resource (which would be [of type `SQLConnection`](https://github.com/CometaSolutions/CBAM/tree/develop/Source/CBAM.SQL)).
+The SQL dump running task would here read the SQL statements from file and execute them using the resource (which would be [of type `SQLConnection`](https://github.com/stazz/CBAM/tree/develop/Source/CBAM.SQL)).
 
 ## Parameters
 

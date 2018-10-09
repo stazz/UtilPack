@@ -21,27 +21,8 @@
   <PropertyGroup>
     <VersionPrefix>2.0.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
-    <Authors>Stanislav Muhametsin</Authors>
-    <Company>Cometa Solutions Ltd</Company>
-    <NeutralLanguage>en-US</NeutralLanguage>
     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
-    <Product>UtilPack</Product>
     <Description>Provides ability to create objects implementing SASLMechanism of UtilPack.Cryptograhy.SASL that handle the SCRAM mechanism of SASL. No strings are allocated during challenge. Both client-side and server-side mechanisms are provided.</Description>
-    <Copyright>Stanislav Muhametsin</Copyright>
-    <AssemblyOriginatorKeyFilePath>$(MSBuildProjectDirectory)\..\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
-  </PropertyGroup>
-
-  <!-- Assembly signing stuff -->
-  <PropertyGroup Condition="'$(Configuration)' == 'Release' and Exists('$(AssemblyOriginatorKeyFilePath)')">
-    <AssemblyOriginatorKeyFile>$(AssemblyOriginatorKeyFilePath)</AssemblyOriginatorKeyFile>
-    <SignAssembly>true</SignAssembly>
-  </PropertyGroup>
-
-  <!-- Disable all debug information in release mode-->
-  <PropertyGroup Condition=" '$(Configuration)' == 'Release'">
-    <DebugType>none</DebugType>
-    <DebugSymbols>False</DebugSymbols>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <!-- NuGet package stuff -->
@@ -49,13 +30,10 @@
     <PackageId>$(AssemblyName)</PackageId>
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReleaseNotes>Updating to newer version of UtilPack.Cryptography.Digest. This introduces binary-incompatible change, resulting in major version number increase.</PackageReleaseNotes>
     <PackageTags>utility cryptography sasl scram sha-128 sha-256 sha-512 digest hash</PackageTags>
     <Title>SASL SCRAM Library</Title>
-    <RepositoryUrl>https://github.com/CometaSolutions/UtilPack</RepositoryUrl>
     <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
-    <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
   </PropertyGroup>
 
 </Project>

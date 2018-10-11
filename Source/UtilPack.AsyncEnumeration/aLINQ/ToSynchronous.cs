@@ -39,7 +39,7 @@ public static partial class E_UtilPack
    /// <param name="addItem">The callback to add the to the <paramref name="collection"/>.</param>
    /// <returns>Potentially asynchronously returns the amount of items encountered.</returns>
    /// <remarks>
-   /// This method will always use <see cref="E_UtilPack.EnumerateSequentiallyAsync{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
+   /// This method will always use <see cref="E_UtilPack.EnumerateAsync{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
    /// </remarks>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="addItem"/> is <c>null</c>.</exception>
@@ -48,7 +48,7 @@ public static partial class E_UtilPack
       ArgumentValidator.ValidateNotNullReference( enumerable );
       ArgumentValidator.ValidateNotNull( nameof( addItem ), addItem );
 
-      return enumerable.EnumerateSequentiallyAsync( item => addItem( collection, item ) );
+      return enumerable.EnumerateAsync( item => addItem( collection, item ) );
    }
 
    /// <summary>
@@ -61,7 +61,7 @@ public static partial class E_UtilPack
    /// <param name="addItem">The callback to add the to the <paramref name="collection"/>.</param>
    /// <returns>Potentially asynchronously returns the amount of items encountered.</returns>
    /// <remarks>
-   /// This method will always use <see cref="E_UtilPack.EnumerateSequentiallyAsync{T}(IAsyncEnumerable{T}, Func{T, Task})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
+   /// This method will always use <see cref="E_UtilPack.EnumerateAsync{T}(IAsyncEnumerable{T}, Func{T, Task})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
    /// </remarks>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="addItem"/> is <c>null</c>.</exception>
@@ -70,7 +70,7 @@ public static partial class E_UtilPack
       ArgumentValidator.ValidateNotNullReference( enumerable );
       ArgumentValidator.ValidateNotNull( nameof( addItem ), addItem );
 
-      return enumerable.EnumerateSequentiallyAsync( item => { return addItem( collection, item ); } );
+      return enumerable.EnumerateAsync( item => { return addItem( collection, item ); } );
    }
 
    /// <summary>
@@ -81,7 +81,7 @@ public static partial class E_UtilPack
    /// <returns>An array of enumerated items.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <remarks>
-   /// This method will always use <see cref="E_UtilPack.EnumerateSequentiallyAsync{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
+   /// This method will always use <see cref="E_UtilPack.EnumerateAsync{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
    /// </remarks>
    public static async Task<T[]> ToArrayAsync<T>( this IAsyncEnumerable<T> enumerable )
       => ( await enumerable.ToListAsync() ).ToArray();
@@ -94,7 +94,7 @@ public static partial class E_UtilPack
    /// <returns>A <see cref="List{T}"/> of enumerated items.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <remarks>
-   /// This method will always use <see cref="E_UtilPack.EnumerateSequentiallyAsync{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
+   /// This method will always use <see cref="E_UtilPack.EnumerateAsync{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
    /// </remarks>
    public static async Task<List<T>> ToListAsync<T>( this IAsyncEnumerable<T> enumerable )
    {
@@ -116,7 +116,7 @@ public static partial class E_UtilPack
    /// <param name="equalityComparer">The optional <see cref="IEqualityComparer{T}"/> to use when creating dictionary.</param>
    /// <returns>Asynchronously returns a <see cref="IDictionary{TKey, TValue}"/> containing keys and values as returned by <paramref name="keySelector"/> and <paramref name="valueSelector"/>.</returns>
    /// <remarks>
-   /// This method will always use <see cref="E_UtilPack.EnumerateSequentiallyAsync{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
+   /// This method will always use <see cref="E_UtilPack.EnumerateAsync{T}(IAsyncEnumerable{T}, Action{T})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
    /// </remarks>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If either of <paramref name="keySelector"/> or <paramref name="valueSelector"/> is <c>null</c>.</exception>
@@ -148,7 +148,7 @@ public static partial class E_UtilPack
    /// <param name="equalityComparer">The optional <see cref="IEqualityComparer{T}"/> to use when creating dictionary.</param>
    /// <returns>Asynchronously returns a <see cref="IDictionary{TKey, TValue}"/> containing keys and values as returned by <paramref name="keySelector"/> and <paramref name="valueSelector"/>.</returns>
    /// <remarks>
-   /// This method will always use <see cref="E_UtilPack.EnumerateSequentiallyAsync{T}(IAsyncEnumerable{T}, Func{T, Task})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
+   /// This method will always use <see cref="E_UtilPack.EnumerateAsync{T}(IAsyncEnumerable{T}, Func{T, Task})"/> method to enumerate this <see cref="IAsyncEnumerable{T}"/>.
    /// </remarks>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If either of <paramref name="keySelector"/> or <paramref name="valueSelector"/> is <c>null</c>.</exception>
@@ -187,7 +187,7 @@ public static partial class E_UtilPack
       ArgumentValidator.ValidateNotNullReference( enumerable );
       ArgumentValidator.ValidateNotNull( nameof( addItem ), addItem );
 
-      return enumerable.EnumerateConcurrentlyIfPossible( item => addItem( collection, item ) );
+      return enumerable.EnumerateAsync( item => addItem( collection, item ) );
    }
 
    /// <summary>
@@ -209,7 +209,7 @@ public static partial class E_UtilPack
       ArgumentValidator.ValidateNotNullReference( enumerable );
       ArgumentValidator.ValidateNotNull( nameof( addItem ), addItem );
 
-      return enumerable.EnumerateConcurrentlyIfPossible( item => { return addItem( collection, item ); } );
+      return enumerable.EnumerateAsync( item => { return addItem( collection, item ); } );
    }
 
 #if !NETSTANDARD1_0

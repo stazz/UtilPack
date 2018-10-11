@@ -28,16 +28,16 @@ namespace UtilPack.AsyncEnumeration
    /// <typeparam name="T">The type of items being enumerated.</typeparam>
    public static class EmptyAsync<T>
    {
-      private sealed class EmptyAsyncEnumerable : IAsyncConcurrentEnumerable<T>
+      private sealed class EmptyAsyncEnumerable : IAsyncEnumerable<T>
       {
          public IAsyncEnumerator<T> GetAsyncEnumerator()
             => Enumerator;
 
-         public IAsyncConcurrentEnumeratorSource<T> GetConcurrentEnumeratorSource( ConcurrentEnumerationArguments arguments )
-            => ConcurrentEnumeratorSource;
-
          public IAsyncEnumerable<T> GetWrappedSynchronousSource()
             => null;
+
+         public IAsyncProvider AsyncProvider => DefaultAsyncProvider.Instance; // TODO optimized provider which would return EmptyAsync<>.Enumerable whenever possible.
+
       }
 
       private sealed class EmptyAsyncEnumerator : IAsyncEnumerator<T>
@@ -55,20 +55,6 @@ namespace UtilPack.AsyncEnumeration
             => TaskUtils.CompletedTask;
       }
 
-      private sealed class EmptyConcurrentAsyncEnumeratorSource : IAsyncConcurrentEnumeratorSource<T>
-      {
-         public Boolean IsEnumerableAsync => false;
-
-         public IEnumerable<IAsyncEnumerator<T>> GetAsyncEnumeratorsEnumerable()
-            => Empty<IAsyncEnumerator<T>>.Enumerable;
-
-         public IAsyncEnumerable<T> GetWrappedSynchronousSource()
-            => null;
-
-         public Task DisposeAsync()
-            => TaskUtils.CompletedTask;
-      }
-
       /// <summary>
       /// Gets the <see cref="IAsyncEnumerator{T}"/> which will return no items.
       /// </summary>
@@ -79,13 +65,8 @@ namespace UtilPack.AsyncEnumeration
       /// Gets the <see cref="IAsyncConcurrentEnumerable{T}"/> which will always return <see cref="IAsyncConcurrentEnumerable{T}"/> with no items.
       /// </summary>
       /// <value>The <see cref="IAsyncConcurrentEnumerable{T}"/> which will always return <see cref="IAsyncConcurrentEnumerable{T}"/> with no items.</value>
-      public static IAsyncConcurrentEnumerable<T> Enumerable { get; } = new EmptyAsyncEnumerable();
+      public static IAsyncEnumerable<T> Enumerable { get; } = new EmptyAsyncEnumerable();
 
-      /// <summary>
-      /// Gets the <see cref="IAsyncConcurrentEnumeratorSource{T}"/> which will return no items on enumeration.
-      /// </summary>
-      /// <value>The <see cref="IAsyncConcurrentEnumeratorSource{T}"/> which will return no items on enumeration.</value>
-      public static IAsyncConcurrentEnumeratorSource<T> ConcurrentEnumeratorSource { get; } = new EmptyConcurrentAsyncEnumeratorSource();
 
    }
 }

@@ -24,179 +24,302 @@ using UtilPack;
 using UtilPack.AsyncEnumeration;
 using UtilPack.AsyncEnumeration.LINQ;
 
-namespace UtilPack.AsyncEnumeration.LINQ
+namespace UtilPack.AsyncEnumeration
 {
-   internal sealed class TakeEnumerator32<T> : IAsyncEnumerator<T>
+   public partial interface IAsyncProvider
    {
-      private readonly IAsyncEnumerator<T> _source;
-      private Int32 _amount;
+      /// <summary>
+      /// This extension method will return <see cref="IAsyncEnumerable{T}"/> which will return at most given amount of items.
+      /// </summary>
+      /// <typeparam name="T">The type of items.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="amount">The maximum amount of items to return. If zero or less, will return empty enumerable.</param>
+      /// <returns><see cref="IAsyncEnumerable{T}"/> which will return at most given amount of items.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <seealso cref="System.Linq.Enumerable.Take{TSource}(IEnumerable{TSource}, Int32)"/>
+      IAsyncEnumerable<T> Take<T>( IAsyncEnumerable<T> enumerable, Int32 amount );
 
-      public TakeEnumerator32(
-         IAsyncEnumerator<T> source,
-         Int32 amount
-         )
-      {
-         this._source = ArgumentValidator.ValidateNotNull( nameof( source ), source );
-         this._amount = Math.Max( amount, 0 );
-      }
+      /// <summary>
+      /// This extension method will return <see cref="IAsyncEnumerable{T}"/> which will return at most given amount of items.
+      /// </summary>
+      /// <typeparam name="T">The type of items.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="amount">The maximum amount of items to return. If zero or less, will return empty enumerable.</param>
+      /// <returns><see cref="IAsyncEnumerable{T}"/> which will return at most given amount of items.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <seealso cref="System.Linq.Enumerable.Take{TSource}(IEnumerable{TSource}, Int32)"/>
+      IAsyncEnumerable<T> Take<T>( IAsyncEnumerable<T> enumerable, Int64 amount );
 
-      public Task<Boolean> WaitForNextAsync() => this._amount <= 0 ? TaskUtils.False : this._source.WaitForNextAsync();
+      /// <summary>
+      /// This method returns new <see cref="IAsyncEnumerable{T}"/> that will include only the first elements of this <see cref="IAsyncEnumerable{T}"/> which satisfy condition expressed by given synchronous <paramref name="predicate"/>.
+      /// </summary>
+      /// <typeparam name="T">The type of elements being enumerated.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="predicate">The synchronous callback to check whether element satisfies condition.</param>
+      /// <returns><see cref="IAsyncEnumerable{T}"/> which will include only the first elements of this <see cref="IAsyncEnumerable{T}"/> which satisfy the condition expressed by <paramref name="predicate"/>.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="predicate"/> is <c>null</c>.</exception>
+      /// <seealso cref="System.Linq.Enumerable.TakeWhile{TSource}(IEnumerable{TSource}, Func{TSource, Boolean})"/>
+      IAsyncEnumerable<T> TakeWhile<T>( IAsyncEnumerable<T> enumerable, Func<T, Boolean> predicate );
 
-      public T TryGetNext( out Boolean success )
-      {
-         success = this._amount > 0;
-         var retVal = success ? this._source.TryGetNext( out success ) : default;
-         if ( success )
-         {
-            --this._amount;
-         }
-         return retVal;
-      }
-
-      public Task DisposeAsync() => this._source.DisposeAsync();
+      /// <summary>
+      /// This method returns new <see cref="IAsyncEnumerable{T}"/> that will include only the first elements of this <see cref="IAsyncEnumerable{T}"/> which satisfy condition expressed by given potentially asynchronous <paramref name="asyncPredicate"/>.
+      /// </summary>
+      /// <typeparam name="T">The type of elements being enumerated.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="asyncPredicate">The potentially asynchronous callback to check whether element satisfies condition.</param>
+      /// <returns><see cref="IAsyncEnumerable{T}"/> which will include only the first elements of this <see cref="IAsyncEnumerable{T}"/> which satisfy the condition expressed by <paramref name="asyncPredicate"/>.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="asyncPredicate"/> is <c>null</c>.</exception>
+      /// <seealso cref="System.Linq.Enumerable.TakeWhile{TSource}(IEnumerable{TSource}, Func{TSource, Boolean})"/>
+      IAsyncEnumerable<T> TakeWhile<T>( IAsyncEnumerable<T> enumerable, Func<T, Task<Boolean>> asyncPredicate );
    }
 
-   internal sealed class TakeEnumerator64<T> : IAsyncEnumerator<T>
+   public partial class DefaultAsyncProvider
    {
-      private readonly IAsyncEnumerator<T> _source;
-      private Int64 _amount;
-
-      public TakeEnumerator64(
-         IAsyncEnumerator<T> source,
-         Int64 amount
-         )
+      /// <summary>
+      /// This extension method will return <see cref="IAsyncEnumerable{T}"/> which will return at most given amount of items.
+      /// </summary>
+      /// <typeparam name="T">The type of items.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="amount">The maximum amount of items to return. If zero or less, will return empty enumerable.</param>
+      /// <returns><see cref="IAsyncEnumerable{T}"/> which will return at most given amount of items.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <seealso cref="System.Linq.Enumerable.Take{TSource}(IEnumerable{TSource}, Int32)"/>
+      public IAsyncEnumerable<T> Take<T>( IAsyncEnumerable<T> enumerable, Int32 amount )
       {
-         this._source = ArgumentValidator.ValidateNotNull( nameof( source ), source );
-         this._amount = Math.Max( amount, 0 );
+         ArgumentValidator.ValidateNotNullReference( enumerable );
+         return amount <= 0 ?
+            EmptyAsync<T>.Enumerable :
+            AsyncEnumerationFactory.FromTransformCallback( enumerable, amount, ( e, a ) => new TakeEnumerator32<T>( e, a ) );
       }
 
-      public Task<Boolean> WaitForNextAsync() => this._amount <= 0 ? TaskUtils.False : this._source.WaitForNextAsync();
-
-      public T TryGetNext( out Boolean success )
+      /// <summary>
+      /// This extension method will return <see cref="IAsyncEnumerable{T}"/> which will return at most given amount of items.
+      /// </summary>
+      /// <typeparam name="T">The type of items.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="amount">The maximum amount of items to return. If zero or less, will return empty enumerable.</param>
+      /// <returns><see cref="IAsyncEnumerable{T}"/> which will return at most given amount of items.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <seealso cref="System.Linq.Enumerable.Take{TSource}(IEnumerable{TSource}, Int32)"/>
+      public IAsyncEnumerable<T> Take<T>( IAsyncEnumerable<T> enumerable, Int64 amount )
       {
-         success = this._amount > 0;
-         var retVal = success ? this._source.TryGetNext( out success ) : default;
-         if ( success )
-         {
-            --this._amount;
-         }
-         return retVal;
+         ArgumentValidator.ValidateNotNullReference( enumerable );
+         return amount <= 0 ?
+            EmptyAsync<T>.Enumerable :
+            AsyncEnumerationFactory.FromTransformCallback( enumerable, amount, ( e, a ) => new TakeEnumerator64<T>( e, a ) );
       }
 
-      public Task DisposeAsync() => this._source.DisposeAsync();
+      /// <summary>
+      /// This method returns new <see cref="IAsyncEnumerable{T}"/> that will include only the first elements of this <see cref="IAsyncEnumerable{T}"/> which satisfy condition expressed by given synchronous <paramref name="predicate"/>.
+      /// </summary>
+      /// <typeparam name="T">The type of elements being enumerated.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="predicate">The synchronous callback to check whether element satisfies condition.</param>
+      /// <returns><see cref="IAsyncEnumerable{T}"/> which will include only the first elements of this <see cref="IAsyncEnumerable{T}"/> which satisfy the condition expressed by <paramref name="predicate"/>.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="predicate"/> is <c>null</c>.</exception>
+      /// <seealso cref="System.Linq.Enumerable.TakeWhile{TSource}(IEnumerable{TSource}, Func{TSource, Boolean})"/>
+      public IAsyncEnumerable<T> TakeWhile<T>( IAsyncEnumerable<T> enumerable, Func<T, Boolean> predicate )
+      {
+         ArgumentValidator.ValidateNotNullReference( enumerable );
+         ArgumentValidator.ValidateNotNull( nameof( predicate ), predicate );
+         return AsyncEnumerationFactory.FromTransformCallback( enumerable, predicate, ( e, p ) => new TakeWhileEnumeratorSync<T>( e, p ) );
+      }
+
+      /// <summary>
+      /// This method returns new <see cref="IAsyncEnumerable{T}"/> that will include only the first elements of this <see cref="IAsyncEnumerable{T}"/> which satisfy condition expressed by given potentially asynchronous <paramref name="asyncPredicate"/>.
+      /// </summary>
+      /// <typeparam name="T">The type of elements being enumerated.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="asyncPredicate">The potentially asynchronous callback to check whether element satisfies condition.</param>
+      /// <returns><see cref="IAsyncEnumerable{T}"/> which will include only the first elements of this <see cref="IAsyncEnumerable{T}"/> which satisfy the condition expressed by <paramref name="asyncPredicate"/>.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="asyncPredicate"/> is <c>null</c>.</exception>
+      /// <seealso cref="System.Linq.Enumerable.TakeWhile{TSource}(IEnumerable{TSource}, Func{TSource, Boolean})"/>
+      public IAsyncEnumerable<T> TakeWhile<T>( IAsyncEnumerable<T> enumerable, Func<T, Task<Boolean>> asyncPredicate )
+      {
+         ArgumentValidator.ValidateNotNullReference( enumerable );
+         ArgumentValidator.ValidateNotNull( nameof( asyncPredicate ), asyncPredicate );
+         return AsyncEnumerationFactory.FromTransformCallback( enumerable, asyncPredicate, ( e, p ) => new TakeWhileEnumeratorAsync<T>( e, p ) );
+      }
    }
 
-   internal sealed class TakeWhileEnumeratorSync<T> : IAsyncEnumerator<T>
+   namespace LINQ
    {
-      private const Int32 FALSE_NOT_SEEN = 0;
-      private const Int32 FALSE_SEEN = 1;
-
-      private readonly IAsyncEnumerator<T> _source;
-      private readonly Func<T, Boolean> _predicate;
-      private Int32 _state;
-
-      public TakeWhileEnumeratorSync(
-         IAsyncEnumerator<T> source,
-         Func<T, Boolean> predicate
-         )
+      internal sealed class TakeEnumerator32<T> : IAsyncEnumerator<T>
       {
-         this._source = ArgumentValidator.ValidateNotNull( nameof( source ), source );
-         this._predicate = ArgumentValidator.ValidateNotNull( nameof( predicate ), predicate );
-      }
+         private readonly IAsyncEnumerator<T> _source;
+         private Int32 _amount;
 
-      public Task<Boolean> WaitForNextAsync() => this._state == FALSE_NOT_SEEN ? this._source.WaitForNextAsync() : TaskUtils.False;
-
-      public T TryGetNext( out Boolean success )
-      {
-         success = this._state == FALSE_NOT_SEEN;
-         T retVal;
-         if ( success )
+         public TakeEnumerator32(
+            IAsyncEnumerator<T> source,
+            Int32 amount
+            )
          {
-            retVal = this._source.TryGetNext( out success );
+            this._source = ArgumentValidator.ValidateNotNull( nameof( source ), source );
+            this._amount = Math.Max( amount, 0 );
+         }
+
+         public Task<Boolean> WaitForNextAsync() => this._amount <= 0 ? TaskUtils.False : this._source.WaitForNextAsync();
+
+         public T TryGetNext( out Boolean success )
+         {
+            success = this._amount > 0;
+            var retVal = success ? this._source.TryGetNext( out success ) : default;
             if ( success )
             {
-               success = this._predicate( retVal );
-               if ( !success )
-               {
-                  this._state = FALSE_SEEN;
-                  retVal = default;
-               }
+               --this._amount;
             }
+            return retVal;
          }
-         else
+
+         public Task DisposeAsync() => this._source.DisposeAsync();
+      }
+
+      internal sealed class TakeEnumerator64<T> : IAsyncEnumerator<T>
+      {
+         private readonly IAsyncEnumerator<T> _source;
+         private Int64 _amount;
+
+         public TakeEnumerator64(
+            IAsyncEnumerator<T> source,
+            Int64 amount
+            )
          {
-            retVal = default;
+            this._source = ArgumentValidator.ValidateNotNull( nameof( source ), source );
+            this._amount = Math.Max( amount, 0 );
          }
-         return retVal;
-      }
 
-      public Task DisposeAsync() => this._source.DisposeAsync();
-   }
+         public Task<Boolean> WaitForNextAsync() => this._amount <= 0 ? TaskUtils.False : this._source.WaitForNextAsync();
 
-   internal sealed class TakeWhileEnumeratorAsync<T> : IAsyncEnumerator<T>
-   {
-      private const Int32 FALSE_NOT_SEEN = 0;
-      private const Int32 FALSE_SEEN = 1;
-
-      private readonly IAsyncEnumerator<T> _source;
-      private readonly Func<T, ValueTask<Boolean>> _predicate;
-      private readonly Stack<T> _stack;
-      private Int32 _state;
-
-      public TakeWhileEnumeratorAsync(
-         IAsyncEnumerator<T> source,
-         Func<T, ValueTask<Boolean>> asyncPredicate
-         )
-      {
-         this._source = ArgumentValidator.ValidateNotNull( nameof( source ), source );
-         this._predicate = ArgumentValidator.ValidateNotNull( nameof( asyncPredicate ), asyncPredicate );
-         this._stack = new Stack<T>();
-      }
-
-      public Task<Boolean> WaitForNextAsync()
-      {
-         return this._state == FALSE_NOT_SEEN ?
-            this.PeekNextAsync() :
-            TaskUtils.False;
-      }
-
-      public T TryGetNext( out Boolean success )
-      {
-         success = this._stack.Count > 0;
-         return success ? this._stack.Pop() : default;
-      }
-
-      public Task DisposeAsync() => this._source.DisposeAsync();
-
-      private async Task<Boolean> PeekNextAsync()
-      {
-         var stack = this._stack;
-         // Discard any previous items
-         stack.Clear();
-         var falseNotSeen = true;
-         while ( falseNotSeen && stack.Count == 0 && await this._source.WaitForNextAsync() )
+         public T TryGetNext( out Boolean success )
          {
-            Boolean success;
-            do
+            success = this._amount > 0;
+            var retVal = success ? this._source.TryGetNext( out success ) : default;
+            if ( success )
             {
-               var item = this._source.TryGetNext( out success );
+               --this._amount;
+            }
+            return retVal;
+         }
+
+         public Task DisposeAsync() => this._source.DisposeAsync();
+      }
+
+      internal sealed class TakeWhileEnumeratorSync<T> : IAsyncEnumerator<T>
+      {
+         private const Int32 FALSE_NOT_SEEN = 0;
+         private const Int32 FALSE_SEEN = 1;
+
+         private readonly IAsyncEnumerator<T> _source;
+         private readonly Func<T, Boolean> _predicate;
+         private Int32 _state;
+
+         public TakeWhileEnumeratorSync(
+            IAsyncEnumerator<T> source,
+            Func<T, Boolean> predicate
+            )
+         {
+            this._source = ArgumentValidator.ValidateNotNull( nameof( source ), source );
+            this._predicate = ArgumentValidator.ValidateNotNull( nameof( predicate ), predicate );
+         }
+
+         public Task<Boolean> WaitForNextAsync() => this._state == FALSE_NOT_SEEN ? this._source.WaitForNextAsync() : TaskUtils.False;
+
+         public T TryGetNext( out Boolean success )
+         {
+            success = this._state == FALSE_NOT_SEEN;
+            T retVal;
+            if ( success )
+            {
+               retVal = this._source.TryGetNext( out success );
                if ( success )
                {
-                  if ( await this._predicate( item ) )
-                  {
-                     stack.Push( item );
-                  }
-                  else
+                  success = this._predicate( retVal );
+                  if ( !success )
                   {
                      this._state = FALSE_SEEN;
-                     success = false;
-                     falseNotSeen = false;
+                     retVal = default;
                   }
                }
-            } while ( success );
+            }
+            else
+            {
+               retVal = default;
+            }
+            return retVal;
          }
 
-         return stack.Count > 0;
+         public Task DisposeAsync() => this._source.DisposeAsync();
+      }
+
+      internal sealed class TakeWhileEnumeratorAsync<T> : IAsyncEnumerator<T>
+      {
+         private const Int32 FALSE_NOT_SEEN = 0;
+         private const Int32 FALSE_SEEN = 1;
+
+         private readonly IAsyncEnumerator<T> _source;
+         private readonly Func<T, Task<Boolean>> _predicate;
+         private readonly Stack<T> _stack;
+         private Int32 _state;
+
+         public TakeWhileEnumeratorAsync(
+            IAsyncEnumerator<T> source,
+            Func<T, Task<Boolean>> asyncPredicate
+            )
+         {
+            this._source = ArgumentValidator.ValidateNotNull( nameof( source ), source );
+            this._predicate = ArgumentValidator.ValidateNotNull( nameof( asyncPredicate ), asyncPredicate );
+            this._stack = new Stack<T>();
+         }
+
+         public Task<Boolean> WaitForNextAsync()
+         {
+            return this._state == FALSE_NOT_SEEN ?
+               this.PeekNextAsync() :
+               TaskUtils.False;
+         }
+
+         public T TryGetNext( out Boolean success )
+         {
+            success = this._stack.Count > 0;
+            return success ? this._stack.Pop() : default;
+         }
+
+         public Task DisposeAsync() => this._source.DisposeAsync();
+
+         private async Task<Boolean> PeekNextAsync()
+         {
+            var stack = this._stack;
+            // Discard any previous items
+            stack.Clear();
+            var falseNotSeen = true;
+            while ( falseNotSeen && stack.Count == 0 && await this._source.WaitForNextAsync() )
+            {
+               Boolean success;
+               do
+               {
+                  var item = this._source.TryGetNext( out success );
+                  if ( success )
+                  {
+                     if ( await this._predicate( item ) )
+                     {
+                        stack.Push( item );
+                     }
+                     else
+                     {
+                        this._state = FALSE_SEEN;
+                        success = false;
+                        falseNotSeen = false;
+                     }
+                  }
+               } while ( success );
+            }
+
+            return stack.Count > 0;
+         }
       }
    }
 
@@ -214,12 +337,9 @@ public static partial class E_UtilPack
    /// <param name="amount">The maximum amount of items to return. If zero or less, will return empty enumerable.</param>
    /// <returns><see cref="IAsyncEnumerable{T}"/> which will return at most given amount of items.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
-   /// <seealso cref="System.Linq.Enumerable.Take{TSource}(IEnumerable{TSource}, int)"/>
+   /// <seealso cref="System.Linq.Enumerable.Take{TSource}(IEnumerable{TSource}, Int32)"/>
    public static IAsyncEnumerable<T> Take<T>( this IAsyncEnumerable<T> enumerable, Int32 amount )
-   {
-      ArgumentValidator.ValidateNotNullReference( enumerable );
-      return amount <= 0 ? (IAsyncEnumerable<T>) EmptyAsync<T>.Enumerable : new EnumerableWrapper<T>( () => enumerable.GetAsyncEnumerator().Take( amount ) );
-   }
+      => ( enumerable.AsyncProvider ?? DefaultAsyncProvider.Instance ).Take( enumerable, amount );
 
    /// <summary>
    /// This extension method will return <see cref="IAsyncEnumerable{T}"/> which will return at most given amount of items.
@@ -229,12 +349,9 @@ public static partial class E_UtilPack
    /// <param name="amount">The maximum amount of items to return. If zero or less, will return empty enumerable.</param>
    /// <returns><see cref="IAsyncEnumerable{T}"/> which will return at most given amount of items.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
-   /// <seealso cref="System.Linq.Enumerable.Take{TSource}(IEnumerable{TSource}, int)"/>
+   /// <seealso cref="System.Linq.Enumerable.Take{TSource}(IEnumerable{TSource}, Int32)"/>
    public static IAsyncEnumerable<T> Take<T>( this IAsyncEnumerable<T> enumerable, Int64 amount )
-   {
-      ArgumentValidator.ValidateNotNullReference( enumerable );
-      return amount <= 0 ? (IAsyncEnumerable<T>) EmptyAsync<T>.Enumerable : new EnumerableWrapper<T>( () => enumerable.GetAsyncEnumerator().Take( amount ) );
-   }
+      => ( enumerable.AsyncProvider ?? DefaultAsyncProvider.Instance ).Take( enumerable, amount );
 
    /// <summary>
    /// This method returns new <see cref="IAsyncEnumerable{T}"/> that will include only the first elements of this <see cref="IAsyncEnumerable{T}"/> which satisfy condition expressed by given synchronous <paramref name="predicate"/>.
@@ -245,13 +362,9 @@ public static partial class E_UtilPack
    /// <returns><see cref="IAsyncEnumerable{T}"/> which will include only the first elements of this <see cref="IAsyncEnumerable{T}"/> which satisfy the condition expressed by <paramref name="predicate"/>.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="predicate"/> is <c>null</c>.</exception>
-   /// <seealso cref="System.Linq.Enumerable.TakeWhile{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/>
+   /// <seealso cref="System.Linq.Enumerable.TakeWhile{TSource}(IEnumerable{TSource}, Func{TSource, Boolean})"/>
    public static IAsyncEnumerable<T> TakeWhile<T>( this IAsyncEnumerable<T> enumerable, Func<T, Boolean> predicate )
-   {
-      ArgumentValidator.ValidateNotNullReference( enumerable );
-      ArgumentValidator.ValidateNotNull( nameof( predicate ), predicate );
-      return new EnumerableWrapper<T>( () => enumerable.GetAsyncEnumerator().TakeWhile( predicate ) );
-   }
+      => ( enumerable.AsyncProvider ?? DefaultAsyncProvider.Instance ).TakeWhile( enumerable, predicate );
 
    /// <summary>
    /// This method returns new <see cref="IAsyncEnumerable{T}"/> that will include only the first elements of this <see cref="IAsyncEnumerable{T}"/> which satisfy condition expressed by given potentially asynchronous <paramref name="asyncPredicate"/>.
@@ -262,56 +375,8 @@ public static partial class E_UtilPack
    /// <returns><see cref="IAsyncEnumerable{T}"/> which will include only the first elements of this <see cref="IAsyncEnumerable{T}"/> which satisfy the condition expressed by <paramref name="asyncPredicate"/>.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="asyncPredicate"/> is <c>null</c>.</exception>
-   /// <seealso cref="System.Linq.Enumerable.TakeWhile{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/>
-   public static IAsyncEnumerable<T> TakeWhile<T>( this IAsyncEnumerable<T> enumerable, Func<T, ValueTask<Boolean>> asyncPredicate )
-   {
-      ArgumentValidator.ValidateNotNullReference( enumerable );
-      ArgumentValidator.ValidateNotNull( nameof( asyncPredicate ), asyncPredicate );
-      return new EnumerableWrapper<T>( () => enumerable.GetAsyncEnumerator().TakeWhile( asyncPredicate ) );
-   }
-
-
-   /// <summary>
-   /// This extension method will return <see cref="IAsyncEnumerator{T}"/> which will return at most given amount of items.
-   /// </summary>
-   /// <typeparam name="T">The type of items.</typeparam>
-   /// <param name="enumerator">This <see cref="IAsyncEnumerator{T}"/>.</param>
-   /// <param name="amount">The maximum amount of items to return. If zero or less, will return empty enumerable.</param>
-   /// <returns><see cref="IAsyncEnumerator{T}"/> which will return at most given amount of items.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerator{T}"/> is <c>null</c>.</exception>
-   /// <seealso cref="System.Linq.Enumerable.Take{TSource}(IEnumerable{TSource}, int)"/>
-   public static IAsyncEnumerator<T> Take<T>( this IAsyncEnumerator<T> enumerator, Int32 amount )
-   {
-      ArgumentValidator.ValidateNotNullReference( enumerator );
-      // We can't use .Where here as some enumerators are never-ending by design
-      return amount <= 0 ? EmptyAsync<T>.Enumerator : new TakeEnumerator32<T>( enumerator, amount );
-   }
-
-   /// <summary>
-   /// This extension method will return <see cref="IAsyncEnumerator{T}"/> which will return at most given amount of items.
-   /// </summary>
-   /// <typeparam name="T">The type of items.</typeparam>
-   /// <param name="enumerator">This <see cref="IAsyncEnumerator{T}"/>.</param>
-   /// <param name="amount">The maximum amount of items to return. If zero or less, will return empty enumerable.</param>
-   /// <returns><see cref="IAsyncEnumerator{T}"/> which will return at most given amount of items.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerator{T}"/> is <c>null</c>.</exception>
-   /// <seealso cref="System.Linq.Enumerable.Take{TSource}(IEnumerable{TSource}, int)"/>
-   public static IAsyncEnumerator<T> Take<T>( this IAsyncEnumerator<T> enumerator, Int64 amount )
-   {
-      ArgumentValidator.ValidateNotNullReference( enumerator );
-      // We can't use .Where here as some enumerators are never-ending by design
-      return amount <= 0 ? EmptyAsync<T>.Enumerator : new TakeEnumerator64<T>( enumerator, amount );
-   }
-
-   // Don't expose these, since they affect the length of enumerable (unlike .Where, .Select, .SelectMany)
-   private static IAsyncEnumerator<T> TakeWhile<T>( this IAsyncEnumerator<T> enumerator, Func<T, Boolean> predicate )
-   {
-      return new TakeWhileEnumeratorSync<T>( ArgumentValidator.ValidateNotNullReference( enumerator ), predicate );
-   }
-
-   private static IAsyncEnumerator<T> TakeWhile<T>( this IAsyncEnumerator<T> enumerator, Func<T, ValueTask<Boolean>> asyncPredicate )
-   {
-      return new TakeWhileEnumeratorAsync<T>( ArgumentValidator.ValidateNotNullReference( enumerator ), asyncPredicate );
-   }
+   /// <seealso cref="System.Linq.Enumerable.TakeWhile{TSource}(IEnumerable{TSource}, Func{TSource, Boolean})"/>
+   public static IAsyncEnumerable<T> TakeWhile<T>( this IAsyncEnumerable<T> enumerable, Func<T, Task<Boolean>> asyncPredicate )
+      => ( enumerable.AsyncProvider ?? DefaultAsyncProvider.Instance ).TakeWhile( enumerable, asyncPredicate );
 
 }

@@ -20,6 +20,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using UtilPack.AsyncEnumeration.Enumerables;
 using UtilPack.AsyncEnumeration.LINQ;
 
 namespace UtilPack.AsyncEnumeration
@@ -161,9 +162,12 @@ namespace UtilPack.AsyncEnumeration
       /// <typeparam name="T">The type of this value.</typeparam>
       /// <param name="value">This value</param>
       /// <returns><see cref="IAsyncEnumerable{T}"/> containing only this value.</returns>
-      public static IAsyncEnumerable<T> AsSingletonAsync<T>( this T value )
+      public static IAsyncEnumerable<T> AsSingletonAsync<T>(
+         this T value,
+         IAsyncProvider aLINQProvider = null
+         )
       {
-         return new EnumerableWrapper<T>( () => new SingletonEnumerator<T>( value ) );
+         return AsyncEnumerationFactory.FromGeneratorCallback( value, v => new SingletonEnumerator<T>( v ), aLINQProvider );
       }
 
       /// <summary>
@@ -173,11 +177,10 @@ namespace UtilPack.AsyncEnumeration
       /// <param name="task">The task acquiring this value.</param>
       /// <returns><see cref="IAsyncEnumerable{T}"/> containing only this value.</returns>
       /// <exception cref="NullReferenceException">If this <see cref="Task{TResult}"/> is <c>null</c>.</exception>
-      public static IAsyncEnumerable<T> AsSingletonAsync<T>( this Task<T> task )
-      {
-         ArgumentValidator.ValidateNotNullReference( task );
-         return new EnumerableWrapper<T>( () => new AsyncSingletonEnumerator<T>( task ) );
-      }
+      public static IAsyncEnumerable<T> AsSingletonAsync<T>(
+         this Task<T> task,
+         IAsyncProvider aLINQProvider = null
+         ) => AsyncEnumerationFactory.FromGeneratorCallback( ArgumentValidator.ValidateNotNullReference( task ), t => new AsyncSingletonEnumerator<T>( t ), aLINQProvider );
 
       /// <summary>
       /// Encapsulates this asynchronous value as <see cref="IAsyncEnumerable{T}"/> containing only this value.
@@ -185,11 +188,10 @@ namespace UtilPack.AsyncEnumeration
       /// <typeparam name="T">The type of this value.</typeparam>
       /// <param name="task">The task acquiring this value.</param>
       /// <returns><see cref="IAsyncEnumerable{T}"/> containing only this value.</returns>
-      public static IAsyncEnumerable<T> AsSingletonAsync<T>( this ValueTask<T> task )
-      {
-         return new EnumerableWrapper<T>( () => new ValueTaskAsyncSingletonEnumerator<T>( task ) );
-      }
-
+      public static IAsyncEnumerable<T> AsSingletonAsync<T>(
+         this ValueTask<T> task,
+         IAsyncProvider aLINQProvider = null
+         ) => AsyncEnumerationFactory.FromGeneratorCallback( task, t => new ValueTaskAsyncSingletonEnumerator<T>( t ), aLINQProvider );
 
    }
 }

@@ -28,11 +28,15 @@ namespace UtilPack.AsyncEnumeration
       private readonly Func<WrappingEnumerationStartInfo<T>> _factory;
 
       public StatefulAsyncEnumerableWrapper(
-         Func<WrappingEnumerationStartInfo<T>> startInfoFactory
+         Func<WrappingEnumerationStartInfo<T>> startInfoFactory,
+         IAsyncProvider aLINQProvider
       )
       {
          this._factory = ArgumentValidator.ValidateNotNull( nameof( startInfoFactory ), startInfoFactory );
+         this.AsyncProvider = aLINQProvider;
       }
+
+      public IAsyncProvider AsyncProvider { get; }
 
       public IAsyncEnumerator<T> GetAsyncEnumerator()
       {
@@ -45,11 +49,15 @@ namespace UtilPack.AsyncEnumeration
       private readonly AsyncEnumeratorWrapper<T> _enumerator;
 
       public StatelessAsyncEnumerableWrapper(
-         WrappingEnumerationStartInfo<T> startInfo
+         WrappingEnumerationStartInfo<T> startInfo,
+         IAsyncProvider aLINQProvider
          )
       {
          this._enumerator = new AsyncEnumeratorWrapper<T>( startInfo );
+         this.AsyncProvider = aLINQProvider;
       }
+
+      public IAsyncProvider AsyncProvider { get; }
 
       public IAsyncEnumerator<T> GetAsyncEnumerator()
       {

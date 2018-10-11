@@ -16,13 +16,9 @@ One should use `EnumerateSequentiallyAsync` extension method to enumerate the it
 This library also provides a number of methods that correspond to the ones available as LINQ methods to normal `IEnumerable<T>` interface.
 These methods accept both synchronous and asynchronous calllbacks.
 
-# IAsyncConcurrentEnumerable
-This interface extends `IAsyncEnumerable<T>` in order to allow concurrent enumeration of its items.
-The `IAsyncConcurrentEnumerable` may still be enumerated sequentially, but it may also be enumerated concurrently by `EnumerateConcurrentlyAsync` extension method.
-
 # Observability
-Both `IAsyncEnumerable<T>` and `IAsyncConcurrentEnumerable<T>` may also be converted to their observable counterparts using `AsObservable` extension methods.
-The extension methods make sure not to wrap too many items.
+The `IAsyncEnumerable<T>` may also be converted to its observable counterpart using `AsObservable` extension methods.
+The extension methods make sure not to wrap too many times.
 
 The observable events are listed below.
 * The `BeforeEnumerationStart` event occurs just before starting enumeration in __initial__ `WaitForNextAsync` call.
@@ -30,6 +26,10 @@ The observable events are listed below.
 * The `AfterEnumerationItemEncountered` event occurs just after next item is successfully fetched by `TryGetNext` call.
 * The `BeforeEnumerationEnd` event occurs just before `Dispose` call.
 * The `AfterEnumerationEnd` events occurs just after `Dispose` call.
+
+# Creation
+Typically instances of `IAsyncEnumerable<T>` are obtained by using e.g. [CBAM framework](https://github.com/stazz/CBAM).
+The framework uses the `AsyncEnumerationFactory` static class provided by this library, in order to create various instances of `IAsyncEnumerable<T>`, which may be used by other libraries as well.
 
 # Distribution
 See [NuGet package](http://www.nuget.org/packages/UtilPack.AsyncEnumeration) for binary distribution.

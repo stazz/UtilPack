@@ -85,7 +85,7 @@ namespace UtilPack.AsyncEnumeration
             {
                if ( throwIfNone )
                {
-                  throw new InvalidOperationException( "Sequence contains no elements." );
+                  throw EmptySequenceException();
                }
                else
                {

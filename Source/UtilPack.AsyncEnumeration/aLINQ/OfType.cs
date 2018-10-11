@@ -77,7 +77,7 @@ namespace UtilPack.AsyncEnumeration
             AsyncEnumerationFactory.FromTransformCallback( enumerable, e => new OfTypeEnumerator<T, U>( e ) );
       }
 
-      private static Boolean IsOfType(
+      public static Boolean IsOfType(
          TTypeInfo t,
          TTypeInfo u
          )

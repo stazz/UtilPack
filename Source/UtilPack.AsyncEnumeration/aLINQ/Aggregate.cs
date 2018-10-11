@@ -115,7 +115,7 @@ namespace UtilPack.AsyncEnumeration
             }
          } );
 
-         return state == FIRST_SEEN ? prev : throw new InvalidOperationException( "Empty sequence" );
+         return state == FIRST_SEEN ? prev : throw EmptySequenceException();
       }
 
       /// <summary>
@@ -148,7 +148,7 @@ namespace UtilPack.AsyncEnumeration
             }
          } );
 
-         return state == FIRST_SEEN ? prev : throw new InvalidOperationException( "Empty sequence" );
+         return state == FIRST_SEEN ? prev : throw EmptySequenceException();
       }
 
       /// <summary>

@@ -20,5 +20,7 @@ namespace UtilPack.AsyncEnumeration
 
       }
 
+      public static InvalidOperationException EmptySequenceException() => new InvalidOperationException( "Empty sequence" );
+
    }
 }

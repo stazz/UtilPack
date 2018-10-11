@@ -17,6 +17,7 @@
  */
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -36,7 +37,7 @@ namespace UtilPack.AsyncEnumeration
          public IAsyncEnumerable<T> GetWrappedSynchronousSource()
             => null;
 
-         public IAsyncProvider AsyncProvider => DefaultAsyncProvider.Instance; // TODO optimized provider which would return EmptyAsync<>.Enumerable whenever possible.
+         public IAsyncProvider AsyncProvider => EmptyAsyncProvider.Instance;
 
       }
 
@@ -67,6 +68,131 @@ namespace UtilPack.AsyncEnumeration
       /// <value>The <see cref="IAsyncConcurrentEnumerable{T}"/> which will always return <see cref="IAsyncConcurrentEnumerable{T}"/> with no items.</value>
       public static IAsyncEnumerable<T> Enumerable { get; } = new EmptyAsyncEnumerable();
 
+   }
 
+   internal sealed class EmptyAsyncProvider : IAsyncProvider
+   {
+      public static EmptyAsyncProvider Instance { get; } = new EmptyAsyncProvider();
+
+      private EmptyAsyncProvider()
+      {
+
+      }
+
+      public Task<T> AggregateAsync<T>( IAsyncEnumerable<T> source, Func<T, T, T> func )
+         => throw DefaultAsyncProvider.EmptySequenceException();
+
+      public Task<T> AggregateAsync<T>( IAsyncEnumerable<T> source, Func<T, T, ValueTask<T>> asyncFunc )
+         => throw DefaultAsyncProvider.EmptySequenceException();
+
+      public Task<TResult> AggregateAsync<T, TResult>( IAsyncEnumerable<T> source, Func<TResult, T, TResult> func, TResult seed )
+         =>
+#if NET40
+         TaskEx
+#else
+         Task
+#endif
+         .FromResult( seed );
+
+      public Task<TResult> AggregateAsync<T, TResult>( IAsyncEnumerable<T> source, Func<TResult, T, ValueTask<TResult>> asyncFunc, TResult seed )
+         =>
+#if NET40
+         TaskEx
+#else
+         Task
+#endif
+         .FromResult( seed );
+
+      public Task<Boolean> AllAsync<T>( IAsyncEnumerable<T> source, Func<T, Boolean> predicate )
+         => TaskUtils.True;
+
+      public Task<Boolean> AllAsync<T>( IAsyncEnumerable<T> source, Func<T, ValueTask<Boolean>> asyncPredicate )
+         => TaskUtils.True;
+
+      public Task<Boolean> AnyAsync<T>( IAsyncEnumerable<T> source )
+         => TaskUtils.False;
+
+      public Task<Boolean> AnyAsync<T>( IAsyncEnumerable<T> source, Func<T, Boolean> predicate )
+         => TaskUtils.False;
+
+      public Task<Boolean> AnyAsync<T>( IAsyncEnumerable<T> source, Func<T, ValueTask<Boolean>> asyncPredicate )
+         => TaskUtils.False;
+
+      public ValueTask<Int64> EnumerateAsync<T>( IAsyncEnumerable<T> enumerable )
+         => new ValueTask<Int64>( 0 );
+
+      public ValueTask<Int64> EnumerateAsync<T>( IAsyncEnumerable<T> enumerable, Action<T> action )
+         => new ValueTask<Int64>( 0 );
+
+      public ValueTask<Int64> EnumerateAsync<T>( IAsyncEnumerable<T> enumerable, Func<T, Task> asyncAction )
+         => new ValueTask<Int64>( 0 );
+
+      public Task<T> FirstAsync<T>( IAsyncEnumerable<T> enumerable )
+         => throw DefaultAsyncProvider.EmptySequenceException();
+
+      public Task<T> FirstOrDefaultAsync<T>( IAsyncEnumerable<T> enumerable )
+         =>
+#if NET40
+         TaskEx
+#else
+         Task
+#endif
+         .FromResult( default( T ) );
+
+      public IAsyncEnumerable<U> OfType<T, U>( IAsyncEnumerable<T> enumerable )
+         => DefaultAsyncProvider.IsOfType(
+            typeof( T )
+#if !NET40
+         .GetTypeInfo()
+#endif
+         , typeof( U )
+#if !NET40
+         .GetTypeInfo()
+#endif
+         ) ?
+            (IAsyncEnumerable<U>) enumerable :
+            EmptyAsync<U>.Enumerable;
+
+      public IAsyncEnumerable<U> Select<T, U>( IAsyncEnumerable<T> enumerable, Func<T, U> selector )
+         => EmptyAsync<U>.Enumerable;
+
+      public IAsyncEnumerable<U> Select<T, U>( IAsyncEnumerable<T> enumerable, Func<T, ValueTask<U>> asyncSelector )
+         => EmptyAsync<U>.Enumerable;
+
+      public IAsyncEnumerable<U> SelectMany<T, U>( IAsyncEnumerable<T> enumerable, Func<T, IEnumerable<U>> selector )
+         => EmptyAsync<U>.Enumerable;
+
+      public IAsyncEnumerable<U> SelectMany<T, U>( IAsyncEnumerable<T> enumerable, Func<T, IAsyncEnumerable<U>> asyncSelector )
+         => EmptyAsync<U>.Enumerable;
+
+      public IAsyncEnumerable<T> Skip<T>( IAsyncEnumerable<T> enumerable, Int32 amount )
+         => enumerable;
+
+      public IAsyncEnumerable<T> Skip<T>( IAsyncEnumerable<T> enumerable, Int64 amount )
+         => enumerable;
+
+      public IAsyncEnumerable<T> SkipWhile<T>( IAsyncEnumerable<T> enumerable, Func<T, Boolean> predicate )
+         => enumerable;
+
+      public IAsyncEnumerable<T> SkipWhile<T>( IAsyncEnumerable<T> enumerable, Func<T, ValueTask<Boolean>> asyncPredicate )
+         => enumerable;
+
+      public IAsyncEnumerable<T> Take<T>( IAsyncEnumerable<T> enumerable, Int32 amount )
+         => enumerable;
+
+      public IAsyncEnumerable<T> Take<T>( IAsyncEnumerable<T> enumerable, Int64 amount )
+         => enumerable;
+
+      public IAsyncEnumerable<T> TakeWhile<T>( IAsyncEnumerable<T> enumerable, Func<T, Boolean> predicate )
+         => enumerable;
+
+      public IAsyncEnumerable<T> TakeWhile<T>( IAsyncEnumerable<T> enumerable, Func<T, Task<Boolean>> asyncPredicate )
+         => enumerable;
+
+      public IAsyncEnumerable<T> Where<T>( IAsyncEnumerable<T> enumerable, Func<T, Boolean> predicate )
+         => enumerable;
+
+      public IAsyncEnumerable<T> Where<T>( IAsyncEnumerable<T> enumerable, Func<T, Task<Boolean>> asyncPredicate )
+         => enumerable;
    }
 }

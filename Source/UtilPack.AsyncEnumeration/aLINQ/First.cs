@@ -19,6 +19,90 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
+using UtilPack.AsyncEnumeration;
+
+namespace UtilPack.AsyncEnumeration
+{
+   public partial interface IAsyncProvider
+   {
+      /// <summary>
+      /// Asynchronously fetches the first item in this <see cref="IAsyncEnumerable{T}"/> and discards any other items.
+      /// </summary>
+      /// <typeparam name="T">The type of items being enumerated.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <returns>The first item returned by <see cref="IAsyncEnumerator{T}"/> of this <see cref="IAsyncEnumerable{T}"/>.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="InvalidOperationException">If this <see cref="IAsyncEnumerable{T}"/> has no elements.</exception>
+      /// <seealso cref="System.Linq.Enumerable.First{TSource}(IEnumerable{TSource})"/>
+      Task<T> FirstAsync<T>( IAsyncEnumerable<T> enumerable );
+
+      /// <summary>
+      /// Asynchronously fetches the first item in this <see cref="IAsyncEnumerable{T}"/> and discards any other items.
+      /// If there are no items, the the default is returned for type <typeparamref name="T"/>.
+      /// </summary>
+      /// <typeparam name="T">The type of items being enumerated.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <returns>The first item returned by <see cref="IAsyncEnumerator{T}"/> of this <see cref="IAsyncEnumerable{T}"/>, or default for type <typeparamref name="T"/>.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <seealso cref="System.Linq.Enumerable.FirstOrDefault{TSource}(IEnumerable{TSource})"/>
+      Task<T> FirstOrDefaultAsync<T>( IAsyncEnumerable<T> enumerable );
+
+   }
+
+   public partial class DefaultAsyncProvider
+   {
+      /// <summary>
+      /// Asynchronously fetches the first item in this <see cref="IAsyncEnumerable{T}"/> and discards any other items.
+      /// </summary>
+      /// <typeparam name="T">The type of items being enumerated.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <returns>The first item returned by <see cref="IAsyncEnumerator{T}"/> of this <see cref="IAsyncEnumerable{T}"/>.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="InvalidOperationException">If this <see cref="IAsyncEnumerable{T}"/> has no elements.</exception>
+      /// <seealso cref="System.Linq.Enumerable.First{TSource}(IEnumerable{TSource})"/>
+      public Task<T> FirstAsync<T>( IAsyncEnumerable<T> enumerable ) => FirstAsync( enumerable, true );
+
+      /// <summary>
+      /// Asynchronously fetches the first item in this <see cref="IAsyncEnumerable{T}"/> and discards any other items.
+      /// If there are no items, the the default is returned for type <typeparamref name="T"/>.
+      /// </summary>
+      /// <typeparam name="T">The type of items being enumerated.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <returns>The first item returned by <see cref="IAsyncEnumerator{T}"/> of this <see cref="IAsyncEnumerable{T}"/>, or default for type <typeparamref name="T"/>.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <seealso cref="System.Linq.Enumerable.FirstOrDefault{TSource}(IEnumerable{TSource})"/>
+      public Task<T> FirstOrDefaultAsync<T>( IAsyncEnumerable<T> enumerable ) => FirstAsync( enumerable, false );
+
+      private static async Task<T> FirstAsync<T>( IAsyncEnumerable<T> source, Boolean throwIfNone )
+      {
+         T retVal;
+         var enumerator = source.GetAsyncEnumerator();
+         try
+         {
+            var success = await enumerator.WaitForNextAsync();
+            retVal = success ? enumerator.TryGetNext( out success ) : default;
+            if ( !success )
+            {
+               if ( throwIfNone )
+               {
+                  throw new InvalidOperationException( "Sequence contains no elements." );
+               }
+               else
+               {
+                  retVal = default;
+               }
+            }
+         }
+         finally
+         {
+            await enumerator.DisposeAsync();
+         }
+
+         return retVal;
+
+      }
+   }
+}
 
 public static partial class E_UtilPack
 {
@@ -31,20 +115,8 @@ public static partial class E_UtilPack
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="InvalidOperationException">If this <see cref="IAsyncEnumerable{T}"/> has no elements.</exception>
    /// <seealso cref="System.Linq.Enumerable.First{TSource}(IEnumerable{TSource})"/>
-   public static ValueTask<T> FirstAsync<T>( this IAsyncEnumerable<T> enumerable )
-       => enumerable.GetAsyncEnumerator().FirstAsync( true );
-
-   /// <summary>
-   /// Asynchronously fetches the first item in this <see cref="IAsyncEnumerator{T}"/> and discards any other items.
-   /// </summary>
-   /// <typeparam name="T">The type of items being enumerated.</typeparam>
-   /// <param name="enumerator">This <see cref="IAsyncEnumerator{T}"/>.</param>
-   /// <returns>The first item returned by this <see cref="IAsyncEnumerable{T}"/>.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerator{T}"/> is <c>null</c>.</exception>
-   /// <exception cref="InvalidOperationException">If this <see cref="IAsyncEnumerator{T}"/> has no elements.</exception>
-   /// <seealso cref="System.Linq.Enumerable.First{TSource}(IEnumerable{TSource})"/>
-   public static ValueTask<T> FirstAsync<T>( this IAsyncEnumerator<T> enumerator )
-      => enumerator.FirstAsync( true );
+   public static Task<T> FirstAsync<T>( this IAsyncEnumerable<T> enumerable )
+      => ( enumerable.AsyncProvider ?? DefaultAsyncProvider.Instance ).FirstAsync( enumerable );
 
    /// <summary>
    /// Asynchronously fetches the first item in this <see cref="IAsyncEnumerable{T}"/> and discards any other items.
@@ -55,46 +127,6 @@ public static partial class E_UtilPack
    /// <returns>The first item returned by <see cref="IAsyncEnumerator{T}"/> of this <see cref="IAsyncEnumerable{T}"/>, or default for type <typeparamref name="T"/>.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <seealso cref="System.Linq.Enumerable.FirstOrDefault{TSource}(IEnumerable{TSource})"/>
-   public static ValueTask<T> FirstOrDefaultAsync<T>( this IAsyncEnumerable<T> enumerable )
-      => enumerable.GetAsyncEnumerator().FirstAsync( false );
-
-   /// <summary>
-   /// Asynchronously fetches the first item in this <see cref="IAsyncEnumerator{T}"/> and discards any other items.
-   /// If there are no items, the the default is returned for type <typeparamref name="T"/>.
-   /// </summary>
-   /// <typeparam name="T">The type of items being enumerated.</typeparam>
-   /// <param name="enumerator">This <see cref="IAsyncEnumerator{T}"/>.</param>
-   /// <returns>The first item returned by this <see cref="IAsyncEnumerator{T}"/>, or default for type <typeparamref name="T"/>.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerator{T}"/> is <c>null</c>.</exception>
-   /// <seealso cref="System.Linq.Enumerable.FirstOrDefault{TSource}(IEnumerable{TSource})"/>
-   public static ValueTask<T> FirstOrDefaultAsync<T>( this IAsyncEnumerator<T> enumerator )
-      => enumerator.FirstAsync( false );
-
-   private static async ValueTask<T> FirstAsync<T>( this IAsyncEnumerator<T> enumerator, Boolean throwIfNone )
-   {
-      T retVal;
-      try
-      {
-         var success = await enumerator.WaitForNextAsync();
-         retVal = success ? enumerator.TryGetNext( out success ) : default;
-         if ( !success )
-         {
-            if ( throwIfNone )
-            {
-               throw new InvalidOperationException( "Sequence contains no elements." );
-            }
-            else
-            {
-               retVal = default;
-            }
-         }
-      }
-      finally
-      {
-         await enumerator.DisposeAsync();
-      }
-
-      return retVal;
-
-   }
+   public static Task<T> FirstOrDefaultAsync<T>( this IAsyncEnumerable<T> enumerable )
+      => ( enumerable.AsyncProvider ?? DefaultAsyncProvider.Instance ).FirstOrDefaultAsync( enumerable );
 }

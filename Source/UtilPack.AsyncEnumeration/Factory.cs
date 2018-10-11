@@ -20,7 +20,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
+using UtilPack.AsyncEnumeration.Enumerables;
 using TSequentialCurrentInfoFactory = System.Func<System.Object, UtilPack.AsyncEnumeration.EnumerationEndedDelegate, System.Object>;
 
 namespace UtilPack.AsyncEnumeration
@@ -30,6 +30,42 @@ namespace UtilPack.AsyncEnumeration
    /// </summary>
    public static class AsyncEnumerationFactory
    {
+      public static IAsyncEnumerable<T> FromGeneratorCallback<T>(
+         Func<IAsyncEnumerator<T>> getEnumerator,
+         IAsyncProvider asyncProvider = null
+         )
+      {
+         return new EnumerableGenerator<T>( asyncProvider, getEnumerator );
+      }
+
+      public static IAsyncEnumerable<T> FromGeneratorCallback<T, TArg>(
+         TArg arg,
+         Func<TArg, IAsyncEnumerator<T>> getEnumerator,
+         IAsyncProvider asyncProvider = null
+         )
+      {
+         return new EnumerableGenerator<T, TArg>( asyncProvider, arg, getEnumerator );
+      }
+
+      public static IAsyncEnumerable<U> FromTransformCallback<T, U>(
+         IAsyncEnumerable<T> enumerable,
+         Func<IAsyncEnumerator<T>, IAsyncEnumerator<U>> transform
+         )
+      {
+         return new EnumerableWrapper<T, U>( enumerable, transform );
+      }
+
+      public static IAsyncEnumerable<U> FromTransformCallback<T, U, TArg>(
+         IAsyncEnumerable<T> enumerable,
+         TArg arg,
+         Func<IAsyncEnumerator<T>, TArg, IAsyncEnumerator<U>> transform
+         )
+      {
+         return new EnumerableWrapper<T, U, TArg>( enumerable, transform, arg );
+      }
+
+
+
       ///// <summary>
       ///// Creates a new instance of <see cref="IAsyncEnumerable{T}"/> which will behave as specified by given <see cref="InitialMoveNextAsyncDelegate{T}"/> delegate.
       ///// </summary>
@@ -67,8 +103,9 @@ namespace UtilPack.AsyncEnumeration
       /// </remarks>
       /// <seealso cref="CreateSequentialStartInfo{T}(MoveNextAsyncDelegate{T}, EnumerationEndedDelegate)"/>
       public static IAsyncEnumerable<T> CreateSequentialEnumerable<T>(
-         Func<SequentialEnumerationStartInfo<T>> enumerationStart
-         ) => enumerationStart == null ? (IAsyncEnumerable<T>) EmptyAsync<T>.Enumerable : new AsyncSequentialOnlyEnumerable<T>( enumerationStart );
+         Func<SequentialEnumerationStartInfo<T>> enumerationStart,
+         IAsyncProvider aLINQProvider = null
+         ) => enumerationStart == null ? EmptyAsync<T>.Enumerable : new AsyncSequentialOnlyEnumerable<T>( enumerationStart, aLINQProvider );
 
       /// <summary>
       /// Creates a new <see cref="IAsyncEnumerable{T}"/> which will allow at most one <see cref="IAsyncEnumerator{T}"/> to be active at once.
@@ -77,8 +114,9 @@ namespace UtilPack.AsyncEnumeration
       /// <param name="startInfo">The <see cref="SequentialEnumerationStartInfo{T}"/> containing callbacks to use.</param>
       /// <returns>A new instance of <see cref="IAsyncEnumerable{T}"/> which behaves like callbacks in <paramref name="startInfo"/> specified.</returns>
       public static IAsyncEnumerable<T> CreateExclusiveSequentialEnumerable<T>(
-         SequentialEnumerationStartInfo<T> startInfo
-         ) => new AsyncEnumerableExclusive<T>( SequentialCurrentInfoFactory.GetInstance( startInfo.MoveNext, startInfo.Dispose ) );
+         SequentialEnumerationStartInfo<T> startInfo,
+         IAsyncProvider aLINQProvider = null
+         ) => new AsyncEnumerableExclusive<T>( SequentialCurrentInfoFactory.GetInstance( startInfo.MoveNext, startInfo.Dispose ), aLINQProvider );
 
       /// <summary>
       /// Helper method to invoke constructor of <see cref="SequentialEnumerationStartInfo{T}"/> without explicitly specifying generic type arguments.
@@ -109,33 +147,6 @@ namespace UtilPack.AsyncEnumeration
          ) => new AsyncEnumerator<T>( SequentialCurrentInfoFactory.GetInstance( moveNext, dispose ) );
 
       /// <summary>
-      /// Creates a new instance of <see cref="IAsyncConcurrentEnumerable{T}"/> with given callback to create <see cref="ConcurrentEnumerationStartInfo{T, TState}"/> for each new <see cref="IAsyncConcurrentEnumeratorSource{T}"/>.
-      /// </summary>
-      /// <typeparam name="T">The type of items being enumerated.</typeparam>
-      /// <typeparam name="TState">The type of state to transfer between <see cref="ConcurrentEnumerationStartInfo{T, TState}.HasNext"/> and <see cref="ConcurrentEnumerationStartInfo{T, TState}.GetNext"/> invocations.</typeparam>
-      /// <param name="enumerationStart">The callback to create a new <see cref="ConcurrentEnumerationStartInfo{T, TState}"/> for each new <see cref="IAsyncConcurrentEnumeratorSource{T}"/>.</param>
-      /// <returns>A new instance of <see cref="IAsyncConcurrentEnumerable{T}"/> which behaves like <see cref="ConcurrentEnumerationStartInfo{T, TState}"/> returned by <paramref name="enumerationStart"/> specifies.</returns>
-      public static IAsyncConcurrentEnumerable<T> CreateConcurrentEnumerable<T, TState>(
-         Func<ConcurrentEnumerationStartInfo<T, TState>> enumerationStart
-         ) => new AsyncConcurrentEnumerable<T, TState>( enumerationStart );
-
-      /// <summary>
-      /// Helper method to invoke constructor of <see cref="ConcurrentEnumerationStartInfo{T, TState}"/> without explicitly specifying generic type arguments.
-      /// </summary>
-      /// <typeparam name="T">The type of items being enumerated.</typeparam>
-      /// <typeparam name="TState">The type of state to transfer between <see cref="ConcurrentEnumerationStartInfo{T, TState}.HasNext"/> and <see cref="ConcurrentEnumerationStartInfo{T, TState}.GetNext"/> invocations.</typeparam>
-      /// <param name="hasNext">The callback to synchronously check whether there are more items.</param>
-      /// <param name="getNext">The callback for potentially asynchronously fetching next item.</param>
-      /// <param name="dispose">The callback to dispose enumerator.</param>
-      /// <returns>A new <see cref="ConcurrentEnumerationStartInfo{T, TState}"/>.</returns>
-      /// <seealso cref="ConcurrentEnumerationStartInfo{T, TState}.ConcurrentEnumerationStartInfo(HasNextDelegate{TState}, GetNextItemAsyncDelegate{T, TState}, EnumerationEndedDelegate)"/>
-      public static ConcurrentEnumerationStartInfo<T, TState> CreateConcurrentStartInfo<T, TState>(
-         HasNextDelegate<TState> hasNext,
-         GetNextItemAsyncDelegate<T, TState> getNext,
-         EnumerationEndedDelegate dispose
-         ) => new ConcurrentEnumerationStartInfo<T, TState>( hasNext, getNext, dispose );
-
-      /// <summary>
       /// This creates a <see cref="IAsyncEnumerable{T}"/> that will behave like the given set of delegates.
       /// Each enumeration is assumed to have inner state, meaning that the call to create delegates is done on every call to <see cref="IAsyncEnumerable{T}.GetAsyncEnumerator"/>.
       /// </summary>
@@ -146,10 +157,11 @@ namespace UtilPack.AsyncEnumeration
       /// <seealso cref="WrappingEnumerationStartInfo{T}"/>
       /// <seealso cref="CreateWrappingStartInfo"/>
       public static IAsyncEnumerable<T> CreateStatefulWrappingEnumerable<T>(
-         Func<WrappingEnumerationStartInfo<T>> startInfoFactory
+         Func<WrappingEnumerationStartInfo<T>> startInfoFactory,
+         IAsyncProvider aLINQProvider = null
          )
       {
-         return new StatefulAsyncEnumerableWrapper<T>( startInfoFactory );
+         return new StatefulAsyncEnumerableWrapper<T>( startInfoFactory, aLINQProvider );
       }
 
       /// <summary>
@@ -163,10 +175,11 @@ namespace UtilPack.AsyncEnumeration
       /// <seealso cref="WrappingEnumerationStartInfo{T}"/>
       /// <seealso cref="CreateWrappingStartInfo"/>
       public static IAsyncEnumerable<T> CreateStatelessWrappingEnumerable<T>(
-         WrappingEnumerationStartInfo<T> startInfo
+         WrappingEnumerationStartInfo<T> startInfo,
+         IAsyncProvider aLINQProvider = null
          )
       {
-         return new StatelessAsyncEnumerableWrapper<T>( startInfo );
+         return new StatelessAsyncEnumerableWrapper<T>( startInfo, aLINQProvider );
       }
 
       /// <summary>
@@ -202,6 +215,25 @@ namespace UtilPack.AsyncEnumeration
          )
       {
          return new WrappingEnumerationStartInfo<T>( waitForNext, tryGetNext, dispose );
+      }
+
+      public static WrappingEnumerationStartInfo<T> CreateSynchronousWrappingStartInfo<T>(
+         TryGetNextDelegate<T> tryGetNext,
+         EnumerationEndedDelegate dispose = null
+         )
+      {
+         const Int32 INITIAL = 0;
+         const Int32 STARTED = 1;
+         var state = INITIAL;
+         return CreateWrappingStartInfo(
+            () =>
+            {
+               return TaskUtils.TaskFromBoolean( Interlocked.CompareExchange( ref state, STARTED, INITIAL ) == INITIAL );
+            },
+            tryGetNext,
+            dispose
+            );
+
       }
    }
 
@@ -311,55 +343,6 @@ namespace UtilPack.AsyncEnumeration
       /// Gets the callback to dispose enumerator.
       /// </summary>
       /// <value>The callback to dispose enumerator.</value>
-      public EnumerationEndedDelegate Dispose { get; }
-   }
-
-   /// <summary>
-   /// This struct captures information required for callback-based <see cref="IAsyncConcurrentEnumerable{T}"/>.
-   /// </summary>
-   /// <typeparam name="T">The type of items being enumerated.</typeparam>
-   /// <typeparam name="TState">The type of state to pass between <see cref="HasNext"/> and <see cref="GetNext"/> invocations.</typeparam>
-   /// <seealso cref="AsyncEnumerationFactory.CreateConcurrentEnumerable"/>
-   /// <seealso cref="AsyncEnumerationFactory.CreateConcurrentStartInfo"/>
-   public struct ConcurrentEnumerationStartInfo<T, TState>
-   {
-      /// <summary>
-      /// Initializes a new <see cref="ConcurrentEnumerationStartInfo{T, TState}"/> with given callbacks.
-      /// </summary>
-      /// <param name="hasNext">The callback to synchronously check whether there are more items.</param>
-      /// <param name="getNext">The callback to potentially asynchronously fetch next item.</param>
-      /// <param name="dispose">The optional callback to dispose the enumerator. May be <c>null</c>.</param>
-      /// <remarks>
-      /// If <paramref name="hasNext"/> or <paramref name="getNext"/> is <c>null</c>, then the enumerable is considered to be empty.
-      /// </remarks>
-      /// <seealso cref="AsyncEnumerationFactory.CreateConcurrentStartInfo"/>
-      public ConcurrentEnumerationStartInfo(
-         HasNextDelegate<TState> hasNext,
-         GetNextItemAsyncDelegate<T, TState> getNext,
-         EnumerationEndedDelegate dispose
-         )
-      {
-         this.HasNext = hasNext;
-         this.GetNext = getNext;
-         this.Dispose = dispose;
-      }
-
-      /// <summary>
-      /// Gets the callback to synchronously check whether there are more items.
-      /// </summary>
-      /// <value>The callback to synchronously check whether there are more items.</value>
-      public HasNextDelegate<TState> HasNext { get; }
-
-      /// <summary>
-      /// Gets the callback to potentially asynchronously fetch next item.
-      /// </summary>
-      /// <value>The callback to potentially asynchronously fetch next item.</value>
-      public GetNextItemAsyncDelegate<T, TState> GetNext { get; }
-
-      /// <summary>
-      /// Gets the optional callback to dispose the enumerator.
-      /// </summary>
-      /// <value>The optional callback to dispose the enumerator.</value>
       public EnumerationEndedDelegate Dispose { get; }
    }
 

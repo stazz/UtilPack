@@ -24,89 +24,156 @@ using UtilPack;
 using UtilPack.AsyncEnumeration;
 using UtilPack.AsyncEnumeration.LINQ;
 
-namespace UtilPack.AsyncEnumeration.LINQ
+namespace UtilPack.AsyncEnumeration
 {
-   internal sealed class WhereEnumerator<T> : IAsyncEnumerator<T>
+   public partial interface IAsyncProvider
    {
-      private readonly IAsyncEnumerator<T> _source;
-      private readonly Func<T, Boolean> _predicate;
+      /// <summary>
+      /// This extension method will return <see cref="IAsyncEnumerable{T}"/> which will filter items based on given predicate callback.
+      /// </summary>
+      /// <typeparam name="T">The type of items.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="predicate">The callback which will filter the results. By returning <c>true</c>, the result will be included in returned enumerable; otherwise not.</param>
+      /// <returns><see cref="IAsyncEnumerable{T}"/> which will filter items based on given predicate callback.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="predicate"/> is <c>null</c>.</exception>
+      /// <seealso cref="System.Linq.Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, Boolean})"/>
+      IAsyncEnumerable<T> Where<T>( IAsyncEnumerable<T> enumerable, Func<T, Boolean> predicate );
 
-      public WhereEnumerator(
-         IAsyncEnumerator<T> source,
-         Func<T, Boolean> syncPredicate
-         )
-      {
-         this._source = ArgumentValidator.ValidateNotNull( nameof( source ), source );
-         this._predicate = ArgumentValidator.ValidateNotNull( nameof( syncPredicate ), syncPredicate );
-      }
-
-      public Task<Boolean> WaitForNextAsync() => this._source.WaitForNextAsync();
-
-      public T TryGetNext( out Boolean success )
-      {
-         var encountered = false;
-         T item;
-         do
-         {
-            item = this._source.TryGetNext( out success );
-            encountered = success && this._predicate( item );
-         } while ( success && !encountered );
-
-         success = encountered;
-         return item;
-      }
-
-      public Task DisposeAsync() => this._source.DisposeAsync();
+      /// <summary>
+      /// This extension method will return <see cref="IAsyncEnumerable{T}"/> which will filter items based on given asynchronous predicate callback.
+      /// </summary>
+      /// <typeparam name="T">The type of items.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="asyncPredicate">The callback which will asynchronously filter the results. By returning <c>true</c>, the result will be included in returned enumerable; otherwise not.</param>
+      /// <returns><see cref="IAsyncEnumerable{T}"/> which will filter items based on given predicate callback.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="asyncPredicate"/> is <c>null</c>.</exception>
+      /// <seealso cref="System.Linq.Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, Boolean})"/>
+      IAsyncEnumerable<T> Where<T>( IAsyncEnumerable<T> enumerable, Func<T, Task<Boolean>> asyncPredicate );
    }
 
-   internal sealed class AsyncWhereEnumerator<T> : IAsyncEnumerator<T>
+   public partial class DefaultAsyncProvider
    {
-      private readonly IAsyncEnumerator<T> _source;
-      private readonly Func<T, ValueTask<Boolean>> _predicate;
-      private readonly Stack<T> _stack;
-
-      public AsyncWhereEnumerator(
-         IAsyncEnumerator<T> source,
-         Func<T, ValueTask<Boolean>> asyncPredicate
-         )
+      /// <summary>
+      /// This extension method will return <see cref="IAsyncEnumerable{T}"/> which will filter items based on given predicate callback.
+      /// </summary>
+      /// <typeparam name="T">The type of items.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="predicate">The callback which will filter the results. By returning <c>true</c>, the result will be included in returned enumerable; otherwise not.</param>
+      /// <returns><see cref="IAsyncEnumerable{T}"/> which will filter items based on given predicate callback.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="predicate"/> is <c>null</c>.</exception>
+      /// <seealso cref="System.Linq.Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, Boolean})"/>
+      public IAsyncEnumerable<T> Where<T>( IAsyncEnumerable<T> enumerable, Func<T, Boolean> predicate )
       {
-         this._source = ArgumentValidator.ValidateNotNull( nameof( source ), source );
-         this._predicate = asyncPredicate;
-         this._stack = new Stack<T>();
+         ArgumentValidator.ValidateNotNullReference( enumerable );
+         ArgumentValidator.ValidateNotNull( nameof( predicate ), predicate );
+         return AsyncEnumerationFactory.FromTransformCallback( enumerable, predicate, ( e, p ) => new WhereEnumerator<T>( e, p ) );
       }
 
-      //public Boolean IsConcurrentEnumerationSupported => this._source.IsConcurrentEnumerationSupported;
-
-      public async Task<Boolean> WaitForNextAsync()
+      /// <summary>
+      /// This extension method will return <see cref="IAsyncEnumerable{T}"/> which will filter items based on given asynchronous predicate callback.
+      /// </summary>
+      /// <typeparam name="T">The type of items.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="asyncPredicate">The callback which will asynchronously filter the results. By returning <c>true</c>, the result will be included in returned enumerable; otherwise not.</param>
+      /// <returns><see cref="IAsyncEnumerable{T}"/> which will filter items based on given predicate callback.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="asyncPredicate"/> is <c>null</c>.</exception>
+      /// <seealso cref="System.Linq.Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, Boolean})"/>
+      public IAsyncEnumerable<T> Where<T>( IAsyncEnumerable<T> enumerable, Func<T, Task<Boolean>> asyncPredicate )
       {
-         var stack = this._stack;
-         // Discard any previous items
-         stack.Clear();
-         // We must use the predicate in this method, since this is our only asynchronous method while enumerating
-         while ( stack.Count == 0 && await this._source.WaitForNextAsync() )
+         ArgumentValidator.ValidateNotNullReference( enumerable );
+         ArgumentValidator.ValidateNotNull( nameof( asyncPredicate ), asyncPredicate );
+         return AsyncEnumerationFactory.FromTransformCallback( enumerable, asyncPredicate, ( e, p ) => new AsyncWhereEnumerator<T>( e, p ) );
+      }
+   }
+
+   namespace LINQ
+   {
+      internal sealed class WhereEnumerator<T> : IAsyncEnumerator<T>
+      {
+         private readonly IAsyncEnumerator<T> _source;
+         private readonly Func<T, Boolean> _predicate;
+
+         public WhereEnumerator(
+            IAsyncEnumerator<T> source,
+            Func<T, Boolean> syncPredicate
+            )
          {
-            Boolean success;
-            do
-            {
-               var item = this._source.TryGetNext( out success );
-               if ( success && await this._predicate( item ) )
-               {
-                  stack.Push( item );
-               }
-            } while ( success );
+            this._source = ArgumentValidator.ValidateNotNull( nameof( source ), source );
+            this._predicate = ArgumentValidator.ValidateNotNull( nameof( syncPredicate ), syncPredicate );
          }
 
-         return stack.Count > 0;
+         public Task<Boolean> WaitForNextAsync() => this._source.WaitForNextAsync();
+
+         public T TryGetNext( out Boolean success )
+         {
+            var encountered = false;
+            T item;
+            do
+            {
+               item = this._source.TryGetNext( out success );
+               encountered = success && this._predicate( item );
+            } while ( success && !encountered );
+
+            success = encountered;
+            return item;
+         }
+
+         public Task DisposeAsync() => this._source.DisposeAsync();
       }
 
-
-      public T TryGetNext( out Boolean success )
+      internal sealed class AsyncWhereEnumerator<T> : IAsyncEnumerator<T>
       {
-         success = this._stack.Count > 0;
-         return success ? this._stack.Pop() : default;
-      }
+         private readonly IAsyncEnumerator<T> _source;
+         private readonly Func<T, Task<Boolean>> _predicate;
+         private readonly Stack<T> _stack;
 
-      public Task DisposeAsync() => this._source.DisposeAsync();
+         public AsyncWhereEnumerator(
+            IAsyncEnumerator<T> source,
+            Func<T, Task<Boolean>> asyncPredicate
+            )
+         {
+            this._source = ArgumentValidator.ValidateNotNull( nameof( source ), source );
+            this._predicate = asyncPredicate;
+            this._stack = new Stack<T>();
+         }
+
+         //public Boolean IsConcurrentEnumerationSupported => this._source.IsConcurrentEnumerationSupported;
+
+         public async Task<Boolean> WaitForNextAsync()
+         {
+            var stack = this._stack;
+            // Discard any previous items
+            stack.Clear();
+            // We must use the predicate in this method, since this is our only asynchronous method while enumerating
+            while ( stack.Count == 0 && await this._source.WaitForNextAsync() )
+            {
+               Boolean success;
+               do
+               {
+                  var item = this._source.TryGetNext( out success );
+                  if ( success && await this._predicate( item ) )
+                  {
+                     stack.Push( item );
+                  }
+               } while ( success );
+            }
+
+            return stack.Count > 0;
+         }
+
+
+         public T TryGetNext( out Boolean success )
+         {
+            success = this._stack.Count > 0;
+            return success ? this._stack.Pop() : default;
+         }
+
+         public Task DisposeAsync() => this._source.DisposeAsync();
+      }
    }
 }
 
@@ -123,13 +190,9 @@ public static partial class E_UtilPack
    /// <returns><see cref="IAsyncEnumerable{T}"/> which will filter items based on given predicate callback.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="predicate"/> is <c>null</c>.</exception>
-   /// <seealso cref="System.Linq.Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/>
+   /// <seealso cref="System.Linq.Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, Boolean})"/>
    public static IAsyncEnumerable<T> Where<T>( this IAsyncEnumerable<T> enumerable, Func<T, Boolean> predicate )
-   {
-      ArgumentValidator.ValidateNotNullReference( enumerable );
-      ArgumentValidator.ValidateNotNull( nameof( predicate ), predicate );
-      return new EnumerableWrapper<T>( () => enumerable.GetAsyncEnumerator().Where( predicate ) );
-   }
+      => ( enumerable.AsyncProvider ?? DefaultAsyncProvider.Instance ).Where( enumerable, predicate );
 
    /// <summary>
    /// This extension method will return <see cref="IAsyncEnumerable{T}"/> which will filter items based on given asynchronous predicate callback.
@@ -140,47 +203,7 @@ public static partial class E_UtilPack
    /// <returns><see cref="IAsyncEnumerable{T}"/> which will filter items based on given predicate callback.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="asyncPredicate"/> is <c>null</c>.</exception>
-   /// <seealso cref="System.Linq.Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/>
-   public static IAsyncEnumerable<T> Where<T>( this IAsyncEnumerable<T> enumerable, Func<T, ValueTask<Boolean>> asyncPredicate )
-   {
-      ArgumentValidator.ValidateNotNullReference( enumerable );
-      ArgumentValidator.ValidateNotNull( nameof( asyncPredicate ), asyncPredicate );
-      return new EnumerableWrapper<T>( () => enumerable.GetAsyncEnumerator().Where( asyncPredicate ) );
-   }
-
-
-   /// <summary>
-   /// This extension method will return <see cref="IAsyncEnumerator{T}"/> which will filter items based on given predicate callback.
-   /// </summary>
-   /// <typeparam name="T">The type of items.</typeparam>
-   /// <param name="enumerator">This <see cref="IAsyncEnumerator{T}"/>.</param>
-   /// <param name="predicate">The callback which will filter the results. By returning <c>true</c>, the result will be included in returned enumerator; otherwise not.</param>
-   /// <returns><see cref="IAsyncEnumerator{T}"/> which will filter items based on given predicate callback.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerator{T}"/> is <c>null</c>.</exception>
-   /// <exception cref="ArgumentNullException">If <paramref name="predicate"/> is <c>null</c>.</exception>
-   /// <seealso cref="System.Linq.Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/>
-   public static IAsyncEnumerator<T> Where<T>( this IAsyncEnumerator<T> enumerator, Func<T, Boolean> predicate )
-   {
-      ArgumentValidator.ValidateNotNullReference( enumerator );
-      ArgumentValidator.ValidateNotNull( nameof( predicate ), predicate );
-      return new WhereEnumerator<T>( enumerator, predicate );
-   }
-
-   /// <summary>
-   /// This extension method will return <see cref="IAsyncEnumerator{T}"/> which will filter items based on given asynchronous predicate callback.
-   /// </summary>
-   /// <typeparam name="T">The type of items.</typeparam>
-   /// <param name="enumerator">This <see cref="IAsyncEnumerator{T}"/>.</param>
-   /// <param name="asyncPredicate">The callback which will asynchronously filter the results. By returning <c>true</c>, the result will be included in returned enumerator; otherwise not.</param>
-   /// <returns><see cref="IAsyncEnumerator{T}"/> which will filter items based on given predicate callback.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerator{T}"/> is <c>null</c>.</exception>
-   /// <exception cref="ArgumentNullException">If <paramref name="asyncPredicate"/> is <c>null</c>.</exception>
-   /// <seealso cref="System.Linq.Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/>
-   public static IAsyncEnumerator<T> Where<T>( this IAsyncEnumerator<T> enumerator, Func<T, ValueTask<Boolean>> asyncPredicate )
-   {
-      ArgumentValidator.ValidateNotNullReference( enumerator );
-      ArgumentValidator.ValidateNotNull( nameof( asyncPredicate ), asyncPredicate );
-      return new AsyncWhereEnumerator<T>( enumerator, asyncPredicate );
-   }
-
+   /// <seealso cref="System.Linq.Enumerable.Where{TSource}(IEnumerable{TSource}, Func{TSource, Boolean})"/>
+   public static IAsyncEnumerable<T> Where<T>( this IAsyncEnumerable<T> enumerable, Func<T, Task<Boolean>> asyncPredicate )
+      => ( enumerable.AsyncProvider ?? DefaultAsyncProvider.Instance ).Where( enumerable, asyncPredicate );
 }

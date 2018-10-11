@@ -24,7 +24,7 @@ using System.Threading.Tasks;
 namespace UtilPack.AsyncEnumeration
 {
    /// <summary>
-   /// This class provides some general ways to generate instances of <see cref="IAsyncEnumerable{T}"/> and <see cref="IAsyncConcurrentEnumerable{T}"/>, similar to how <see cref="System.Linq.Enumerable"/> provides general ways to generate instances of <see cref="IEnumerable{T}"/>.
+   /// This class provides some general ways to generate instances of <see cref="IAsyncEnumerable{T}"/>, similar to how <see cref="System.Linq.Enumerable"/> provides general ways to generate instances of <see cref="IEnumerable{T}"/>.
    /// </summary>
    public static class AsyncEnumerable
    {
@@ -38,18 +38,15 @@ namespace UtilPack.AsyncEnumeration
       /// <returns>An empty <see cref="IAsyncConcurrentEnumerable{T}"/> if <paramref name="count"/> is <c>0</c> or less; otherwise returns <see cref="IAsyncConcurrentEnumerable{T}"/> which will repeat <paramref name="item"/> <paramref name="count"/> amount of times.</returns>
       /// <seealso cref="System.Linq.Enumerable.Repeat{TResult}(TResult, Int32)"/>
       /// <seealso cref="Repeat{T}(T, Int64)"/>
-      public static IAsyncConcurrentEnumerable<T> Repeat<T>( T item, Int32 count )
+      public static IAsyncEnumerable<T> Repeat<T>(
+         T item,
+         Int32 count,
+         IAsyncProvider alinqProvider = null
+         )
       {
-         // we could also do .Take(count), but then it wouldn't be concurrent
-         return count <= 0 ? EmptyAsync<T>.Enumerable : AsyncEnumerationFactory.CreateConcurrentEnumerable( () => AsyncEnumerationFactory.CreateConcurrentStartInfo(
-            () =>
-            {
-               var decremented = Interlocked.Decrement( ref count );
-               return (decremented >= 0, decremented);
-            },
-            decremented => new ValueTask<T>( item ),
-            null
-            ) );
+         return count <= 0 ?
+            EmptyAsync<T>.Enumerable :
+            Neverending( () => item, alinqProvider ).Take( count );
       }
 
       /// <summary>
@@ -61,17 +58,15 @@ namespace UtilPack.AsyncEnumeration
       /// <returns>An empty <see cref="IAsyncConcurrentEnumerable{T}"/> if <paramref name="count"/> is <c>0</c> or less; otherwise returns <see cref="IAsyncConcurrentEnumerable{T}"/> which will repeat <paramref name="item"/> <paramref name="count"/> amount of times.</returns>
       /// <seealso cref="System.Linq.Enumerable.Repeat{TResult}(TResult, Int32)"/>
       /// <seealso cref="Repeat{T}(T, Int32)"/>
-      public static IAsyncConcurrentEnumerable<T> Repeat<T>( T item, Int64 count )
+      public static IAsyncEnumerable<T> Repeat<T>(
+         T item,
+         Int64 count,
+         IAsyncProvider alinqProvider = null
+         )
       {
-         return count <= 0 ? EmptyAsync<T>.Enumerable : AsyncEnumerationFactory.CreateConcurrentEnumerable( () => AsyncEnumerationFactory.CreateConcurrentStartInfo(
-            () =>
-            {
-               var decremented = Interlocked.Decrement( ref count );
-               return (decremented >= 0, decremented);
-            },
-            decremented => new ValueTask<T>( item ),
-            null
-            ) );
+         return count <= 0 ?
+            EmptyAsync<T>.Enumerable :
+            Neverending( () => item, alinqProvider ).Take( count );
       }
 
       /// <summary>
@@ -82,18 +77,15 @@ namespace UtilPack.AsyncEnumeration
       /// <param name="count">Amount of times to repeat the item.</param>
       /// <returns>An empty <see cref="IAsyncConcurrentEnumerable{T}"/> if <paramref name="count"/> is <c>0</c> or less; otherwise returns <see cref="IAsyncConcurrentEnumerable{T}"/> which will repeat result of calling <paramref name="generator"/> <paramref name="count"/> amount of times.</returns>
       /// <seealso cref="System.Linq.Enumerable.Repeat{TResult}(TResult, Int32)"/>
-      public static IAsyncConcurrentEnumerable<T> Repeat<T>( Func<T> generator, Int32 count )
+      public static IAsyncEnumerable<T> Repeat<T>(
+         Func<T> generator,
+         Int32 count,
+         IAsyncProvider alinqProvider = null
+         )
       {
-
-         return count <= 0 ? EmptyAsync<T>.Enumerable : AsyncEnumerationFactory.CreateConcurrentEnumerable( () => AsyncEnumerationFactory.CreateConcurrentStartInfo(
-            () =>
-            {
-               var decremented = Interlocked.Decrement( ref count );
-               return (decremented >= 0, decremented);
-            },
-            decremented => new ValueTask<T>( generator() ),
-            null
-            ) );
+         return count <= 0 ?
+            EmptyAsync<T>.Enumerable :
+            Neverending( generator, alinqProvider ).Take( count );
       }
 
       /// <summary>
@@ -104,18 +96,15 @@ namespace UtilPack.AsyncEnumeration
       /// <param name="count">Amount of times to repeat the item.</param>
       /// <returns>An empty <see cref="IAsyncConcurrentEnumerable{T}"/> if <paramref name="count"/> is <c>0</c> or less; otherwise returns <see cref="IAsyncConcurrentEnumerable{T}"/> which will repeat result of calling <paramref name="asyncGenerator"/> <paramref name="count"/> amount of times.</returns>
       /// <seealso cref="System.Linq.Enumerable.Repeat{TResult}(TResult, Int32)"/>
-      public static IAsyncConcurrentEnumerable<T> Repeat<T>( Func<ValueTask<T>> asyncGenerator, Int32 count )
+      public static IAsyncEnumerable<T> Repeat<T>(
+         Func<ValueTask<T>> asyncGenerator,
+         Int32 count,
+         IAsyncProvider alinqProvider = null
+         )
       {
-
-         return count <= 0 ? EmptyAsync<T>.Enumerable : AsyncEnumerationFactory.CreateConcurrentEnumerable( () => AsyncEnumerationFactory.CreateConcurrentStartInfo(
-            () =>
-            {
-               var decremented = Interlocked.Decrement( ref count );
-               return (decremented >= 0, decremented);
-            },
-            decremented => asyncGenerator(),
-            null
-            ) );
+         return count <= 0 ?
+            EmptyAsync<T>.Enumerable :
+            Neverending( asyncGenerator ).Take( count );
       }
 
 
@@ -131,22 +120,30 @@ namespace UtilPack.AsyncEnumeration
       /// This method also handles both increasing and decreasing number ranges.
       /// </remarks>
       /// <seealso cref="System.Linq.Enumerable.Range(Int32, Int32)"/>
-      public static IAsyncConcurrentEnumerable<Int32> Range( Int32 initial, Int32 target, Int32 step = 1 )
+      public static IAsyncEnumerable<Int32> Range(
+         Int32 initial,
+         Int32 target,
+         Int32 step = 1,
+         IAsyncProvider alinqProvider = null
+         )
       {
-         IAsyncConcurrentEnumerable<Int32> retVal;
+         IAsyncEnumerable<Int32> retVal;
          if ( target > initial )
          {
             // Increasing range from initial to target, step must be 1 or greater
             step = Math.Max( 1, step );
-            retVal = AsyncEnumerationFactory.CreateConcurrentEnumerable( () => AsyncEnumerationFactory.CreateConcurrentStartInfo(
-               () =>
+            retVal = AsyncEnumerationFactory.CreateStatefulWrappingEnumerable( () =>
+            {
+               var current = initial;
+               return AsyncEnumerationFactory.CreateSynchronousWrappingStartInfo(
+               ( out Boolean success ) =>
                {
-                  var incremented = Interlocked.Add( ref initial, step );
-                  return (incremented <= target, incremented);
-               },
-               incremented => new ValueTask<Int32>( incremented - step ),
-               null
-            ) );
+                  var prev = current;
+                  success = current < target;
+                  current += step;
+                  return prev;
+               } );
+            }, alinqProvider );
          }
          else if ( initial == target )
          {
@@ -157,15 +154,18 @@ namespace UtilPack.AsyncEnumeration
          {
             // Decreasing range from target to initial, step must be -1 or less
             step = Math.Min( -1, step );
-            retVal = AsyncEnumerationFactory.CreateConcurrentEnumerable( () => AsyncEnumerationFactory.CreateConcurrentStartInfo(
-               () =>
+            retVal = AsyncEnumerationFactory.CreateStatefulWrappingEnumerable( () =>
+            {
+               var current = initial;
+               return AsyncEnumerationFactory.CreateSynchronousWrappingStartInfo(
+               ( out Boolean success ) =>
                {
-                  var decremented = Interlocked.Add( ref initial, step );
-                  return (decremented >= target, decremented);
-               },
-               decremented => new ValueTask<Int32>( decremented + step ),
-               null
-            ) );
+                  var prev = current;
+                  success = current > target;
+                  current -= step;
+                  return prev;
+               } );
+            }, alinqProvider );
          }
 
          return retVal;
@@ -183,22 +183,30 @@ namespace UtilPack.AsyncEnumeration
       /// This method also handles both increasing and decreasing number ranges.
       /// </remarks>
       /// <seealso cref="System.Linq.Enumerable.Range(Int32, Int32)"/>
-      public static IAsyncConcurrentEnumerable<Int64> Range( Int64 initial, Int64 target, Int64 step = 1 )
+      public static IAsyncEnumerable<Int64> Range(
+         Int64 initial,
+         Int64 target,
+         Int64 step = 1,
+         IAsyncProvider alinqProvider = null
+         )
       {
-         IAsyncConcurrentEnumerable<Int64> retVal;
+         IAsyncEnumerable<Int64> retVal;
          if ( target > initial )
          {
-            // Upward range from initial to target, step must be 1 or greater
+            // Increasing range from initial to target, step must be 1 or greater
             step = Math.Max( 1, step );
-            retVal = AsyncEnumerationFactory.CreateConcurrentEnumerable( () => AsyncEnumerationFactory.CreateConcurrentStartInfo(
-               () =>
+            retVal = AsyncEnumerationFactory.CreateStatefulWrappingEnumerable( () =>
+            {
+               var current = initial;
+               return AsyncEnumerationFactory.CreateSynchronousWrappingStartInfo(
+               ( out Boolean success ) =>
                {
-                  var incremented = Interlocked.Add( ref initial, step );
-                  return (incremented <= target, incremented);
-               },
-               incremented => new ValueTask<Int64>( incremented - step ),
-               null
-            ) );
+                  var prev = current;
+                  success = current < target;
+                  current += step;
+                  return prev;
+               } );
+            }, alinqProvider );
          }
          else if ( initial == target )
          {
@@ -207,17 +215,20 @@ namespace UtilPack.AsyncEnumeration
          }
          else
          {
-            // Downward range from target to initial, step must be -1 or less
+            // Decreasing range from target to initial, step must be -1 or less
             step = Math.Min( -1, step );
-            retVal = AsyncEnumerationFactory.CreateConcurrentEnumerable( () => AsyncEnumerationFactory.CreateConcurrentStartInfo(
-               () =>
+            retVal = AsyncEnumerationFactory.CreateStatefulWrappingEnumerable( () =>
+            {
+               var current = initial;
+               return AsyncEnumerationFactory.CreateSynchronousWrappingStartInfo(
+               ( out Boolean success ) =>
                {
-                  var decremented = Interlocked.Add( ref initial, step );
-                  return (decremented >= target, decremented);
-               },
-               decremented => new ValueTask<Int64>( decremented + step ),
-               null
-            ) );
+                  var prev = current;
+                  success = current > target;
+                  current -= step;
+                  return prev;
+               } );
+            }, alinqProvider );
          }
 
          return retVal;
@@ -229,17 +240,18 @@ namespace UtilPack.AsyncEnumeration
       /// <typeparam name="T">The type of item to repeat.</typeparam>
       /// <param name="item">An item to repeat.</param>
       /// <returns>An enumerable that will indefinetly repeat the given value.</returns>
-      public static IAsyncConcurrentEnumerable<T> Neverending<T>( T item )
+      public static IAsyncEnumerable<T> Neverending<T>(
+         T item,
+         IAsyncProvider alinqProvider = null
+         )
       {
-         var startInfo = AsyncEnumerationFactory.CreateConcurrentStartInfo(
-            () =>
+         return AsyncEnumerationFactory.CreateStatelessWrappingEnumerable( AsyncEnumerationFactory.CreateSynchronousWrappingStartInfo(
+            ( out Boolean success ) =>
             {
-               return (true, item);
-            },
-            itemParam => new ValueTask<T>( itemParam ),
-            null
-            );
-         return AsyncEnumerationFactory.CreateConcurrentEnumerable( () => startInfo );
+               success = true;
+               return item;
+            }
+            ), alinqProvider );
       }
 
       /// <summary>
@@ -248,17 +260,18 @@ namespace UtilPack.AsyncEnumeration
       /// <typeparam name="T">The type of item to repeat.</typeparam>
       /// <param name="generator">A synchronous callback to dynamically generate the value to repeat.</param>
       /// <returns>An enumerable that will indefinetly repeat the given value.</returns>
-      public static IAsyncConcurrentEnumerable<T> Neverending<T>( Func<T> generator )
+      public static IAsyncEnumerable<T> Neverending<T>(
+         Func<T> generator,
+         IAsyncProvider alinqProvider = null
+         )
       {
-         var startInfo = AsyncEnumerationFactory.CreateConcurrentStartInfo(
-            () =>
+         return AsyncEnumerationFactory.CreateStatelessWrappingEnumerable( AsyncEnumerationFactory.CreateSynchronousWrappingStartInfo(
+            ( out Boolean success ) =>
             {
-               return (true, generator);
-            },
-            generatorParam => new ValueTask<T>( generatorParam() ),
-            null
-            );
-         return AsyncEnumerationFactory.CreateConcurrentEnumerable( () => startInfo );
+               success = true;
+               return generator();
+            }
+            ), alinqProvider );
       }
 
       /// <summary>
@@ -267,18 +280,18 @@ namespace UtilPack.AsyncEnumeration
       /// <typeparam name="T">The type of item to repeat.</typeparam>
       /// <param name="asyncGenerator">A potentially asynchronous callback to dynamically generate the value to repeat.</param>
       /// <returns>An enumerable that will indefinetly repeat the given value.</returns>
-      public static IAsyncConcurrentEnumerable<T> Neverending<T>( Func<ValueTask<T>> asyncGenerator )
+      public static IAsyncEnumerable<T> Neverending<T>(
+         Func<ValueTask<T>> asyncGenerator,
+         IAsyncProvider alinqProvider = null
+         )
       {
-         //var lazy = new AsyncLazy<T>( async () => await asyncGenerator() );
-         var startInfo = AsyncEnumerationFactory.CreateConcurrentStartInfo(
-            () =>
+         return AsyncEnumerationFactory.CreateSequentialEnumerable( () => AsyncEnumerationFactory.CreateSequentialStartInfo(
+            async () =>
             {
-               return (true, asyncGenerator);
+               return (true, await asyncGenerator());
             },
-            generatorParam => generatorParam(),
             null
-            );
-         return AsyncEnumerationFactory.CreateConcurrentEnumerable( () => startInfo );
+            ), alinqProvider );
       }
    }
 }

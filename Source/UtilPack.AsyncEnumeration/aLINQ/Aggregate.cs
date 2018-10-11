@@ -21,11 +21,190 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
+using UtilPack.AsyncEnumeration;
+
+namespace UtilPack.AsyncEnumeration
+{
+   public partial interface IAsyncProvider
+   {
+      /// <summary>
+      /// Similarly to <see cref="System.Linq.Enumerable.Aggregate{TSource}(IEnumerable{TSource}, Func{TSource, TSource, TSource})"/> method, this method potentially asynchronously enumerates this <see cref="IAsyncEnumerable{T}"/> and aggregates a single value using the given <paramref name="func"/> synchronous callback.
+      /// </summary>
+      /// <typeparam name="T">The type of elements being enumerated.</typeparam>
+      /// <param name="source">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="func">The synchronous callback function to perform aggregation. First argument is previous element, second argument is current element, and return value is the new aggregated value.</param>
+      /// <returns>An aggregated value.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="func"/> is <c>null</c>.</exception>
+      /// <exception cref="InvalidOperationException">If this <see cref="IAsyncEnumerable{T}"/> does not contain at least one element.</exception>
+      Task<T> AggregateAsync<T>( IAsyncEnumerable<T> source, Func<T, T, T> func );
+
+      /// <summary>
+      /// Similarly to <see cref="System.Linq.Enumerable.Aggregate{TSource}(IEnumerable{TSource}, Func{TSource, TSource, TSource})"/> method, this method potentially asynchronously enumerates this <see cref="IAsyncEnumerable{T}"/> and aggregates a single value using the given <paramref name="asyncFunc"/> potentially asynchronous callback.
+      /// </summary>
+      /// <typeparam name="T">The type of elements being enumerated.</typeparam>
+      /// <param name="source">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="asyncFunc">The potentially asynchronous callback function to perform aggregation. First argument is previous element, second argument is current element, and return value is the new aggregated value.</param>
+      /// <returns>An aggregated value.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="asyncFunc"/> is <c>null</c>.</exception>
+      /// <exception cref="InvalidOperationException">If this <see cref="IAsyncEnumerable{T}"/> does not contain at least one element.</exception>
+      Task<T> AggregateAsync<T>( IAsyncEnumerable<T> source, Func<T, T, ValueTask<T>> asyncFunc );
+
+      /// <summary>
+      /// Similarly to <see cref="System.Linq.Enumerable.Aggregate{TSource, TAccumulate}(IEnumerable{TSource}, TAccumulate, Func{TAccumulate, TSource, TAccumulate})"/> method, this method potentially asynchronously enumerates this <see cref="IAsyncEnumerable{T}"/> and aggregates a single value using the given <paramref name="func"/> synchronous callback.
+      /// The type of the intermediate and return value is different than the type of elements in this <see cref="IAsyncEnumerable{T}"/>.
+      /// </summary>
+      /// <typeparam name="T">The type of elements being enumerated.</typeparam>
+      /// <typeparam name="TResult">The type of intermediate and result values.</typeparam>
+      /// <param name="source">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="func">The synchronous calllback function to perform aggregation. First argument is intermediate value, second argument is current element, and return value is the new intermediate value, or return value if current element is last element.</param>
+      /// <param name="seed">The optional initial value for first argument of <paramref name="func"/> callback.</param>
+      /// <returns>An aggregated value.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="func"/> is <c>null</c>.</exception>
+      Task<TResult> AggregateAsync<T, TResult>( IAsyncEnumerable<T> source, Func<TResult, T, TResult> func, TResult seed );
+
+      /// <summary>
+      /// Similarly to <see cref="System.Linq.Enumerable.Aggregate{TSource, TAccumulate}(IEnumerable{TSource}, TAccumulate, Func{TAccumulate, TSource, TAccumulate})"/> method, this method potentially asynchronously enumerates this <see cref="IAsyncEnumerable{T}"/> and aggregates a single value using the given <paramref name="asyncFunc"/> potentially asynchronous callback.
+      /// The type of the intermediate and return value is different than the type of elements in this <see cref="IAsyncEnumerable{T}"/>.
+      /// </summary>
+      /// <typeparam name="T">The type of elements being enumerated.</typeparam>
+      /// <typeparam name="TResult">The type of intermediate and result values.</typeparam>
+      /// <param name="source">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="asyncFunc">The potentially asynchronous calllback function to perform aggregation. First argument is intermediate value, second argument is current element, and return value is the new intermediate value, or return value if current element is last element.</param>
+      /// <param name="seed">The optional initial value for first argument of <paramref name="asyncFunc"/> callback.</param>
+      /// <returns>An aggregated value.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="asyncFunc"/> is <c>null</c>.</exception>
+      Task<TResult> AggregateAsync<T, TResult>( IAsyncEnumerable<T> source, Func<TResult, T, ValueTask<TResult>> asyncFunc, TResult seed );
+   }
+
+   public partial class DefaultAsyncProvider
+   {
+      private const Int32 INITIAL = 0;
+      private const Int32 FIRST_SEEN = 1;
+
+      /// <summary>
+      /// Similarly to <see cref="System.Linq.Enumerable.Aggregate{TSource}(IEnumerable{TSource}, Func{TSource, TSource, TSource})"/> method, this method potentially asynchronously enumerates this <see cref="IAsyncEnumerable{T}"/> and aggregates a single value using the given <paramref name="func"/> synchronous callback.
+      /// </summary>
+      /// <typeparam name="T">The type of elements being enumerated.</typeparam>
+      /// <param name="source">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="func">The synchronous callback function to perform aggregation. First argument is previous element, second argument is current element, and return value is the new aggregated value.</param>
+      /// <returns>An aggregated value.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="func"/> is <c>null</c>.</exception>
+      /// <exception cref="InvalidOperationException">If this <see cref="IAsyncEnumerable{T}"/> does not contain at least one element.</exception>
+      public async Task<T> AggregateAsync<T>( IAsyncEnumerable<T> source, Func<T, T, T> func )
+      {
+         ArgumentValidator.ValidateNotNullReference( source );
+         ArgumentValidator.ValidateNotNull( nameof( func ), func );
+
+         var state = INITIAL;
+         T prev = default;
+         await source.EnumerateAsync( item =>
+         {
+            if ( state == INITIAL )
+            {
+               prev = item;
+               Interlocked.Exchange( ref state, FIRST_SEEN );
+            }
+            else
+            {
+               prev = func( prev, item );
+            }
+         } );
+
+         return state == FIRST_SEEN ? prev : throw new InvalidOperationException( "Empty sequence" );
+      }
+
+      /// <summary>
+      /// Similarly to <see cref="System.Linq.Enumerable.Aggregate{TSource}(IEnumerable{TSource}, Func{TSource, TSource, TSource})"/> method, this method potentially asynchronously enumerates this <see cref="IAsyncEnumerable{T}"/> and aggregates a single value using the given <paramref name="asyncFunc"/> potentially asynchronous callback.
+      /// </summary>
+      /// <typeparam name="T">The type of elements being enumerated.</typeparam>
+      /// <param name="source">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="asyncFunc">The potentially asynchronous callback function to perform aggregation. First argument is previous element, second argument is current element, and return value is the new aggregated value.</param>
+      /// <returns>An aggregated value.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="asyncFunc"/> is <c>null</c>.</exception>
+      /// <exception cref="InvalidOperationException">If this <see cref="IAsyncEnumerable{T}"/> does not contain at least one element.</exception>
+      public async Task<T> AggregateAsync<T>( IAsyncEnumerable<T> source, Func<T, T, ValueTask<T>> asyncFunc )
+      {
+         ArgumentValidator.ValidateNotNullReference( source );
+         ArgumentValidator.ValidateNotNull( nameof( asyncFunc ), asyncFunc );
+
+         var state = INITIAL;
+         T prev = default;
+         await source.EnumerateAsync( async item =>
+         {
+            if ( state == INITIAL )
+            {
+               prev = item;
+               Interlocked.Exchange( ref state, FIRST_SEEN );
+            }
+            else
+            {
+               prev = await asyncFunc( prev, item );
+            }
+         } );
+
+         return state == FIRST_SEEN ? prev : throw new InvalidOperationException( "Empty sequence" );
+      }
+
+      /// <summary>
+      /// Similarly to <see cref="System.Linq.Enumerable.Aggregate{TSource, TAccumulate}(IEnumerable{TSource}, TAccumulate, Func{TAccumulate, TSource, TAccumulate})"/> method, this method potentially asynchronously enumerates this <see cref="IAsyncEnumerable{T}"/> and aggregates a single value using the given <paramref name="func"/> synchronous callback.
+      /// The type of the intermediate and return value is different than the type of elements in this <see cref="IAsyncEnumerable{T}"/>.
+      /// </summary>
+      /// <typeparam name="T">The type of elements being enumerated.</typeparam>
+      /// <typeparam name="TResult">The type of intermediate and result values.</typeparam>
+      /// <param name="source">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="func">The synchronous calllback function to perform aggregation. First argument is intermediate value, second argument is current element, and return value is the new intermediate value, or return value if current element is last element.</param>
+      /// <param name="seed">The optional initial value for first argument of <paramref name="func"/> callback.</param>
+      /// <returns>An aggregated value.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="func"/> is <c>null</c>.</exception>
+      public async Task<TResult> AggregateAsync<T, TResult>( IAsyncEnumerable<T> source, Func<TResult, T, TResult> func, TResult seed )
+      {
+         ArgumentValidator.ValidateNotNullReference( source );
+         ArgumentValidator.ValidateNotNull( nameof( func ), func );
+         await source.EnumerateAsync( item =>
+         {
+            seed = func( seed, item );
+         } );
+
+         return seed;
+      }
+
+      /// <summary>
+      /// Similarly to <see cref="System.Linq.Enumerable.Aggregate{TSource, TAccumulate}(IEnumerable{TSource}, TAccumulate, Func{TAccumulate, TSource, TAccumulate})"/> method, this method potentially asynchronously enumerates this <see cref="IAsyncEnumerable{T}"/> and aggregates a single value using the given <paramref name="asyncFunc"/> potentially asynchronous callback.
+      /// The type of the intermediate and return value is different than the type of elements in this <see cref="IAsyncEnumerable{T}"/>.
+      /// </summary>
+      /// <typeparam name="T">The type of elements being enumerated.</typeparam>
+      /// <typeparam name="TResult">The type of intermediate and result values.</typeparam>
+      /// <param name="source">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <param name="asyncFunc">The potentially asynchronous calllback function to perform aggregation. First argument is intermediate value, second argument is current element, and return value is the new intermediate value, or return value if current element is last element.</param>
+      /// <param name="seed">The optional initial value for first argument of <paramref name="asyncFunc"/> callback.</param>
+      /// <returns>An aggregated value.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="asyncFunc"/> is <c>null</c>.</exception>
+      public async Task<TResult> AggregateAsync<T, TResult>( IAsyncEnumerable<T> source, Func<TResult, T, ValueTask<TResult>> asyncFunc, TResult seed )
+      {
+         ArgumentValidator.ValidateNotNullReference( source );
+         ArgumentValidator.ValidateNotNull( nameof( asyncFunc ), asyncFunc );
+         await source.EnumerateAsync( async item =>
+         {
+            seed = await asyncFunc( seed, item );
+         } );
+
+         return seed;
+      }
+   }
+}
+
 
 public static partial class E_UtilPack
 {
-   private const Int32 INITIAL = 0;
-   private const Int32 FIRST_SEEN = 1;
+
 
    /// <summary>
    /// Similarly to <see cref="System.Linq.Enumerable.Aggregate{TSource}(IEnumerable{TSource}, Func{TSource, TSource, TSource})"/> method, this method potentially asynchronously enumerates this <see cref="IAsyncEnumerable{T}"/> and aggregates a single value using the given <paramref name="func"/> synchronous callback.
@@ -37,28 +216,8 @@ public static partial class E_UtilPack
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="func"/> is <c>null</c>.</exception>
    /// <exception cref="InvalidOperationException">If this <see cref="IAsyncEnumerable{T}"/> does not contain at least one element.</exception>
-   public static async ValueTask<T> AggregateAsync<T>( this IAsyncEnumerable<T> source, Func<T, T, T> func )
-   {
-      ArgumentValidator.ValidateNotNullReference( source );
-      ArgumentValidator.ValidateNotNull( nameof( func ), func );
-
-      var state = INITIAL;
-      T prev = default;
-      await source.EnumerateSequentiallyAsync( item =>
-      {
-         if ( state == INITIAL )
-         {
-            prev = item;
-            Interlocked.Exchange( ref state, FIRST_SEEN );
-         }
-         else
-         {
-            prev = func( prev, item );
-         }
-      } );
-
-      return state == FIRST_SEEN ? prev : throw new InvalidOperationException( "Empty sequence" );
-   }
+   public static Task<T> AggregateAsync<T>( this IAsyncEnumerable<T> source, Func<T, T, T> func )
+      => ( source.AsyncProvider ?? DefaultAsyncProvider.Instance ).AggregateAsync( source, func );
 
    /// <summary>
    /// Similarly to <see cref="System.Linq.Enumerable.Aggregate{TSource}(IEnumerable{TSource}, Func{TSource, TSource, TSource})"/> method, this method potentially asynchronously enumerates this <see cref="IAsyncEnumerable{T}"/> and aggregates a single value using the given <paramref name="asyncFunc"/> potentially asynchronous callback.
@@ -70,28 +229,8 @@ public static partial class E_UtilPack
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="asyncFunc"/> is <c>null</c>.</exception>
    /// <exception cref="InvalidOperationException">If this <see cref="IAsyncEnumerable{T}"/> does not contain at least one element.</exception>
-   public static async ValueTask<T> AggregateAsync<T>( this IAsyncEnumerable<T> source, Func<T, T, ValueTask<T>> asyncFunc )
-   {
-      ArgumentValidator.ValidateNotNullReference( source );
-      ArgumentValidator.ValidateNotNull( nameof( asyncFunc ), asyncFunc );
-
-      var state = INITIAL;
-      T prev = default;
-      await source.EnumerateSequentiallyAsync( async item =>
-      {
-         if ( state == INITIAL )
-         {
-            prev = item;
-            Interlocked.Exchange( ref state, FIRST_SEEN );
-         }
-         else
-         {
-            prev = await asyncFunc( prev, item );
-         }
-      } );
-
-      return state == FIRST_SEEN ? prev : throw new InvalidOperationException( "Empty sequence" );
-   }
+   public static Task<T> AggregateAsync<T>( this IAsyncEnumerable<T> source, Func<T, T, ValueTask<T>> asyncFunc )
+      => ( source.AsyncProvider ?? DefaultAsyncProvider.Instance ).AggregateAsync( source, asyncFunc );
 
    /// <summary>
    /// Similarly to <see cref="System.Linq.Enumerable.Aggregate{TSource, TAccumulate}(IEnumerable{TSource}, TAccumulate, Func{TAccumulate, TSource, TAccumulate})"/> method, this method potentially asynchronously enumerates this <see cref="IAsyncEnumerable{T}"/> and aggregates a single value using the given <paramref name="func"/> synchronous callback.
@@ -105,17 +244,8 @@ public static partial class E_UtilPack
    /// <returns>An aggregated value.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="func"/> is <c>null</c>.</exception>
-   public static async ValueTask<TResult> AggregateAsync<T, TResult>( this IAsyncEnumerable<T> source, Func<TResult, T, TResult> func, TResult seed = default )
-   {
-      ArgumentValidator.ValidateNotNullReference( source );
-      ArgumentValidator.ValidateNotNull( nameof( func ), func );
-      await source.EnumerateSequentiallyAsync( item =>
-      {
-         seed = func( seed, item );
-      } );
-
-      return seed;
-   }
+   public static Task<TResult> AggregateAsync<T, TResult>( this IAsyncEnumerable<T> source, Func<TResult, T, TResult> func, TResult seed = default )
+      => ( source.AsyncProvider ?? DefaultAsyncProvider.Instance ).AggregateAsync( source, func, seed );
 
    /// <summary>
    /// Similarly to <see cref="System.Linq.Enumerable.Aggregate{TSource, TAccumulate}(IEnumerable{TSource}, TAccumulate, Func{TAccumulate, TSource, TAccumulate})"/> method, this method potentially asynchronously enumerates this <see cref="IAsyncEnumerable{T}"/> and aggregates a single value using the given <paramref name="asyncFunc"/> potentially asynchronous callback.
@@ -129,15 +259,6 @@ public static partial class E_UtilPack
    /// <returns>An aggregated value.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="asyncFunc"/> is <c>null</c>.</exception>
-   public static async ValueTask<TResult> AggregateAsync<T, TResult>( this IAsyncEnumerable<T> source, Func<TResult, T, ValueTask<TResult>> asyncFunc, TResult seed = default )
-   {
-      ArgumentValidator.ValidateNotNullReference( source );
-      ArgumentValidator.ValidateNotNull( nameof( asyncFunc ), asyncFunc );
-      await source.EnumerateSequentiallyAsync( async item =>
-      {
-         seed = await asyncFunc( seed, item );
-      } );
-
-      return seed;
-   }
+   public static Task<TResult> AggregateAsync<T, TResult>( this IAsyncEnumerable<T> source, Func<TResult, T, ValueTask<TResult>> asyncFunc, TResult seed = default )
+      => ( source.AsyncProvider ?? DefaultAsyncProvider.Instance ).AggregateAsync( source, asyncFunc, seed );
 }

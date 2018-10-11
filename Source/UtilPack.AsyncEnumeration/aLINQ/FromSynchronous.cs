@@ -22,6 +22,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
 using UtilPack.AsyncEnumeration;
+using UtilPack.AsyncEnumeration.Enumerables;
 using UtilPack.AsyncEnumeration.LINQ;
 
 namespace UtilPack.AsyncEnumeration
@@ -33,7 +34,7 @@ namespace UtilPack.AsyncEnumeration
          private const Int32 NOT_FETCHED = 0;
          private const Int32 FETCHED = 1;
 
-         private T[] _array;
+         private readonly T[] _array;
          private Int32 _index;
 
          public ArrayEnumerator( T[] array )
@@ -104,11 +105,10 @@ namespace UtilPack.AsyncEnumeration
       /// <param name="array">This array.</param>
       /// <returns><see cref="IAsyncEnumerable{T}"/> which will enumerate over the contents of the array.</returns>
       /// <exception cref="NullReferenceException">If this array is <c>null</c>.</exception>
-      public static IAsyncEnumerable<T> AsAsyncEnumerable<T>( this T[] array )
-      {
-         ArgumentValidator.ValidateNotNullReference( array );
-         return new EnumerableWrapper<T>( () => new ArrayEnumerator<T>( array ) );
-      }
+      public static IAsyncEnumerable<T> AsAsyncEnumerable<T>(
+         this T[] array,
+         IAsyncProvider alinqProvider = null
+         ) => AsyncEnumerationFactory.FromGeneratorCallback( ArgumentValidator.ValidateNotNullReference( array ), a => new ArrayEnumerator<T>( a ), alinqProvider );
 
       /// <summary>
       /// This extension method will wrap this <see cref="IEnumerable{T}"/> into <see cref="IAsyncEnumerable{T}"/>.
@@ -117,10 +117,9 @@ namespace UtilPack.AsyncEnumeration
       /// <param name="enumerable">This <see cref="IEnumerable{T}"/>.</param>
       /// <returns><see cref="IAsyncEnumerable{T}"/> which will enumerate over this <see cref="IEnumerable{T}"/>.</returns>
       /// <exception cref="NullReferenceException">If this <see cref="IEnumerable{T}"/> is <c>null</c>.</exception>
-      public static IAsyncEnumerable<T> AsAsyncEnumerable<T>( this IEnumerable<T> enumerable )
-      {
-         ArgumentValidator.ValidateNotNullReference( enumerable );
-         return new EnumerableWrapper<T>( () => new SynchronousEnumerableEnumerator<T>( enumerable.GetEnumerator() ) );
-      }
+      public static IAsyncEnumerable<T> AsAsyncEnumerable<T>(
+         this IEnumerable<T> enumerable,
+         IAsyncProvider alinqProvider = null
+         ) => AsyncEnumerationFactory.FromGeneratorCallback( ArgumentValidator.ValidateNotNullReference( enumerable ), e => new SynchronousEnumerableEnumerator<T>( e.GetEnumerator() ), alinqProvider );
    }
 }

@@ -65,7 +65,7 @@ namespace UtilPack.Tests.AsyncEnumeration
          };
          var itemsEncountered = await ( useConcurrentWrapper ?
             enumerable.AsConcurrentEnumerable().EnumerateConcurrentlyAsync( callback ) :
-            enumerable.EnumerateSequentiallyAsync( callback )
+            enumerable.EnumerateAsync( callback )
             );
          Assert.AreEqual( itemsEncountered, completionState.Length );
          Assert.IsTrue( completionState.All( s => s == 1 ) );
@@ -103,7 +103,7 @@ namespace UtilPack.Tests.AsyncEnumeration
          };
          var itemsEncounteredTask = useConcurrentWrapper ?
             enumerable.AsConcurrentEnumerable().EnumerateConcurrentlyAsync( callback ) :
-            enumerable.EnumerateSequentiallyAsync( callback );
+            enumerable.EnumerateAsync( callback );
 
          // We will always start a new task when concurrently enumerating async enumerable
          Assert.AreEqual( !useConcurrentWrapper, itemsEncounteredTask.IsCompleted );
@@ -237,7 +237,7 @@ namespace UtilPack.Tests.AsyncEnumeration
          Assert.IsTrue( ArrayEqualityComparer<Int32>.ArrayEquality( array, array2 ) );
 
          var sequentialList = new List<Int32>();
-         var itemsEncountered2 = await enumerable.Where( x => x >= 5 ).EnumerateSequentiallyAsync( async cur =>
+         var itemsEncountered2 = await enumerable.Where( x => x >= 5 ).EnumerateAsync( async cur =>
          {
             await Task.Delay( new Random().Next( 300, 500 ) );
             sequentialList.Add( cur );

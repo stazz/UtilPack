@@ -33,56 +33,114 @@ using TTypeInfo =
 #endif
    ;
 
-namespace UtilPack.AsyncEnumeration.LINQ
+namespace UtilPack.AsyncEnumeration
 {
-   internal sealed class OfTypeEnumerator<T, U> : IAsyncEnumerator<U>
+   public partial interface IAsyncProvider
    {
-      private readonly IAsyncEnumerator<T> _source;
+      /// <summary>
+      /// This extension method will return <see cref="IAsyncEnumerable{T}"/> which will return only those items which are of given type.
+      /// </summary>
+      /// <typeparam name="T">The type of source enumerable items.</typeparam>
+      /// <typeparam name="U">The type of target items.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <returns><see cref="IAsyncEnumerable{T}"/> which will return only those items which are of given type.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <seealso cref="System.Linq.Enumerable.OfType{TResult}(System.Collections.IEnumerable)"/>
+      IAsyncEnumerable<U> OfType<T, U>( IAsyncEnumerable<T> enumerable );
+   }
 
-      public OfTypeEnumerator(
-         IAsyncEnumerator<T> source
+   public partial class DefaultAsyncProvider
+   {
+      /// <summary>
+      /// This extension method will return <see cref="IAsyncEnumerable{T}"/> which will return only those items which are of given type.
+      /// </summary>
+      /// <typeparam name="T">The type of source enumerable items.</typeparam>
+      /// <typeparam name="U">The type of target items.</typeparam>
+      /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+      /// <returns><see cref="IAsyncEnumerable{T}"/> which will return only those items which are of given type.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+      /// <seealso cref="System.Linq.Enumerable.OfType{TResult}(System.Collections.IEnumerable)"/>
+      public IAsyncEnumerable<U> OfType<T, U>( IAsyncEnumerable<T> enumerable )
+      {
+         ArgumentValidator.ValidateNotNullReference( enumerable );
+         return IsOfType(
+            typeof( T )
+#if !NET40
+         .GetTypeInfo()
+#endif
+         , typeof( U )
+#if !NET40
+         .GetTypeInfo()
+#endif
+         ) ?
+            (IAsyncEnumerable<U>) enumerable :
+            AsyncEnumerationFactory.FromTransformCallback( enumerable, e => new OfTypeEnumerator<T, U>( e ) );
+      }
+
+      private static Boolean IsOfType(
+         TTypeInfo t,
+         TTypeInfo u
          )
+      {
+         // When both types are non-structs and non-generic-parameters, and u is supertype of t, then we don't need new enumerable/enumerator
+         return Equals( t, u ) || ( !t.IsValueType && !u.IsValueType && !t.IsGenericParameter && !u.IsGenericParameter && u.IsAssignableFrom( t ) );
+      }
+   }
+
+
+   namespace LINQ
+   {
+      internal sealed class OfTypeEnumerator<T, U> : IAsyncEnumerator<U>
+      {
+         private readonly IAsyncEnumerator<T> _source;
+
+         public OfTypeEnumerator(
+            IAsyncEnumerator<T> source
+            )
+         {
+            this._source = ArgumentValidator.ValidateNotNull( nameof( source ), source );
+         }
+
+         public Task<Boolean> WaitForNextAsync()
+            => this._source.WaitForNextAsync();
+
+         public U TryGetNext( out Boolean success )
+         {
+            var encountered = false;
+            T item;
+            U returnedItem = default;
+            do
+            {
+               item = this._source.TryGetNext( out success );
+               if ( success && item is U tmp )
+               {
+                  encountered = true;
+                  returnedItem = tmp;
+               }
+            } while ( success && !encountered );
+
+            success = encountered;
+            return returnedItem;
+         }
+
+         public Task DisposeAsync()
+            => this._source.DisposeAsync();
+      }
+   }
+
+   public struct OfTypeInvoker<T>
+   {
+      private readonly IAsyncEnumerable<T> _source;
+
+      public OfTypeInvoker( IAsyncEnumerable<T> source )
       {
          this._source = ArgumentValidator.ValidateNotNull( nameof( source ), source );
       }
 
-      public Task<Boolean> WaitForNextAsync()
-         => this._source.WaitForNextAsync();
-
-      public U TryGetNext( out Boolean success )
+      public IAsyncEnumerable<U> Type<U>()
       {
-         var encountered = false;
-         T item;
-         U returnedItem = default;
-         do
-         {
-            item = this._source.TryGetNext( out success );
-            if ( success && item is U tmp )
-            {
-               encountered = true;
-               returnedItem = tmp;
-            }
-         } while ( success && !encountered );
-
-         success = encountered;
-         return returnedItem;
+         return ( ( this._source ?? throw new InvalidOperationException( "This operation not possible on default-constructed type." ) ).AsyncProvider ?? DefaultAsyncProvider.Instance ).OfType<T, U>( this._source );
       }
-
-      public Task DisposeAsync()
-         => this._source.DisposeAsync();
-   }
-
-   /// <summary>
-   /// This struct exists purely for the purpose of invoking <see cref="E_UtilPack.OfType{T, U}(IAsyncEnumerable{T})"/> method without supplying both generic type arguments.
-   /// </summary>
-   /// <typeparam name="T">The target type.</typeparam>
-   public struct OfTypeInfo<T>
-   {
-      /// <summary>
-      /// Gets the <see cref="OfTypeInfo{T}"/> instance capturing type information.
-      /// </summary>
-      /// <returns>A <see cref="OfTypeInfo{T}"/> instance capturing type information.</returns>
-      public static OfTypeInfo<T> Get() => default;
    }
 }
 
@@ -103,111 +161,7 @@ public static partial class E_UtilPack
    /// <returns><see cref="IAsyncEnumerable{T}"/> which will return only those items which are of given type.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
    /// <seealso cref="System.Linq.Enumerable.OfType{TResult}(System.Collections.IEnumerable)"/>
-   public static IAsyncEnumerable<U> OfType<T, U>( this IAsyncEnumerable<T> enumerable )
-   {
-      ArgumentValidator.ValidateNotNullReference( enumerable );
-      return IsOfType(
-         typeof( T )
-#if !NET40
-         .GetTypeInfo()
-#endif
-         , typeof( U )
-#if !NET40
-         .GetTypeInfo()
-#endif
-         ) ?
-         (IAsyncEnumerable<U>) enumerable :
-         new EnumerableWrapper<U>( () => enumerable.GetAsyncEnumerator().OfType<T, U>() );
-   }
+   public static OfTypeInvoker<T> Of<T>( this IAsyncEnumerable<T> enumerable )
+      => new OfTypeInvoker<T>( enumerable );
 
-   /// <summary>
-   /// This extension method will return <see cref="IAsyncEnumerable{T}"/> which will return only those items which are of given <see cref="OfTypeInfo{T}"/>.
-   /// This method exists because default interface methods are not yet implemented.
-   /// </summary>
-   /// <typeparam name="T">The type of source enumerable items.</typeparam>
-   /// <typeparam name="U">The type of target items.</typeparam>
-   /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
-   /// <param name="type">The <see cref="OfTypeInfo{T}"/> containing target type information, so that this method could be invoked without using two generic type parameters. This parameter is present only to make this method easy to use, it is not used by the body of this method.</param>
-   /// <returns><see cref="IAsyncEnumerable{T}"/> which will return only those items which are of given type.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
-   /// <seealso cref="System.Linq.Enumerable.OfType{TResult}(System.Collections.IEnumerable)"/>
-   public static IAsyncEnumerable<U> OfType<T, U>( this IAsyncEnumerable<T> enumerable, OfTypeInfo<U> type )
-   {
-      ArgumentValidator.ValidateNotNullReference( enumerable );
-      return IsOfType(
-         typeof( T )
-#if !NET40
-         .GetTypeInfo()
-#endif
-         , typeof( U )
-#if !NET40
-         .GetTypeInfo()
-#endif
-         ) ?
-         (IAsyncEnumerable<U>) enumerable :
-         new EnumerableWrapper<U>( () => enumerable.GetAsyncEnumerator().OfType<T, U>() );
-   }
-
-   /// <summary>
-   /// This extension method will return <see cref="IAsyncEnumerator{T}"/> which will return only those items which are of given type.
-   /// </summary>
-   /// <typeparam name="T">The type of source enumerable items.</typeparam>
-   /// <typeparam name="U">The type of target items.</typeparam>
-   /// <param name="enumerator">This <see cref="IAsyncEnumerator{T}"/>.</param>
-   /// <returns><see cref="IAsyncEnumerator{T}"/> which will return only those items which are of given type.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerator{T}"/> is <c>null</c>.</exception>
-   /// <seealso cref="System.Linq.Enumerable.OfType{TResult}(System.Collections.IEnumerable)"/>
-   public static IAsyncEnumerator<U> OfType<T, U>( this IAsyncEnumerator<T> enumerator )
-   {
-      ArgumentValidator.ValidateNotNullReference( enumerator );
-      return IsOfType(
-         typeof( T )
-#if !NET40
-         .GetTypeInfo()
-#endif
-         , typeof( U )
-#if !NET40
-         .GetTypeInfo()
-#endif
-         ) ?
-         (IAsyncEnumerator<U>) enumerator :
-         new OfTypeEnumerator<T, U>( enumerator );
-   }
-
-   /// <summary>
-   /// This extension method will return <see cref="IAsyncEnumerator{T}"/> which will return only those items which are of given <see cref="OfTypeInfo{T}"/>.
-   /// This method exists because default interface methods are not yet implemented.
-   /// </summary>
-   /// <typeparam name="T">The type of source enumerable items.</typeparam>
-   /// <typeparam name="U">The type of target items.</typeparam>
-   /// <param name="enumerator">This <see cref="IAsyncEnumerator{T}"/>.</param>
-   /// <param name="type">The <see cref="OfTypeInfo{T}"/> containing target type information, so that this method could be invoked without using two generic type parameters. This parameter is present only to make this method easy to use, it is not used by the body of this method.</param>
-   /// <returns><see cref="IAsyncEnumerator{T}"/> which will return only those items which are of given type.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerator{T}"/> is <c>null</c>.</exception>
-   /// <seealso cref="System.Linq.Enumerable.OfType{TResult}(System.Collections.IEnumerable)"/>
-   public static IAsyncEnumerator<U> OfType<T, U>( this IAsyncEnumerator<T> enumerator, OfTypeInfo<U> type )
-   {
-      ArgumentValidator.ValidateNotNullReference( enumerator );
-      return IsOfType(
-         typeof( T )
-#if !NET40
-         .GetTypeInfo()
-#endif
-         , typeof( U )
-#if !NET40
-         .GetTypeInfo()
-#endif
-         ) ?
-         (IAsyncEnumerator<U>) enumerator :
-         new OfTypeEnumerator<T, U>( enumerator );
-   }
-
-   private static Boolean IsOfType(
-      TTypeInfo t,
-      TTypeInfo u
-      )
-   {
-      // When both types are non-structs and non-generic-parameters, and u is supertype of t, then we don't need new enumerable/enumerator
-      return Equals( t, u ) || ( !t.IsValueType && !u.IsValueType && !t.IsGenericParameter && !u.IsGenericParameter && u.IsAssignableFrom( t ) );
-   }
 }

@@ -34,10 +34,8 @@ namespace UtilPack.AsyncEnumeration
          public IAsyncEnumerator<T> GetAsyncEnumerator()
             => Enumerator;
 
-         public IAsyncEnumerable<T> GetWrappedSynchronousSource()
-            => null;
-
-         public IAsyncProvider AsyncProvider => EmptyAsyncProvider.Instance;
+         public IAsyncProvider AsyncProvider
+            => EmptyAsyncProvider.Instance;
 
       }
 

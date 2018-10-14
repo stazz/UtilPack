@@ -31,22 +31,22 @@ namespace UtilPack.AsyncEnumeration
    /// <typeparam name="T">The type of items being enumerated.</typeparam>
    public interface IAsyncEnumerableObservable<out T> : IAsyncEnumerable<T>, AsyncEnumerationObservation<T>
    {
-      /// <summary>
-      /// Gets the <see cref="IAsyncEnumeratorObservable{T}"/> to use to enumerate this <see cref="IAsyncEnumerableObservable{T}"/>.
-      /// </summary>
-      /// <returns>A <see cref="IAsyncEnumeratorObservable{T}"/> which should be used to enumerate this <see cref="IAsyncEnumerableObservable{T}"/>.</returns>
-      new IAsyncEnumeratorObservable<T> GetAsyncEnumerator();
+      ///// <summary>
+      ///// Gets the <see cref="IAsyncEnumeratorObservable{T}"/> to use to enumerate this <see cref="IAsyncEnumerableObservable{T}"/>.
+      ///// </summary>
+      ///// <returns>A <see cref="IAsyncEnumeratorObservable{T}"/> which should be used to enumerate this <see cref="IAsyncEnumerableObservable{T}"/>.</returns>
+      //new IAsyncEnumeratorObservable<T> GetAsyncEnumerator();
    }
 
-   /// <summary>
-   /// This interface augments <see cref="IAsyncEnumerator{T}"/> with ability to observe various events that enumerating will cause.
-   /// These events are contained in <see cref="AsyncEnumerationObservation{T}"/> interface.
-   /// </summary>
-   /// <typeparam name="T">The type of the items being enumerated. This parameter is covariant.</typeparam>
-   public interface IAsyncEnumeratorObservable<out T> : IAsyncEnumerator<T>, AsyncEnumerationObservation<T>
-   {
+   ///// <summary>
+   ///// This interface augments <see cref="IAsyncEnumerator{T}"/> with ability to observe various events that enumerating will cause.
+   ///// These events are contained in <see cref="AsyncEnumerationObservation{T}"/> interface.
+   ///// </summary>
+   ///// <typeparam name="T">The type of the items being enumerated. This parameter is covariant.</typeparam>
+   //public interface IAsyncEnumeratorObservable<out T> : IAsyncEnumerator<T>, AsyncEnumerationObservation<T>
+   //{
 
-   }
+   //}
 
    /// <summary>
    /// This interface augments <see cref="IAsyncEnumerableObservable{T}"/> with metadata which will be passed on to event handlers.
@@ -55,25 +55,33 @@ namespace UtilPack.AsyncEnumeration
    /// <typeparam name="TMetadata">The type of metadata to pass to event handlers.</typeparam>
    public interface IAsyncEnumerableObservable<out T, out TMetadata> : IAsyncEnumerableObservable<T>, AsyncEnumerationObservation<T, TMetadata>, ObjectWithMetadata<TMetadata>
    {
-      /// <summary>
-      /// Gets the <see cref="IAsyncEnumeratorObservable{T, TMetadata}"/> to use to enumerate this <see cref="IAsyncEnumerableObservable{T, TMetadata}"/>.
-      /// </summary>
-      /// <returns>A <see cref="IAsyncEnumeratorObservable{T, TMetadata}"/> which should be used to enumerate this <see cref="IAsyncEnumerableObservable{T, TMetadata}"/>.</returns>
-      new IAsyncEnumeratorObservable<T, TMetadata> GetAsyncEnumerator();
+      ///// <summary>
+      ///// Gets the <see cref="IAsyncEnumeratorObservable{T, TMetadata}"/> to use to enumerate this <see cref="IAsyncEnumerableObservable{T, TMetadata}"/>.
+      ///// </summary>
+      ///// <returns>A <see cref="IAsyncEnumeratorObservable{T, TMetadata}"/> which should be used to enumerate this <see cref="IAsyncEnumerableObservable{T, TMetadata}"/>.</returns>
+      //new IAsyncEnumeratorObservable<T, TMetadata> GetAsyncEnumerator();
    }
 
-   /// <summary>
-   /// This interface augments <see cref="IAsyncEnumeratorObservable{T}"/> with ability to observe various events that enumerating will cause.
-   /// These events are contained in <see cref="AsyncEnumerationObservation{T, TMetadata}"/> interface.
-   /// </summary>
-   /// <typeparam name="T">The type of the items being enumerated. This parameter is covariant.</typeparam>
-   /// <typeparam name="TMetadata">The type of the metadata. This parameter is covariant.</typeparam>
-   public interface IAsyncEnumeratorObservable<out T, out TMetadata> : IAsyncEnumeratorObservable<T>, AsyncEnumerationObservation<T, TMetadata>, ObjectWithMetadata<TMetadata>
+   ///// <summary>
+   ///// This interface augments <see cref="IAsyncEnumeratorObservable{T}"/> with ability to observe various events that enumerating will cause.
+   ///// These events are contained in <see cref="AsyncEnumerationObservation{T, TMetadata}"/> interface.
+   ///// </summary>
+   ///// <typeparam name="T">The type of the items being enumerated. This parameter is covariant.</typeparam>
+   ///// <typeparam name="TMetadata">The type of the metadata. This parameter is covariant.</typeparam>
+   //public interface IAsyncEnumeratorObservable<out T, out TMetadata> : IAsyncEnumeratorObservable<T>, AsyncEnumerationObservation<T, TMetadata>, ObjectWithMetadata<TMetadata>
+   //{
+
+   //}
+
+   internal abstract class AbstractAsyncEnumeratorObservable
    {
+      protected AbstractAsyncEnumeratorObservable()
+      {
 
+      }
    }
 
-   internal abstract class AbstractAsyncEnumeratorObservable<T, TStartedArgs, TEndedArgs, TItemArgs> : IAsyncEnumerator<T>
+   internal abstract class AbstractAsyncEnumeratorObservable<T, TStartedArgs, TEndedArgs, TItemArgs> : AbstractAsyncEnumeratorObservable, IAsyncEnumerator<T>
       where TStartedArgs : class
       where TEndedArgs : class
       where TItemArgs : class
@@ -166,7 +174,7 @@ namespace UtilPack.AsyncEnumeration
 
    }
 
-   internal sealed class AsyncEnumeratorObservable<T> : AbstractAsyncEnumeratorObservable<T, EnumerationStartedEventArgs, EnumerationEndedEventArgs, EnumerationItemEventArgs<T>>, IAsyncEnumeratorObservable<T>
+   internal sealed class AsyncEnumeratorObservable<T> : AbstractAsyncEnumeratorObservable<T, EnumerationStartedEventArgs, EnumerationEndedEventArgs, EnumerationItemEventArgs<T>>, AsyncEnumerationObservation<T>
    {
       public AsyncEnumeratorObservable(
          IAsyncEnumerator<T> source
@@ -200,7 +208,7 @@ namespace UtilPack.AsyncEnumeration
       }
    }
 
-   internal abstract class AbstractAsyncEnumeratorObservable<T, TMetadata> : AbstractAsyncEnumeratorObservable<T, EnumerationStartedEventArgs<TMetadata>, EnumerationEndedEventArgs<TMetadata>, EnumerationItemEventArgs<T, TMetadata>>, IAsyncEnumeratorObservable<T, TMetadata>
+   internal abstract class AbstractAsyncEnumeratorObservable<T, TMetadata> : AbstractAsyncEnumeratorObservable<T, EnumerationStartedEventArgs<TMetadata>, EnumerationEndedEventArgs<TMetadata>, EnumerationItemEventArgs<T, TMetadata>>, AsyncEnumerationObservation<T, TMetadata>
    {
       protected AbstractAsyncEnumeratorObservable(
          IAsyncEnumerator<T> source,
@@ -372,31 +380,32 @@ namespace UtilPack.AsyncEnumeration
       public event GenericEventHandler<TEndedArgs> AfterEnumerationEnd;
    }
 
-   internal abstract class AsyncEnumerableObservable<T, TEnumerable> : AbstractAsyncEnumerableObservable<EnumerationStartedEventArgs, EnumerationEndedEventArgs, EnumerationItemEventArgs<T>, TEnumerable>, IAsyncEnumerableObservable<T>
-      where TEnumerable : class, IAsyncEnumerable<T>
+   internal sealed class AsyncEnumerableObservable<T> : AbstractAsyncEnumerableObservable<EnumerationStartedEventArgs, EnumerationEndedEventArgs, EnumerationItemEventArgs<T>, IAsyncEnumerable<T>>, IAsyncEnumerableObservable<T>
    {
       public AsyncEnumerableObservable(
-         TEnumerable source
+         IAsyncEnumerable<T> source
          ) : base( source )
       {
       }
 
-      public IAsyncEnumeratorObservable<T> GetAsyncEnumerator()
-         => this.RegisterEvents( this._source.GetAsyncEnumerator().AsObservable() );
-
-      IAsyncEnumerator<T> IAsyncEnumerable<T>.GetAsyncEnumerator() => this.GetAsyncEnumerator();
+      public IAsyncEnumerator<T> GetAsyncEnumerator()
+      {
+         var enumerator = this._source.GetAsyncEnumerator();
+         var retVal = enumerator is AsyncEnumeratorObservable<T> existing ? existing : new AsyncEnumeratorObservable<T>( enumerator );
+         this.RegisterEvents( retVal );
+         return retVal;
+      }
 
       IAsyncProvider IAsyncEnumerable.AsyncProvider => this._source.AsyncProvider;
 
-      protected TEnumerator RegisterEvents<TEnumerator>( TEnumerator enumerator )
-         where TEnumerator : AsyncEnumerationObservation<T>
+      private void RegisterEvents( AsyncEnumerationObservation<T> enumerator )
       {
          enumerator.BeforeEnumerationStart += this._beforeStart;
          enumerator.AfterEnumerationStart += this._afterStart;
          enumerator.AfterEnumerationItemEncountered += this._afterItem;
          enumerator.BeforeEnumerationEnd += this._beforeEnd;
-         GenericEventHandler<EnumerationEndedEventArgs> afterEnd = null;
-         afterEnd = ( args ) =>
+
+         void afterEnd( EnumerationEndedEventArgs args )
          {
             this._afterEnd( args );
             enumerator.BeforeEnumerationStart -= this._beforeStart;
@@ -404,25 +413,23 @@ namespace UtilPack.AsyncEnumeration
             enumerator.AfterEnumerationItemEncountered -= this._afterItem;
             enumerator.BeforeEnumerationEnd -= this._beforeEnd;
             enumerator.AfterEnumerationEnd -= afterEnd;
-         };
-         enumerator.AfterEnumerationEnd += afterEnd;
+         }
 
-         return enumerator;
+         enumerator.AfterEnumerationEnd += afterEnd;
       }
    }
 
-   internal abstract class AsyncEnumerableObservable<T, TEnumerable, TMetadata> : AbstractAsyncEnumerableObservable<EnumerationStartedEventArgs<TMetadata>, EnumerationEndedEventArgs<TMetadata>, EnumerationItemEventArgs<T, TMetadata>, TEnumerable>, IAsyncEnumerableObservable<T, TMetadata>
-      where TEnumerable : class, IAsyncEnumerable<T>
+   internal sealed class AsyncEnumerableObservable<T, TMetadata> : AbstractAsyncEnumerableObservable<EnumerationStartedEventArgs<TMetadata>, EnumerationEndedEventArgs<TMetadata>, EnumerationItemEventArgs<T, TMetadata>, IAsyncEnumerable<T>>, IAsyncEnumerableObservable<T, TMetadata>
    {
       private EnumerationStartedEventArgs<TMetadata> _cachedStarted;
       private EnumerationEndedEventArgs<TMetadata> _cachedEnded;
 
-      protected readonly Func<EnumerationStartedEventArgs<TMetadata>> _getStartedArgs;
-      protected readonly Func<EnumerationEndedEventArgs<TMetadata>> _getEndedArgs;
+      private readonly Func<EnumerationStartedEventArgs<TMetadata>> _getStartedArgs;
+      private readonly Func<EnumerationEndedEventArgs<TMetadata>> _getEndedArgs;
       //private EnumerationEndedEventArgs<TMetadata> _cachedEndedNoSuccess;
 
       public AsyncEnumerableObservable(
-         TEnumerable source,
+         IAsyncEnumerable<T> source,
          TMetadata metadata
          ) : base( source )
       {
@@ -499,20 +506,16 @@ namespace UtilPack.AsyncEnumeration
          }
       }
 
-      public IAsyncEnumeratorObservable<T, TMetadata> GetAsyncEnumerator()
-         => this.RegisterEvents( new AsyncEnumeratorObservableFromEnumerable<T, TMetadata>(
-            this._source.GetAsyncEnumerator(),
-            this.Metadata,
-            this._getStartedArgs,
-            this._getEndedArgs
-            ) );
-
-      IAsyncEnumerator<T> IAsyncEnumerable<T>.GetAsyncEnumerator() => this.GetAsyncEnumerator();
-      IAsyncEnumeratorObservable<T> IAsyncEnumerableObservable<T>.GetAsyncEnumerator() => this.GetAsyncEnumerator();
+      public IAsyncEnumerator<T> GetAsyncEnumerator()
+      {
+         var enumerator = this._source.GetAsyncEnumerator();
+         var retVal = enumerator is AsyncEnumeratorObservableFromEnumerable<T, TMetadata> existing ? existing : new AsyncEnumeratorObservableFromEnumerable<T, TMetadata>( enumerator, this.Metadata, this._getStartedArgs, this._getEndedArgs );
+         this.RegisterEvents( retVal );
+         return retVal;
+      }
 
 
-      protected TEnumerator RegisterEvents<TEnumerator>( TEnumerator enumerator )
-         where TEnumerator : AsyncEnumerationObservation<T, TMetadata>
+      private void RegisterEvents( AsyncEnumerationObservation<T, TMetadata> enumerator )
       {
          enumerator.BeforeEnumerationStart += this._beforeStart;
          enumerator.AfterEnumerationStart += this._afterStart;
@@ -529,8 +532,6 @@ namespace UtilPack.AsyncEnumeration
             enumerator.AfterEnumerationEnd -= afterEnd;
          };
          enumerator.AfterEnumerationEnd += afterEnd;
-
-         return enumerator;
       }
 
       private static EnumerationStartedEventArgs<TMetadata> CreateStartedArgs( ref EnumerationStartedEventArgs<TMetadata> field, TMetadata metadata )
@@ -545,65 +546,45 @@ namespace UtilPack.AsyncEnumeration
          return field;
       }
    }
-
-   internal sealed class AsyncEnumerableObservableSequential<T> : AsyncEnumerableObservable<T, IAsyncEnumerable<T>>
-   {
-      public AsyncEnumerableObservableSequential(
-         IAsyncEnumerable<T> source
-         ) : base( source )
-      {
-      }
-   }
-
-   internal sealed class AsyncEnumerableObservableSequential<T, TMetadata> : AsyncEnumerableObservable<T, IAsyncEnumerable<T>, TMetadata>
-   {
-      public AsyncEnumerableObservableSequential(
-         IAsyncEnumerable<T> source,
-         TMetadata metadata
-         ) : base( source, metadata )
-      {
-      }
-   }
 }
 
 public static partial class E_UtilPack
 {
    /// <summary>
-   /// Adds observability aspect to this <see cref="IAsyncEnumerator{T}"/>, if it is not already present.
+   /// Adds observability aspect to this <see cref="IAsyncEnumerable{T}"/>, if it is not already present.
    /// </summary>
    /// <typeparam name="T">The type of enumerable items.</typeparam>
-   /// <param name="enumerator">This <see cref="IAsyncEnumerator{T}"/>.</param>
-   /// <returns>A <see cref="IAsyncEnumeratorObservable{T}"/>.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerator{T}"/> is <c>null</c>.</exception>
-   public static IAsyncEnumeratorObservable<T> AsObservable<T>(
-      this IAsyncEnumerator<T> enumerator
+   /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
+   /// <returns>A <see cref="IAsyncEnumerableObservable{T}"/>.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+   public static IAsyncEnumerableObservable<T> AsObservable<T>(
+      this IAsyncEnumerable<T> enumerable
       )
    {
       // Don't wrap too many times
-      return ArgumentValidator.ValidateNotNullReference( enumerator ) is IAsyncEnumeratorObservable<T> existing ?
+      return enumerable is IAsyncEnumerableObservable<T> existing ?
          existing :
-         new AsyncEnumeratorObservable<T>( enumerator );
+         new AsyncEnumerableObservable<T>( enumerable );
    }
 
    /// <summary>
-   /// Adds observability with metadata -aspect to this <see cref="IAsyncEnumerator{T}"/>, if it is not already present.
+   /// Adds observability with metadata -aspect to this <see cref="IAsyncEnumerable{T}"/>, if it is not already present.
    /// </summary>
    /// <typeparam name="T">The type of enumerable items.</typeparam>
    /// <typeparam name="TMetadata">The type of metadata.</typeparam>
-   /// <param name="enumerator">This <see cref="IAsyncEnumerator{T}"/>.</param>
+   /// <param name="enumerable">This <see cref="IAsyncEnumerable{T}"/>.</param>
    /// <param name="metadata">The metadata to have.</param>
    /// <returns>A <see cref="IAsyncEnumerableObservable{T, TMetadata}"/>.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerator{T}"/> is <c>null</c>.</exception>
-   public static IAsyncEnumeratorObservable<T, TMetadata> AsObservable<T, TMetadata>(
-      this IAsyncEnumerator<T> enumerator,
+   /// <exception cref="NullReferenceException">If this <see cref="IAsyncEnumerable{T}"/> is <c>null</c>.</exception>
+   public static IAsyncEnumerableObservable<T, TMetadata> AsObservable<T, TMetadata>(
+      this IAsyncEnumerable<T> enumerable,
       TMetadata metadata
       )
    {
       // Don't wrap too many times
-      return ArgumentValidator.ValidateNotNullReference( enumerator ) is IAsyncEnumeratorObservable<T, TMetadata> existing ?
+      return enumerable is IAsyncEnumerableObservable<T, TMetadata> existing ?
          existing :
-         new AsyncEnumeratorObservable<T, TMetadata>( enumerator, metadata );
+         new AsyncEnumerableObservable<T, TMetadata>( enumerable, metadata );
    }
-
 
 }

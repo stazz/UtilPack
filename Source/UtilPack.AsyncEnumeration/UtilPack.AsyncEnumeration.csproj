@@ -14,7 +14,7 @@
 
   <ItemGroup Condition=" '$(Configuration)' == 'Debug' ">
     <!-- We must use package reference in debug mode, since we are using .InvokeAllEventHandlers extension method written in IL code, which is not available in MSVS when using direct project reference. -->
-    <PackageReference Include="UtilPack" Version="1.5.0" />
+    <PackageReference Include="UtilPack" Version="1.5.1" />
   </ItemGroup>
   <ItemGroup Condition=" '$(Configuration)' != 'Debug' ">
     <!-- Release mode compilation is always done via command-line, so we can use normal project reference there. -->
@@ -24,7 +24,8 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.0.1</VersionPrefix>
+     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <VersionPrefix>2.0.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Description>Library containing IAsyncEnumerable, and async LINQ methods.</Description>

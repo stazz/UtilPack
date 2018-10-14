@@ -26,7 +26,7 @@
   
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.5.2</VersionPrefix>
+    <VersionPrefix>1.5.1</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <AssemblyTitle>UtilPack.Common</AssemblyTitle>
     <Description>Library containing useful and generic methods, which are missing from one or more BCL.</Description>
@@ -184,7 +184,7 @@
     <Copy SourceFiles="@(IL)" DestinationFolder="$(IntermediateOutputPath)" />
     <ItemGroup>
       <ILCopied Include="@(IL)">
-        <ActualPath>$(MSBuildProjectDirectory)\$(IntermediateOutputPath)%(IL.Filename)%(IL.Extension)</ActualPath>
+        <ActualPath>$(IntermediateOutputPath)%(IL.Filename)%(IL.Extension)</ActualPath>
       </ILCopied>
     </ItemGroup>
     <Exec Command="$(ILAsm) @(ILCopied->'&quot;%(ActualPath)&quot;', ' ')" />

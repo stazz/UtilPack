@@ -58,6 +58,8 @@ namespace UtilPack.NuGet.MSBuild
             Interlocked.CompareExchange( ref appDomainSetup, this.CreateAppDomainSetup( taskAssemblyFullPath ), null );
          }
 
+         var isDedicatedDomain = appDomainSetup != null;
+
          var mbfAssembly = typeof( Microsoft.Build.Framework.ITask ).Assembly;
          var mbfAssemblyDir = Path.GetDirectoryName( new Uri( mbfAssembly.CodeBase ).LocalPath );
          var thisLoader = NuGetAssemblyResolverFactory.NewNuGetAssemblyResolver(
@@ -108,13 +110,16 @@ namespace UtilPack.NuGet.MSBuild
             () =>
             {
                thisLoader.DisposeSafely();
-               try
+               if ( isDedicatedDomain )
                {
-                  AppDomain.Unload( createdDomain );
-               }
-               catch
-               {
-                  // Ignore
+                  try
+                  {
+                     AppDomain.Unload( createdDomain );
+                  }
+                  catch
+                  {
+                     // Ignore
+                  }
                }
             }
          );

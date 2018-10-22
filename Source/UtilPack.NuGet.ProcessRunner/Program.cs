@@ -47,7 +47,7 @@ namespace UtilPack.NuGet.ProcessRunner
                .Build();
             var configConfig = configRoot.Get<ConfigurationConfiguration>();
             if ( configConfig != null
-               && configConfig.ConfigurationFileLocation is var configFileLocation
+               && configConfig.ConfigurationFileLocation is String configFileLocation
                && configFileLocation.Length > 0
                )
             {

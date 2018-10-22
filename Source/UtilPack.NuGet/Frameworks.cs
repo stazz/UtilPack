@@ -15,20 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
-using NuGet.Repositories;
-using System;
-using System.IO;
-using System.Linq;
-using System.Collections.Generic;
-using System.Reflection;
+using NuGet.Common;
+using NuGet.Configuration;
 using NuGet.Frameworks;
 using NuGet.Packaging;
-using NuGet.Versioning;
-using NuGet.Common;
-using UtilPack.NuGet;
-using UtilPack;
-using NuGet.Configuration;
 using NuGet.ProjectModel;
+using NuGet.Repositories;
+using NuGet.Versioning;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using UtilPack;
+using UtilPack.NuGet;
 
 namespace UtilPack.NuGet
 {
@@ -205,7 +205,18 @@ namespace UtilPack.NuGet
                            }
                            break;
                         case 2:
-                           retVal = "2.0.0";
+                           switch ( version.Minor )
+                           {
+                              case 0:
+                                 retVal = "2.0.9";
+                                 break;
+                              case 1:
+                                 retVal = "2.1.5";
+                                 break;
+                              default:
+                                 retVal = null;
+                                 break;
+                           }
                            break;
                         default:
                            retVal = null;
@@ -280,7 +291,7 @@ namespace UtilPack.NuGet
                      // The strings are a bit messed up, e.g.:
                      // Core 1.1: ".NET Core 4.6.25211.01"
                      // Core 2.0: ".NET Core 4.6.00001.0"
-                     // Core 2.1: ".NET Core 4.6.26614.01"
+                     // Core 2.1: ".NET Core 4.6.26614.01" (and also ".NET Core 4.6.26919.02")
                      switch ( netCoreVersion.Build )
                      {
                         case 25211:
@@ -304,21 +315,6 @@ namespace UtilPack.NuGet
 #endif
                               ;
                            break;
-                     }
-                     if ( netCoreVersion.Build == 25211 )
-                     {
-                        retVal = FrameworkConstants.CommonFrameworks.NetCoreApp11;
-                     }
-                     else
-                     {
-                        // NET Core 2.x
-                        retVal =
-#if NUGET_430
-                           NETCOREAPP20
-#else
-                           FrameworkConstants.CommonFrameworks.NetCoreApp20
-#endif
-                           ;
                      }
                   }
                }

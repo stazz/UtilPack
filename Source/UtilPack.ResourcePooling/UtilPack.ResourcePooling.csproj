@@ -18,7 +18,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionPrefix>1.1.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Description>Library containing types which support pooling asynchronous and synchronous resources.</Description>
@@ -29,7 +29,7 @@
     <PackageId>$(AssemblyName)</PackageId>
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
-    <PackageReleaseNotes>Adapting to changes done in UtilPack (IAsyncDisposable and IAsyncDisposableWithToken interfaces), and also streamlining API for this release.</PackageReleaseNotes>
+    <PackageReleaseNotes>Adding type and extension method for uniform way of dynamically loading AsyncResourceFactory. See also UtilPack.ResourcePooling.(ConfigurationLoading|NuGetAssemblyLoading|NuGetAssemblyLoading.WithConfiguration) packages.</PackageReleaseNotes>
     <PackageTags>utility async resource pool</PackageTags>
     <Title>Resource Pooling Support</Title>
     <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>

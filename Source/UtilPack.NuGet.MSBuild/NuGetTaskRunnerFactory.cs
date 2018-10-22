@@ -45,10 +45,9 @@ using UtilPack.NuGet.Common.MSBuild;
 using UtilPack.NuGet.MSBuild;
 using TAssemblyByPathResolverCallback = System.Func<System.String, System.Reflection.Assembly>;
 using TAssemblyNameResolverCallback = System.Func<System.Reflection.AssemblyName, System.Reflection.Assembly>;
-using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
-using TNuGetPackagesResolverCallback = System.Func<System.String[], System.String[], System.String[], System.Threading.Tasks.Task<System.Reflection.Assembly[]>>;
+using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
+using TNuGetPackagesResolverCallback = System.Func<System.String[], System.String[], System.String[], System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly[]>>;
 using TPropertyInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyTypeModifier, UtilPack.NuGet.MSBuild.WrappedPropertyInfo, System.Reflection.PropertyInfo>;
-using TResolveResult = System.Collections.Generic.IDictionary<System.String, UtilPack.NuGet.MSBuild.ResolvedPackageInfo>;
 using TTaskPropertyInfoDictionary = System.Collections.Generic.IDictionary<System.String, System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyTypeModifier, UtilPack.NuGet.MSBuild.WrappedPropertyInfo>>;
 using TTypeStringResolverCallback = System.Func<System.String, System.Type>;
 
@@ -355,137 +354,141 @@ namespace UtilPack.NuGet.MSBuild
                   pSpec.FilePath = taskProjectFilePath;
                };
                nugetResolver.PackageSpecCreated += OnPackageSpecCreation;
-               try
+               using ( new UsingHelper( () => { if ( !retVal ) { nugetResolver.PackageSpecCreated -= OnPackageSpecCreation; } } ) )
+               using ( var cancelSource = new CancellationTokenSource() )
                {
-                  var restoreResult = nugetResolver.RestoreIfNeeded(
-                     packageID,
-                     packageVersion
-                     ).GetAwaiter().GetResult();
-                  if ( restoreResult != null
-                     && !String.IsNullOrEmpty( ( packageVersion = restoreResult.Libraries.Where( lib => String.Equals( lib.Name, packageID ) ).FirstOrDefault()?.Version?.ToNormalizedString() ) )
-                     )
+                  void OnCancel( Object sender, ConsoleCancelEventArgs args )
                   {
-                     GetFileItemsDelegate getFiles = ( rGraph, rid, lib, libs ) => GetSuitableFiles( thisFW, rGraph, rid, lib, libs );
-                     // On Desktop we must always load everything, since it's possible to have assemblies compiled against .NET Standard having references to e.g. System.IO.FileSystem.dll, which is not present in GAC
+                     cancelSource.Cancel();
+                  }
+                  Console.CancelKeyPress += OnCancel;
+                  using ( new UsingHelper( () => Console.CancelKeyPress -= OnCancel ) )
+                  {
+                     var restoreResult = nugetResolver.RestoreIfNeeded(
+                        packageID,
+                        packageVersion,
+                        cancelSource.Token
+                        ).GetAwaiter().GetResult();
+                     if ( restoreResult != null
+                        && !String.IsNullOrEmpty( ( packageVersion = restoreResult.Libraries.Where( lib => String.Equals( lib.Name, packageID ) ).FirstOrDefault()?.Version?.ToNormalizedString() ) )
+                        )
+                     {
+                        GetFileItemsDelegate getFiles = ( rGraph, rid, lib, libs ) => GetSuitableFiles( thisFW, rGraph, rid, lib, libs );
+                        // On Desktop we must always load everything, since it's possible to have assemblies compiled against .NET Standard having references to e.g. System.IO.FileSystem.dll, which is not present in GAC
 #if !IS_NETSTANDARD
-                     String[] sdkPackages = null;
-                     AppDomainSetup appDomainSetup = null;
+                        String[] sdkPackages = null;
+                        AppDomainSetup appDomainSetup = null;
 #else
 
                      var sdkPackageID = thisFW.GetSDKPackageID( taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_ID )?.Value );
                      var sdkRestoreResult = nugetResolver.RestoreIfNeeded(
-                           sdkPackageID,
-                           thisFW.GetSDKPackageVersion( sdkPackageID, taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_VERSION )?.Value )
-                           ).GetAwaiter().GetResult();
+                         sdkPackageID,
+                         thisFW.GetSDKPackageVersion( sdkPackageID, taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_VERSION )?.Value ),
+                         cancelSource.Token  
+                         ).GetAwaiter().GetResult();
                      var sdkPackages = sdkRestoreResult.Libraries.Select( lib => lib.Name ).ToArray();
 #endif
 
-                     var taskAssemblies = nugetResolver.ExtractAssemblyPaths(
-                        restoreResult,
-                        getFiles,
-                        sdkPackages
-                        )[packageID];
-                     var assemblyPathHint = taskBodyElement.ElementAnyNS( ASSEMBLY_PATH )?.Value;
-                     var assemblyPath = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
-                        packageID,
-                        taskAssemblies.Assemblies,
-                        assemblyPathHint,
-                        ap => File.Exists( ap )
-                        );
-                     if ( !String.IsNullOrEmpty( assemblyPath ) )
-                     {
-                        taskName = this.ProcessTaskName( taskBodyElement, taskName );
-                        var givenTempFolder = taskBodyElement.ElementAnyNS( COPY_TO_TEMPORARY_FOlDER_BEFORE_LOAD )?.Value;
-                        var wasBoolean = false;
-                        var noTempFolder = String.IsNullOrEmpty( givenTempFolder ) || ( ( wasBoolean = Boolean.TryParse( givenTempFolder, out var createTempFolder ) ) && !createTempFolder );
-                        var explicitTempFolder = !noTempFolder && !wasBoolean ? givenTempFolder : null;
-                        this._helper = new TaskUsageInfo(
-                           LazyFactory.NewReadOnlyResettableLazy( () =>
-                           {
-                              try
+                        var taskAssemblies = nugetResolver.ExtractAssemblyPaths(
+                           restoreResult,
+                           getFiles,
+                           sdkPackages
+                           )[packageID];
+                        var assemblyPathHint = taskBodyElement.ElementAnyNS( ASSEMBLY_PATH )?.Value;
+                        var assemblyPath = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
+                           packageID,
+                           taskAssemblies.Assemblies,
+                           assemblyPathHint,
+                           ap => File.Exists( ap )
+                           );
+                        if ( !String.IsNullOrEmpty( assemblyPath ) )
+                        {
+                           taskName = this.ProcessTaskName( taskBodyElement, taskName );
+                           var givenTempFolder = taskBodyElement.ElementAnyNS( COPY_TO_TEMPORARY_FOlDER_BEFORE_LOAD )?.Value;
+                           var wasBoolean = false;
+                           var noTempFolder = String.IsNullOrEmpty( givenTempFolder ) || ( ( wasBoolean = Boolean.TryParse( givenTempFolder, out var createTempFolder ) ) && !createTempFolder );
+                           var explicitTempFolder = !noTempFolder && !wasBoolean ? givenTempFolder : null;
+                           this._helper = new TaskUsageInfo(
+                              LazyFactory.NewReadOnlyResettableLazy( () =>
                               {
-
-                                 var tempFolder = noTempFolder ?
-                                    null :
-                                    ( explicitTempFolder ?? Path.Combine( Path.GetTempPath(), "NuGetAssemblies_" + packageID + "_" + packageVersion + "_" + ( Guid.NewGuid().ToString() ) ) );
-                                 if ( !String.IsNullOrEmpty( tempFolder ) && ( String.IsNullOrEmpty( explicitTempFolder ) || !Directory.Exists( explicitTempFolder ) ) )
+                                 try
                                  {
-                                    Directory.CreateDirectory( tempFolder );
-                                 }
 
-                                 return this.CreateExecutionHelper(
-                                    taskName,
-                                    taskBodyElement,
-                                    packageID,
-                                    packageVersion,
-                                    assemblyPath,
-                                    assemblyPathHint,
-                                    nugetResolver,
-                                    new ResolverLogger( nugetLogger ),
-                                    getFiles,
-                                    tempFolder,
+                                    var tempFolder = noTempFolder ?
+                                       null :
+                                       ( explicitTempFolder ?? Path.Combine( Path.GetTempPath(), "NuGetAssemblies_" + packageID + "_" + packageVersion + "_" + ( Guid.NewGuid().ToString() ) ) );
+                                    if ( !String.IsNullOrEmpty( tempFolder ) && ( String.IsNullOrEmpty( explicitTempFolder ) || !Directory.Exists( explicitTempFolder ) ) )
+                                    {
+                                       Directory.CreateDirectory( tempFolder );
+                                    }
+
+                                    return this.CreateExecutionHelper(
+                                       taskName,
+                                       taskBodyElement,
+                                       packageID,
+                                       packageVersion,
+                                       assemblyPath,
+                                       assemblyPathHint,
+                                       nugetResolver,
+                                       new ResolverLogger( nugetLogger ),
+                                       getFiles,
+                                       tempFolder,
 #if !IS_NETSTANDARD
                                  ref appDomainSetup
 #else
                                  sdkRestoreResult
 #endif
                               );
-                              }
-                              catch ( Exception exc )
-                              {
-                                 Console.Error.WriteLine( "Exception when creating task: " + exc );
-                                 throw;
-                              }
-                           }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ),
-                           nugetResolver,
-                           OnPackageSpecCreation
+                                 }
+                                 catch ( Exception exc )
+                                 {
+                                    Console.Error.WriteLine( "Exception when creating task: " + exc );
+                                    throw;
+                                 }
+                              }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ),
+                              nugetResolver,
+                              OnPackageSpecCreation
+                              );
+                           // Force initialization right here, in order to provide better logging (since taskFactoryLoggingHost passed to this method is not useable once this method completes)
+                           var dummy = this._helper.ReferenceHolder.Value.TaskReference;
+                           retVal = true;
+                        }
+                        else
+                        {
+                           nugetResolver.LogAssemblyPathResolveError( packageID, taskAssemblies.Assemblies, assemblyPathHint, assemblyPath );
+                           taskFactoryLoggingHost.LogErrorEvent(
+                              new BuildErrorEventArgs(
+                                 "Task factory",
+                                 "NMSBT004",
+                                 null,
+                                 -1,
+                                 -1,
+                                 -1,
+                                 -1,
+                                 $"Failed to find suitable assembly in {packageID}@{packageVersion}.",
+                                 null,
+                                 this.FactoryName
+                              )
                            );
-                        // Force initialization right here, in order to provide better logging (since taskFactoryLoggingHost passed to this method is not useable once this method completes)
-                        var dummy = this._helper.ReferenceHolder.Value.TaskReference;
-                        retVal = true;
+                        }
                      }
                      else
                      {
-                        nugetResolver.LogAssemblyPathResolveError( packageID, taskAssemblies.Assemblies, assemblyPathHint, assemblyPath );
                         taskFactoryLoggingHost.LogErrorEvent(
                            new BuildErrorEventArgs(
                               "Task factory",
-                              "NMSBT004",
+                              "NMSBT003",
                               null,
                               -1,
                               -1,
                               -1,
                               -1,
-                              $"Failed to find suitable assembly in {packageID}@{packageVersion}.",
+                              $"Failed to find main package {packageID}@{packageVersion}.",
                               null,
                               this.FactoryName
                            )
                         );
                      }
-                  }
-                  else
-                  {
-                     taskFactoryLoggingHost.LogErrorEvent(
-                        new BuildErrorEventArgs(
-                           "Task factory",
-                           "NMSBT003",
-                           null,
-                           -1,
-                           -1,
-                           -1,
-                           -1,
-                           $"Failed to find main package {packageID}@{packageVersion}.",
-                           null,
-                           this.FactoryName
-                        )
-                     );
-                  }
-               }
-               finally
-               {
-                  if ( !retVal )
-                  {
-                     nugetResolver.PackageSpecCreated -= OnPackageSpecCreation;
                   }
                }
             }
@@ -839,8 +842,9 @@ namespace UtilPack.NuGet.MSBuild
          out Boolean usesDynamicLoading
          )
       {
+
          // This should never cause any actual async waiting, since LockFile for task package has been already cached by restorer
-         var taskAssembly = resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath ).GetAwaiter().GetResult();
+         var taskAssembly = resolver.LoadNuGetAssembly( packageID, packageVersion, default, assemblyPath: assemblyPath ).GetAwaiter().GetResult();
          var taskType = taskAssembly.GetType( taskTypeName, true, false );
          if ( taskType == null )
          {
@@ -848,6 +852,7 @@ namespace UtilPack.NuGet.MSBuild
          }
          GetTaskConstructorInfo( resolver, taskType, out taskConstructor, out constructorArguments );
          usesDynamicLoading = ( constructorArguments?.Length ?? 0 ) > 0;
+
       }
 
       private static void GetTaskConstructorInfo(
@@ -874,8 +879,8 @@ namespace UtilPack.NuGet.MSBuild
 
             if ( matchingCtor == null )
             {
-               TNuGetPackageResolverCallback nugetResolveCallback = ( packageID, packageVersion, assemblyPath ) => resolver.LoadNuGetAssembly( packageID, packageVersion, assemblyPath: assemblyPath );
-               TNuGetPackagesResolverCallback nugetsResolveCallback = ( packageIDs, packageVersions, assemblyPaths ) => resolver.LoadNuGetAssemblies( packageIDs, packageVersions, assemblyPaths );
+               TNuGetPackageResolverCallback nugetResolveCallback = ( packageID, packageVersion, assemblyPath, token ) => resolver.LoadNuGetAssembly( packageID, packageVersion, token, assemblyPath: assemblyPath );
+               TNuGetPackagesResolverCallback nugetsResolveCallback = ( packageIDs, packageVersions, assemblyPaths, token ) => resolver.LoadNuGetAssemblies( packageIDs, packageVersions, assemblyPaths, token );
                TAssemblyByPathResolverCallback pathResolveCallback = ( assemblyPath ) => resolver.LoadOtherAssembly( assemblyPath );
                TAssemblyNameResolverCallback assemblyResolveCallback = ( assemblyName ) => resolver.TryResolveFromPreviouslyLoaded( assemblyName );
                TTypeStringResolverCallback typeStringResolveCallback = ( typeString ) => resolver.TryLoadTypeFromPreviouslyLoadedAssemblies( typeString );
@@ -884,11 +889,11 @@ namespace UtilPack.NuGet.MSBuild
                   ctors,
                   new Dictionary<Type, Object>()
                   {
-                  { typeof(TNuGetPackageResolverCallback), nugetResolveCallback },
-                  { typeof(TNuGetPackagesResolverCallback), nugetsResolveCallback },
-                  { typeof(TAssemblyByPathResolverCallback), pathResolveCallback },
-                  { typeof(TAssemblyNameResolverCallback), assemblyResolveCallback },
-                  { typeof(TTypeStringResolverCallback), typeStringResolveCallback }
+                     { typeof(TNuGetPackageResolverCallback), nugetResolveCallback },
+                     { typeof(TNuGetPackagesResolverCallback), nugetsResolveCallback },
+                     { typeof(TAssemblyByPathResolverCallback), pathResolveCallback },
+                     { typeof(TAssemblyNameResolverCallback), assemblyResolveCallback },
+                     { typeof(TTypeStringResolverCallback), typeStringResolveCallback }
                   },
                   ref matchingCtor,
                   ref ctorParams

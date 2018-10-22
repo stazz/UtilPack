@@ -13,17 +13,15 @@
 
    <ItemGroup>
       <PackageReference Include="Microsoft.Build.Utilities.Core" Version="15.1.1012" />
-      <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="1.1.2" />
-      <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="1.1.2" />
    </ItemGroup>
 
    <ItemGroup>
-     <ProjectReference Include="..\UtilPack.ResourcePooling\UtilPack.ResourcePooling.csproj" />
+     <ProjectReference Include="..\UtilPack.ResourcePooling.ConfigurationLoading\UtilPack.ResourcePooling.ConfigurationLoading.csproj" />
    </ItemGroup>
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionPrefix>1.1.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Description>This project is a bridge between UtilPack.ResourcePooling project and custom MSBuild tasks.</Description>
@@ -34,7 +32,7 @@
     <PackageId>$(AssemblyName)</PackageId>
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
-    <PackageReleaseNotes>Added property for specifying configuration file contents directly as string.</PackageReleaseNotes>
+    <PackageReleaseNotes>Adapting to changes done in UtilPack.ResourcePooling project.</PackageReleaseNotes>
     <PackageTags>utility async resource pool msbuild task</PackageTags>
     <Title>MSBuild Resource Pooling Support</Title>
     <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>

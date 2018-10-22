@@ -95,7 +95,7 @@ namespace UtilPack.NuGet
       /// </summary>
       /// <param name="nugetSettings">The settings to use.</param>
       /// <param name="thisFramework">The framework to bind to.</param>
-      /// <param name="runtimeIdentifier">The runtime identifier. Will be used by <see cref="E_UtilPack.ExtractAssemblyPaths{TResult}(BoundRestoreCommandUser, LockFile, Func{string, IEnumerable{string}, TResult}, GetFileItemsDelegate, IEnumerable{string})"/> method.</param>
+      /// <param name="runtimeIdentifier">The runtime identifier. Will be used by <see cref="E_UtilPack.ExtractAssemblyPaths{TResult}(BoundRestoreCommandUser, LockFile, Func{String, IEnumerable{String}, TResult}, GetFileItemsDelegate, IEnumerable{String})"/> method.</param>
       /// <param name="runtimeGraph">Optional value indicating runtime graph information: either <see cref="global::NuGet.RuntimeModel.RuntimeGraph"/> directly, or <see cref="String"/> containing package ID of package holding <c>runtime.json</c> file, containing serialized runtime graph definition. If neither is specified, then <c>"Microsoft.NETCore.Platforms"</c> package ID used to locate <c>runtime.json</c> file, as per <see href="https://docs.microsoft.com/en-us/dotnet/core/rid-catalog">official documentation</see>.</param>
       /// <param name="nugetLogger">The logger to use in restore command.</param>
       /// <param name="sourceCacheContext">The optional <see cref="SourceCacheContext"/> to use.</param>
@@ -540,7 +540,7 @@ public static partial class E_UtilPack
       this BoundRestoreCommandUser restorer,
       String packageID,
       String version,
-      CancellationToken token = default( CancellationToken )
+      CancellationToken token = default
       )
    {
       return restorer.RestoreIfNeeded( token, (packageID, version) );
@@ -555,10 +555,11 @@ public static partial class E_UtilPack
    /// <seealso cref="RestoreCommand"/>
    public static Task<LockFile> RestoreIfNeeded(
       this BoundRestoreCommandUser restorer,
+      CancellationToken token,
       params (String PackageID, String version)[] packageInfo
       )
    {
-      return restorer.RestoreIfNeeded( default( CancellationToken ), packageInfo );
+      return restorer.RestoreIfNeeded( token, packageInfo );
    }
 
    /// <summary>

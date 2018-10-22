@@ -15,6 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
+using NuGet.Frameworks;
+using NuGet.Packaging;
+using NuGet.ProjectModel;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -22,14 +25,11 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using UtilPack.NuGet;
 using UtilPack.NuGet.AssemblyLoading;
 using TResolveResult = System.Collections.Generic.IDictionary<System.String, UtilPack.NuGet.AssemblyLoading.ResolvedPackageInfo>;
-using NuGet.ProjectModel;
-using NuGet.Frameworks;
-using NuGet.Packaging;
-using System.Threading;
 
 namespace UtilPack.NuGet.AssemblyLoading
 {
@@ -58,7 +58,8 @@ namespace UtilPack.NuGet.AssemblyLoading
       Task<Assembly[]> LoadNuGetAssemblies(
          String[] packageIDs,
          String[] packageVersions,
-         String[] assemblyPaths
+         String[] assemblyPaths,
+         CancellationToken token
          );
 
       /// <summary>
@@ -278,6 +279,34 @@ namespace UtilPack.NuGet.AssemblyLoading
    /// </summary>
    public static class NuGetAssemblyResolverFactory
    {
+#if !NET45 && !NET46
+      private static readonly ISet<AssemblyName> ThisAssembles = new HashSet<AssemblyName>(
+         new List<Type>()
+         {
+            typeof(NuGetAssemblyResolverFactory),
+            typeof(BoundRestoreCommandUser),
+            typeof(ArgumentValidator),
+            typeof(global::NuGet.Commands.RestoreCommand),
+            typeof(global::NuGet.Common.ILogger),
+            typeof(global::NuGet.Configuration.ISettings),
+            typeof(global::NuGet.Credentials.ICredentialProvider),
+            typeof(global::NuGet.DependencyResolver.IDependencyProvider),
+            typeof(global::NuGet.Frameworks.FrameworkConstants),
+            typeof(global::NuGet.LibraryModel.Library),
+            typeof(global::NuGet.Packaging.Core.INuspecCoreReader),
+            typeof(global::NuGet.Packaging.INuspecReader),
+            typeof(global::NuGet.ProjectModel.LockFile),
+            typeof(global::NuGet.Protocol.CachingSourceProvider),
+            typeof(global::NuGet.Versioning.VersionRange),
+            typeof(Newtonsoft.Json.Linq.JObject)
+         }.Select( t => t.GetTypeInfo().Assembly.GetName() ),
+         NuGetAssemblyResolverImpl.NuGetAssemblyLoadContext.AssemblyNameEqualityComparer
+         );
+
+      public static Func<AssemblyName, Boolean> CheckForNuGetAssemblyLoaderAssemblies { get; } = ThisAssembles.Contains;
+
+#endif
+
 #if NET45 || NET46
       /// <summary>
       /// Creates new instance of <see cref="NuGetAssemblyResolver"/> which will reside in a new <see cref="AppDomain"/> if <paramref name="appDomainSetup"/> is specified.
@@ -337,6 +366,9 @@ namespace UtilPack.NuGet.AssemblyLoading
 #endif
          )
       {
+#if !NET46
+         ArgumentValidator.ValidateNotNull( nameof( thisFrameworkRestoreResult ), thisFrameworkRestoreResult );
+#endif
          if ( defaultGetFiles == null )
          {
             defaultGetFiles = UtilPackNuGetUtility.GetRuntimeAssembliesDelegate;
@@ -432,6 +464,23 @@ namespace UtilPack.NuGet.AssemblyLoading
       }
 
 #endif
+
+      //public static NuGetAssemblyResolver GetCallingAssemblyResolver()
+      //{
+      //   Assembly.
+      //}
+
+      public static NuGetAssemblyResolver GetAssemblyResolver( Assembly assembly )
+      {
+         return
+#if NET46
+         Array.IndexOf( AppDomain.CurrentDomain.GetAssemblies(), assembly ) >= 0 ?
+            NuGetAssemblyResolverImpl.ThisDomainResolver :
+            null;
+#else
+         ( System.Runtime.Loader.AssemblyLoadContext.GetLoadContext( assembly ) as NuGetAssemblyResolverImpl.NuGetAssemblyLoadContext )?.Resolver;
+#endif
+      }
    }
 
 #if !NET45 && !NET46
@@ -485,11 +534,19 @@ namespace UtilPack.NuGet.AssemblyLoading
 #if !NET45 && !NET46
       internal sealed class NuGetAssemblyLoadContext : System.Runtime.Loader.AssemblyLoadContext, IDisposable
       {
+         internal static IEqualityComparer<AssemblyName> AssemblyNameEqualityComparer { get; } = ComparerFromFunctions.NewEqualityComparer<AssemblyName>(
+                  ( x, y ) => ReferenceEquals( x, y ) || ( x != null && y != null && String.Equals( x.Name, y.Name )
+                     && String.Equals( x.CultureName, y.CultureName )
+                     && ( ReferenceEquals( x.Version, y.Version ) || ( x.Version?.Equals( y.Version ) ?? false ) )
+                     && AssemblyNameComparer.SafeEqualsWhenNullsAreEmptyArrays( x.GetPublicKeyToken(), y.GetPublicKeyToken() ) // TODO what about Retargetable
+                     ),
+                  x => x?.Name?.GetHashCode() ?? 0
+                  );
+
          private readonly ISet<String> _frameworkAssemblySimpleNames;
          private readonly System.Runtime.Loader.AssemblyLoadContext _parentLoadContext;
          private readonly ConcurrentDictionary<AssemblyName, Lazy<Assembly>> _loadedAssemblies; // We will get multiple request for same assembly name, so let's cache them
          private readonly Func<AssemblyName, Boolean> _additionalCheckForDefaultLoader;
-         private readonly NuGetAssemblyResolverImpl _resolver;
 
          private readonly UnmanagedAssemblyPathProcessorDelegate _unmanagedAssemblyNameProcessor;
          private readonly ConcurrentDictionary<String, Lazy<String[]>> _unmanagedDLLPaths; // Cache potential paths instead of IntPtrs, as caching IntPtrs will cause errors
@@ -503,19 +560,10 @@ namespace UtilPack.NuGet.AssemblyLoading
             UnmanagedAssemblyPathProcessorDelegate unmanagedAssemblyNameProcessor
             )
          {
-            this._resolver = ArgumentValidator.ValidateNotNull( nameof( resolver ), resolver );
+            this.Resolver = ArgumentValidator.ValidateNotNull( nameof( resolver ), resolver );
             var parentLoader = GetLoadContext( this.GetType().GetTypeInfo().Assembly );
             this._parentLoadContext = parentLoader;
-            this._loadedAssemblies = new ConcurrentDictionary<AssemblyName, Lazy<Assembly>>(
-               ComparerFromFunctions.NewEqualityComparer<AssemblyName>(
-                  ( x, y ) => ReferenceEquals( x, y ) || ( x != null && y != null && String.Equals( x.Name, y.Name )
-                     && String.Equals( x.CultureName, y.CultureName )
-                     && ( ReferenceEquals( x.Version, y.Version ) || ( x.Version?.Equals( y.Version ) ?? false ) )
-                     && AssemblyNameComparer.SafeEqualsWhenNullsAreEmptyArrays( x.GetPublicKeyToken(), y.GetPublicKeyToken() )
-                     ),
-                  x => x?.Name?.GetHashCode() ?? 0
-                  )
-               );
+            this._loadedAssemblies = new ConcurrentDictionary<AssemblyName, Lazy<Assembly>>( AssemblyNameEqualityComparer );
             // .NET Core is package-based framework, so we need to find out which packages are part of framework, and which ones are actually client ones.
             this._frameworkAssemblySimpleNames = new HashSet<String>(
                restorer.ExtractAssemblyPaths(
@@ -546,9 +594,11 @@ namespace UtilPack.NuGet.AssemblyLoading
             this._unmanagedDLLPaths = new ConcurrentDictionary<String, Lazy<String[]>>();
          }
 
+         internal NuGetAssemblyResolverImpl Resolver { get; }
+
          private Assembly OtherResolving( System.Runtime.Loader.AssemblyLoadContext loadContext, AssemblyName assemblyName )
          {
-            return this._resolver.TryResolveFromPreviouslyLoaded( assemblyName, true );
+            return this.Resolver.TryResolveFromPreviouslyLoaded( assemblyName, true );
          }
 
          public void Dispose()
@@ -574,7 +624,7 @@ namespace UtilPack.NuGet.AssemblyLoading
                      // Ignore
                   }
                }
-               return retVal ?? this._resolver.TryResolveFromPreviouslyLoaded( an, true );
+               return retVal ?? this.Resolver.TryResolveFromPreviouslyLoaded( an, true );
             }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication ) ).Value;
          }
 
@@ -586,7 +636,7 @@ namespace UtilPack.NuGet.AssemblyLoading
                .Select( path =>
                {
                   String processed;
-                  var actualPath = String.IsNullOrEmpty( ( processed = this._resolver._pathProcessor?.Invoke( path ) ) ) ?
+                  var actualPath = String.IsNullOrEmpty( ( processed = this.Resolver._pathProcessor?.Invoke( path ) ) ) ?
                   path :
                   processed;
                   return (path, actualPath);
@@ -608,17 +658,17 @@ namespace UtilPack.NuGet.AssemblyLoading
                .Where( tuple => tuple.ptr != IntPtr.Zero )
                .FirstOrDefaultCustom( (null, null, IntPtr.Zero) );
 
-            var logger = this._resolver._restorer.Restorer.NuGetLogger;
+            var logger = this.Resolver._restorer.Restorer.NuGetLogger;
             var unmanagedPtr = retVal.ptr;
             try
             {
                if ( unmanagedPtr == IntPtr.Zero )
                {
-                  this._resolver.OnUnmanagedAssemblyLoadFail?.Invoke( new UnmanagedAssemblyLoadFailedEventArgs( unmanagedDllName, this.GetAllSeenUnmanagedDLLPaths().ToArray() ) );
+                  this.Resolver.OnUnmanagedAssemblyLoadFail?.Invoke( new UnmanagedAssemblyLoadFailedEventArgs( unmanagedDllName, this.GetAllSeenUnmanagedDLLPaths().ToArray() ) );
                }
                else
                {
-                  this._resolver.OnUnmanagedAssemblyLoadSuccess?.Invoke( new UnmanagedAssemblyLoadSuccessEventArgs( unmanagedDllName, retVal.path, retVal.actualPath ) );
+                  this.Resolver.OnUnmanagedAssemblyLoadSuccess?.Invoke( new UnmanagedAssemblyLoadSuccessEventArgs( unmanagedDllName, retVal.path, retVal.actualPath ) );
                }
             }
             catch
@@ -635,7 +685,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          private String[] PerformUnmanagedDLLResolve( String unmanagedDllName )
          {
             return ( ( this._unmanagedAssemblyNameProcessor ?? NuGetAssemblyResolverFactory.GetDefaultUnmanagedAssemblyPathCandidates )(
-               this._resolver._restorer.Restorer.RuntimeIdentifier,
+               this.Resolver._restorer.Restorer.RuntimeIdentifier,
                unmanagedDllName,
                this.GetAllSeenUnmanagedDLLPaths()
                ) ?? Empty<String>.Enumerable )
@@ -648,7 +698,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          {
             // Unmanaged assemblies will have their assembly name as null.
             // They have been previously loaded as long as they reside in proper package folders in dependant packages
-            return this._resolver._assemblyNames
+            return this.Resolver._assemblyNames
                .Where( kvp => kvp.Value.Value == null )
                .Select( kvp => kvp.Key );
          }
@@ -662,7 +712,7 @@ namespace UtilPack.NuGet.AssemblyLoading
          {
 
          }
-         bool IEqualityComparer<AssemblyName>.Equals( AssemblyName x, AssemblyName y )
+         Boolean IEqualityComparer<AssemblyName>.Equals( AssemblyName x, AssemblyName y )
          {
             // Compare just name + public key, as we might get different version assembly
             var retVal = String.Equals( x?.Name, y?.Name );
@@ -746,6 +796,10 @@ namespace UtilPack.NuGet.AssemblyLoading
          }
       }
 
+#if NET46
+      internal static NuGetAssemblyResolver ThisDomainResolver { get; private set; }
+#endif
+
       private readonly ConcurrentDictionary<AssemblyName, AssemblyInformation> _assemblies;
       private readonly ConcurrentDictionary<String, Lazy<AssemblyName>> _assemblyNames;
       private readonly NuGetRestorerWrapper _restorer;
@@ -784,7 +838,7 @@ namespace UtilPack.NuGet.AssemblyLoading
       {
 
 #if NET45 || NET46
-         AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
+         AppDomain.CurrentDomain.AssemblyResolve += this.CurrentDomain_AssemblyResolve;
 #endif
 
 #if !NET45 && !NET46
@@ -814,8 +868,14 @@ namespace UtilPack.NuGet.AssemblyLoading
             pathProcessor
 #endif
             ;
+
+#if NET46
+         ThisDomainResolver = this;
+#endif
+
          this._assemblyNames = new ConcurrentDictionary<String, Lazy<AssemblyName>>();
          this._assemblies = new ConcurrentDictionary<AssemblyName, AssemblyInformation>( AssemblyNameComparer.Instance );
+
       }
 
 #if NET45 || NET46
@@ -863,7 +923,8 @@ namespace UtilPack.NuGet.AssemblyLoading
       public async Task<Assembly[]> LoadNuGetAssemblies(
          String[] packageIDs,
          String[] packageVersions,
-         String[] assemblyPaths
+         String[] assemblyPaths,
+         CancellationToken token
          )
       {
          Assembly[] retVal;
@@ -877,10 +938,10 @@ namespace UtilPack.NuGet.AssemblyLoading
          {
             var assemblyInfos =
 #if NET45 || NET46
-            await this.UseResolver( packageIDs, packageVersions )
+            await this.UseResolver( packageIDs, packageVersions, token )
 #else
             this._restorer.Restorer.ExtractAssemblyPaths(
-               await this._restorer.Restorer.RestoreIfNeeded( packageIDs.Select( ( p, idx ) => (p, packageVersions[idx]) ).ToArray() ),
+               await this._restorer.Restorer.RestoreIfNeeded( token, packageIDs.Select( ( p, idx ) => (p, packageVersions[idx]) ).ToArray() ),
                this._restorer.GetFiles,
                this._restorer.SDKPackageIDs
                )
@@ -1036,7 +1097,7 @@ namespace UtilPack.NuGet.AssemblyLoading
             }
 
             return an;
-         }, System.Threading.LazyThreadSafetyMode.ExecutionAndPublication );
+         }, LazyThreadSafetyMode.ExecutionAndPublication );
       }
 
       private static Boolean CanIgnoreVersionAndToken( AssemblyName assemblyName )
@@ -1048,17 +1109,25 @@ namespace UtilPack.NuGet.AssemblyLoading
 
 #if NET45 || NET46
 
-      private System.Threading.Tasks.Task<TResolveResult> UseResolver(
+      private Task<TResolveResult> UseResolver(
          String[] packageIDs,
-         String[] packageVersions
+         String[] packageVersions,
+         CancellationToken token
          )
       {
          var setter = new MarshaledResultSetter<TResolveResult>();
-         this._restorer.ResolveNuGetPackageAssemblies(
+         var cancelable = this._restorer.ResolveNuGetPackageAssemblies(
             packageIDs,
             packageVersions,
-            setter
+            setter,
+            token.CanBeCanceled
             );
+         if ( cancelable != null )
+         {
+            var registration = token.Register( () => cancelable.Cancel() );
+            setter.Task.ContinueWith( completedTask => registration.DisposeSafely(), TaskContinuationOptions.ExecuteSynchronously );
+         }
+
          return setter.Task;
       }
 #endif
@@ -1119,26 +1188,40 @@ namespace UtilPack.NuGet.AssemblyLoading
 
 #if NET45 || NET46
 
-      internal void ResolveNuGetPackageAssemblies(
+      internal InterAppDomainCancellable ResolveNuGetPackageAssemblies(
          String[] packageID,
          String[] packageVersion,
-         MarshaledResultSetter<TResolveResult> setter
+         MarshaledResultSetter<TResolveResult> setter,
+         Boolean canBeCanceled
          )
       {
+         var cancelable = canBeCanceled ? new InterAppDomainCancellable() : null;
+         this
+            .Restorer.RestoreIfNeeded( cancelable?.Token ?? default, packageID.Select( ( pID, idx ) => (pID, packageVersion[idx]) ).ToArray() )
+            .ContinueWith( prevTask =>
+            {
+               cancelable?.DisposeSafely();
 
-         var task = this.Restorer.RestoreIfNeeded( packageID.Select( ( pID, idx ) => (pID, packageVersion[idx]) ).ToArray() );
-         task.ContinueWith( prevTask =>
-         {
-            try
-            {
-               var result = prevTask.Result;
-               setter.SetResult( this.Restorer.ExtractAssemblyPaths( result, this.GetFiles, this.SDKPackageIDs ) );
-            }
-            catch
-            {
-               setter.SetResult( null );
-            }
-         } );
+               if ( prevTask.IsCanceled )
+               {
+                  setter.SetCanceled();
+               }
+               else
+               {
+                  try
+                  {
+                     var result = prevTask.Result;
+                     setter.SetResult( this.Restorer.ExtractAssemblyPaths( result, this.GetFiles, this.SDKPackageIDs ) );
+                  }
+                  catch
+                  {
+                     setter.SetResult( null );
+                  }
+               }
+            },
+            TaskContinuationOptions.ExecuteSynchronously );
+
+         return cancelable;
       }
 
       internal void LogAssemblyPathResolveError( String packageID, String[] possiblePaths, String pathHint, String seenAssemblyPath ) =>
@@ -1176,9 +1259,28 @@ namespace UtilPack.NuGet.AssemblyLoading
       }
 
       public void SetResult( T result ) => this._tcs.SetResult( result );
+      public void SetCanceled() => this._tcs.SetCanceled();
       public Task<T> Task => this._tcs.Task;
    }
 
+   // From https://stackoverflow.com/questions/15149211/how-do-i-pass-cancellationtoken-across-appdomain-boundary
+   internal sealed class InterAppDomainCancellable : MarshalByRefObject, IDisposable
+   {
+
+      private readonly CancellationTokenSource _source;
+
+      public InterAppDomainCancellable()
+      {
+         this._source = new CancellationTokenSource();
+      }
+
+      public void Cancel() => this._source.Cancel();
+
+      public CancellationToken Token => this._source.Token;
+
+      public void Dispose() => this._source.Dispose();
+
+   }
 #endif
 
 #if NET45 || NET46
@@ -1230,12 +1332,13 @@ public static partial class E_UtilPack
       this NuGetAssemblyResolver resolver,
       String packageID,
       String packageVersion,
+      CancellationToken token,
       String assemblyPath = null
       )
    {
       // Don't use ArgumentValidator, as this may be executing in other app domain
       // (Same reason we don't use value tuples here)
-      return ( await ( resolver ?? throw new NullReferenceException() ).LoadNuGetAssemblies( new[] { packageID }, new[] { packageVersion }, new[] { assemblyPath } ) )[0];
+      return ( await ( resolver ?? throw new NullReferenceException() ).LoadNuGetAssemblies( new[] { packageID }, new[] { packageVersion }, new[] { assemblyPath }, token ) )[0];
    }
 
    /// <summary>
@@ -1247,13 +1350,16 @@ public static partial class E_UtilPack
    /// <exception cref="NullReferenceException">If this <see cref="NuGetAssemblyResolver"/> is <c>null</c>.</exception>
    public static Task<Assembly[]> LoadNuGetAssemblies(
       this NuGetAssemblyResolver resolver,
+      CancellationToken token,
       params (String PackageID, String PackageVersion, String AssemblyPath)[] packageInfo
       )
    {
       return ( resolver ?? throw new NullReferenceException() ).LoadNuGetAssemblies(
          packageInfo.Select( p => p.PackageID ).ToArray(),
          packageInfo.Select( p => p.PackageVersion ).ToArray(),
-         packageInfo.Select( p => p.AssemblyPath ).ToArray() );
+         packageInfo.Select( p => p.AssemblyPath ).ToArray(),
+         token
+         );
    }
 
    /// <summary>

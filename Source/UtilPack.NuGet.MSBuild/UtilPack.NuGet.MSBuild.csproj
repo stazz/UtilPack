@@ -77,6 +77,7 @@
     <Compile Include="..\UtilPack\ComparerFromFunctions.cs" Link="UtilPack.ComparerFromFunctions.cs" />
     <Compile Include="..\UtilPack.NuGet.Common.MSBuild\Logger.cs" Link="UtilPack.NuGet.Common.MSBuild.Logger.cs" />
     <Compile Include="..\UtilPack\TreeToEnumerableExtensions.cs" Link="UtilPack.TreeToEnumerableExtensions.cs" />
+    <Compile Include="..\UtilPack\UsingHelper.cs" Link="UtilPack.UsingHelper.cs" />
   </ItemGroup>
 
 </Project>

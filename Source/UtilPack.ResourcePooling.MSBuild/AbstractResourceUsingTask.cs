@@ -28,127 +28,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
 using UtilPack.ResourcePooling;
-
-using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
+using UtilPack.ResourcePooling.ConfigurationLoading;
+using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
 
 namespace UtilPack.ResourcePooling.MSBuild
 {
-   // TODO maybe move to some more generic project?
-   internal sealed class StringContentFileProvider : Microsoft.Extensions.FileProviders.IFileProvider
-   {
-      public const String PATH = ":::non-existing:::";
 
-      private readonly FileInfo _fileInfo;
-
-
-      public StringContentFileProvider( String stringContents )
-         : this( new FileInfo( stringContents ) )
-      {
-
-      }
-
-      public StringContentFileProvider( Byte[] serializedContents )
-         : this( new FileInfo( serializedContents ) )
-      {
-      }
-
-      private StringContentFileProvider( FileInfo info )
-      {
-         this._fileInfo = ArgumentValidator.ValidateNotNull( nameof( info ), info );
-      }
-
-
-
-      public Microsoft.Extensions.FileProviders.IDirectoryContents GetDirectoryContents( String subpath )
-      {
-         return NotFoundDirectoryContents.Singleton;
-      }
-
-      public Microsoft.Extensions.FileProviders.IFileInfo GetFileInfo( String subpath )
-      {
-         return String.Equals( PATH, subpath, StringComparison.Ordinal ) ?
-            this._fileInfo :
-            null;
-      }
-
-      public Microsoft.Extensions.Primitives.IChangeToken Watch( String filter )
-      {
-         return ChangeToken.Instance;
-      }
-
-      private sealed class FileInfo : Microsoft.Extensions.FileProviders.IFileInfo
-      {
-
-         private static readonly Encoding TheEncoding = new UTF8Encoding( false, false );
-
-         private readonly Byte[] _contentsAsBytes;
-
-         public FileInfo( String stringContents )
-            : this( TheEncoding.GetBytes( stringContents ) )
-         {
-
-         }
-
-         public FileInfo( Byte[] serializedContents )
-         {
-            this._contentsAsBytes = serializedContents;
-         }
-
-         public Boolean Exists => true;
-
-         public Int64 Length => this._contentsAsBytes.Length;
-
-         public String PhysicalPath => PATH;
-
-         public String Name => PATH;
-
-         public DateTimeOffset LastModified => DateTimeOffset.MinValue;
-
-         public Boolean IsDirectory => false;
-
-         public System.IO.Stream CreateReadStream()
-         {
-            return new System.IO.MemoryStream( this._contentsAsBytes, 0, this._contentsAsBytes.Length, false, false );
-         }
-      }
-
-      private sealed class ChangeToken : Microsoft.Extensions.Primitives.IChangeToken
-      {
-         public static ChangeToken Instance = new ChangeToken();
-
-         private ChangeToken()
-         {
-
-         }
-
-         public Boolean HasChanged => false;
-
-         public Boolean ActiveChangeCallbacks => true;
-
-         public IDisposable RegisterChangeCallback(
-            Action<Object> callback,
-            Object state
-            )
-         {
-            return NoOpDisposable.Instance;
-         }
-      }
-
-
-   }
-
-   internal static class Extensions
-   {
-      public static IConfigurationBuilder AddJsonContents( this IConfigurationBuilder builder, String textualContents )
-      {
-         return builder.AddJsonFile( new StringContentFileProvider( textualContents ), StringContentFileProvider.PATH, false, false );
-      }
-
-      public static IConfigurationBuilder AddJsonContents( this IConfigurationBuilder builder, Byte[] stringAsBytes )
-      {
-         return builder.AddJsonFile( new StringContentFileProvider( stringAsBytes ), StringContentFileProvider.PATH, false, false );
-      }
-   }
 
    /// <summary>
    /// This class contains skeleton implementation for MSBuild task, which will create <see cref="AsyncResourcePool{TResource}"/> and use the resource once.
@@ -156,8 +41,9 @@ namespace UtilPack.ResourcePooling.MSBuild
    /// <typeparam name="TResource">The actual type of resource.</typeparam>
    /// <remarks>
    /// This task is meant to be used with <see href="">UtilPack.NuGet.MSBuild</see> task factory, since this task will dynamically load NuGet packages.
+   /// More specifically, this task should be loaded using 
    /// </remarks>
-   public abstract class AbstractResourceUsingTask<TResource> : Microsoft.Build.Utilities.Task, ICancelableTask
+   public abstract class AbstractResourceUsingTask<TResource> : Microsoft.Build.Utilities.Task, ICancelableTask, ResourceFactoryDynamicCreationNuGetBasedConfiguration
    {
       private readonly TNuGetPackageResolverCallback _nugetPackageResolver;
 
@@ -170,7 +56,9 @@ namespace UtilPack.ResourcePooling.MSBuild
       /// Instead, the <see cref="Execute"/> method will log an error if <paramref name="nugetAssemblyLoader"/> was <c>null</c>.
       /// This is done to prevent ugly exception and error messages when this task is used.
       /// </remarks>
-      public AbstractResourceUsingTask( TNuGetPackageResolverCallback nugetAssemblyLoader )
+      public AbstractResourceUsingTask(
+         TNuGetPackageResolverCallback nugetAssemblyLoader
+         )
       {
          this.CancellationTokenSource = new CancellationTokenSource();
          this._nugetPackageResolver = nugetAssemblyLoader;
@@ -250,22 +138,30 @@ namespace UtilPack.ResourcePooling.MSBuild
 
       private async Task<Boolean> ExecuteTaskAsync()
       {
-         var poolProvider = await this.AcquireResourcePoolProvider();
-         Boolean retVal;
-         if ( poolProvider == null )
+         var factory = await this.AcquireResourceFactory();
+         var retVal = factory != null;
+         if ( retVal )
          {
-            this.Log.LogError( "Failed to acquire resource pool provider." );
-            retVal = false;
-         }
-         else
-         {
-            var poolCreationArgs = await this.ProvideResourcePoolCreationParameters( poolProvider );
-            var pool = await this.AcquireResourcePool( poolProvider, poolCreationArgs );
             Func<TResource, Task<Boolean>> func = this.UseResource;
-            retVal = await pool.UseResourceAsync<TResource, Boolean>( func, this.CancellationToken );
+            return await factory
+               .CreateOneTimeUseResourcePool()
+               .WithoutExplicitAPI()
+               .UseResourceAsync<TResource, Boolean>( func, this.CancellationToken );
          }
-
          return retVal;
+      }
+
+      private async Task<AsyncResourceFactory<TResource>> AcquireResourceFactory()
+      {
+         try
+         {
+            return await this.CreateAsyncResourceFactoryUsingConfiguration<TResource>( this._nugetPackageResolver, this.CancellationToken );
+         }
+         catch ( Exception e )
+         {
+            this.Log.LogError( e.Message );
+            return null;
+         }
       }
 
       /// <summary>
@@ -290,70 +186,70 @@ namespace UtilPack.ResourcePooling.MSBuild
       /// </remarks>
       protected abstract Boolean CheckTaskParametersBeforeResourcePoolUsage();
 
-      /// <summary>
-      /// This method is called by <see cref="Execute"/> after calling <see cref="AcquireResourcePoolProvider"/> in order to potentially asynchronously provide argument object for <see cref="AsyncResourceFactoryProvider.BindCreationParameters"/> method.
-      /// </summary>
-      /// <param name="poolProvider">The pool provider returned by <see cref="AcquireResourcePoolProvider"/> method.</param>
-      /// <returns>A parameter for <see cref="AsyncResourceFactoryProvider.BindCreationParameters"/> method.</returns>
-      /// <remarks>
-      /// This implementation uses <see cref="ConfigurationBuilder"/> in conjunction of <see cref="JsonConfigurationExtensions.AddJsonFile(IConfigurationBuilder, string)"/> method to add configuration JSON file, contents of which are specified by <see cref="PoolConfigurationFileContents"/> property, or it is located in path specified by <see cref="PoolConfigurationFilePath"/> property.
-      /// Then, the <see cref="ConfigurationBinder.Get(IConfiguration, Type)"/> method is used on resulting <see cref="IConfiguration"/> to obtain the return value of this method.
-      /// </remarks>
-      /// <seealso cref="PoolConfigurationFileContents"/>
-      /// <seealso cref="PoolConfigurationFilePath"/>
-      protected virtual ValueTask<Object> ProvideResourcePoolCreationParameters(
-         AsyncResourceFactoryProvider poolProvider
-         )
-      {
-         var contents = this.PoolConfigurationFileContents;
-         IFileProvider fileProvider;
-         String path;
-         if ( !String.IsNullOrEmpty( contents ) )
-         {
-            path = StringContentFileProvider.PATH;
-            fileProvider = new StringContentFileProvider( contents );
-         }
-         else
-         {
-            path = this.PoolConfigurationFilePath;
-            if ( String.IsNullOrEmpty( path ) )
-            {
-               throw new InvalidOperationException( "Configuration file path was not provided." );
-            }
-            else
-            {
-               path = System.IO.Path.GetFullPath( path );
-               fileProvider = null; // Use defaults
-            }
-         }
+      ///// <summary>
+      ///// This method is called by <see cref="Execute"/> after calling <see cref="AcquireResourcePoolProvider"/> in order to potentially asynchronously provide argument object for <see cref="AsyncResourceFactoryProvider.BindCreationParameters"/> method.
+      ///// </summary>
+      ///// <param name="poolProvider">The pool provider returned by <see cref="AcquireResourcePoolProvider"/> method.</param>
+      ///// <returns>A parameter for <see cref="AsyncResourceFactoryProvider.BindCreationParameters"/> method.</returns>
+      ///// <remarks>
+      ///// This implementation uses <see cref="ConfigurationBuilder"/> in conjunction of <see cref="JsonConfigurationExtensions.AddJsonFile(IConfigurationBuilder, String)"/> method to add configuration JSON file, contents of which are specified by <see cref="PoolConfigurationFileContents"/> property, or it is located in path specified by <see cref="PoolConfigurationFilePath"/> property.
+      ///// Then, the <see cref="ConfigurationBinder.Get(IConfiguration, Type)"/> method is used on resulting <see cref="IConfiguration"/> to obtain the return value of this method.
+      ///// </remarks>
+      ///// <seealso cref="PoolConfigurationFileContents"/>
+      ///// <seealso cref="PoolConfigurationFilePath"/>
+      //protected virtual ValueTask<Object> ProvideResourcePoolCreationParameters(
+      //   AsyncResourceFactoryProvider poolProvider
+      //   )
+      //{
+      //   var contents = this.PoolConfigurationFileContents;
+      //   IFileProvider fileProvider;
+      //   String path;
+      //   if ( !String.IsNullOrEmpty( contents ) )
+      //   {
+      //      path = StringContentFileProvider.PATH;
+      //      fileProvider = new StringContentFileProvider( contents );
+      //   }
+      //   else
+      //   {
+      //      path = this.PoolConfigurationFilePath;
+      //      if ( String.IsNullOrEmpty( path ) )
+      //      {
+      //         throw new InvalidOperationException( "Configuration file path was not provided." );
+      //      }
+      //      else
+      //      {
+      //         path = System.IO.Path.GetFullPath( path );
+      //         fileProvider = null; // Use defaults
+      //      }
+      //   }
 
 
-         return new ValueTask<Object>( new ConfigurationBuilder()
-            .AddJsonFile( fileProvider, path, false, false )
-            .Build()
-            .Get( poolProvider.DataTypeForCreationParameter ) );
-      }
+      //   return new ValueTask<Object>( new ConfigurationBuilder()
+      //      .AddJsonFile( fileProvider, path, false, false )
+      //      .Build()
+      //      .Get( poolProvider.DataTypeForCreationParameter ) );
+      //}
 
-      /// <summary>
-      /// This method is called by <see cref="Execute"/> after calling <see cref="ProvideResourcePoolCreationParameters"/>
-      /// </summary>
-      /// <param name="poolProvider">The pool provider returned by <see cref="AcquireResourcePoolProvider"/> method.</param>
-      /// <param name="poolCreationArgs">The creation arguments returned by <see cref="ProvideResourcePoolCreationParameters"/> method.</param>
-      /// <returns>An instance of <see cref="AsyncResourcePool{TResource}"/> to use.</returns>
-      /// <remarks>
-      /// This implementation returns one-time use async resource pool.
-      /// </remarks>
-      protected virtual ValueTask<AsyncResourcePool<TResource>> AcquireResourcePool(
-         AsyncResourceFactoryProvider poolProvider,
-         Object poolCreationArgs
-         )
-      {
-         return new ValueTask<AsyncResourcePool<TResource>>( poolProvider
-            .BindCreationParameters<TResource>( poolCreationArgs )
-            .CreateOneTimeUseResourcePool()
-            .WithoutExplicitAPI()
-            );
-      }
+      ///// <summary>
+      ///// This method is called by <see cref="Execute"/> after calling <see cref="ProvideResourcePoolCreationParameters"/>
+      ///// </summary>
+      ///// <param name="poolProvider">The pool provider returned by <see cref="AcquireResourcePoolProvider"/> method.</param>
+      ///// <param name="poolCreationArgs">The creation arguments returned by <see cref="ProvideResourcePoolCreationParameters"/> method.</param>
+      ///// <returns>An instance of <see cref="AsyncResourcePool{TResource}"/> to use.</returns>
+      ///// <remarks>
+      ///// This implementation returns one-time use async resource pool.
+      ///// </remarks>
+      //protected virtual ValueTask<AsyncResourcePool<TResource>> AcquireResourcePool(
+      //   AsyncResourceFactoryProvider poolProvider,
+      //   Object poolCreationArgs
+      //   )
+      //{
+      //   return new ValueTask<AsyncResourcePool<TResource>>( poolProvider
+      //      .BindCreationParameters<TResource>( poolCreationArgs )
+      //      .CreateOneTimeUseResourcePool()
+      //      .WithoutExplicitAPI()
+      //      );
+      //}
 
       /// <summary>
       /// Derived classes should implement this method to perform domain-specific functionality using the given resource.
@@ -362,91 +258,91 @@ namespace UtilPack.ResourcePooling.MSBuild
       /// <returns></returns>
       protected abstract Task<Boolean> UseResource( TResource resource );
 
-      /// <summary>
-      /// This method is called by <see cref="Execute"/> after calling <see cref="CheckTaskParametersBeforeResourcePoolUsage"/>.
-      /// </summary>
-      /// <returns>Potentially asynchronously returns <see cref="AsyncResourceFactoryProvider"/> to be used to acquire resource pool.</returns>
-      /// <remarks>
-      /// <para>
-      /// This method will return <c>null</c> instead of throwing an exception, if acquiring a <see cref="AsyncResourceFactoryProvider"/> fails.
-      /// </para>
-      /// <para>
-      /// This method uses values of <see cref="PoolProviderPackageID"/>, <see cref="PoolProviderVersion"/>, <see cref="PoolProviderAssemblyPath"/>, and <see cref="PoolProviderTypeName"/> properties when dynamically instantiating <see cref="AsyncResourceFactoryProvider"/>.
-      /// </para>
-      /// </remarks>
-      protected virtual async ValueTask<AsyncResourceFactoryProvider> AcquireResourcePoolProvider()
-      {
-         var resolver = this._nugetPackageResolver;
-         AsyncResourceFactoryProvider retVal = null;
-         if ( resolver != null )
-         {
-            var packageID = this.PoolProviderPackageID;
-            if ( !String.IsNullOrEmpty( packageID ) )
-            {
-               try
-               {
-                  var assembly = await this._nugetPackageResolver(
-                     this.PoolProviderPackageID, // package ID
-                     this.PoolProviderVersion,  // optional package version
-                     this.PoolProviderAssemblyPath // optional assembly path within package
-                     );
-                  if ( assembly != null )
-                  {
-                     // Now search for the type
-                     var typeName = this.PoolProviderTypeName;
-                     var parentType = typeof( AsyncResourceFactoryProvider ).GetTypeInfo();
-                     var checkParentType = !String.IsNullOrEmpty( typeName );
-                     Type providerType;
-                     if ( checkParentType )
-                     {
-                        // Instantiate directly
-                        providerType = assembly.GetType( typeName, false, false );
-                     }
-                     else
-                     {
-                        // Search for first available
-                        providerType = assembly.DefinedTypes.FirstOrDefault( t => !t.IsInterface && !t.IsAbstract && t.IsPublic && parentType.IsAssignableFrom( t ) )?.AsType();
-                     }
+      ///// <summary>
+      ///// This method is called by <see cref="Execute"/> after calling <see cref="CheckTaskParametersBeforeResourcePoolUsage"/>.
+      ///// </summary>
+      ///// <returns>Potentially asynchronously returns <see cref="AsyncResourceFactoryProvider"/> to be used to acquire resource pool.</returns>
+      ///// <remarks>
+      ///// <para>
+      ///// This method will return <c>null</c> instead of throwing an exception, if acquiring a <see cref="AsyncResourceFactoryProvider"/> fails.
+      ///// </para>
+      ///// <para>
+      ///// This method uses values of <see cref="PoolProviderPackageID"/>, <see cref="PoolProviderVersion"/>, <see cref="PoolProviderAssemblyPath"/>, and <see cref="PoolProviderTypeName"/> properties when dynamically instantiating <see cref="AsyncResourceFactoryProvider"/>.
+      ///// </para>
+      ///// </remarks>
+      //protected virtual async ValueTask<AsyncResourceFactoryProvider> AcquireResourcePoolProvider()
+      //{
+      //   var resolver = this._nugetPackageResolver;
+      //   AsyncResourceFactoryProvider retVal = null;
+      //   if ( resolver != null )
+      //   {
+      //      var packageID = this.PoolProviderPackageID;
+      //      if ( !String.IsNullOrEmpty( packageID ) )
+      //      {
+      //         try
+      //         {
+      //            var assembly = await resolver(
+      //               packageID, // package ID
+      //               this.PoolProviderVersion,  // optional package version
+      //               this.PoolProviderAssemblyPath // optional assembly path within package
+      //               );
+      //            if ( assembly != null )
+      //            {
+      //               // Now search for the type
+      //               var typeName = this.PoolProviderTypeName;
+      //               var parentType = typeof( AsyncResourceFactoryProvider ).GetTypeInfo();
+      //               var checkParentType = !String.IsNullOrEmpty( typeName );
+      //               Type providerType;
+      //               if ( checkParentType )
+      //               {
+      //                  // Instantiate directly
+      //                  providerType = assembly.GetType( typeName, false, false );
+      //               }
+      //               else
+      //               {
+      //                  // Search for first available
+      //                  providerType = assembly.DefinedTypes.FirstOrDefault( t => !t.IsInterface && !t.IsAbstract && t.IsPublic && parentType.IsAssignableFrom( t ) )?.AsType();
+      //               }
 
-                     if ( providerType != null )
-                     {
-                        if ( !checkParentType || parentType.IsAssignableFrom( providerType.GetTypeInfo() ) )
-                        {
-                           // All checks passed, instantiate the pool provider
-                           retVal = (AsyncResourceFactoryProvider) Activator.CreateInstance( providerType );
-                        }
-                        else
-                        {
-                           this.Log.LogError( $"The type \"{providerType.FullName}\" in \"{assembly}\" does not have required parent type \"{parentType.FullName}\"." );
-                        }
-                     }
-                     else
-                     {
-                        this.Log.LogError( $"Failed to find type within assembly in \"{assembly}\", try specify \"{nameof( PoolProviderTypeName )}\" parameter." );
-                     }
-                  }
-                  else
-                  {
-                     this.Log.LogError( $"Failed to load resource pool provider package \"{this.PoolProviderPackageID}\"." );
-                  }
-               }
-               catch ( Exception exc )
-               {
-                  this.Log.LogError( $"An exception occurred when acquiring resource pool provider: {exc.Message}" );
-               }
-            }
-            else
-            {
-               this.Log.LogError( $"No NuGet package ID were provided as \"{nameof( PoolProviderPackageID )}\" parameter. The package ID should be of the package holding implementation for \"{nameof( AsyncResourceFactoryProvider )}\" type." );
-            }
-         }
-         else
-         {
-            this.Log.LogError( "Task must be provided callback to load NuGet packages (just make constructor taking it as argument and use UtilPack.NuGet.MSBuild task factory)." );
-         }
+      //               if ( providerType != null )
+      //               {
+      //                  if ( !checkParentType || parentType.IsAssignableFrom( providerType.GetTypeInfo() ) )
+      //                  {
+      //                     // All checks passed, instantiate the pool provider
+      //                     retVal = (AsyncResourceFactoryProvider) Activator.CreateInstance( providerType );
+      //                  }
+      //                  else
+      //                  {
+      //                     this.Log.LogError( $"The type \"{providerType.FullName}\" in \"{assembly}\" does not have required parent type \"{parentType.FullName}\"." );
+      //                  }
+      //               }
+      //               else
+      //               {
+      //                  this.Log.LogError( $"Failed to find type within assembly in \"{assembly}\", try specify \"{nameof( this.PoolProviderTypeName )}\" parameter." );
+      //               }
+      //            }
+      //            else
+      //            {
+      //               this.Log.LogError( $"Failed to load resource pool provider package \"{packageID}\"." );
+      //            }
+      //         }
+      //         catch ( Exception exc )
+      //         {
+      //            this.Log.LogError( $"An exception occurred when acquiring resource pool provider: {exc.Message}" );
+      //         }
+      //      }
+      //      else
+      //      {
+      //         this.Log.LogError( $"No NuGet package ID were provided as \"{nameof( this.PoolProviderPackageID )}\" parameter. The package ID should be of the package holding implementation for \"{nameof( AsyncResourceFactoryProvider )}\" type." );
+      //      }
+      //   }
+      //   else
+      //   {
+      //      this.Log.LogError( "Task must be provided callback to load NuGet packages (just make constructor taking it as argument and use UtilPack.NuGet.MSBuild task factory)." );
+      //   }
 
-         return retVal;
-      }
+      //   return retVal;
+      //}
 
       /// <summary>
       /// Gets or sets the value indicating whether to call <see cref="IBuildEngine3.Yield"/> or not.

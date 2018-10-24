@@ -30,6 +30,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,6 +39,8 @@ using UtilPack.NuGet;
 using NuGet.RuntimeModel;
 using NuGet.Packaging;
 using NuGet.Protocol;
+using Newtonsoft.Json.Linq;
+using System.Collections.Immutable;
 
 #if !NUGET_430
 using TLocalNuspecCache = NuGet.Protocol.
@@ -48,6 +51,9 @@ LocalPackageFileCache
 #endif
          ;
 #endif
+//using TLockFileDeserializer = System.Func<Newtonsoft.Json.Linq.JObject, NuGet.ProjectModel.LockFile>;
+
+
 
 
 namespace UtilPack.NuGet
@@ -82,13 +88,17 @@ namespace UtilPack.NuGet
    {
       public const String DEFAULT_RUNTIME_GRAPH_PACKAGE_ID = "Microsoft.NETCore.Platforms";
 
+      private static readonly Encoding _DiskCacheEncoding = new UTF8Encoding( false, false );
+
       private readonly SourceCacheContext _cacheContext;
       private readonly RestoreCommandProviders _restoreCommandProvider;
       private readonly String _nugetRestoreRootDir; // NuGet restore command never writes anything to disk (apart from packages themselves), but if certain file paths are omitted, it simply fails with argumentnullexception when invoking Path.Combine or Path.GetFullName. So this can be anything, really, as long as it's understandable by Path class.
       private readonly TargetFrameworkInformation _restoreTargetFW;
-      private LockFile _previousLockFile;
-      private readonly ConcurrentDictionary<String, ConcurrentDictionary<NuGetVersion, RestoreResult>> _allLockFiles;
       private readonly Boolean _disposeSourceCacheContext;
+
+      private readonly LockFileFormat _lockFileFormat;
+
+      private readonly ConcurrentDictionary<ImmutableSortedSet<String>, ImmutableDictionary<ImmutableArray<NuGetVersion>, String>> _allLockFiles;
 
       /// <summary>
       /// Creates new instance of <see cref="BoundRestoreCommandUser"/> with given parameters.
@@ -112,7 +122,9 @@ namespace UtilPack.NuGet
 #if !NUGET_430
          TLocalNuspecCache nuspecCache = null,
 #endif
-         Boolean leaveSourceCacheOpen = false
+         Boolean leaveSourceCacheOpen = false,
+         String lockFileCacheDir = null,
+         Boolean disableLockFileCacheDir = false
          )
       {
          ArgumentValidator.ValidateNotNull( nameof( nugetSettings ), nugetSettings );
@@ -174,7 +186,27 @@ namespace UtilPack.NuGet
                return rGraph;
             }, LazyThreadSafetyMode.ExecutionAndPublication );
 
-         this._allLockFiles = new ConcurrentDictionary<String, ConcurrentDictionary<NuGetVersion, RestoreResult>>();
+         if ( !disableLockFileCacheDir )
+         {
+            this.DiskCacheDirectory = lockFileCacheDir
+               .OrIfNullOrEmpty( Environment.GetEnvironmentVariable( "LOCK_FILE_CACHE_DIR" ) )
+               .OrIfNullOrEmpty( Path.Combine( Environment.GetEnvironmentVariable(
+#if NET46
+                  Environment.OSVersion.Platform == PlatformID.Win32NT || Environment.OSVersion.Platform == PlatformID.Win32S || Environment.OSVersion.Platform == PlatformID.Win32Windows || Environment.OSVersion.Platform == PlatformID.WinCE
+#else
+                  System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform( System.Runtime.InteropServices.OSPlatform.Windows )
+#endif
+                  ? "USERPROFILE" : "HOME"
+                  ).OrIfNullOrEmpty( "/" ), ".nuget-lock-files" ) );
+         }
+
+         // The JObject -> LockFile deserialization is marked private in NuGet, but we certainly don't want to always do string -> jobject -> lockfile way when we can just do jobject -> lockfile...
+         // Mitigate dynamic invocation slowness by using CreateDelegate
+         //this._deserializeLockFile = (TLockFileDeserializer) typeof( LockFileFormat ).GetTypeInfo().DeclaredMethods.First( m => String.Equals( m.Name, "ReadLockFile" ) )
+         //   .CreateDelegate( typeof( TLockFileDeserializer ) );
+
+         this._allLockFiles = new ConcurrentDictionary<ImmutableSortedSet<String>, ImmutableDictionary<ImmutableArray<NuGetVersion>, String>>();
+         this._lockFileFormat = new LockFileFormat();
       }
 
       /// <summary>
@@ -207,6 +239,8 @@ namespace UtilPack.NuGet
       /// <value>The <see cref="Lazy{T}"/> holding the <see cref="global::NuGet.RuntimeModel.RuntimeGraph"/> of this <see cref="BoundRestoreCommandUser"/>.</value>
       public Lazy<RuntimeGraph> RuntimeGraph { get; }
 
+      public String DiskCacheDirectory { get; }
+
       /// <summary>
       /// This event can be registered to in order to further modify the <see cref="PackageSpec"/> that was created during restore.
       /// </summary>
@@ -227,79 +261,211 @@ namespace UtilPack.NuGet
          )
       {
 
-         LockFile retVal;
+         LockFile retVal = null;
          if ( !packageInfo.IsNullOrEmpty() )
          {
             // Prepare for invoking restore command
             var versionRanges = packageInfo
-               .Select( tuple => String.IsNullOrEmpty( tuple.PackageVersion ) ? VersionRange.AllFloating : VersionRange.Parse( tuple.PackageVersion ) )
-               .ToArray();
-            var cachedResults = versionRanges.Select( ( versionRange, idx ) =>
-            {
-               RestoreResult curLockFile = null;
-               if ( !versionRange.IsFloating && this._allLockFiles.TryGetValue( packageInfo[idx].PackageID, out var thisPackageLockFiles ) )
-               {
-                  var matchingActualVersion = versionRange.FindBestMatch( thisPackageLockFiles.Keys.Where( v => versionRange.Satisfies( v ) ) );
-                  if ( matchingActualVersion != null )
+               .Where( p => !String.IsNullOrEmpty( p.PackageID ) )
+               .GroupBy( p => p.PackageID )
+               .ToImmutableDictionary(
+                  g => g.Key,
+                  g =>
                   {
-                     curLockFile = thisPackageLockFiles[matchingActualVersion];
+                     var hasFloating = g.Any( p => String.IsNullOrEmpty( p.PackageVersion ) );
+                     return hasFloating ?
+                        VersionRange.AllFloating :
+                        g
+                           .Where( p => !String.IsNullOrEmpty( p.PackageVersion ) )
+                           .Select( p => VersionRange.Parse( p.PackageVersion ) )
+                           .OrderByDescending( v => v )
+                           .First();
+                  } );
+            if ( versionRanges.Count > 0 )
+            {
+               var isOnePackage = versionRanges.Count == 1;
+               String serializedLockFile = null;
+               var allNotFloating = versionRanges.Values.All( v => !v.IsFloating );
+               ImmutableSortedSet<String> key = null;
+               if ( allNotFloating )
+               {
+                  key = packageInfo.Select( p => p.PackageID ).ToImmutableSortedSet( StringComparer.OrdinalIgnoreCase );
+                  if ( this._allLockFiles.TryGetValue( key, out var cachedLockFiles ) )
+                  {
+                     if ( isOnePackage )
+                     {
+                        serializedLockFile = cachedLockFiles.OrderByDescending( kvp => kvp.Value ).First().Value;
+                     }
+                     else
+                     {
+                        var rangesArray = key.Select( pID => versionRanges[pID] ).ToImmutableArray();
+                        // TODO choose the most "maximized" value if reasonable.
+                        serializedLockFile = cachedLockFiles
+                           .FirstOrDefault( kvp => kvp.Key.All( ( cachedVersion, cachedVersionIndex ) => rangesArray[cachedVersionIndex].Satisfies( cachedVersion ) ) ) //  versionRanges.Values.All( ideal => ideal.FindBestMatch( kvp.Value.Item1.Where( v => ) )
+                           .Value;
+                     }
                   }
                }
 
-               return curLockFile;
-            } )
-            .Where( l => l != null )
-            .ToArray();
-
-            if ( cachedResults.Length == packageInfo.Length )
-            {
-               // All lock files are cached
-               // Need to merge into single LockFile
-               var remoteWalkContext = new global::NuGet.DependencyResolver.RemoteWalkContext( this._cacheContext, this.NuGetLogger );
-               foreach ( var local in this._restoreCommandProvider.LocalProviders )
+               if ( serializedLockFile == null )
                {
-                  remoteWalkContext.LocalLibraryProviders.Add( local );
-               }
-               foreach ( var remote in this._restoreCommandProvider.RemoteProviders )
-               {
-                  remoteWalkContext.RemoteLibraryProviders.Add( remote );
-               }
-
-
-               retVal = new LockFileBuilder(
-                  cachedResults[0].LockFile.Version,
-                  this.NuGetLogger,
-                  new Dictionary<RestoreTargetGraph, Dictionary<String, LibraryIncludeFlags>>()
-                  ).CreateLockFile(
-                     cachedResults[0].LockFile, // Previous lock file
-                     this.CreatePackageSpec( versionRanges.Select( ( v, idx ) => (packageInfo[idx].PackageID, v) ).ToArray() ), // PackageSpec
-                     cachedResults.SelectMany( r => r.RestoreGraphs ).ToArray(), // Restore Graphs
-                     this.LocalRepositories.Values.ToList(), // Local repos
-                     remoteWalkContext // Remote walk context
-                     );
-            }
-            else
-            {
-               // Need to invoke restore command
-               var result = await this.PerformRestore( versionRanges.Select( ( v, idx ) => (packageInfo[idx].PackageID, v) ).ToArray(), token );
-               retVal = result.LockFile;
-               foreach ( var tuple in packageInfo )
-               {
-                  var packageID = tuple.PackageID;
-                  var actualVersion = retVal.Libraries.FirstOrDefault( l => String.Equals( l.Name, packageID ) )?.Version;
-                  if ( actualVersion != null )
+                  var diskCacheDir = this.DiskCacheDirectory;
+                  var hasDiskCache = !String.IsNullOrEmpty( diskCacheDir );
+                  String path = null;
+                  String lockFilesDir = null;
+                  if ( hasDiskCache // Disk cache using is an option
+                     && allNotFloating // No floating versions -> even one floating version forces us to use restore
+                     )
                   {
+                     // No serialized value in in-memory cache available, let's try disk cache
+                     if ( isOnePackage )
+                     {
+                        var first = versionRanges.First();
+                        lockFilesDir = Path.Combine(
+                           diskCacheDir,
+                           this.ThisFramework.Framework.ToString().ToLowerInvariant(),
+                           this.ThisFramework.Version.ToString().ToLowerInvariant(),
+                           this.RuntimeIdentifier.OrIfNullOrEmpty( "unknown-rid" ).ToLowerInvariant(),
+                           first.Key.ToLowerInvariant()
+                           );
+                        if ( first.Value.IsExact() )
+                        {
+                           path = Path.Combine( first.Value.MinVersion.ToString() );
+                        }
+                        else if ( Directory.Exists( lockFilesDir ) )
+                        {
+                           path = Directory.EnumerateFiles( lockFilesDir, "*", SearchOption.TopDirectoryOnly )
+                              .FindBestMatch( first.Value, fileName => fileName.IsNullOrEmpty() ? null : NuGetVersion.Parse( Path.GetFileName( fileName ) ) )
+                              .OrIfNullOrEmpty( null );
+                        }
+                     }
+                     else if ( versionRanges.Values.All( v => v.IsExact() ) )
+                     {
+                        // TODO hash of all
+                     }
+                     if ( path != null && File.Exists( path ) )
+                     {
+                        using ( var reader = new StreamReader( File.OpenRead( path ), _DiskCacheEncoding, false ) )
+                        {
+                           serializedLockFile = ( await reader.ReadToEndAsync() ).OrIfNullOrEmpty( null );
+                        }
+                     }
+                  }
+
+                  if ( serializedLockFile == null )
+                  {
+                     // Disk cache not in use or lock file has not been cached to disk, perform actual restore
+                     retVal = ( await this.PerformRestore( versionRanges, token ) ).LockFile;
+
+                     if ( lockFilesDir != null && path == null )
+                     {
+                        path = Path.Combine( lockFilesDir, retVal.Targets[0].GetTargetLibrary( key.First() ).Version.ToString() );
+                     }
+
+                     if ( path != null && !File.Exists( path ) )
+                     {
+                        Directory.CreateDirectory( Path.GetDirectoryName( path ) );
+                        // Add to disk cache
+                        using ( var writer = new StreamWriter( File.Open( path, FileMode.Create, FileAccess.Write, FileShare.None ), _DiskCacheEncoding ) )
+                        {
+                           await writer.WriteAsync( serializedLockFile = this._lockFileFormat.Render( retVal ) );
+                        }
+                     }
+                  }
+
+                  if ( key != null && ( retVal != null || serializedLockFile != null ) )
+                  {
+                     // Add to in-memory cache
+                     if ( serializedLockFile == null )
+                     {
+                        serializedLockFile = this._lockFileFormat.Render( retVal );
+                     }
+
+                     if ( retVal == null )
+                     {
+                        retVal = this._lockFileFormat.Parse( serializedLockFile, Path.Combine( this._nugetRestoreRootDir, "dummy" ) );
+                     }
+
+                     var libs = retVal.Targets[0].Libraries.ToDictionary( l => l.Name, l => l.Version, StringComparer.OrdinalIgnoreCase );
+
                      this._allLockFiles
-                        .GetOrAdd( packageID, p => new ConcurrentDictionary<NuGetVersion, RestoreResult>() )
-                        .TryAdd( actualVersion, result );
+                        .AddOrUpdate(
+                           key,
+                           ignored => ImmutableDictionary<ImmutableArray<NuGetVersion>, String>.Empty.SetItem( key.Select( pID => libs[pID] ).ToImmutableArray(), serializedLockFile ),
+                           ( ignored, existing ) => existing.SetItem( key.Select( pID => libs[pID] ).ToImmutableArray(), serializedLockFile )
+                        );
                   }
                }
-               Interlocked.Exchange( ref this._previousLockFile, retVal );
+
+               if ( retVal == null && serializedLockFile != null )
+               {
+                  retVal = this._lockFileFormat.Parse( serializedLockFile, Path.Combine( this._nugetRestoreRootDir, "dummy" ) );
+               }
             }
-         }
-         else
-         {
-            retVal = null;
+
+            //var cachedResults = versionRanges.Select( ( versionRange, idx ) =>
+            //{
+            //   JObject curLockFile = null;
+            //   if ( !versionRange.IsFloating && this._allLockFiles.TryGetValue( packageInfo[idx].PackageID, out var thisPackageLockFiles ) )
+            //   {
+            //      var matchingActualVersion = versionRange.FindBestMatch( thisPackageLockFiles.Keys.Where( v => versionRange.Satisfies( v ) ) );
+            //      if ( matchingActualVersion != null )
+            //      {
+            //         curLockFile = thisPackageLockFiles[matchingActualVersion];
+            //      }
+            //   }
+
+            //   return curLockFile;
+            //} )
+            //.Where( l => l != null )
+            //.ToArray();
+
+            //if ( cachedResults.Length == packageInfo.Length )
+            //{
+            //   this._
+            //   // All lock files are cached
+            //   // Need to merge into single LockFile
+            //   var remoteWalkContext = new global::NuGet.DependencyResolver.RemoteWalkContext( this._cacheContext, this.NuGetLogger );
+            //   foreach ( var local in this._restoreCommandProvider.LocalProviders )
+            //   {
+            //      remoteWalkContext.LocalLibraryProviders.Add( local );
+            //   }
+            //   foreach ( var remote in this._restoreCommandProvider.RemoteProviders )
+            //   {
+            //      remoteWalkContext.RemoteLibraryProviders.Add( remote );
+            //   }
+
+
+            //   retVal = new LockFileBuilder(
+            //      cachedResults[0].LockFile.Version,
+            //      this.NuGetLogger,
+            //      new Dictionary<RestoreTargetGraph, Dictionary<String, LibraryIncludeFlags>>()
+            //      ).CreateLockFile(
+            //         cachedResults[0].LockFile, // Previous lock file
+            //         this.CreatePackageSpec( versionRanges.Select( ( v, idx ) => (packageInfo[idx].PackageID, v) ).ToArray() ), // PackageSpec
+            //         cachedResults.SelectMany( r => r.RestoreGraphs ).ToArray(), // Restore Graphs
+            //         this.LocalRepositories.Values.ToList(), // Local repos
+            //         remoteWalkContext // Remote walk context
+            //         );
+            //}
+            //else
+            //{
+            //   // Need to invoke restore command
+            //   var result = await this.PerformRestore( versionRanges.Select( ( v, idx ) => (packageInfo[idx].PackageID, v) ).ToArray(), token );
+            //   retVal = result.LockFile;
+            //   foreach ( var tuple in packageInfo )
+            //   {
+            //      var packageID = tuple.PackageID;
+            //      var actualVersion = retVal.Libraries.FirstOrDefault( l => String.Equals( l.Name, packageID ) )?.Version;
+            //      if ( actualVersion != null )
+            //      {
+            //         this._allLockFiles
+            //            .GetOrAdd( packageID, p => new ConcurrentDictionary<NuGetVersion, RestoreResult>() )
+            //            .TryAdd( actualVersion, result );
+            //      }
+            //   }
+            //   Interlocked.Exchange( ref this._previousLockFile, retVal );
+            //}
          }
 
          return retVal;
@@ -312,7 +478,7 @@ namespace UtilPack.NuGet
       /// <param name="token">The cancellation token to use when performing restore.</param>
       /// <returns>The <see cref="LockFile"/> generated by <see cref="RestoreCommand"/>.</returns>
       protected virtual async Task<RestoreResult> PerformRestore(
-         (String ID, VersionRange Version)[] targets,
+         ImmutableDictionary<String, VersionRange> targets,
          CancellationToken token
          )
       {
@@ -324,8 +490,7 @@ namespace UtilPack.NuGet
             )
          {
             ProjectStyle = ProjectStyle.Standalone,
-            RestoreOutputPath = this._nugetRestoreRootDir,
-            ExistingLockFile = this._previousLockFile
+            RestoreOutputPath = this._nugetRestoreRootDir
          };
          return await ( new RestoreCommand( request ).ExecuteAsync( token ) );
       }
@@ -335,7 +500,9 @@ namespace UtilPack.NuGet
       /// </summary>
       /// <param name="targets">The package ID + version combinations.</param>
       /// <returns>A new instance of <see cref="PackageSpec"/> having <see cref="PackageSpec.TargetFrameworks"/> and <see cref="PackageSpec.Dependencies"/> populated as needed.</returns>
-      protected PackageSpec CreatePackageSpec( (String ID, VersionRange Version)[] targets )
+      protected PackageSpec CreatePackageSpec(
+         ImmutableDictionary<String, VersionRange> targets
+         )
       {
          var projectName = $"Restoring: {String.Join( ", ", targets )}";
          var spec = new PackageSpec()
@@ -354,17 +521,7 @@ namespace UtilPack.NuGet
          this.PackageSpecCreated?.Invoke( new PackageSpecCreatedArgs( spec ) );
 
          spec.TargetFrameworks.Add( this._restoreTargetFW );
-
-         foreach ( var tuple in targets )
-         {
-            if ( !String.IsNullOrEmpty( tuple.ID ) )
-            {
-               spec.Dependencies.Add( new LibraryDependency()
-               {
-                  LibraryRange = new LibraryRange( tuple.ID, tuple.Version, LibraryDependencyTarget.Package )
-               } );
-            }
-         }
+         spec.Dependencies.AddRange( targets.Select( kvp => new LibraryDependency() { LibraryRange = new LibraryRange( kvp.Key, kvp.Value, LibraryDependencyTarget.Package ) } ) );
          return spec;
       }
 
@@ -667,5 +824,28 @@ public static partial class E_UtilPack
          .FirstOrDefault( fp => !String.IsNullOrEmpty( fp ) && ( onlyOnePackageFolder || Directory.Exists( fp ) ) );
    }
 
+   internal static String OrIfNullOrEmpty( this String str, String nullOrEmptyValue )
+   {
+      return String.IsNullOrEmpty( str ) ? nullOrEmptyValue : str;
+   }
+
+   internal static Boolean IsExact( this VersionRangeBase version )
+   {
+      return version.HasLowerAndUpperBounds
+         && version.IsMinInclusive
+         && version.IsMaxInclusive
+         && version.MinVersion.Equals( version.MaxVersion );
+   }
+
+   //internal static String GetCachedLockFilesDirectory( this BoundRestoreCommandUser restorer, String packageID )
+   //{
+   //   return Path.Combine(
+   //      restorer.DiskCacheDirectory,
+   //      restorer.ThisFramework.Framework.ToString().ToLowerInvariant(),
+   //      restorer.ThisFramework.Version.ToString().ToLowerInvariant(),
+   //      restorer.RuntimeIdentifier.OrIfNullOrEmpty( "unknown-rid" ).ToLowerInvariant(),
+   //      packageID.ToLowerInvariant()
+   //      );
+   //}
 
 }

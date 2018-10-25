@@ -87,6 +87,9 @@ namespace UtilPack.NuGet
    public class BoundRestoreCommandUser : IDisposable
    {
       public const String DEFAULT_RUNTIME_GRAPH_PACKAGE_ID = "Microsoft.NETCore.Platforms";
+      public const String DEFAULT_LOCK_FILE_CACHE_DIR_ENV_NAME = "LOCK_FILE_CACHE_DIR";
+      public const String DEFAULT_LOCK_FILE_CACHE_SUBDIR = ".nuget-lock-files";
+      public static Func<String, String> GetDefaultLockFileDir { get; } = homeDir => Path.Combine( homeDir, DEFAULT_LOCK_FILE_CACHE_SUBDIR );
 
       private static readonly Encoding _DiskCacheEncoding = new UTF8Encoding( false, false );
 
@@ -124,6 +127,8 @@ namespace UtilPack.NuGet
 #endif
          Boolean leaveSourceCacheOpen = false,
          String lockFileCacheDir = null,
+         String lockFileCacheEnvironmentVariableName = DEFAULT_LOCK_FILE_CACHE_DIR_ENV_NAME,
+         Func<String, String> getDefaultLockFileCacheDir = null,
          Boolean disableLockFileCacheDir = false
          )
       {
@@ -189,15 +194,15 @@ namespace UtilPack.NuGet
          if ( !disableLockFileCacheDir )
          {
             this.DiskCacheDirectory = lockFileCacheDir
-               .OrIfNullOrEmpty( Environment.GetEnvironmentVariable( "LOCK_FILE_CACHE_DIR" ) )
-               .OrIfNullOrEmpty( Path.Combine( Environment.GetEnvironmentVariable(
+               .OrIfNullOrEmpty( Environment.GetEnvironmentVariable( lockFileCacheEnvironmentVariableName.OrIfNullOrEmpty( DEFAULT_LOCK_FILE_CACHE_DIR_ENV_NAME ) ) )
+               .OrIfNullOrEmpty( ( getDefaultLockFileCacheDir ?? GetDefaultLockFileDir )( Environment.GetEnvironmentVariable(
 #if NET46
                   Environment.OSVersion.Platform == PlatformID.Win32NT || Environment.OSVersion.Platform == PlatformID.Win32S || Environment.OSVersion.Platform == PlatformID.Win32Windows || Environment.OSVersion.Platform == PlatformID.WinCE
 #else
                   System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform( System.Runtime.InteropServices.OSPlatform.Windows )
 #endif
-                  ? "USERPROFILE" : "HOME"
-                  ).OrIfNullOrEmpty( "/" ), ".nuget-lock-files" ) );
+                  ? "USERPROFILE" : "HOME" ) )
+                  );
          }
 
          // The JObject -> LockFile deserialization is marked private in NuGet, but we certainly don't want to always do string -> jobject -> lockfile way when we can just do jobject -> lockfile...

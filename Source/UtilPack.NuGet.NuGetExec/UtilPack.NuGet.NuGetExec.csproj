@@ -11,7 +11,7 @@
      <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
      <TreatSpecificWarningsAsErrors />
      <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
-     <ToolCommandName>exec-nuget</ToolCommandName>
+     <ToolCommandName>nuget-exec</ToolCommandName>
   </PropertyGroup>
 
   <ItemGroup>

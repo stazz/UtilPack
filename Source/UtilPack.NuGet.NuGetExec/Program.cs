@@ -142,13 +142,16 @@ namespace NuGet.Utilities.Execute
             nugetLogger: new TextWriterLogger( new TextWriterLoggerOptions()
             {
                DebugWriter = null
-            } )
+            } ),
+            lockFileCacheEnvironmentVariableName: "NUGET_EXEC_CACHE_DIR",
+            getDefaultLockFileCacheDir: homeDir => Path.Combine( homeDir, ".nuget-exec-cache" ),
+            disableLockFileCacheDir: programConfig.DisableLockFileCache
             ) )
          {
 
             var thisFramework = restorer.ThisFramework;
-            var sdkPackageID = thisFramework.GetSDKPackageID( programConfig.ProcessSDKFrameworkPackageID ); // Typically "Microsoft.NETCore.App"
-            var sdkPackageVersion = thisFramework.GetSDKPackageVersion( sdkPackageID, programConfig.ProcessSDKFrameworkPackageVersion );
+            var sdkPackageID = thisFramework.GetSDKPackageID( programConfig.SDKFrameworkPackageID ); // Typically "Microsoft.NETCore.App"
+            var sdkPackageVersion = thisFramework.GetSDKPackageVersion( sdkPackageID, programConfig.SDKFrameworkPackageVersion );
 
             using ( var assemblyLoader = NuGetAssemblyResolverFactory.NewNuGetAssemblyResolver(
                restorer,
@@ -171,6 +174,16 @@ namespace NuGet.Utilities.Execute
                if ( entrypointTypeName.IsNullOrEmpty() && entrypointMethodName.IsNullOrEmpty() )
                {
                   suitableMethod = assembly.EntryPoint;
+                  if ( suitableMethod.Name.StartsWith( "<" ) && suitableMethod.Name.EndsWith( ">" ) )
+                  {
+                     // Synthetic Main method which actually wraps the async main method
+                     var actualName = suitableMethod.Name.Substring( 1, suitableMethod.Name.Length - 2 );
+                     var actual = suitableMethod.DeclaringType.GetTypeInfo().DeclaredMethods.FirstOrDefault( m => String.Equals( actualName, m.Name ) );
+                     if ( actual != null )
+                     {
+                        suitableMethod = actual;
+                     }
+                  }
                }
                if ( suitableMethod == null )
                {
@@ -203,32 +216,46 @@ namespace NuGet.Utilities.Execute
                   switch ( invocationResult )
                   {
                      case null:
+                        retVal = 0;
                         break;
-                     //case Int32 i:
-                     //   retVal = i;
-                     //   break;
-                     case Task t:
-                        // This handles both Task and Task<T>
-                        await t;
+                     case Int32 i:
+                        retVal = i;
                         break;
                      case ValueTask v:
                         // This handles ValueTask
                         await v;
+                        retVal = 0;
                         break;
                      default:
+                        // The real return type of e.g. Task<X> is System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1+AsyncStateMachineBox`1[X,SomeDelegateType]
                         var type = invocationResult.GetType().GetTypeInfo();
                         if (
-                           type.IsGenericType
-                           && type.GenericTypeParameters.Length == 1
-                           && Equals( type.GetGenericTypeDefinition(), typeof( ValueTask<> ) )
+                           type
+                              .AsSingleBranchEnumerable( t => t.BaseType?.GetTypeInfo(), includeFirst: true )
+                              .Any( t =>
+                                  t.IsGenericType
+                                  && t.GenericTypeArguments.Length == 1
+                                  && (
+                                     Equals( t.GetGenericTypeDefinition(), typeof( Task<> ) )
+                                     || Equals( t.GetGenericTypeDefinition(), typeof( ValueTask<> ) )
+                                     )
+                               )
+                           && ( (Object) await (dynamic) invocationResult ) is Int32 returnedInt
                            )
                         {
-                           // This handles ValueTask<T>
-                           await (dynamic) invocationResult;
+                           // This handles Task and ValueTask<T>
+                           retVal = returnedInt;
+                        }
+                        else
+                        {
+                           if ( invocationResult is Task voidTask )
+                           {
+                              await voidTask;
+                           }
+                           retVal = 0;
                         }
                         break;
                   }
-                  retVal = 0;
                }
                else
                {
@@ -360,7 +387,7 @@ namespace NuGet.Utilities.Execute
       /// <remarks>
       /// If this property is <c>null</c> or empty string, then <see cref="NuGetDeployment"/> will try to use automatic detection of SDK package ID.
       /// </remarks>
-      public String ProcessSDKFrameworkPackageID { get; set; }
+      public String SDKFrameworkPackageID { get; set; }
 
       /// <summary>
       /// Gets the package version of the SDK of the framework of the NuGet package.
@@ -369,7 +396,9 @@ namespace NuGet.Utilities.Execute
       /// <remarks>
       /// If this property is <c>null</c> or empty string, then <see cref="NuGetDeployment"/> will try to use automatic detection of SDK package version.
       /// </remarks>
-      public String ProcessSDKFrameworkPackageVersion { get; set; }
+      public String SDKFrameworkPackageVersion { get; set; }
+
+      public Boolean DisableLockFileCache { get; set; }
    }
 
    internal class ConfigurationConfiguration

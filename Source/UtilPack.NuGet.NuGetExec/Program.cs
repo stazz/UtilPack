@@ -27,6 +27,13 @@ using System.Threading.Tasks;
 using UtilPack;
 using UtilPack.NuGet;
 using UtilPack.NuGet.AssemblyLoading;
+using UtilPack.NuGet.NuGetExec.Entrypoint;
+
+using TAssemblyByPathResolverCallback = System.Func<System.String, System.Reflection.Assembly>;
+using TAssemblyNameResolverCallback = System.Func<System.Reflection.AssemblyName, System.Reflection.Assembly>;
+using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
+using TNuGetPackagesResolverCallback = System.Func<System.String[], System.String[], System.String[], System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly[]>>;
+
 
 namespace NuGet.Utilities.Execute
 {
@@ -152,6 +159,7 @@ namespace NuGet.Utilities.Execute
             var thisFramework = restorer.ThisFramework;
             var sdkPackageID = thisFramework.GetSDKPackageID( programConfig.SDKFrameworkPackageID ); // Typically "Microsoft.NETCore.App"
             var sdkPackageVersion = thisFramework.GetSDKPackageVersion( sdkPackageID, programConfig.SDKFrameworkPackageVersion );
+            var loadFromParentForCA = NuGetAssemblyResolverFactory.ReturnFromParentAssemblyLoaderForAssemblies( typeof( ConfiguredEntryPointAttribute ) );
 
             using ( var assemblyLoader = NuGetAssemblyResolverFactory.NewNuGetAssemblyResolver(
                restorer,
@@ -161,52 +169,34 @@ namespace NuGet.Utilities.Execute
                   token
                   ),
                out var loadContext,
-               additionalCheckForDefaultLoader: NuGetAssemblyResolverFactory.CheckForNuGetAssemblyLoaderAssemblies
+               additionalCheckForDefaultLoader: an => loadFromParentForCA( an ) // || NuGetAssemblyResolverFactory.CheckForNuGetAssemblyLoaderAssemblies(an)
                ) )
             {
-               var entrypointTypeName = programConfig.EntrypointTypeName;
-               var entrypointMethodName = programConfig.EntrypointMethodName;
                var packageID = programConfig.PackageID;
                var packageVersion = programConfig.PackageVersion;
 
                var assembly = ( await assemblyLoader.LoadNuGetAssembly( packageID, packageVersion, token, programConfig.AssemblyPath ) ) ?? throw new ArgumentException( $"Could not find package \"{packageID}\" at {( packageVersion.IsNullOrEmpty() ? "latest version" : ( "version \"" + packageVersion + "\"" ) )}." );
-               MethodInfo suitableMethod = null;
-               if ( entrypointTypeName.IsNullOrEmpty() && entrypointMethodName.IsNullOrEmpty() )
-               {
-                  suitableMethod = assembly.EntryPoint;
-                  if ( suitableMethod.Name.StartsWith( "<" ) && suitableMethod.Name.EndsWith( ">" ) )
-                  {
-                     // Synthetic Main method which actually wraps the async main method
-                     var actualName = suitableMethod.Name.Substring( 1, suitableMethod.Name.Length - 2 );
-                     var actual = suitableMethod.DeclaringType.GetTypeInfo().DeclaredMethods.FirstOrDefault( m => String.Equals( actualName, m.Name ) );
-                     if ( actual != null )
-                     {
-                        suitableMethod = actual;
-                     }
-                  }
-               }
-               if ( suitableMethod == null )
-               {
-                  suitableMethod = assembly
-                     .GetSuitableTypes( programConfig.EntrypointTypeName )
-                     .Select( t => GetSuitableMethod( t, entrypointMethodName ) )
-                     .Where( m => m != null )
-                     .FirstOrDefault();
-               }
+               var suitableMethod = GetSuitableMethod( programConfig.EntrypointTypeName, programConfig.EntrypointMethodName, assembly );
 
                if ( suitableMethod != null )
                {
+                  var programArgs = isConfigConfig ? ( programConfig?.ProcessArguments ?? Empty<String>.Array ).Concat( args ).ToArray() : args;
+                  var programArgsConfig = new Lazy<IConfigurationRoot>( () => new ConfigurationBuilder().AddCommandLine( programArgs ).Build() );
+                  var ctx = new EntryPointParameterProvidingContext(
+                     programArgs,
+                     token,
+                     assemblyPath => assemblyLoader.LoadOtherAssembly( assemblyPath ),
+                     assemblyName => assemblyLoader.TryResolveFromPreviouslyLoaded( assemblyName ),
+                     ( packageIDParam, packageVersionParam, assemblyPath, tokenParam ) => assemblyLoader.LoadNuGetAssembly( packageIDParam, packageVersionParam, tokenParam, assemblyPath ),
+                     ( packageIDs, packageVersions, assemblyPaths, tokenParam ) => assemblyLoader.LoadNuGetAssemblies( packageIDs, packageVersions, assemblyPaths, tokenParam )
+                     );
                   Object invocationResult;
                   try
                   {
                      invocationResult = suitableMethod.Invoke(
-                     null,
-                     new Object[] {
-                        isConfigConfig ?
-                           ( programConfig?.ProcessArguments ?? Empty<String>.Array ).Concat( args ).ToArray() :
-                           args
-                        }
-                     );
+                        null,
+                        suitableMethod.GetParameters().Select( p => ctx.ProvideEntryPointParameter( p.ParameterType, programArgsConfig ) ).ToArray()
+                        );
                   }
                   catch ( TargetInvocationException tie )
                   {
@@ -243,13 +233,14 @@ namespace NuGet.Utilities.Execute
                            && ( (Object) await (dynamic) invocationResult ) is Int32 returnedInt
                            )
                         {
-                           // This handles Task and ValueTask<T>
+                           // This handles Task<T> and ValueTask<T>
                            retVal = returnedInt;
                         }
                         else
                         {
                            if ( invocationResult is Task voidTask )
                            {
+                              // This handles Task
                               await voidTask;
                            }
                            retVal = 0;
@@ -267,47 +258,109 @@ namespace NuGet.Utilities.Execute
          return retVal;
       }
 
-      internal static IEnumerable<TypeInfo> GetSuitableTypes(
-         this Assembly assembly,
-         String entrypointTypeName
+      private static MethodInfo GetSuitableMethod(
+         String entrypointTypeName,
+         String entrypointMethodName,
+         Assembly assembly
          )
       {
-         IEnumerable<Type> suitableTypes;
-
-         if ( entrypointTypeName.IsNullOrEmpty() )
+         MethodInfo suitableMethod = null;
+         ConfiguredEntryPointAttribute configuredEP = null;
+         if ( entrypointTypeName.IsNullOrEmpty() && entrypointMethodName.IsNullOrEmpty() )
          {
-            suitableTypes = assembly.GetTypes();
-         }
-         else
-         {
-            suitableTypes = assembly.GetType( entrypointTypeName, true, false ).Singleton();
+            suitableMethod = assembly.EntryPoint;
+            if ( suitableMethod == null )
+            {
+               configuredEP = assembly.GetCustomAttribute<ConfiguredEntryPointAttribute>();
+            }
+            else if ( suitableMethod.Name.StartsWith( "<" ) && suitableMethod.Name.EndsWith( ">" ) )
+            {
+               // Synthetic Main method which actually wraps the async main method
+               var actualName = suitableMethod.Name.Substring( 1, suitableMethod.Name.Length - 2 );
+               var actual = suitableMethod.DeclaringType.GetTypeInfo().DeclaredMethods.FirstOrDefault( m => String.Equals( actualName, m.Name ) );
+               if ( actual != null )
+               {
+                  suitableMethod = actual;
+               }
+            }
          }
 
-         return suitableTypes
-            .Select( t => t.GetTypeInfo() )
-            .Where( t => t.DeclaredMethods.Any( m => m.IsStatic ) );
+
+         if ( suitableMethod == null && configuredEP == null )
+         {
+            suitableMethod = SearchSuitableMethod( assembly, entrypointTypeName, entrypointMethodName );
+         }
+
+         if ( suitableMethod != null )
+         {
+            configuredEP = suitableMethod.GetCustomAttribute<ConfiguredEntryPointAttribute>();
+         }
+
+         if ( configuredEP != null )
+         {
+            // Post process for customized config
+            var suitableType = configuredEP.EntryPointType ?? suitableMethod?.DeclaringType;
+            var suitableName = configuredEP.EntryPointMethodName ?? suitableMethod?.Name;
+            var newSuitableMethod = suitableType?.GetTypeInfo().DeclaredMethods.FirstOrDefault( m => String.Equals( m.Name, suitableName ) && !Equals( m, suitableMethod ) );
+            if ( newSuitableMethod != null )
+            {
+               suitableMethod = newSuitableMethod;
+            }
+         }
+
+
+         return suitableMethod;
       }
 
-      private static MethodInfo GetSuitableMethod(
-         TypeInfo type,
+      private static MethodInfo SearchSuitableMethod(
+         Assembly assembly,
+         String entrypointTypeName,
          String entrypointMethodName
          )
       {
-         IEnumerable<MethodInfo> suitableMethods;
-
-         if ( entrypointMethodName.IsNullOrEmpty() )
+         IEnumerable<TypeInfo> GetSuitableTypes()
          {
-            suitableMethods = type.GetDeclaredMethod( entrypointMethodName ).Singleton();
-         }
-         else
-         {
-            var props = type.DeclaredProperties.SelectMany( GetPropertyMethods ).ToHashSet();
-            suitableMethods = type.DeclaredMethods.OrderBy( m => props.Contains( m ) ); // This will order in such way that false (not related to property) comes first
+            IEnumerable<Type> suitableTypes;
+
+            if ( entrypointTypeName.IsNullOrEmpty() )
+            {
+               suitableTypes = assembly.GetTypes();
+            }
+            else
+            {
+               suitableTypes = assembly.GetType( entrypointTypeName, true, false ).Singleton();
+            }
+
+            return suitableTypes
+               .Select( t => t.GetTypeInfo() )
+               .Where( t => t.DeclaredMethods.Any( m => m.IsStatic ) );
          }
 
-         return suitableMethods
-            .Where( m => m.IsStatic && m.IsPublic && HasSuitableSignature( m ) )
-            .FirstOrDefault();
+         MethodInfo GetSuitableMethod(
+            TypeInfo type
+            )
+         {
+            IEnumerable<MethodInfo> suitableMethods;
+
+            if ( entrypointMethodName.IsNullOrEmpty() )
+            {
+               suitableMethods = type.GetDeclaredMethod( entrypointMethodName ).Singleton();
+            }
+            else
+            {
+               var props = type.DeclaredProperties.SelectMany( GetPropertyMethods ).ToHashSet();
+               suitableMethods = type.DeclaredMethods.OrderBy( m => props.Contains( m ) ); // This will order in such way that false (not related to property) comes first
+            }
+
+            return suitableMethods
+               .Where( m => m.IsStatic && m.IsPublic && HasSuitableSignature( m ) )
+               .FirstOrDefault();
+         }
+
+         return GetSuitableTypes()
+               .Select( t => GetSuitableMethod( t ) )
+               .Where( m => m != null )
+               .FirstOrDefault();
       }
 
       private static IEnumerable<MethodInfo> GetPropertyMethods(
@@ -336,6 +389,53 @@ namespace NuGet.Utilities.Execute
          return parameters.Length == 1
             && parameters[0].ParameterType.IsSZArray
             && Equals( parameters[0].ParameterType.GetElementType(), typeof( String ) );
+      }
+
+      private struct EntryPointParameterProvidingContext
+      {
+         private static readonly Dictionary<Type, Func<EntryPointParameterProvidingContext, Object>> EntryPointParameterChoosers = new Dictionary<Type, Func<EntryPointParameterProvidingContext, Object>>()
+         {
+            { typeof(String[]), ctx => ctx.ProgramArgs },
+            { typeof(CancellationToken), ctx => ctx.CancellationToken },
+            { typeof(TAssemblyByPathResolverCallback), ctx => ctx.AssemblyByPathResolverCallback },
+            { typeof(TAssemblyNameResolverCallback), ctx => ctx.AssemblyNameResolverCallback },
+            { typeof(TNuGetPackageResolverCallback), ctx => ctx.NuGetPackageResolverCallback },
+            { typeof(TNuGetPackagesResolverCallback), ctx => ctx.NuGetPackagesResolverCallback }
+         };
+
+         public EntryPointParameterProvidingContext(
+            String[] programArgs,
+            CancellationToken token,
+            TAssemblyByPathResolverCallback assemblyByPathResolverCallback,
+            TAssemblyNameResolverCallback assemblyNameResolverCallback,
+            TNuGetPackageResolverCallback nuGetPackageResolverCallback,
+            TNuGetPackagesResolverCallback nuGetPackagesResolverCallback
+            )
+         {
+            this.ProgramArgs = programArgs;
+            this.CancellationToken = token;
+            this.AssemblyByPathResolverCallback = assemblyByPathResolverCallback;
+            this.AssemblyNameResolverCallback = assemblyNameResolverCallback;
+            this.NuGetPackageResolverCallback = nuGetPackageResolverCallback;
+            this.NuGetPackagesResolverCallback = nuGetPackagesResolverCallback;
+         }
+
+         public String[] ProgramArgs { get; }
+         public CancellationToken CancellationToken { get; }
+         public TAssemblyByPathResolverCallback AssemblyByPathResolverCallback { get; }
+         public TAssemblyNameResolverCallback AssemblyNameResolverCallback { get; }
+         public TNuGetPackageResolverCallback NuGetPackageResolverCallback { get; }
+         public TNuGetPackagesResolverCallback NuGetPackagesResolverCallback { get; }
+
+         public Object ProvideEntryPointParameter(
+            Type parameterType,
+            Lazy<IConfigurationRoot> programArgsConfig
+            )
+         {
+            return EntryPointParameterChoosers.TryGetValue( parameterType, out var ctxCreator ) ?
+               ctxCreator( this ) :
+               programArgsConfig.Value.Get( parameterType );
+         }
       }
    }
 

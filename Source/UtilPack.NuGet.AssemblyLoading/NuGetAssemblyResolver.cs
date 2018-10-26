@@ -280,7 +280,7 @@ namespace UtilPack.NuGet.AssemblyLoading
    public static class NuGetAssemblyResolverFactory
    {
 #if !NET45 && !NET46
-      private static readonly ISet<AssemblyName> ThisAssembles = new HashSet<AssemblyName>(
+      private static readonly ISet<AssemblyName> ThisAssemblies = new HashSet<AssemblyName>(
          new List<Type>()
          {
             typeof(NuGetAssemblyResolverFactory),
@@ -303,7 +303,15 @@ namespace UtilPack.NuGet.AssemblyLoading
          NuGetAssemblyResolverImpl.NuGetAssemblyLoadContext.AssemblyNameEqualityComparer
          );
 
-      public static Func<AssemblyName, Boolean> CheckForNuGetAssemblyLoaderAssemblies { get; } = ThisAssembles.Contains;
+      public static Func<AssemblyName, Boolean> CheckForNuGetAssemblyLoaderAssemblies { get; } = ThisAssemblies.Contains;
+
+      public static Func<AssemblyName, Boolean> ReturnFromParentAssemblyLoaderForAssemblies( params Type[] types )
+      {
+         return new HashSet<AssemblyName>(
+            types.Select( t => t.GetTypeInfo().Assembly.GetName() ),
+            NuGetAssemblyResolverImpl.NuGetAssemblyLoadContext.AssemblyNameEqualityComparer
+         ).Contains;
+      }
 
 #endif
 

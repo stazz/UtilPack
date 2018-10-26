@@ -20,7 +20,16 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using UtilPack;
 using UtilPack.ResourcePooling;
+
+using TTypeInfo = System.
+#if NET40
+   Type
+#else
+   Reflection.TypeInfo
+#endif
+   ;
 
 namespace UtilPack.ResourcePooling
 {
@@ -138,7 +147,7 @@ public static partial class E_UtilPack
 #else
                            DefinedTypes
 #endif
-                           .FirstOrDefault( t => !t.IsInterface && !t.IsAbstract && t.IsPublic && parentType.IsAssignableFrom( t ) )
+                           .FirstOrDefault( t => !t.IsInterface && !t.IsAbstract && t.IsPublic && parentType.IsAssignableFromIgnoreAssemblyVersion( t ) )
 #if !NET40
                            ?.AsType()
 #endif
@@ -147,7 +156,7 @@ public static partial class E_UtilPack
 
                   if ( providerType != null )
                   {
-                     if ( !checkParentType || parentType.IsAssignableFrom( providerType.GetTypeInfo() ) )
+                     if ( !checkParentType || parentType.IsAssignableFromIgnoreAssemblyVersion( providerType.GetTypeInfo() ) )
                      {
                         // All checks passed, instantiate the pool provider
                         retVal = (AsyncResourceFactoryProvider) Activator.CreateInstance( providerType );
@@ -183,6 +192,23 @@ public static partial class E_UtilPack
       }
 
       return (retVal, errorMessage);
+   }
+
+   private static Boolean IsAssignableFromIgnoreAssemblyVersion( this TTypeInfo parentType, TTypeInfo childType )
+   {
+      return parentType.IsAssignableFrom( childType ) || childType.AsDepthFirstEnumerable( t => t.BaseType?.GetTypeInfo().Singleton().Concat( t.
+#if NET40
+         GetInterfaces()
+#else
+         ImplementedInterfaces
+#endif
+         .Select( i => i.GetTypeInfo() )
+            ) ).Any( t =>
+            String.Equals( t.Namespace, parentType.Namespace )
+            && String.Equals( t.Name, parentType.Name )
+            && String.Equals( t.Assembly.GetName().Name, parentType.Assembly.GetName().Name )
+            && ArrayEqualityComparer<Byte>.ArrayEquality( parentType.Assembly.GetName().GetPublicKeyToken(), t.Assembly.GetName().GetPublicKeyToken() )
+            );
    }
 
    //private static Object ProvideResourcePoolCreationParameters(

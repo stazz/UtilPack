@@ -265,7 +265,8 @@ namespace UtilPack.NuGet
          params (String PackageID, String PackageVersion)[] packageInfo
          )
       {
-
+         // There are paths when we never do anything async so we should check here explicitly for cancellation.
+         token.ThrowIfCancellationRequested();
          LockFile retVal = null;
          if ( !packageInfo.IsNullOrEmpty() )
          {

@@ -1,5 +1,5 @@
 ﻿/*
- * Copyright 2017 Stanislav Muhametsin. All rights Reserved.
+ * Copyright 2018 Stanislav Muhametsin. All rights Reserved.
  *
  * Licensed  under the  Apache License,  Version 2.0  (the "License");
  * you may not use  this file  except in  compliance with the License.
@@ -17,6 +17,7 @@
  */
 using Microsoft.Extensions.Configuration;
 using NuGet.Frameworks;
+using NuGet.Utils.Exec.Entrypoint;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -27,7 +28,6 @@ using System.Threading.Tasks;
 using UtilPack;
 using UtilPack.NuGet;
 using UtilPack.NuGet.AssemblyLoading;
-using UtilPack.NuGet.NuGetExec.Entrypoint;
 
 using TAssemblyByPathResolverCallback = System.Func<System.String, System.Reflection.Assembly>;
 using TAssemblyNameResolverCallback = System.Func<System.Reflection.AssemblyName, System.Reflection.Assembly>;
@@ -35,7 +35,7 @@ using TNuGetPackageResolverCallback = System.Func<System.String, System.String, 
 using TNuGetPackagesResolverCallback = System.Func<System.String[], System.String[], System.String[], System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly[]>>;
 
 
-namespace NuGet.Utilities.Execute
+namespace NuGet.Utils.Exec
 {
    static class Program
    {
@@ -273,9 +273,9 @@ namespace NuGet.Utilities.Execute
             {
                configuredEP = assembly.GetCustomAttribute<ConfiguredEntryPointAttribute>();
             }
-            else if ( suitableMethod.Name.StartsWith( "<" ) && suitableMethod.Name.EndsWith( ">" ) )
+            else if ( suitableMethod.IsSpecialName )
             {
-               // Synthetic Main method which actually wraps the async main method
+               // Synthetic Main method which actually wraps the async main method (e.g. "<Main>" -> "Main")
                var actualName = suitableMethod.Name.Substring( 1, suitableMethod.Name.Length - 2 );
                var actual = suitableMethod.DeclaringType.GetTypeInfo().DeclaredMethods.FirstOrDefault( m => String.Equals( actualName, m.Name ) );
                if ( actual != null )
@@ -300,11 +300,24 @@ namespace NuGet.Utilities.Execute
          {
             // Post process for customized config
             var suitableType = configuredEP.EntryPointType ?? suitableMethod?.DeclaringType;
-            var suitableName = configuredEP.EntryPointMethodName ?? suitableMethod?.Name;
-            var newSuitableMethod = suitableType?.GetTypeInfo().DeclaredMethods.FirstOrDefault( m => String.Equals( m.Name, suitableName ) && !Equals( m, suitableMethod ) );
-            if ( newSuitableMethod != null )
+            if ( suitableType != null )
             {
-               suitableMethod = newSuitableMethod;
+               var suitableName = configuredEP.EntryPointMethodName ?? suitableMethod?.Name;
+               if ( String.IsNullOrEmpty( suitableName ) )
+               {
+                  if ( suitableMethod == null )
+                  {
+                     suitableMethod = SearchSuitableMethod( entrypointMethodName, suitableType.GetTypeInfo() );
+                  }
+               }
+               else
+               {
+                  var newSuitableMethod = suitableType.GetTypeInfo().DeclaredMethods.FirstOrDefault( m => String.Equals( m.Name, suitableName ) && !Equals( m, suitableMethod ) );
+                  if ( newSuitableMethod != null )
+                  {
+                     suitableMethod = newSuitableMethod;
+                  }
+               }
             }
          }
 
@@ -318,49 +331,33 @@ namespace NuGet.Utilities.Execute
          String entrypointMethodName
          )
       {
-         IEnumerable<TypeInfo> GetSuitableTypes()
+         return ( entrypointTypeName.IsNullOrEmpty() ? assembly.GetTypes() : assembly.GetType( entrypointTypeName, true, false ).Singleton() )
+            .Select( t => t.GetTypeInfo() )
+            .Where( t => t.DeclaredMethods.Any( m => m.IsStatic ) )
+            .Select( t => SearchSuitableMethod( entrypointMethodName, t ) )
+            .Where( m => m != null )
+            .FirstOrDefault();
+      }
+
+      private static MethodInfo SearchSuitableMethod(
+         String entrypointMethodName,
+         TypeInfo type
+         )
+      {
+         IEnumerable<MethodInfo> suitableMethods;
+         if ( entrypointMethodName.IsNullOrEmpty() )
          {
-            IEnumerable<Type> suitableTypes;
-
-            if ( entrypointTypeName.IsNullOrEmpty() )
-            {
-               suitableTypes = assembly.GetTypes();
-            }
-            else
-            {
-               suitableTypes = assembly.GetType( entrypointTypeName, true, false ).Singleton();
-            }
-
-            return suitableTypes
-               .Select( t => t.GetTypeInfo() )
-               .Where( t => t.DeclaredMethods.Any( m => m.IsStatic ) );
+            var props = type.DeclaredProperties.SelectMany( GetPropertyMethods ).ToHashSet();
+            suitableMethods = type.DeclaredMethods.OrderBy( m => props.Contains( m ) ); // This will order in such way that false (not related to property) comes first
+         }
+         else
+         {
+            suitableMethods = type.GetDeclaredMethod( entrypointMethodName ).Singleton();
          }
 
-         MethodInfo GetSuitableMethod(
-            TypeInfo type
-            )
-         {
-            IEnumerable<MethodInfo> suitableMethods;
-
-            if ( entrypointMethodName.IsNullOrEmpty() )
-            {
-               suitableMethods = type.GetDeclaredMethod( entrypointMethodName ).Singleton();
-            }
-            else
-            {
-               var props = type.DeclaredProperties.SelectMany( GetPropertyMethods ).ToHashSet();
-               suitableMethods = type.DeclaredMethods.OrderBy( m => props.Contains( m ) ); // This will order in such way that false (not related to property) comes first
-            }
-
-            return suitableMethods
-               .Where( m => m.IsStatic && m.IsPublic && HasSuitableSignature( m ) )
-               .FirstOrDefault();
-         }
-
-         return GetSuitableTypes()
-               .Select( t => GetSuitableMethod( t ) )
-               .Where( m => m != null )
-               .FirstOrDefault();
+         return suitableMethods
+            .Where( m => m.IsStatic && m.IsPublic && HasSuitableSignature( m ) )
+            .FirstOrDefault();
       }
 
       private static IEnumerable<MethodInfo> GetPropertyMethods(

@@ -29,19 +29,19 @@
   <PropertyGroup>
      <VersionPrefix>1.0.0</VersionPrefix>
      <VersionSuffix></VersionSuffix>
-     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
+     <AssemblyTitle>NuGet.Utils.Exec</AssemblyTitle>
      <Description>This package will restore the given NuGet package and then execute a method within the restored DLLs.</Description>
   </PropertyGroup>
 
   <!-- NuGet package stuff -->
   <PropertyGroup>
-     <PackageId>NuGetUtils.Exec</PackageId>
+     <PackageId>NuGet.Utils.Exec</PackageId>
      <PackageVersion>$(VersionPrefix)</PackageVersion>
      <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
      <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
      <PackageTags>nuget package execute assembly load managed</PackageTags>
      <Title>NuGet Package Executor</Title>
-     <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
+     <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(MSBuildProjectName)</PackageProjectUrl>
   </PropertyGroup>
 
 </Project>

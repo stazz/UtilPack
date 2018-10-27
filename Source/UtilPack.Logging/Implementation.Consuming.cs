@@ -124,6 +124,7 @@ namespace UtilPack.Logging.Consume
       /// <inheritdoc />
       public Task ConsumeLogEventAsync( LogEvent<TMetaData> args )
       {
+         // TODO flushing.
          return this._logAction( args );
       }
 

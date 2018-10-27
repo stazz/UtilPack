@@ -239,6 +239,7 @@ namespace UtilPack.NuGet
       /// </summary>
       /// <param name="givenInformation">Optional framework information passed from "outside world", e.g. configuration.</param>
       /// <returns>The deduced <see cref="NuGetFramework"/>, or <see cref="NuGetFramework.AnyFramework"/> if automatic deduce failed.</returns>
+      /// <remarks>This method never returns <c>null</c>.</remarks>
       public static NuGetFramework TryAutoDetectThisProcessFramework(
          (String FrameworkName, String FrameworkVersion)? givenInformation = null
          )

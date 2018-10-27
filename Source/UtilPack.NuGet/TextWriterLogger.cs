@@ -56,7 +56,6 @@ namespace UtilPack.NuGet
                await writer.WriteLineAsync( message.Message );
             }
          }
-
       }
 
       private TextWriter GetWriter( global::NuGet.Common.ILogMessage msg )

@@ -57,7 +57,7 @@ namespace UtilPack.Logging
 
          /// <summary>
          /// Registers the given <see cref="LogConsumer{TMetaData}"/> instances to this <see cref="LogRegistration{TMetaData}"/>.
-         /// This affects how <see cref="DynamicLogger"/> behaves and the return value of <see cref="CreateHandlerFromCurrentRegistrations"/>.
+         /// This affects how <see cref="DynamicLogger"/> behaves and the return value of <see cref="CreatePublisherFromCurrentRegistrations"/>.
          /// </summary>
          /// <param name="consumers">The <see cref="LogConsumer{TMetaData}"/> instances to register. Can be <c>null</c> or empty, and can contain <c>null</c> elements.</param>
          public void RegisterLoggers( IEnumerable<LogConsumer<TMetaData>> consumers )
@@ -82,7 +82,7 @@ namespace UtilPack.Logging
          /// Subsequent modifications via <see cref="RegisterLoggers"/> method will not affect the <see cref="LogPublisher{TMetaData}"/> returned by this method.
          /// </summary>
          /// <returns>An instance of <see cref="LogPublisher{TMetaData}"/> that will use current registrations, but not subsequent ones.</returns>
-         public LogPublisher<TMetaData> CreateHandlerFromCurrentRegistrations()
+         public LogPublisher<TMetaData> CreatePublisherFromCurrentRegistrations()
          {
             var handlers = this.LogEvent?.GetInvocationList();
             var len = handlers?.Length ?? 0;

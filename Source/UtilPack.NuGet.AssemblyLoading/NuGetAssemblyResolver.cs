@@ -47,6 +47,7 @@ namespace UtilPack.NuGet.AssemblyLoading
       /// <param name="packageIDs">The IDs of the packages to restore and load assembly from.</param>
       /// <param name="packageVersions">The versions of the packages to restore and load assembly from.</param>
       /// <param name="assemblyPaths">The assembly paths within the package to load.</param>
+      /// <param name="token">The <see cref="CancellationToken"/> to use.</param>
       /// <returns>Task which on completion has array of loaded <see cref="Assembly"/> objects for each given package ID in <paramref name="packageIDs"/>.</returns>
       /// <remarks>
       /// All arrays <paramref name="packageIDs"/>, <paramref name="packageVersions"/>, and <paramref name="assemblyPaths"/> must have matching length.
@@ -280,35 +281,46 @@ namespace UtilPack.NuGet.AssemblyLoading
    public static class NuGetAssemblyResolverFactory
    {
 #if !NET45 && !NET46
-      private static readonly ISet<AssemblyName> ThisAssemblies = new HashSet<AssemblyName>(
-         new List<Type>()
-         {
-            typeof(NuGetAssemblyResolverFactory),
-            typeof(BoundRestoreCommandUser),
-            typeof(ArgumentValidator),
-            typeof(global::NuGet.Commands.RestoreCommand),
-            typeof(global::NuGet.Common.ILogger),
-            typeof(global::NuGet.Configuration.ISettings),
-            typeof(global::NuGet.Credentials.ICredentialProvider),
-            typeof(global::NuGet.DependencyResolver.IDependencyProvider),
-            typeof(global::NuGet.Frameworks.FrameworkConstants),
-            typeof(global::NuGet.LibraryModel.Library),
-            typeof(global::NuGet.Packaging.Core.INuspecCoreReader),
-            typeof(global::NuGet.Packaging.INuspecReader),
-            typeof(global::NuGet.ProjectModel.LockFile),
-            typeof(global::NuGet.Protocol.CachingSourceProvider),
-            typeof(global::NuGet.Versioning.VersionRange),
-            typeof(Newtonsoft.Json.Linq.JObject)
-         }.Select( t => t.GetTypeInfo().Assembly.GetName() ),
-         NuGetAssemblyResolverImpl.NuGetAssemblyLoadContext.AssemblyNameEqualityComparer
-         );
+      //public static Func<AssemblyName, Boolean> CheckForNuGetAssemblyLoaderAssemblies { get; } = ReturnFromParentAssemblyLoaderForAssemblies(
+      //   typeof( NuGetAssemblyResolverFactory ),
+      //   typeof( BoundRestoreCommandUser ),
+      //   typeof( ArgumentValidator ),
+      //   typeof( global::NuGet.Commands.RestoreCommand ),
+      //   typeof( global::NuGet.Common.ILogger ),
+      //   typeof( global::NuGet.Configuration.ISettings ),
+      //   typeof( global::NuGet.Credentials.ICredentialProvider ),
+      //   typeof( global::NuGet.DependencyResolver.IDependencyProvider ),
+      //   typeof( global::NuGet.Frameworks.FrameworkConstants ),
+      //   typeof( global::NuGet.LibraryModel.Library ),
+      //   typeof( global::NuGet.Packaging.Core.INuspecCoreReader ),
+      //   typeof( global::NuGet.Packaging.INuspecReader ),
+      //   typeof( global::NuGet.ProjectModel.LockFile ),
+      //   typeof( global::NuGet.Protocol.CachingSourceProvider ),
+      //   typeof( global::NuGet.Versioning.VersionRange ),
+      //   typeof( Newtonsoft.Json.Linq.JObject )
+      //   );
 
-      public static Func<AssemblyName, Boolean> CheckForNuGetAssemblyLoaderAssemblies { get; } = ThisAssemblies.Contains;
+      /// <summary>
+      /// Creates a callback which checks whether the assembly name matches exactly any of the assemblies of the given <paramref name="types"/> and returns <c>true</c> if it does. Otherwise, returns <c>false</c>.
+      /// </summary>
+      /// <param name="types">The types of the assemblies that should match.</param>
+      /// <returns>A callback which matches <see cref="AssemblyName"/> to assemblies of the given types.</returns>
+      /// <remarks>The returned callback can be used as <c>additionalCheckForDefaultLoader</c> parameter of <see cref="NewNuGetAssemblyResolver"/> factory method.</remarks>
+      public static Func<AssemblyName, Boolean> ReturnFromParentAssemblyLoaderForAssemblies( IEnumerable<Type> types )
+      {
+         return ReturnFromParentAssemblyLoaderForAssemblies( types.Select( t => t.GetTypeInfo().Assembly ) );
+      }
 
-      public static Func<AssemblyName, Boolean> ReturnFromParentAssemblyLoaderForAssemblies( params Type[] types )
+      /// <summary>
+      /// Creates a callback which checks whether the assembly name matches exactly any of the given <paramref name="assemblies"/> and returns <c>true</c> if it does. Otherwise, returns <c>false</c>.
+      /// </summary>
+      /// <param name="assemblies">The assemblies that should match.</param>
+      /// <returns>A callback which matches <see cref="AssemblyName"/> to given assemblies.</returns>
+      /// <remarks>The returned callback can be used as <c>additionalCheckForDefaultLoader</c> parameter of <see cref="NewNuGetAssemblyResolver"/> factory method.</remarks>
+      public static Func<AssemblyName, Boolean> ReturnFromParentAssemblyLoaderForAssemblies( IEnumerable<Assembly> assemblies )
       {
          return new HashSet<AssemblyName>(
-            types.Select( t => t.GetTypeInfo().Assembly.GetName() ),
+            assemblies.Select( a => a.GetName() ),
             NuGetAssemblyResolverImpl.NuGetAssemblyLoadContext.AssemblyNameEqualityComparer
          ).Contains;
       }
@@ -473,22 +485,19 @@ namespace UtilPack.NuGet.AssemblyLoading
 
 #endif
 
-      //public static NuGetAssemblyResolver GetCallingAssemblyResolver()
-      //{
-      //   Assembly.
-      //}
-
-      public static NuGetAssemblyResolver GetAssemblyResolver( Assembly assembly )
-      {
-         return
-#if NET46
-         Array.IndexOf( AppDomain.CurrentDomain.GetAssemblies(), assembly ) >= 0 ?
-            NuGetAssemblyResolverImpl.ThisDomainResolver :
-            null;
-#else
-         ( System.Runtime.Loader.AssemblyLoadContext.GetLoadContext( assembly ) as NuGetAssemblyResolverImpl.NuGetAssemblyLoadContext )?.Resolver;
-#endif
-      }
+      // TODO I am not sure of this. In order to be able to actually use it, the called of NewNuGetAssemblyResolver would need to either lock down the version of the NuGetAssemblyResolver throughout the process, or somehow very dynamically detect whether it is needed to lock down the version.
+      // In either case, nuget-exec tool uses the Func<X,Y,Z> delegates to pass down functionality of NuGetAssemblyResolver to loaded packages, so this is currently not truly needed.
+      //      public static NuGetAssemblyResolver GetAssemblyResolver( Assembly assembly )
+      //      {
+      //         return
+      //#if NET46
+      //         Array.IndexOf( AppDomain.CurrentDomain.GetAssemblies(), assembly ) >= 0 ?
+      //            NuGetAssemblyResolverImpl.ThisDomainResolver :
+      //            null;
+      //#else
+      //         ( System.Runtime.Loader.AssemblyLoadContext.GetLoadContext( assembly ) as NuGetAssemblyResolverImpl.NuGetAssemblyLoadContext )?.Resolver;
+      //#endif
+      //      }
    }
 
 #if !NET45 && !NET46
@@ -1333,6 +1342,7 @@ public static partial class E_UtilPack
    /// <param name="resolver">This <see cref="NuGetAssemblyResolver"/>.</param>
    /// <param name="packageID">The ID of the package from which to load assembly from.</param>
    /// <param name="packageVersion">The optional version of the package from thich to load assembly from.</param>
+   /// <param name="token">The <see cref="CancellationToken"/> to use.</param>
    /// <param name="assemblyPath">The optional assembly path within the package.</param>
    /// <returns>Task which will have loaded <see cref="System.Reflection.Assembly"/> object or <c>null</c> on completion.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="NuGetAssemblyResolver"/> is <c>null</c>.</exception>
@@ -1353,6 +1363,7 @@ public static partial class E_UtilPack
    /// Conveience method to load multiple assembleis from multiple NuGet packages, and specifying parameters using value tuples.
    /// </summary>
    /// <param name="resolver">This <see cref="NuGetAssemblyResolver"/>.</param>
+   /// <param name="token">The <see cref="CancellationToken"/> to use.</param>
    /// <param name="packageInfo">The information about packages as value tuple.</param>
    /// <returns>Task which on completion has array of loaded <see cref="Assembly"/> objects for each given package ID in <paramref name="packageInfo"/>.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="NuGetAssemblyResolver"/> is <c>null</c>.</exception>

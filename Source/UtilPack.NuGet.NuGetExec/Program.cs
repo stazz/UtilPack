@@ -16,6 +16,7 @@
  * limitations under the License. 
  */
 using Microsoft.Extensions.Configuration;
+using NuGet.Common;
 using NuGet.Frameworks;
 using NuGet.Utils.Exec.Entrypoint;
 using System;
@@ -39,7 +40,7 @@ namespace NuGet.Utils.Exec
 {
    static class Program
    {
-      private const String DEFAULT_TOOL_PATH = "dotnet";
+      internal const String LOCK_FILE_CACHE_DIR_ENV_NAME = "NUGET_EXEC_CACHE_DIR";
 
       // /PackageID=X [/PackageVersion /AssemblyPath /EntrypointTypeName /EntrypointMethodName /RestoreFramework /ProcessSDKFrameworkPackageID /ProcessSDKFrameworkPackageVersion] [-- arg1 arg2 arg3]
       // OR
@@ -95,7 +96,6 @@ namespace NuGet.Utils.Exec
          catch ( Exception exc )
          {
             Console.Error.WriteLine( $"Error with reading configuration, please check your command line parameters! ({exc.Message})" );
-            Console.Error.WriteLine( exc );
          }
 
          if ( !programConfig?.PackageID?.IsNullOrEmpty() ?? false )
@@ -140,17 +140,20 @@ namespace NuGet.Utils.Exec
       {
          Int32 retVal;
          var targetFWString = programConfig.RestoreFramework;
+         var logLevel = programConfig.LogLevel;
+
          using ( var restorer = new BoundRestoreCommandUser(
             UtilPackNuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
                   Path.GetDirectoryName( new Uri( typeof( Program ).GetTypeInfo().Assembly.CodeBase ).LocalPath ),
                   programConfig.NuGetConfigurationFile
                ),
             thisFramework: String.IsNullOrEmpty( targetFWString ) ? null : NuGetFramework.Parse( targetFWString ),
-            nugetLogger: new TextWriterLogger( new TextWriterLoggerOptions()
+            nugetLogger: programConfig.DisableLogging ? null : new TextWriterLogger()
             {
-               DebugWriter = null
-            } ),
-            lockFileCacheEnvironmentVariableName: "NUGET_EXEC_CACHE_DIR",
+               VerbosityLevel = programConfig.LogLevel
+            },
+            lockFileCacheDir: programConfig.LockFileCacheDirectory,
+            lockFileCacheEnvironmentVariableName: LOCK_FILE_CACHE_DIR_ENV_NAME,
             getDefaultLockFileCacheDir: homeDir => Path.Combine( homeDir, ".nuget-exec-cache" ),
             disableLockFileCacheDir: programConfig.DisableLockFileCache
             ) )
@@ -159,7 +162,7 @@ namespace NuGet.Utils.Exec
             var thisFramework = restorer.ThisFramework;
             var sdkPackageID = thisFramework.GetSDKPackageID( programConfig.SDKFrameworkPackageID ); // Typically "Microsoft.NETCore.App"
             var sdkPackageVersion = thisFramework.GetSDKPackageVersion( sdkPackageID, programConfig.SDKFrameworkPackageVersion );
-            var loadFromParentForCA = NuGetAssemblyResolverFactory.ReturnFromParentAssemblyLoaderForAssemblies( typeof( ConfiguredEntryPointAttribute ) );
+            var loadFromParentForCA = NuGetAssemblyResolverFactory.ReturnFromParentAssemblyLoaderForAssemblies( new[] { typeof( ConfiguredEntryPointAttribute ) } );
 
             using ( var assemblyLoader = NuGetAssemblyResolverFactory.NewNuGetAssemblyResolver(
                restorer,
@@ -477,12 +480,14 @@ namespace NuGet.Utils.Exec
       /// <value>The framework to use when performing the restore for the target package.</value>
       public String RestoreFramework { get; set; }
 
+      public String LockFileCacheDirectory { get; set; }
+
       /// <summary>
       /// Gets the package ID of the SDK of the framework of the NuGet package.
       /// </summary>
       /// <value>The package ID of the SDK of the framework of the NuGet package.</value>
       /// <remarks>
-      /// If this property is <c>null</c> or empty string, then <see cref="NuGetDeployment"/> will try to use automatic detection of SDK package ID.
+      /// If this property is <c>null</c> or empty string, then automatic detection of SDK package ID will be used.
       /// </remarks>
       public String SDKFrameworkPackageID { get; set; }
 
@@ -491,11 +496,15 @@ namespace NuGet.Utils.Exec
       /// </summary>
       /// <value>The package version of the SDK of the framework of the NuGet package.</value>
       /// <remarks>
-      /// If this property is <c>null</c> or empty string, then <see cref="NuGetDeployment"/> will try to use automatic detection of SDK package version.
+      /// If this property is <c>null</c> or empty string, then automatic detection of SDK package version will be used.
       /// </remarks>
       public String SDKFrameworkPackageVersion { get; set; }
 
       public Boolean DisableLockFileCache { get; set; }
+
+      public LogLevel LogLevel { get; set; } = LogLevel.Information;
+
+      public Boolean DisableLogging { get; set; }
    }
 
    internal class ConfigurationConfiguration

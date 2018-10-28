@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\UtilPack.NuGet\UtilPack.NuGet.csproj" />
+    <ProjectReference Include="..\NuGetUtils.Lib.Restore\NuGetUtils.Lib.Restore.csproj" />
   </ItemGroup>
 
   <!-- Assembly information stuff -->

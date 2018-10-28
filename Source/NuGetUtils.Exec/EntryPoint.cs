@@ -136,7 +136,7 @@ namespace NuGet.Utils.Exec
                },
                typeof( NuGetExecutionConfiguration ),
                "nuget-exec",
-               "Execute a method from NuGet-packaged assembly using given command-line parameters.",
+               "Execute a method from NuGet-packaged assembly, restoring the package if needed, parametrized by command-line parameters.",
                "executable-options"
                )
                + "\n\n\n" +
@@ -147,7 +147,7 @@ namespace NuGet.Utils.Exec
                },
                typeof( ConfigurationConfiguration ),
                "nuget-exec",
-               "Execute a method from NuGet-packaged assembly using given configuration file.",
+               "Execute a method from NuGet-packaged assembly, restoring the package if needed, parametrized by configuration file.",
                "configuration-options"
             );
       }

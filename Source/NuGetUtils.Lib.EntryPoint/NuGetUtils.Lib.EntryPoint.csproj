@@ -15,27 +15,18 @@
    <PropertyGroup>
       <VersionPrefix>1.0.0</VersionPrefix>
       <VersionSuffix></VersionSuffix>
-      <AssemblyTitle>NuGet.Utils.Exec.EntryPoint</AssemblyTitle>
+      <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
       <Description>Library containing API for interacting when executed by nuget-exec global tool.</Description>
    </PropertyGroup>
 
    <!-- NuGet package stuff -->
    <PropertyGroup>
-      <PackageId>NuGet.Utils.Exec.EntryPoint</PackageId>
       <PackageVersion>$(VersionPrefix)</PackageVersion>
       <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
       <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
-      <PackageTags></PackageTags>
-      <Title></Title>
+      <PackageTags>nuget entry point execution dynamic</PackageTags>
+      <Title>Entry Point Information For NuGetUtils.Exec.</Title>
       <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(MSBuildProjectName)</PackageProjectUrl>
+      <Description>This library contains attribute which is used by NuGetUtils.Exec tool when it executes a method within a NuGet package. This attribute can be used to modify the behaviour of NuGetUtils.Exec and how it passes parameters to the method.</Description>
    </PropertyGroup>
-
-   <!--
-  At least currently (9.5.2017) modifying VersionPrefix/VersionSuffix will cause the assemblyinfo.cs file to regenerate, but with old version strings (??).
-  So... manually delete the file first when building in release mode.
-  If we put BeforeTargets="Build", this will be executed *after* the target which generates the assembly info, so we must put the correct target in BeforeTargets attribute.
-  -->
-   <Target Name="DeleteAssemblyInfoFile" BeforeTargets="CoreGenerateAssemblyInfo">
-      <Delete Condition=" '$(Configuration)' == 'Release' " Files="$(IntermediateOutputPath)$(MSBuildProjectName).AssemblyInfo.cs" />
-   </Target>
 </Project>

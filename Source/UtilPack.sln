@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack", "UtilPack\UtilPa
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.JSON", "UtilPack.JSON\UtilPack.JSON.csproj", "{2B61DE29-C6C2-42DC-B2F4-8FECA746958C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet", "UtilPack.NuGet\UtilPack.NuGet.csproj", "{455DE6EB-AB4B-4B79-BDB6-A7C2D16CEEC5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.Lib.Restore", "NuGetUtils.Lib.Restore\NuGetUtils.Lib.Restore.csproj", "{455DE6EB-AB4B-4B79-BDB6-A7C2D16CEEC5}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Tests", "UtilPack.Tests\UtilPack.Tests.csproj", "{9F1E8C76-8B7E-43B1-821B-6D7854680B09}"
 EndProject
@@ -19,7 +19,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Cryptography", "Ut
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Configuration", "UtilPack.Configuration\UtilPack.Configuration.csproj", "{E8614DA1-1CD5-4244-B13F-C92C937B4618}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.AssemblyLoading", "UtilPack.NuGet.AssemblyLoading\UtilPack.NuGet.AssemblyLoading.csproj", "{92442473-CF41-4F1D-95AC-E9BA3684D5D9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.Lib.AssemblyResolving", "NuGetUtils.Lib.AssemblyResolving\NuGetUtils.Lib.AssemblyResolving.csproj", "{92442473-CF41-4F1D-95AC-E9BA3684D5D9}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.Push.MSBuild", "UtilPack.NuGet.Push.MSBuild\UtilPack.NuGet.Push.MSBuild.csproj", "{68E0F5BF-5874-4C30-8275-EC8555AC9916}"
 EndProject
@@ -53,13 +53,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Logging", "UtilPac
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Configuration.NetworkStream", "UtilPack.Configuration.NetworkStream\UtilPack.Configuration.NetworkStream.csproj", "{3D166A33-E02B-4368-93A7-B18B00505AF3}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.NuGetExec", "UtilPack.NuGet.NuGetExec\UtilPack.NuGet.NuGetExec.csproj", "{B452ACB2-B298-482E-9999-94BD093FBB32}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.Exec", "NuGetUtils.Exec\NuGetUtils.Exec.csproj", "{B452ACB2-B298-482E-9999-94BD093FBB32}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.ResourcePooling.ConfigurationLoading", "UtilPack.ResourcePooling.ConfigurationLoading\UtilPack.ResourcePooling.ConfigurationLoading.csproj", "{55CD6D08-1D2C-489D-9303-3F992A74260F}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.NuGetExec.EntryPoint", "UtilPack.NuGet.NuGetExec.EntryPoint\UtilPack.NuGet.NuGetExec.EntryPoint.csproj", "{14296039-5C39-43F9-AC03-A6E3DBBE8AF5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.Lib.EntryPoint", "NuGetUtils.Lib.EntryPoint\NuGetUtils.Lib.EntryPoint.csproj", "{14296039-5C39-43F9-AC03-A6E3DBBE8AF5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UtilPack.Documentation", "UtilPack.Documentation\UtilPack.Documentation.csproj", "{F0606F42-2A0E-40BB-B7AE-691EB5995A9D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Documentation", "UtilPack.Documentation\UtilPack.Documentation.csproj", "{F0606F42-2A0E-40BB-B7AE-691EB5995A9D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

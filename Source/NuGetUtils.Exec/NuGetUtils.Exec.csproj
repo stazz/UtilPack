@@ -22,22 +22,21 @@
   </ItemGroup>
 
   <ItemGroup>
-     <ProjectReference Include="..\UtilPack.NuGet.AssemblyLoading\UtilPack.NuGet.AssemblyLoading.csproj" />
-     <ProjectReference Include="..\UtilPack.NuGet.NuGetExec.EntryPoint\UtilPack.NuGet.NuGetExec.EntryPoint.csproj" />
      <ProjectReference Include="..\UtilPack.Documentation\UtilPack.Documentation.csproj" />
+     <ProjectReference Include="..\NuGetUtils.Lib.AssemblyResolving\NuGetUtils.Lib.AssemblyResolving.csproj" />
+     <ProjectReference Include="..\NuGetUtils.Lib.EntryPoint\NuGetUtils.Lib.EntryPoint.csproj" />
   </ItemGroup>
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
      <VersionPrefix>1.0.0</VersionPrefix>
      <VersionSuffix></VersionSuffix>
-     <AssemblyTitle>NuGet.Utils.Exec</AssemblyTitle>
+     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
      <Description>This package will restore the given NuGet package and then execute a method within the restored DLLs.</Description>
   </PropertyGroup>
 
   <!-- NuGet package stuff -->
   <PropertyGroup>
-     <PackageId>NuGet.Utils.Exec</PackageId>
      <PackageVersion>$(VersionPrefix)</PackageVersion>
      <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
      <PackageReleaseNotes>Initial release.</PackageReleaseNotes>

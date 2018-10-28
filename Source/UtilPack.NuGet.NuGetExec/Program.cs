@@ -1,22 +1,4 @@
-﻿/*
- * Copyright 2018 Stanislav Muhametsin. All rights Reserved.
- *
- * Licensed  under the  Apache License,  Version 2.0  (the "License");
- * you may not use  this file  except in  compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed  under the  License is distributed on an "AS IS" BASIS,
- * WITHOUT  WARRANTIES OR CONDITIONS  OF ANY KIND, either  express  or
- * implied.
- *
- * See the License for the specific language governing permissions and
- * limitations under the License. 
- */
-using Microsoft.Extensions.Configuration;
-using NuGet.Common;
+﻿using Microsoft.Extensions.Configuration;
 using NuGet.Frameworks;
 using NuGet.Utils.Exec.Entrypoint;
 using System;
@@ -24,123 +6,48 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
 using UtilPack.NuGet;
 using UtilPack.NuGet.AssemblyLoading;
-
 using TAssemblyByPathResolverCallback = System.Func<System.String, System.Reflection.Assembly>;
 using TAssemblyNameResolverCallback = System.Func<System.Reflection.AssemblyName, System.Reflection.Assembly>;
 using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
 using TNuGetPackagesResolverCallback = System.Func<System.String[], System.String[], System.String[], System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly[]>>;
 
-
 namespace NuGet.Utils.Exec
 {
-   static class Program
+   class Programm
    {
+      internal const String LOCK_FILE_CACHE_DIR_WITHIN_HOME_DIR = ".nuget-exec-cache";
       internal const String LOCK_FILE_CACHE_DIR_ENV_NAME = "NUGET_EXEC_CACHE_DIR";
 
-      // /PackageID=X [/PackageVersion /AssemblyPath /EntrypointTypeName /EntrypointMethodName /RestoreFramework /ProcessSDKFrameworkPackageID /ProcessSDKFrameworkPackageVersion] [-- arg1 arg2 arg3]
-      // OR
-      // /ConfigurationFileLocation=X arg1 arg2 arg3
-      async static Task<Int32> Main( String[] args )
-      {
-         var retVal = -1;
+      private readonly String[] _args;
+      private readonly NuGetExecutionConfiguration _programConfig;
+      private readonly Boolean _isConfigConfig;
 
-         NuGetExecutionConfiguration programConfig = null;
-         var isConfigConfig = false;
-         try
-         {
-            Int32 programArgStart;
-            IConfigurationBuilder configRoot;
-            isConfigConfig = args.GetOrDefault( 0 )?.StartsWith( $"/{nameof( ConfigurationConfiguration.ConfigurationFileLocation )}=" ) ?? false;
-            if ( isConfigConfig )
-            {
-               programArgStart = 1;
-               configRoot = new ConfigurationBuilder()
-                  .AddJsonFile( Path.GetFullPath(
-                     new ConfigurationBuilder()
-                        .AddCommandLine( args.Take( 1 ).ToArray() )
-                        .Build()
-                        .Get<ConfigurationConfiguration>()
-                        .ConfigurationFileLocation ) );
-            }
-            else
-            {
-               var idx = Array.FindIndex( args, arg => String.Equals( arg, "--" ) );
-               programArgStart = idx < 0 ? args.Length : idx;
-               configRoot = new ConfigurationBuilder()
-                  .AddCommandLine( args.Take( programArgStart ).ToArray() );
-               if ( idx >= 0 )
-               {
-                  ++programArgStart;
-               }
-            }
-
-            if ( programArgStart > 0 )
-            {
-               args = args.Skip( programArgStart ).ToArray();
-
-               programConfig = configRoot
-                  .Build()
-                  .Get<NuGetExecutionConfiguration>();
-            }
-            else
-            {
-               Console.Out.WriteLine( "TODO help here." );
-            }
-
-         }
-         catch ( Exception exc )
-         {
-            Console.Error.WriteLine( $"Error with reading configuration, please check your command line parameters! ({exc.Message})" );
-         }
-
-         if ( !programConfig?.PackageID?.IsNullOrEmpty() ?? false )
-         {
-            using ( var source = new CancellationTokenSource() )
-            {
-               void OnCancelKey( Object sender, ConsoleCancelEventArgs e )
-               {
-                  e.Cancel = true;
-                  source.Cancel();
-               }
-               Console.CancelKeyPress += OnCancelKey;
-               using ( new UsingHelper( () => Console.CancelKeyPress -= OnCancelKey ) )
-               {
-                  try
-                  {
-                     await PerformProgram( args, programConfig, isConfigConfig, source.Token );
-                  }
-                  catch ( Exception exc )
-                  {
-                     Console.Error.WriteLine( $"An error occurred: {exc.Message}." );
-                     retVal = -2;
-                  }
-               }
-            }
-         }
-         else
-         {
-            Console.Out.WriteLine( "TODO help here." );
-         }
-
-
-         return retVal;
-      }
-
-      private static async Task<Int32> PerformProgram(
+      public Programm(
          String[] args,
          NuGetExecutionConfiguration programConfig,
-         Boolean isConfigConfig,
+         Boolean isConfigConfig
+         )
+      {
+         this._args = args;
+         this._programConfig = programConfig;
+         this._isConfigConfig = isConfigConfig;
+      }
+
+
+
+      public async Task<Int32> PerformProgram(
          CancellationToken token
          )
       {
+         var programConfig = this._programConfig;
          Int32 retVal;
          var targetFWString = programConfig.RestoreFramework;
-         var logLevel = programConfig.LogLevel;
 
          using ( var restorer = new BoundRestoreCommandUser(
             UtilPackNuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
@@ -154,7 +61,7 @@ namespace NuGet.Utils.Exec
             },
             lockFileCacheDir: programConfig.LockFileCacheDirectory,
             lockFileCacheEnvironmentVariableName: LOCK_FILE_CACHE_DIR_ENV_NAME,
-            getDefaultLockFileCacheDir: homeDir => Path.Combine( homeDir, ".nuget-exec-cache" ),
+            getDefaultLockFileCacheDir: homeDir => Path.Combine( homeDir, LOCK_FILE_CACHE_DIR_WITHIN_HOME_DIR ),
             disableLockFileCacheDir: programConfig.DisableLockFileCache
             ) )
          {
@@ -183,22 +90,30 @@ namespace NuGet.Utils.Exec
 
                if ( suitableMethod != null )
                {
-                  var programArgs = isConfigConfig ? ( programConfig?.ProcessArguments ?? Empty<String>.Array ).Concat( args ).ToArray() : args;
+                  var args = this._args;
+                  var programArgs = this._isConfigConfig ? ( programConfig?.ProcessArguments ?? Empty<String>.Array ).Concat( args ).ToArray() : args;
                   var programArgsConfig = new Lazy<IConfigurationRoot>( () => new ConfigurationBuilder().AddCommandLine( programArgs ).Build() );
-                  var ctx = new EntryPointParameterProvidingContext(
+                  var paramsByType = new Object[]
+                  {
                      programArgs,
                      token,
-                     assemblyPath => assemblyLoader.LoadOtherAssembly( assemblyPath ),
-                     assemblyName => assemblyLoader.TryResolveFromPreviouslyLoaded( assemblyName ),
-                     ( packageIDParam, packageVersionParam, assemblyPath, tokenParam ) => assemblyLoader.LoadNuGetAssembly( packageIDParam, packageVersionParam, tokenParam, assemblyPath ),
-                     ( packageIDs, packageVersions, assemblyPaths, tokenParam ) => assemblyLoader.LoadNuGetAssemblies( packageIDs, packageVersions, assemblyPaths, tokenParam )
-                     );
+                     assemblyLoader.CreateAssemblyByPathResolverCallback(),
+                     assemblyLoader.CreateAssemblyNameResolverCallback(),
+                     assemblyLoader.CreateNuGetPackageResolverCallback(),
+                     assemblyLoader.CreateNuGetPackagesResolverCallback(),
+                     assemblyLoader.CreateTypeStringResolverCallback()
+                  }.ToDictionary( o => o.GetType(), o => o );
                   Object invocationResult;
                   try
                   {
                      invocationResult = suitableMethod.Invoke(
                         null,
-                        suitableMethod.GetParameters().Select( p => ctx.ProvideEntryPointParameter( p.ParameterType, programArgsConfig ) ).ToArray()
+                        suitableMethod.GetParameters()
+                           .Select( p =>
+                              paramsByType.TryGetValue( p.ParameterType, out var paramValue ) ?
+                                 paramValue :
+                                 programArgsConfig.Value.Get( p.ParameterType ) )
+                           .ToArray()
                         );
                   }
                   catch ( TargetInvocationException tie )
@@ -391,124 +306,5 @@ namespace NuGet.Utils.Exec
             && Equals( parameters[0].ParameterType.GetElementType(), typeof( String ) );
       }
 
-      private struct EntryPointParameterProvidingContext
-      {
-         private static readonly Dictionary<Type, Func<EntryPointParameterProvidingContext, Object>> EntryPointParameterChoosers = new Dictionary<Type, Func<EntryPointParameterProvidingContext, Object>>()
-         {
-            { typeof(String[]), ctx => ctx.ProgramArgs },
-            { typeof(CancellationToken), ctx => ctx.CancellationToken },
-            { typeof(TAssemblyByPathResolverCallback), ctx => ctx.AssemblyByPathResolverCallback },
-            { typeof(TAssemblyNameResolverCallback), ctx => ctx.AssemblyNameResolverCallback },
-            { typeof(TNuGetPackageResolverCallback), ctx => ctx.NuGetPackageResolverCallback },
-            { typeof(TNuGetPackagesResolverCallback), ctx => ctx.NuGetPackagesResolverCallback }
-         };
-
-         public EntryPointParameterProvidingContext(
-            String[] programArgs,
-            CancellationToken token,
-            TAssemblyByPathResolverCallback assemblyByPathResolverCallback,
-            TAssemblyNameResolverCallback assemblyNameResolverCallback,
-            TNuGetPackageResolverCallback nuGetPackageResolverCallback,
-            TNuGetPackagesResolverCallback nuGetPackagesResolverCallback
-            )
-         {
-            this.ProgramArgs = programArgs;
-            this.CancellationToken = token;
-            this.AssemblyByPathResolverCallback = assemblyByPathResolverCallback;
-            this.AssemblyNameResolverCallback = assemblyNameResolverCallback;
-            this.NuGetPackageResolverCallback = nuGetPackageResolverCallback;
-            this.NuGetPackagesResolverCallback = nuGetPackagesResolverCallback;
-         }
-
-         public String[] ProgramArgs { get; }
-         public CancellationToken CancellationToken { get; }
-         public TAssemblyByPathResolverCallback AssemblyByPathResolverCallback { get; }
-         public TAssemblyNameResolverCallback AssemblyNameResolverCallback { get; }
-         public TNuGetPackageResolverCallback NuGetPackageResolverCallback { get; }
-         public TNuGetPackagesResolverCallback NuGetPackagesResolverCallback { get; }
-
-         public Object ProvideEntryPointParameter(
-            Type parameterType,
-            Lazy<IConfigurationRoot> programArgsConfig
-            )
-         {
-            return EntryPointParameterChoosers.TryGetValue( parameterType, out var ctxCreator ) ?
-               ctxCreator( this ) :
-               programArgsConfig.Value.Get( parameterType );
-         }
-      }
-   }
-
-   internal class NuGetExecutionConfiguration
-   {
-      public String NuGetConfigurationFile { get; set; }
-
-      public String[] ProcessArguments { get; set; }
-
-
-      /// <summary>
-      /// Gets the package ID of the package to be deployed.
-      /// </summary>
-      /// <value>The package ID of the package to be deployed.</value>
-      public String PackageID { get; set; }
-
-      /// <summary>
-      /// Gets the package version of the package to be deployed.
-      /// </summary>
-      /// <value>The package version of the package to be deployed.</value>
-      /// <remarks>
-      /// If this property is <c>null</c> or empty string, then NuGet source will be queried for the newest version.
-      /// </remarks>
-      public String PackageVersion { get; set; }
-
-      /// <summary>
-      /// Gets the path within the package where the entrypoint assembly resides.
-      /// </summary>
-      /// <value>The path within the package where the entrypoint assembly resides.</value>
-      /// <remarks>
-      /// This property will not be used for NuGet packages with only one assembly.
-      /// </remarks>
-      public String AssemblyPath { get; set; }
-
-      public String EntrypointTypeName { get; set; }
-
-      public String EntrypointMethodName { get; set; }
-
-      /// <summary>
-      /// Gets the framework to use when performing the restore for the target package. By default, the framework is auto-detected to be whichever matches the assembly that was resolved.
-      /// </summary>
-      /// <value>The framework to use when performing the restore for the target package.</value>
-      public String RestoreFramework { get; set; }
-
-      public String LockFileCacheDirectory { get; set; }
-
-      /// <summary>
-      /// Gets the package ID of the SDK of the framework of the NuGet package.
-      /// </summary>
-      /// <value>The package ID of the SDK of the framework of the NuGet package.</value>
-      /// <remarks>
-      /// If this property is <c>null</c> or empty string, then automatic detection of SDK package ID will be used.
-      /// </remarks>
-      public String SDKFrameworkPackageID { get; set; }
-
-      /// <summary>
-      /// Gets the package version of the SDK of the framework of the NuGet package.
-      /// </summary>
-      /// <value>The package version of the SDK of the framework of the NuGet package.</value>
-      /// <remarks>
-      /// If this property is <c>null</c> or empty string, then automatic detection of SDK package version will be used.
-      /// </remarks>
-      public String SDKFrameworkPackageVersion { get; set; }
-
-      public Boolean DisableLockFileCache { get; set; }
-
-      public LogLevel LogLevel { get; set; } = LogLevel.Information;
-
-      public Boolean DisableLogging { get; set; }
-   }
-
-   internal class ConfigurationConfiguration
-   {
-      public String ConfigurationFileLocation { get; set; }
    }
 }

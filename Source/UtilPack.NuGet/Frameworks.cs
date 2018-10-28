@@ -101,11 +101,16 @@ namespace UtilPack.NuGet
       public const String SDK_PACKAGE_NETSTANDARD = "NETStandard.Library";
 
       /// <summary>
+      /// The package ID for sdk package of framework <c>ASP.NETCore</c>. The value is <c>Microsoft.AspNetCore.App</c>.
+      /// </summary>
+      public const String SDK_PACKAGE_ASPNETCORE = "Microsoft.AspNetCore.App";
+
+      /// <summary>
       /// Gets the package ID of the SDK package for given framework. If the optional override is supplied, always returns that.
       /// </summary>
       /// <param name="framework">This <see cref="NuGetFramework"/>.</param>
       /// <param name="givenID">The optional override.</param>
-      /// <returns>The value of <paramref name="givenID"/>, if it is non-<c>null</c> and not empty; otherwise tries to deduce the value from this <see cref="NuGetFramework"/>. Currently, returns value of <see cref="SDK_PACKAGE_NETSTANDARD"/> for .NET Standard and .NET Desktop frameworks, and <see cref="SDK_PACKAGE_NETCORE"/> for .NET Core frameworks.</returns>
+      /// <returns>The value of <paramref name="givenID"/>, if it is non-<c>null</c> and not empty; otherwise tries to deduce the value from this <see cref="NuGetFramework"/>. Currently, returns value of <see cref="SDK_PACKAGE_NETSTANDARD"/> for .NET Standard and .NET Desktop frameworks, and <see cref="SDK_PACKAGE_NETCORE"/> for .NET Core framework, and <see cref="SDK_PACKAGE_ASPNETCORE"/> for ASP.NETCore framework.</returns>
       /// <seealso cref="GetSDKPackageVersion"/>
       public static String GetSDKPackageID( this NuGetFramework framework, String givenID = null )
       {
@@ -118,7 +123,15 @@ namespace UtilPack.NuGet
          else
          {
             id = framework.Framework;
-            if (
+            if ( String.Equals( id, FrameworkConstants.FrameworkIdentifiers.NetCoreApp, StringComparison.OrdinalIgnoreCase ) )
+            {
+               id = SDK_PACKAGE_NETCORE;
+            }
+            else if ( String.Equals( id, FrameworkConstants.FrameworkIdentifiers.AspNetCore, StringComparison.OrdinalIgnoreCase ) )
+            {
+               id = SDK_PACKAGE_ASPNETCORE;
+            }
+            else if (
                (
                   String.Equals( id, FrameworkConstants.FrameworkIdentifiers.Net, StringComparison.OrdinalIgnoreCase )
                   && framework.Version >= new Version( 4, 5 )
@@ -127,10 +140,6 @@ namespace UtilPack.NuGet
                )
             {
                id = SDK_PACKAGE_NETSTANDARD;
-            }
-            else if ( String.Equals( id, FrameworkConstants.FrameworkIdentifiers.NetCoreApp, StringComparison.OrdinalIgnoreCase ) )
-            {
-               id = SDK_PACKAGE_NETCORE;
             }
             else
             {
@@ -187,40 +196,44 @@ namespace UtilPack.NuGet
                   break;
                case SDK_PACKAGE_NETCORE:
                   {
-                     var version = framework.Version;
-                     switch ( version.Major )
+                     retVal = TryDetectSDKPackgeIDFromPaths( sdkPackageID );
+                     if ( String.IsNullOrEmpty( retVal ) )
                      {
-                        case 1:
-                           switch ( version.Minor )
-                           {
-                              case 0:
-                                 retVal = "1.0.5";
-                                 break;
-                              case 1:
-                                 retVal = "1.1.2";
-                                 break;
-                              default:
-                                 retVal = null;
-                                 break;
-                           }
-                           break;
-                        case 2:
-                           switch ( version.Minor )
-                           {
-                              case 0:
-                                 retVal = "2.0.9";
-                                 break;
-                              case 1:
-                                 retVal = "2.1.5";
-                                 break;
-                              default:
-                                 retVal = null;
-                                 break;
-                           }
-                           break;
-                        default:
-                           retVal = null;
-                           break;
+                        var version = framework.Version;
+                        switch ( version.Major )
+                        {
+                           case 1:
+                              switch ( version.Minor )
+                              {
+                                 case 0:
+                                    retVal = "1.0.5";
+                                    break;
+                                 case 1:
+                                    retVal = "1.1.2";
+                                    break;
+                                 default:
+                                    retVal = null;
+                                    break;
+                              }
+                              break;
+                           case 2:
+                              switch ( version.Minor )
+                              {
+                                 case 0:
+                                    retVal = "2.0.9";
+                                    break;
+                                 case 1:
+                                    retVal = "2.1.5";
+                                    break;
+                                 default:
+                                    retVal = null;
+                                    break;
+                              }
+                              break;
+                           default:
+                              retVal = null;
+                              break;
+                        }
                      }
                   }
                   break;
@@ -229,6 +242,32 @@ namespace UtilPack.NuGet
                   break;
             }
          }
+         return retVal;
+      }
+
+      private static String TryDetectSDKPackgeIDFromPaths(
+         String sdkPackageID
+         )
+      {
+         String retVal = null;
+         try
+         {
+            // When one runs normal dotnet command, the DLLs will be visible as e.g. in C:\Program Files\dotnet\shared\Microsoft.NETCore.App\2.1.5
+            // When one runs e.g. dotnet build, the DLLs will be visible as e.g. in C:\Program Files\dotnet\sdk\2.1.403
+            // Therefore, we must match both version and SDK package ID
+            var dir = Path.GetDirectoryName( new Uri( typeof( Object ).GetTypeInfo().Assembly.CodeBase ).LocalPath );
+            var maybeVersion = Path.GetFileName( dir );
+            var maybePackageID = Path.GetFileName( Path.GetDirectoryName( dir ) );
+            if ( Version.TryParse( maybeVersion, out var ignored ) && String.Equals( sdkPackageID, maybePackageID, StringComparison.OrdinalIgnoreCase ) )
+            {
+               retVal = maybeVersion;
+            }
+         }
+         catch
+         {
+
+         }
+
          return retVal;
       }
 

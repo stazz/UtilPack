@@ -5,6 +5,7 @@
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <PackAsTool>true</PackAsTool>
     <LangVersion>latest</LangVersion>
+     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -23,6 +24,7 @@
   <ItemGroup>
      <ProjectReference Include="..\UtilPack.NuGet.AssemblyLoading\UtilPack.NuGet.AssemblyLoading.csproj" />
      <ProjectReference Include="..\UtilPack.NuGet.NuGetExec.EntryPoint\UtilPack.NuGet.NuGetExec.EntryPoint.csproj" />
+     <ProjectReference Include="..\UtilPack.Documentation\UtilPack.Documentation.csproj" />
   </ItemGroup>
 
   <!-- Assembly information stuff -->

@@ -16,16 +16,11 @@
  * limitations under the License. 
  */
 using Microsoft.Build.Framework;
-using NuGet.Commands;
-using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.Frameworks;
-using NuGet.LibraryModel;
 using NuGet.Packaging;
 using NuGet.Packaging.Core;
 using NuGet.ProjectModel;
-using NuGet.Protocol.Core.Types;
-using NuGet.Repositories;
 using NuGet.RuntimeModel;
 using NuGet.Versioning;
 using System;
@@ -36,20 +31,12 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Xml.Linq;
 using UtilPack;
-using UtilPack.NuGet;
 using UtilPack.NuGet.AssemblyLoading;
 using UtilPack.NuGet.Common.MSBuild;
-using UtilPack.NuGet.MSBuild;
-using TAssemblyByPathResolverCallback = System.Func<System.String, System.Reflection.Assembly>;
-using TAssemblyNameResolverCallback = System.Func<System.Reflection.AssemblyName, System.Reflection.Assembly>;
-using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
-using TNuGetPackagesResolverCallback = System.Func<System.String[], System.String[], System.String[], System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly[]>>;
 using TPropertyInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyTypeModifier, UtilPack.NuGet.MSBuild.WrappedPropertyInfo, System.Reflection.PropertyInfo>;
 using TTaskPropertyInfoDictionary = System.Collections.Generic.IDictionary<System.String, System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyTypeModifier, UtilPack.NuGet.MSBuild.WrappedPropertyInfo>>;
-using TTypeStringResolverCallback = System.Func<System.String, System.Type>;
 
 
 namespace UtilPack.NuGet.MSBuild
@@ -376,23 +363,24 @@ namespace UtilPack.NuGet.MSBuild
                         GetFileItemsDelegate getFiles = ( rGraph, rid, lib, libs ) => GetSuitableFiles( thisFW, rGraph, rid, lib, libs );
                         // On Desktop we must always load everything, since it's possible to have assemblies compiled against .NET Standard having references to e.g. System.IO.FileSystem.dll, which is not present in GAC
 #if !IS_NETSTANDARD
-                        String[] sdkPackages = null;
                         AppDomainSetup appDomainSetup = null;
 #else
 
-                     var sdkPackageID = thisFW.GetSDKPackageID( taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_ID )?.Value );
-                     var sdkRestoreResult = nugetResolver.RestoreIfNeeded(
-                         sdkPackageID,
-                         thisFW.GetSDKPackageVersion( sdkPackageID, taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_VERSION )?.Value ),
-                         cancelSource.Token  
-                         ).GetAwaiter().GetResult();
-                     var sdkPackages = sdkRestoreResult.Libraries.Select( lib => lib.Name ).ToArray();
+                        var sdkPackageID = thisFW.GetSDKPackageID( taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_ID )?.Value );
+                        var sdkRestoreResult = nugetResolver.RestoreIfNeeded(
+                            sdkPackageID,
+                            thisFW.GetSDKPackageVersion( sdkPackageID, taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_VERSION )?.Value ),
+                            cancelSource.Token
+                            ).GetAwaiter().GetResult();
+                        var sdkPackages = sdkRestoreResult.Libraries.Select( lib => lib.Name ).ToArray();
 #endif
 
                         var taskAssemblies = nugetResolver.ExtractAssemblyPaths(
                            restoreResult,
-                           getFiles,
-                           sdkPackages
+                           getFiles
+#if IS_NETSTANDARD
+                           ,sdkPackages
+#endif
                            )[packageID];
                         var assemblyPathHint = taskBodyElement.ElementAnyNS( ASSEMBLY_PATH )?.Value;
                         var assemblyPath = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
@@ -879,22 +867,16 @@ namespace UtilPack.NuGet.MSBuild
 
             if ( matchingCtor == null )
             {
-               TNuGetPackageResolverCallback nugetResolveCallback = ( packageID, packageVersion, assemblyPath, token ) => resolver.LoadNuGetAssembly( packageID, packageVersion, token, assemblyPath: assemblyPath );
-               TNuGetPackagesResolverCallback nugetsResolveCallback = ( packageIDs, packageVersions, assemblyPaths, token ) => resolver.LoadNuGetAssemblies( packageIDs, packageVersions, assemblyPaths, token );
-               TAssemblyByPathResolverCallback pathResolveCallback = ( assemblyPath ) => resolver.LoadOtherAssembly( assemblyPath );
-               TAssemblyNameResolverCallback assemblyResolveCallback = ( assemblyName ) => resolver.TryResolveFromPreviouslyLoaded( assemblyName );
-               TTypeStringResolverCallback typeStringResolveCallback = ( typeString ) => resolver.TryLoadTypeFromPreviouslyLoadedAssemblies( typeString );
-
                MatchConstructorToParameters(
                   ctors,
-                  new Dictionary<Type, Object>()
+                  new Object[]
                   {
-                     { typeof(TNuGetPackageResolverCallback), nugetResolveCallback },
-                     { typeof(TNuGetPackagesResolverCallback), nugetsResolveCallback },
-                     { typeof(TAssemblyByPathResolverCallback), pathResolveCallback },
-                     { typeof(TAssemblyNameResolverCallback), assemblyResolveCallback },
-                     { typeof(TTypeStringResolverCallback), typeStringResolveCallback }
-                  },
+                     resolver.CreateNuGetPackageResolverCallback(),
+                     resolver.CreateNuGetPackagesResolverCallback(),
+                     resolver.CreateAssemblyByPathResolverCallback(),
+                     resolver.CreateAssemblyNameResolverCallback(),
+                     resolver.CreateTypeStringResolverCallback(),
+                  }.ToDictionary( o => o.GetType(), o => o ),
                   ref matchingCtor,
                   ref ctorParams
                   );

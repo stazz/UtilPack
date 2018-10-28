@@ -33,13 +33,17 @@ namespace UtilPack.NuGet
       /// <inheritdoc/>
       public override void Log( global::NuGet.Common.ILogMessage message )
       {
-         var writer = this.GetWriter( message );
-         if ( writer != null )
+         // For some reason, we get here even when this.DisplayMessage returns false - this should not happen at least according to the code of LoggerBase...
+         if ( message != null && this.DisplayMessage( message.Level ) )
          {
-            message = InvokeEvent( message, this.LogEvent );
-            if ( message != null )
+            var writer = this.GetWriter( message );
+            if ( writer != null )
             {
-               writer.WriteLine( message.Message );
+               message = InvokeEvent( message, this.LogEvent );
+               if ( message != null )
+               {
+                  writer.WriteLine( message.Message );
+               }
             }
          }
       }
@@ -47,13 +51,16 @@ namespace UtilPack.NuGet
       /// <inheritdoc/>
       public override async Task LogAsync( global::NuGet.Common.ILogMessage message )
       {
-         var writer = this.GetWriter( message );
-         if ( writer != null )
+         if ( message != null && this.DisplayMessage( message.Level ) )
          {
-            message = InvokeEvent( message, this.LogEvent );
-            if ( message != null )
+            var writer = this.GetWriter( message );
+            if ( writer != null )
             {
-               await writer.WriteLineAsync( message.Message );
+               message = InvokeEvent( message, this.LogEvent );
+               if ( message != null )
+               {
+                  await writer.WriteLineAsync( message.Message );
+               }
             }
          }
       }

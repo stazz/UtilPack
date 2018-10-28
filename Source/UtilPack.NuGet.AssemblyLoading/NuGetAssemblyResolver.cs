@@ -27,9 +27,15 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using UtilPack;
 using UtilPack.NuGet;
 using UtilPack.NuGet.AssemblyLoading;
+using TAssemblyByPathResolverCallback = System.Func<System.String, System.Reflection.Assembly>;
+using TAssemblyNameResolverCallback = System.Func<System.Reflection.AssemblyName, System.Reflection.Assembly>;
+using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
+using TNuGetPackagesResolverCallback = System.Func<System.String[], System.String[], System.String[], System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly[]>>;
 using TResolveResult = System.Collections.Generic.IDictionary<System.String, UtilPack.NuGet.AssemblyLoading.ResolvedPackageInfo>;
+using TTypeStringResolverCallback = System.Func<System.String, System.Type>;
 
 namespace UtilPack.NuGet.AssemblyLoading
 {
@@ -386,20 +392,15 @@ namespace UtilPack.NuGet.AssemblyLoading
 #endif
          )
       {
-#if !NET46
-         ArgumentValidator.ValidateNotNull( nameof( thisFrameworkRestoreResult ), thisFrameworkRestoreResult );
-#endif
          if ( defaultGetFiles == null )
          {
             defaultGetFiles = UtilPackNuGetUtility.GetRuntimeAssembliesDelegate;
          }
          var resolver = new NuGetRestorerWrapper(
             restorer,
-            ( rGraph, rid, targetLib, libs ) => defaultGetFiles( rGraph, rid, targetLib, libs ).FilterUnderscores(),
-#if NET45 || NET46
-            null
-#else
-            thisFrameworkRestoreResult.Libraries.Select( lib => lib.Name )
+            ( rGraph, rid, targetLib, libs ) => defaultGetFiles( rGraph, rid, targetLib, libs ).FilterUnderscores()
+#if !NET45 && !NET46
+            , ArgumentValidator.ValidateNotNull( nameof( thisFrameworkRestoreResult ), thisFrameworkRestoreResult ).Libraries.Select( lib => lib.Name )
 #endif
             );
 
@@ -1194,13 +1195,17 @@ namespace UtilPack.NuGet.AssemblyLoading
 
       public NuGetRestorerWrapper(
          BoundRestoreCommandUser resolver,
-         GetFileItemsDelegate getFiles,
-         IEnumerable<String> sdkPackages
+         GetFileItemsDelegate getFiles
+#if !NET45 && !NET46
+         , IEnumerable<String> sdkPackages
+#endif
          )
       {
          this.Restorer = resolver;
          this.GetFiles = getFiles;
+#if !NET45 && !NET46
          this.SDKPackageIDs = sdkPackages?.ToList();
+#endif
       }
 
 #if NET45 || NET46
@@ -1228,7 +1233,7 @@ namespace UtilPack.NuGet.AssemblyLoading
                   try
                   {
                      var result = prevTask.Result;
-                     setter.SetResult( this.Restorer.ExtractAssemblyPaths( result, this.GetFiles, this.SDKPackageIDs ) );
+                     setter.SetResult( this.Restorer.ExtractAssemblyPaths( result, this.GetFiles ) );
                   }
                   catch
                   {
@@ -1261,7 +1266,9 @@ namespace UtilPack.NuGet.AssemblyLoading
          GetFileItemsDelegate GetFiles
       { get; }
 
+#if !NET45 && !NET46
       public IReadOnlyList<String> SDKPackageIDs { get; }
+#endif
    }
 
 
@@ -1324,15 +1331,19 @@ public static partial class E_UtilPack
    internal static TResolveResult ExtractAssemblyPaths(
       this BoundRestoreCommandUser restorer,
       LockFile lockFile,
-      GetFileItemsDelegate fileGetter,
-      IEnumerable<String> sdkPackages
+      GetFileItemsDelegate fileGetter
+#if !NET45 && !NET46
+      , IEnumerable<String> sdkPackages
+#endif
    )
    {
       return restorer.ExtractAssemblyPaths(
          lockFile,
          ( packageFolder, filePaths ) => new ResolvedPackageInfo( packageFolder, filePaths.ToArray() ),
-         fileGetter: fileGetter,
-         filterablePackages: sdkPackages
+         fileGetter: fileGetter
+#if !NET46 && !NET46
+         , filterablePackages: sdkPackages
+#endif
          );
    }
 
@@ -1422,6 +1433,71 @@ public static partial class E_UtilPack
       }
 
       return retVal;
+   }
+
+   /// <summary>
+   /// Creates a callback to <see cref="NuGetAssemblyResolver.LoadOtherAssembly"/> method.
+   /// </summary>
+   /// <param name="resolver">This <see cref="NuGetAssemblyResolver"/>.</param>
+   /// <returns>A callback to <see cref="NuGetAssemblyResolver.LoadOtherAssembly"/> method.</returns>
+   public static TAssemblyByPathResolverCallback CreateAssemblyByPathResolverCallback(
+      this NuGetAssemblyResolver resolver
+      )
+   {
+      ArgumentValidator.ValidateNotNullReference( resolver );
+      return assemblyPath => resolver.LoadOtherAssembly( assemblyPath );
+   }
+
+   /// <summary>
+   /// Creates a callback to <see cref="NuGetAssemblyResolver.TryResolveFromPreviouslyLoaded"/> method.
+   /// </summary>
+   /// <param name="resolver">This <see cref="NuGetAssemblyResolver"/>.</param>
+   /// <returns>A callback to <see cref="NuGetAssemblyResolver.TryResolveFromPreviouslyLoaded"/> method.</returns>
+   public static TAssemblyNameResolverCallback CreateAssemblyNameResolverCallback(
+         this NuGetAssemblyResolver resolver
+         )
+   {
+      ArgumentValidator.ValidateNotNullReference( resolver );
+      return assemblyName => resolver.TryResolveFromPreviouslyLoaded( assemblyName );
+   }
+
+   /// <summary>
+   /// Creates a callback to <see cref="E_UtilPack.LoadNuGetAssembly"/> method.
+   /// </summary>
+   /// <param name="resolver">This <see cref="NuGetAssemblyResolver"/>.</param>
+   /// <returns>A callback to <see cref="E_UtilPack.LoadNuGetAssembly"/> method.</returns>
+   public static TNuGetPackageResolverCallback CreateNuGetPackageResolverCallback(
+      this NuGetAssemblyResolver resolver
+      )
+   {
+      ArgumentValidator.ValidateNotNullReference( resolver );
+      return ( packageID, packageVersion, assemblyPath, token ) => resolver.LoadNuGetAssembly( packageID, packageVersion, token, assemblyPath );
+   }
+
+   /// <summary>
+   /// Creates a callback to <see cref="NuGetAssemblyResolver.LoadNuGetAssemblies"/> method.
+   /// </summary>
+   /// <param name="resolver">This <see cref="NuGetAssemblyResolver"/>.</param>
+   /// <returns>A callback to <see cref="NuGetAssemblyResolver.LoadNuGetAssemblies"/> method.</returns>
+   public static TNuGetPackagesResolverCallback CreateNuGetPackagesResolverCallback(
+      this NuGetAssemblyResolver resolver
+      )
+   {
+      ArgumentValidator.ValidateNotNullReference( resolver );
+      return ( packageIDs, packageVersions, assemblyPaths, token ) => resolver.LoadNuGetAssemblies( packageIDs, packageVersions, assemblyPaths, token );
+   }
+
+   /// <summary>
+   /// Creates a callback to <see cref="E_UtilPack.TryLoadTypeFromPreviouslyLoadedAssemblies"/> method.
+   /// </summary>
+   /// <param name="resolver">This <see cref="NuGetAssemblyResolver"/>.</param>
+   /// <returns>A callback to <see cref="E_UtilPack.TryLoadTypeFromPreviouslyLoadedAssemblies"/> method.</returns>
+   public static TTypeStringResolverCallback CreateTypeStringResolverCallback(
+      this NuGetAssemblyResolver resolver
+      )
+   {
+      ArgumentValidator.ValidateNotNullReference( resolver );
+      return ( typeString ) => resolver.TryLoadTypeFromPreviouslyLoadedAssemblies( typeString );
    }
 
    internal static IEnumerable<String> FilterUnderscores( this IEnumerable<String> paths )

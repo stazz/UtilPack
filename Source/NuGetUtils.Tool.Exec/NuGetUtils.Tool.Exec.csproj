@@ -45,4 +45,9 @@
      <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(MSBuildProjectName)</PackageProjectUrl>
   </PropertyGroup>
 
+   <PropertyGroup>
+      <Product>NuGetUtils</Product>
+      <AssemblyOriginatorKeyFile>C:\work\oss\UtilPack\UtilPackGit\Source\NuGetUtils.Tool.Exec\\..\..\Keys\NuGetUtils.sha1.snk</AssemblyOriginatorKeyFile>
+   </PropertyGroup>
+
 </Project>

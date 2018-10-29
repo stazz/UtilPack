@@ -42,13 +42,8 @@
     <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
 
-  <!--
-  At least currently (9.5.2017) modifying VersionPrefix/VersionSuffix will cause the assemblyinfo.cs file to regenerate, but with old version strings (??).
-  So... manually delete the file first when building in release mode.
-  If we put BeforeTargets="Build", this will be executed *after* the target which generates the assembly info, so we must put the correct target in BeforeTargets attribute.
-  -->
-  <Target Name="DeleteAssemblyInfoFile" BeforeTargets="CoreGenerateAssemblyInfo">
-    <Delete Condition=" '$(Configuration)' == 'Release' " Files="$(IntermediateOutputPath)$(MSBuildProjectName).AssemblyInfo.cs" />
-  </Target>
+   <PropertyGroup>
+      <Product>NuGetUtils</Product>
+   </PropertyGroup>
 
 </Project>

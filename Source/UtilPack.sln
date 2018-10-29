@@ -53,7 +53,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Logging", "UtilPac
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Configuration.NetworkStream", "UtilPack.Configuration.NetworkStream\UtilPack.Configuration.NetworkStream.csproj", "{3D166A33-E02B-4368-93A7-B18B00505AF3}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.Exec", "NuGetUtils.Exec\NuGetUtils.Exec.csproj", "{B452ACB2-B298-482E-9999-94BD093FBB32}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.Tool.Exec", "NuGetUtils.Tool.Exec\NuGetUtils.Tool.Exec.csproj", "{B452ACB2-B298-482E-9999-94BD093FBB32}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.ResourcePooling.ConfigurationLoading", "UtilPack.ResourcePooling.ConfigurationLoading\UtilPack.ResourcePooling.ConfigurationLoading.csproj", "{55CD6D08-1D2C-489D-9303-3F992A74260F}"
 EndProject

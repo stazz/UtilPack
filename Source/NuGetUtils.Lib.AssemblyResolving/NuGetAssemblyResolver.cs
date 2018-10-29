@@ -18,6 +18,8 @@
 using NuGet.Frameworks;
 using NuGet.Packaging;
 using NuGet.ProjectModel;
+using NuGetUtils.Lib.AssemblyResolving;
+using NuGetUtils.Lib.Restore;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -28,16 +30,14 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
-using UtilPack.NuGet;
-using UtilPack.NuGet.AssemblyLoading;
 using TAssemblyByPathResolverCallback = System.Func<System.String, System.Reflection.Assembly>;
 using TAssemblyNameResolverCallback = System.Func<System.Reflection.AssemblyName, System.Reflection.Assembly>;
 using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
 using TNuGetPackagesResolverCallback = System.Func<System.String[], System.String[], System.String[], System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly[]>>;
-using TResolveResult = System.Collections.Generic.IDictionary<System.String, UtilPack.NuGet.AssemblyLoading.ResolvedPackageInfo>;
+using TResolveResult = System.Collections.Generic.IDictionary<System.String, NuGetUtils.Lib.AssemblyResolving.ResolvedPackageInfo>;
 using TTypeStringResolverCallback = System.Func<System.String, System.Type>;
 
-namespace UtilPack.NuGet.AssemblyLoading
+namespace NuGetUtils.Lib.AssemblyResolving
 {
    /// <summary>
    /// This interface provides uniform way of dynamically load assemblies from NuGet packages and file paths.
@@ -47,7 +47,7 @@ namespace UtilPack.NuGet.AssemblyLoading
    {
       /// <summary>
       /// Asynchronously loads assemblies from given NuGet packages. 
-      /// The packages are restored first, by using whatever <see cref="global::NuGet.Configuration.ISettings"/> provided to underlying <see cref="NuGet.BoundRestoreCommandUser"/>.
+      /// The packages are restored first, by using whatever <see cref="global::NuGet.Configuration.ISettings"/> provided to underlying <see cref="BoundRestoreCommandUser"/>.
       /// The assemblies of packages on which <paramref name="packageIDs"/> depend on will be loaded as they are needed.
       /// </summary>
       /// <param name="packageIDs">The IDs of the packages to restore and load assembly from.</param>
@@ -1326,7 +1326,7 @@ namespace UtilPack.NuGet.AssemblyLoading
 /// <summary>
 /// This class contains extension methods for types defined in this assembly.
 /// </summary>
-public static partial class E_UtilPack
+public static partial class E_NuGetUtils
 {
    internal static TResolveResult ExtractAssemblyPaths(
       this BoundRestoreCommandUser restorer,
@@ -1462,10 +1462,10 @@ public static partial class E_UtilPack
    }
 
    /// <summary>
-   /// Creates a callback to <see cref="E_UtilPack.LoadNuGetAssembly"/> method.
+   /// Creates a callback to <see cref="E_NuGetUtils.LoadNuGetAssembly"/> method.
    /// </summary>
    /// <param name="resolver">This <see cref="NuGetAssemblyResolver"/>.</param>
-   /// <returns>A callback to <see cref="E_UtilPack.LoadNuGetAssembly"/> method.</returns>
+   /// <returns>A callback to <see cref="E_NuGetUtils.LoadNuGetAssembly"/> method.</returns>
    public static TNuGetPackageResolverCallback CreateNuGetPackageResolverCallback(
       this NuGetAssemblyResolver resolver
       )
@@ -1488,10 +1488,10 @@ public static partial class E_UtilPack
    }
 
    /// <summary>
-   /// Creates a callback to <see cref="E_UtilPack.TryLoadTypeFromPreviouslyLoadedAssemblies"/> method.
+   /// Creates a callback to <see cref="E_NuGetUtils.TryLoadTypeFromPreviouslyLoadedAssemblies"/> method.
    /// </summary>
    /// <param name="resolver">This <see cref="NuGetAssemblyResolver"/>.</param>
-   /// <returns>A callback to <see cref="E_UtilPack.TryLoadTypeFromPreviouslyLoadedAssemblies"/> method.</returns>
+   /// <returns>A callback to <see cref="E_NuGetUtils.TryLoadTypeFromPreviouslyLoadedAssemblies"/> method.</returns>
    public static TTypeStringResolverCallback CreateTypeStringResolverCallback(
       this NuGetAssemblyResolver resolver
       )

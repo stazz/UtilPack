@@ -1,13 +1,28 @@
-﻿using NuGet.Common;
+﻿/*
+ * Copyright 2018 Stanislav Muhametsin. All rights Reserved.
+ *
+ * Licensed  under the  Apache License,  Version 2.0  (the "License");
+ * you may not use  this file  except in  compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed  under the  License is distributed on an "AS IS" BASIS,
+ * WITHOUT  WARRANTIES OR CONDITIONS  OF ANY KIND, either  express  or
+ * implied.
+ *
+ * See the License for the specific language governing permissions and
+ * limitations under the License. 
+ */
+using NuGet.Common;
 using NuGet.ProjectModel;
-using NuGet.Utils.Exec.Entrypoint;
+using NuGetUtils.Lib.EntryPoint;
+using NuGetUtils.Lib.Restore;
 using System;
-using System.Collections.Generic;
-using System.Text;
 using UtilPack.Documentation;
-using UtilPack.NuGet;
 
-namespace NuGet.Utils.Exec
+namespace NuGetUtils.Exec
 {
    internal sealed class NuGetExecutionConfiguration
    {
@@ -62,7 +77,7 @@ namespace NuGet.Utils.Exec
 
 
       [
-         Description( ValueName = "path", Description = "The path of the directory acting as cache directory for restored package information (serialized " + nameof( LockFile ) + "s). By default, the environment variable \"" + Programm.LOCK_FILE_CACHE_DIR_ENV_NAME + "\" is first checked, and if that is not present, the \"" + Programm.LOCK_FILE_CACHE_DIR_WITHIN_HOME_DIR + "\" directory within current home directory is used." )
+         Description( ValueName = "path", Description = "The path of the directory acting as cache directory for restored package information (serialized " + nameof( LockFile ) + "s). By default, the environment variable \"" + NuGetEntryPointExecutor.LOCK_FILE_CACHE_DIR_ENV_NAME + "\" is first checked, and if that is not present, the \"" + NuGetEntryPointExecutor.LOCK_FILE_CACHE_DIR_WITHIN_HOME_DIR + "\" directory within current home directory is used." )
          ]
       public String LockFileCacheDirectory { get; set; }
 

@@ -29,4 +29,8 @@
       <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(MSBuildProjectName)</PackageProjectUrl>
       <Description>This library contains attribute which is used by NuGetUtils.Exec tool when it executes a method within a NuGet package. This attribute can be used to modify the behaviour of NuGetUtils.Exec and how it passes parameters to the method.</Description>
    </PropertyGroup>
+
+   <PropertyGroup>
+      <Product>NuGetUtils</Product>
+   </PropertyGroup>
 </Project>

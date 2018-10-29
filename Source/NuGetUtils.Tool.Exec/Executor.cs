@@ -1,6 +1,25 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿/*
+ * Copyright 2018 Stanislav Muhametsin. All rights Reserved.
+ *
+ * Licensed  under the  Apache License,  Version 2.0  (the "License");
+ * you may not use  this file  except in  compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed  under the  License is distributed on an "AS IS" BASIS,
+ * WITHOUT  WARRANTIES OR CONDITIONS  OF ANY KIND, either  express  or
+ * implied.
+ *
+ * See the License for the specific language governing permissions and
+ * limitations under the License. 
+ */
+using Microsoft.Extensions.Configuration;
 using NuGet.Frameworks;
-using NuGet.Utils.Exec.Entrypoint;
+using NuGetUtils.Lib.AssemblyResolving;
+using NuGetUtils.Lib.EntryPoint;
+using NuGetUtils.Lib.Restore;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,16 +29,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
-using UtilPack.NuGet;
-using UtilPack.NuGet.AssemblyLoading;
-using TAssemblyByPathResolverCallback = System.Func<System.String, System.Reflection.Assembly>;
-using TAssemblyNameResolverCallback = System.Func<System.Reflection.AssemblyName, System.Reflection.Assembly>;
-using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
-using TNuGetPackagesResolverCallback = System.Func<System.String[], System.String[], System.String[], System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly[]>>;
 
-namespace NuGet.Utils.Exec
+namespace NuGetUtils.Exec
 {
-   class Programm
+   class NuGetEntryPointExecutor
    {
       internal const String LOCK_FILE_CACHE_DIR_WITHIN_HOME_DIR = ".nuget-exec-cache";
       internal const String LOCK_FILE_CACHE_DIR_ENV_NAME = "NUGET_EXEC_CACHE_DIR";
@@ -28,7 +41,7 @@ namespace NuGet.Utils.Exec
       private readonly NuGetExecutionConfiguration _programConfig;
       private readonly Boolean _isConfigConfig;
 
-      public Programm(
+      public NuGetEntryPointExecutor(
          String[] args,
          NuGetExecutionConfiguration programConfig,
          Boolean isConfigConfig
@@ -41,7 +54,7 @@ namespace NuGet.Utils.Exec
 
 
 
-      public async Task<Int32> PerformProgram(
+      public async Task<Int32> ExecuteMethod(
          CancellationToken token
          )
       {

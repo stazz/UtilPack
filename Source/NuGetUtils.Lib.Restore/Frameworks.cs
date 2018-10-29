@@ -22,15 +22,14 @@ using NuGet.Packaging;
 using NuGet.ProjectModel;
 using NuGet.Repositories;
 using NuGet.Versioning;
+using NuGetUtils.Lib.Restore;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using UtilPack;
-using UtilPack.NuGet;
 
-namespace UtilPack.NuGet
+namespace NuGetUtils.Lib.Restore
 {
 
    /// <summary>

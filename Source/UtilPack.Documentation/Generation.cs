@@ -89,7 +89,7 @@ namespace UtilPack
          public String Parameter { get; }
       }
 
-      public class DocumentationGenerator
+      public class CommandLineArgumentsDocumentationGenerator
       {
          public virtual String GenerateParametersDocumentation(
             IEnumerable<ParameterGroupOrFixedParameter> parameterGroups,

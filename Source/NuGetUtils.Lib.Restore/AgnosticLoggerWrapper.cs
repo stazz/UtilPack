@@ -20,8 +20,9 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
+using UtilPack;
 
-namespace UtilPack.NuGet
+namespace NuGetUtils.Lib.Restore
 {
    /// <summary>
    /// During restore for agnostic framework, there will be two error messages that package is not compatible with Agnostic framework.

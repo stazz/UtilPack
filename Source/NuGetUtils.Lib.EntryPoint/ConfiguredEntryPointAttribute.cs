@@ -17,7 +17,7 @@
  */
 using System;
 
-namespace NuGet.Utils.Exec.Entrypoint
+namespace NuGetUtils.Lib.EntryPoint
 {
    /// <summary>
    /// This attribute can be used to mark entry point information for <c>nuget-exec</c> global tool.

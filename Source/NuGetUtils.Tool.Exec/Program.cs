@@ -25,7 +25,7 @@ using UtilPack;
 using UtilPack.Documentation;
 
 
-namespace NuGet.Utils.Exec
+namespace NuGetUtils.Exec
 {
    static class Program
    {
@@ -102,7 +102,7 @@ namespace NuGet.Utils.Exec
                {
                   try
                   {
-                     await new Programm( args, programConfig, isConfigConfig ).PerformProgram( source.Token );
+                     await new NuGetEntryPointExecutor( args, programConfig, isConfigConfig ).ExecuteMethod( source.Token );
                   }
                   catch ( Exception exc )
                   {
@@ -123,9 +123,9 @@ namespace NuGet.Utils.Exec
 
       private static String GetDocumentation()
       {
-         var generator = new DocumentationGenerator();
+         var generator = new CommandLineArgumentsDocumentationGenerator();
          return
-            $"nuget-exec version {typeof( Program ).Assembly.GetName().Version} (NuGet version {typeof( Common.ILogger ).Assembly.GetName().Version})\n" +
+            $"nuget-exec version {typeof( Program ).Assembly.GetName().Version} (NuGet version {typeof( NuGet.Common.ILogger ).Assembly.GetName().Version})\n" +
             generator.GenerateParametersDocumentation( new ParameterGroupOrFixedParameter[]
                {
                   new NamedParameterGroup(false, "executable-options"),

@@ -35,12 +35,12 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
-using UtilPack.NuGet;
 using NuGet.RuntimeModel;
 using NuGet.Packaging;
 using NuGet.Protocol;
 using Newtonsoft.Json.Linq;
 using System.Collections.Immutable;
+using NuGetUtils.Lib.Restore;
 
 #if !NUGET_430
 using TLocalNuspecCache = NuGet.Protocol.
@@ -56,7 +56,7 @@ LocalPackageFileCache
 
 
 
-namespace UtilPack.NuGet
+namespace NuGetUtils.Lib.Restore
 {
    using TPackageInfo = ImmutableDictionary<String, VersionRange>;
 
@@ -124,7 +124,7 @@ namespace UtilPack.NuGet
       /// </summary>
       /// <param name="nugetSettings">The settings to use.</param>
       /// <param name="thisFramework">The framework to bind to.</param>
-      /// <param name="runtimeIdentifier">The runtime identifier. Will be used by <see cref="E_UtilPack.ExtractAssemblyPaths{TResult}(BoundRestoreCommandUser, LockFile, Func{String, IEnumerable{String}, TResult}, GetFileItemsDelegate, IEnumerable{String})"/> method.</param>
+      /// <param name="runtimeIdentifier">The runtime identifier. Will be used by <see cref="E_NuGetUtils.ExtractAssemblyPaths{TResult}(BoundRestoreCommandUser, LockFile, Func{String, IEnumerable{String}, TResult}, GetFileItemsDelegate, IEnumerable{String})"/> method.</param>
       /// <param name="runtimeGraph">Optional value indicating runtime graph information: either <see cref="global::NuGet.RuntimeModel.RuntimeGraph"/> directly, or <see cref="String"/> containing package ID of package holding <c>runtime.json</c> file, containing serialized runtime graph definition. If neither is specified, then <c>"Microsoft.NETCore.Platforms"</c> package ID used to locate <c>runtime.json</c> file, as per <see href="https://docs.microsoft.com/en-us/dotnet/core/rid-catalog">official documentation</see>.</param>
       /// <param name="nugetLogger">The logger to use in restore command.</param>
       /// <param name="sourceCacheContext">The optional <see cref="SourceCacheContext"/> to use.</param>
@@ -560,7 +560,7 @@ namespace UtilPack.NuGet
    }
 
    /// <summary>
-   /// This delegate is used by <see cref="E_UtilPack.ExtractAssemblyPaths"/> in order to get required assembly paths from single <see cref="LockFileTargetLibrary"/>.
+   /// This delegate is used by <see cref="E_NuGetUtils.ExtractAssemblyPaths"/> in order to get required assembly paths from single <see cref="LockFileTargetLibrary"/>.
    /// </summary>
    /// <param name="runtimeGraph">The lazy holding <see cref="RuntimeGraph"/> containing information about various runtime identifiers (RIDs) and their dependencies.</param>
    /// <param name="currentRID">The current RID string.</param>
@@ -703,7 +703,7 @@ namespace UtilPack.NuGet
 /// <summary>
 /// Contains extension methods for types defined in this assembly
 /// </summary>
-public static partial class E_UtilPack
+public static partial class E_NuGetUtils
 {
    /// <summary>
    /// Performs restore command for given package and version, if not already cached.

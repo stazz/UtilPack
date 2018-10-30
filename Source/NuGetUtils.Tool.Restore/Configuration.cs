@@ -16,54 +16,27 @@
  * limitations under the License. 
  */
 using NuGet.Common;
-using NuGet.ProjectModel;
-using NuGetUtils.Lib.EntryPoint;
-using NuGetUtils.Lib.Restore;
 using NuGetUtils.Lib.Tool;
 using System;
 using UtilPack.Documentation;
 using static NuGetUtils.Lib.Tool.DefaultDocumentation;
 
-namespace NuGetUtils.Tool.Exec
+namespace NuGetUtils.Tool.Restore
 {
-   internal sealed class NuGetExecutionConfiguration : NuGetUsageConfiguration
+   internal sealed class NuGetRestoreConfiguration : NuGetUsageConfiguration
    {
-
-      [
-         Required,
-         Description( ValueName = "packageID", Description = "The package ID of the NuGet package containing the entry point assembly." )
-         ]
+      [Required( Conditional = true )]
       public String PackageID { get; set; }
 
 
-      [
-         Description( ValueName = "packageVersion", Description = "The package version of the NuGet package containing the entry point assembly. The normal NuGet version notation is supported. If this is not specified, then highest floating version is assumed, thus causing queries to remote NuGet servers." )
-         ]
       public String PackageVersion { get; set; }
 
+      [Required( Conditional = true )]
+      public String[] PackageIDs { get; set; }
 
-      [
-         Required( Conditional = true ),
-         Description( ValueName = "path", Description = "The path within the resolved library folder of the package, where the assembly resides. Will not be used if there is only one assembly, and is optional if there is assembly with the same name as the package. Otherwise this is required." )
-         ]
-      public String AssemblyPath { get; set; }
+      public String[] PackageVersions { get; set; }
 
-
-      [
-         Required( Conditional = true ),
-         Description( ValueName = "type", Description = "The full name of the type which contains entry point method. Is optional if assembly is built as EXE, or if assembly contains " + nameof( ConfiguredEntryPointAttribute ) + " attribute. Otherwise it is required." )
-         ]
-      public String EntrypointTypeName { get; set; }
-
-
-      [
-         Required( Conditional = true ),
-         Description( ValueName = "method", Description = "The name of the method which is an entry point method. Is optional if assembly is built as EXE, or if assembly contains " + nameof( ConfiguredEntryPointAttribute ) + " attribute. Otherwise it is required." )
-         ]
-      public String EntrypointMethodName { get; set; }
-
-      [IgnoreInDocumentation]
-      public String[] ProcessArguments { get; set; }
+      public Boolean SkipRestoringSDKPackage { get; set; }
 
       [
          Description( ValueName = NuGetConfigurationFileValue, Description = NuGetConfigurationFileDescription )
@@ -109,13 +82,14 @@ namespace NuGetUtils.Tool.Exec
          Description( Description = DisableLoggingDescription )
          ]
       public Boolean DisableLogging { get; set; }
+
    }
 
    internal class ConfigurationConfigurationImpl : ConfigurationConfiguration
    {
       [
          Required,
-         Description( ValueName = ConfigurationFileLocationValue, Description = ConfigurationFileLocationDescription + " In addition, the \"" + nameof( NuGetExecutionConfiguration.ProcessArguments ) + "\" key (with JSON array as value) may be specified for always-present process arguments." )
+         Description( ValueName = ConfigurationFileLocationValue, Description = ConfigurationFileLocationDescription )
          ]
       public String ConfigurationFileLocation { get; set; }
    }

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.0;netstandard1.1;netstandard1.5;net40;net45</TargetFrameworks>
+    <TargetFrameworks>netstandard1.0;netstandard1.1;netstandard1.5;netstandard1.6;net40;net45</TargetFrameworks>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -12,7 +12,7 @@
   </PropertyGroup>
   
   <PropertyGroup>
-    <DefineConstants Condition=" '$(TargetFramework)' == 'netstandard1.0' or '$(TargetFramework)' == 'netstandard1.1' or '$(TargetFramework)' == 'netstandard1.5' ">$(DefineConstants);IS_NETSTANDARD</DefineConstants>
+    <DefineConstants Condition=" '$(TargetFramework)' == 'netstandard1.0' or '$(TargetFramework)' == 'netstandard1.1' or '$(TargetFramework)' == 'netstandard1.5' or '$(TargetFramework)' == 'netstandard1.6' ">$(DefineConstants);IS_NETSTANDARD</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' != 'net40' ">

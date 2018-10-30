@@ -25,6 +25,7 @@ using NuGet.Packaging;
 using NuGet.Packaging.Core;
 using NuGet.ProjectModel;
 using NuGet.Protocol.Core.Types;
+using NuGetUtils.Lib.Restore;
 using System;
 using System.Collections.Generic;
 using System.IO;

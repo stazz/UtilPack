@@ -18,12 +18,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using UtilPack;
-using System.Threading;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using UtilPack;
 
 namespace UtilPack
 {
@@ -505,7 +505,7 @@ namespace UtilPack
       //private const Int32 RESETTING = 3;
 
       //private readonly Func<System.Threading.Tasks.Task<T>> _factory;
-      private ReadOnlyResettableLazy<System.Threading.Tasks.Task<T>> _instance;
+      private readonly ReadOnlyResettableLazy<System.Threading.Tasks.Task<T>> _instance;
       //private Int32 _state;
 
 

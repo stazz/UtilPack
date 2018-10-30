@@ -719,7 +719,7 @@ public static partial class E_NuGetUtils
       this BoundRestoreCommandUser restorer,
       String packageID,
       String version,
-      CancellationToken token = default
+      CancellationToken token
       )
    {
       return restorer.RestoreIfNeeded( token, (packageID, version) );

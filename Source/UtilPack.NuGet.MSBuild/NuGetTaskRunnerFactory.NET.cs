@@ -18,6 +18,8 @@
 #if !IS_NETSTANDARD
 using NuGet.Frameworks;
 using NuGet.Repositories;
+using NuGetUtils.Lib.AssemblyResolving;
+using NuGetUtils.Lib.Restore;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -28,7 +30,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using UtilPack.NuGet.AssemblyLoading;
 
 namespace UtilPack.NuGet.MSBuild
 {

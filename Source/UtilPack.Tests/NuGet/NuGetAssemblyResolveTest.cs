@@ -16,11 +16,16 @@
  * limitations under the License. 
  */
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NuGet.Commands;
 using NuGet.Common;
 using NuGet.Configuration;
 using NuGet.DependencyResolver;
 using NuGet.Frameworks;
+using NuGet.LibraryModel;
 using NuGet.Packaging;
+using NuGet.ProjectModel;
+using NuGet.Protocol;
+using NuGet.Protocol.Core.Types;
 using NuGet.Repositories;
 using NuGet.Versioning;
 using System;
@@ -28,16 +33,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using UtilPack.NuGet;
-using NuGet.Protocol.Core.Types;
-using NuGet.Protocol;
-using NuGet.LibraryModel;
-using System.Threading.Tasks;
-using NuGet.ProjectModel;
-using NuGet.Commands;
-using UtilPack.NuGet.AssemblyLoading;
 using System.Runtime.Loader;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace UtilPack.Tests.NuGet
 {

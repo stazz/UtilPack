@@ -149,6 +149,9 @@ namespace UtilPack
             }
             else if ( property.GetCustomAttribute<IgnoreInDocumentation>() == null )
             {
+               // We could check for interface which have properties with same name + signature...
+               // But that would maybe encourage 'bad' behaviour and make code overly complex - how to e.g. merge description attributes present in both class property and interface/base type property...?
+               // Instead, it maybe would be better idea to expose common documentation of properties via e.g. constant fields.
                propertyType = property.PropertyType;
                currentContext = propertyInfo.Item2;
             }
@@ -160,10 +163,6 @@ namespace UtilPack
             String currentContext
             )
          {
-            while ( propertyType.IsArray || propertyType.IsByRef )
-            {
-               propertyType = propertyType.GetElementType();
-            }
             if ( !String.IsNullOrEmpty( currentContext ) )
             {
                currentContext += ":";
@@ -200,7 +199,12 @@ namespace UtilPack
             Type propertyType
             )
          {
-            var t = propertyType?.GetTypeInfo();
+            while ( propertyType.IsArray || propertyType.IsByRef )
+            {
+               propertyType = propertyType.GetElementType();
+            }
+
+            var t = propertyType.GetTypeInfo();
             return t != null
                && ( t.IsPrimitive
 #if NET40

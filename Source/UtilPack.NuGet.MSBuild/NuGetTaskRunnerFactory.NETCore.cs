@@ -18,22 +18,22 @@
 #if IS_NETSTANDARD
 using Microsoft.Build.Framework;
 using NuGet.Frameworks;
-using NuGet.Repositories;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Reflection;
-using System.Collections.Concurrent;
-using UtilPack;
 using NuGet.Packaging;
-using System.Xml.Linq;
+using NuGet.Repositories;
+using NuGetUtils.Lib.AssemblyResolving;
+using NuGetUtils.Lib.Restore;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Runtime.Loader;
+using System.Text;
 using System.Threading.Tasks;
-
+using System.Xml.Linq;
+using UtilPack;
 using TResolveResult = System.Collections.Generic.IDictionary<System.String, UtilPack.NuGet.MSBuild.ResolvedPackageInfo>;
-using UtilPack.NuGet.AssemblyLoading;
 
 namespace UtilPack.NuGet.MSBuild
 {

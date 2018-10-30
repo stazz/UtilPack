@@ -1,22 +1,30 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
    <PropertyGroup>
-      <TargetFrameworks>netstandard1.0;net40</TargetFrameworks>
+      <OutputType>Exe</OutputType>
+      <TargetFramework>netcoreapp2.1</TargetFramework>
+      <PackAsTool>true</PackAsTool>
+      <LangVersion>latest</LangVersion>
+      <GenerateDocumentationFile>false</GenerateDocumentationFile>
    </PropertyGroup>
 
    <PropertyGroup>
       <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
       <TreatSpecificWarningsAsErrors />
-      <LangVersion>latest</LangVersion>
-      <GeneratePackageOnBuild Condition=" '$(Configuration)' == 'Release' ">true</GeneratePackageOnBuild>
+      <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+      <ToolCommandName>nuget-restore</ToolCommandName>
    </PropertyGroup>
+
+   <ItemGroup>
+      <ProjectReference Include="..\NuGetUtils.Lib.Tool\NuGetUtils.Lib.Tool.csproj" />
+   </ItemGroup>
 
    <!-- Assembly information stuff -->
    <PropertyGroup>
       <VersionPrefix>1.0.0</VersionPrefix>
       <VersionSuffix></VersionSuffix>
       <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
-      <Description>Library containing API for interacting when executed by nuget-exec global tool.</Description>
+      <Description>This package will restore the given NuGet package and then execute a method within the restored DLLs.</Description>
    </PropertyGroup>
 
    <!-- NuGet package stuff -->
@@ -24,14 +32,14 @@
       <PackageVersion>$(VersionPrefix)</PackageVersion>
       <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
       <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
-      <PackageTags>nuget entry point execution dynamic</PackageTags>
-      <Title>Entry Point Information For NuGetUtils.Exec.</Title>
+      <PackageTags>nuget package execute assembly load managed</PackageTags>
+      <Title>NuGet Package Restorer</Title>
       <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(MSBuildProjectName)</PackageProjectUrl>
-      <Description>This library contains attribute which is used by NuGetUtils.Exec tool when it executes a method within a NuGet package. This attribute can be used to modify the behaviour of NuGetUtils.Exec and how it passes parameters to the method.</Description>
    </PropertyGroup>
 
    <PropertyGroup>
       <Product>NuGetUtils</Product>
       <AssemblyOriginatorKeyFile>$(MSBuildThisProjectDirectory)..\..\Keys\NuGetUtils.sha1.snk</AssemblyOriginatorKeyFile>
    </PropertyGroup>
+
 </Project>

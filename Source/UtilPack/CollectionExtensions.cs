@@ -618,7 +618,7 @@ namespace UtilPack
       }
 
       /// <summary>
-      /// This is shortcut method to <see cref="Array.Clear(Array, int, int)"/> method, with parameters which will clear whole contents of this <see cref="Array"/>.
+      /// This is shortcut method to <see cref="Array.Clear(Array, Int32, Int32)"/> method, with parameters which will clear whole contents of this <see cref="Array"/>.
       /// </summary>
       /// <param name="array">This <see cref="Array"/>.</param>
       /// <exception cref="NullReferenceException">If this <see cref="Array"/> is <c>null</c>.</exception>
@@ -632,7 +632,7 @@ namespace UtilPack
       }
 
       /// <summary>
-      /// This is shortcut method to <see cref="Array.Clear(Array, int, int)"/> method, with parameters which will clear the contents of this <see cref="Array"/> starting from given offset.
+      /// This is shortcut method to <see cref="Array.Clear(Array, Int32, Int32)"/> method, with parameters which will clear the contents of this <see cref="Array"/> starting from given offset.
       /// </summary>
       /// <param name="array">This <see cref="Array"/>.</param>
       /// <param name="offset">The index of first element to be cleared.</param>
@@ -647,7 +647,7 @@ namespace UtilPack
       }
 
       /// <summary>
-      /// This is shortcut method to <see cref="Array.Clear(Array, int, int)"/> method.
+      /// This is shortcut method to <see cref="Array.Clear(Array, Int32, Int32)"/> method.
       /// </summary>
       /// <param name="array">This <see cref="Array"/>.</param>
       /// <param name="offset">The index of first element to be cleared.</param>
@@ -882,7 +882,8 @@ namespace UtilPack
             }
             var max = x.Length;
             var i = 0;
-            for ( ; i < max && equality( x[i], y[i] ); ++i ) ;
+            for ( ; i < max && equality( x[i], y[i] ); ++i )
+               ;
             retVal = i == max;
          }
 
@@ -911,7 +912,8 @@ namespace UtilPack
             }
             var max = x.Length;
             var i = 0;
-            for ( ; i < max && equality( x.GetValue( i ), y.GetValue( i ) ); ++i ) ;
+            for ( ; i < max && equality( x.GetValue( i ), y.GetValue( i ) ); ++i )
+               ;
             retVal = i == max;
          }
          return retVal;
@@ -1248,7 +1250,7 @@ namespace UtilPack
 
       /// <summary>
       /// Creates a copy of array.
-      /// This is ease-of-life method for calling <see cref="Array.Copy(Array, int, Array, int, int)"/>.
+      /// This is ease-of-life method for calling <see cref="Array.Copy(Array, Int32, Array, Int32, Int32)"/>.
       /// </summary>
       /// <typeparam name="T">The type of elements in the array.</typeparam>
       /// <param name="array">The array.</param>
@@ -1304,7 +1306,7 @@ namespace UtilPack
       }
 
       /// <summary>
-      /// This is helper method to <see cref="Array.Copy(Array, Array, int)"/> call with last parameter being the source array length.
+      /// This is helper method to <see cref="Array.Copy(Array, Array, Int32)"/> call with last parameter being the source array length.
       /// </summary>
       /// <typeparam name="T">The type of elements in the array.</typeparam>
       /// <param name="array">The source array. All elements will be copied.</param>
@@ -1318,7 +1320,7 @@ namespace UtilPack
       }
 
       /// <summary>
-      /// This is helper method to <see cref="Array.Copy(Array, int, Array, int, int)"/> call with bound parameters for target array index and element copy count.
+      /// This is helper method to <see cref="Array.Copy(Array, Int32, Array, Int32, Int32)"/> call with bound parameters for target array index and element copy count.
       /// </summary>
       /// <typeparam name="T">The type of elements in the array.</typeparam>
       /// <param name="array">The source array. All elements remaining starting from <paramref name="sourceIndex"/> will be copied.</param>
@@ -1333,7 +1335,7 @@ namespace UtilPack
       }
 
       /// <summary>
-      /// This is pass-thru method to <see cref="Array.Copy(Array, int, Array, int, int)"/>, designed to make it easy to invoke it.
+      /// This is pass-thru method to <see cref="Array.Copy(Array, Int32, Array, Int32, Int32)"/>, designed to make it easy to invoke it.
       /// </summary>
       /// <typeparam name="T">The type of elements in the array.</typeparam>
       /// <param name="array">The source array.</param>
@@ -1493,6 +1495,8 @@ namespace UtilPack
          }
       }
 
+#if !NETSTANDARD1_6
+
       /// <summary>
       /// Returns enumerable which will return all items in this enumerable, and then concatenate a single item at the end.
       /// </summary>
@@ -1526,9 +1530,10 @@ namespace UtilPack
             yield return item;
          }
       }
+#endif
 
       /// <summary>
-      /// This method behaves the same way as <see cref="Enumerable.All{TSource}(IEnumerable{TSource}, Func{TSource, bool})"/>, but the predicate callback also accepts index parameter.
+      /// This method behaves the same way as <see cref="Enumerable.All{TSource}(IEnumerable{TSource}, Func{TSource, Boolean})"/>, but the predicate callback also accepts index parameter.
       /// </summary>
       /// <typeparam name="T">The type of enumerable items.</typeparam>
       /// <param name="enumerable">The enumerable.</param>

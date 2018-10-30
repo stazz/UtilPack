@@ -44,6 +44,7 @@
 
    <PropertyGroup>
       <Product>NuGetUtils</Product>
+      <AssemblyOriginatorKeyFile>$(MSBuildThisProjectDirectory)..\..\Keys\NuGetUtils.sha1.snk</AssemblyOriginatorKeyFile>
    </PropertyGroup>
 
 </Project>

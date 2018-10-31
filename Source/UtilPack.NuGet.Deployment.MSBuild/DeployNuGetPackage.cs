@@ -16,6 +16,8 @@
  * limitations under the License. 
  */
 using Microsoft.Build.Framework;
+using NuGetUtils.Lib.Deployment;
+using NuGetUtils.Lib.Restore;
 using System;
 using System.IO;
 using System.Reflection;
@@ -29,7 +31,7 @@ namespace UtilPack.NuGet.Deployment.MSBuild
       {
          // TODO maybe use this.BuildEngine.Yield?
          var retVal = new NuGetDeployment( this ).DeployAsync(
-            UtilPackNuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
+            NuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
                Path.GetDirectoryName( this.BuildEngine.ProjectFileOfTaskNode ),
                this.NuGetConfigurationFile
             ),

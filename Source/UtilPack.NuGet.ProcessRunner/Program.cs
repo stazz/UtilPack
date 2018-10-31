@@ -17,13 +17,14 @@
  */
 using Microsoft.Extensions.Configuration;
 using NuGet.Frameworks;
+using NuGetUtils.Lib.Deployment;
+using NuGetUtils.Lib.Restore;
 using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using UtilPack.NuGet.Deployment;
 using UtilPack.ProcessMonitor;
 
 namespace UtilPack.NuGet.ProcessRunner
@@ -84,7 +85,7 @@ namespace UtilPack.NuGet.ProcessRunner
                // Initialization step - restore needed packages, copy required files, etc
                (var assemblyPath, var framework) = await new NuGetDeployment( deployConfig )
                   .DeployAsync(
-                     UtilPackNuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
+                     NuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
                         Path.GetDirectoryName( new Uri( typeof( Program ).GetTypeInfo().Assembly.CodeBase ).LocalPath ),
                         programConfig.NuGetConfigurationFile
                      ),

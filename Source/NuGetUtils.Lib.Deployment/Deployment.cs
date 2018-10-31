@@ -34,8 +34,9 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using UtilPack;
 
-namespace UtilPack.NuGet.Deployment
+namespace NuGetUtils.Lib.Deployment
 {
    /// <summary>
    /// This class contains configurable implementation for deploying NuGet packages.

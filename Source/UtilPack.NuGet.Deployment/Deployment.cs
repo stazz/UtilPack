@@ -236,7 +236,7 @@ namespace UtilPack.NuGet.Deployment
                if ( possibleAssemblies.Length > 0 )
                {
                   var possibleAssemblyPaths = possibleAssemblies.Select( tuple => tuple.Item2 ).ToArray();
-                  var matchingAssembly = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
+                  var matchingAssembly = NuGetUtility.GetAssemblyPathFromNuGetAssemblies(
                      packageID.Id,
                      possibleAssemblyPaths,
                      config.ProcessAssemblyPath,
@@ -296,8 +296,8 @@ namespace UtilPack.NuGet.Deployment
             }
          }
 
-         sdkPackageID = UtilPackNuGetUtility.GetSDKPackageID( targetFramework, config.ProcessSDKFrameworkPackageID ?? sdkPackageID );
-         sdkPackageVersion = UtilPackNuGetUtility.GetSDKPackageVersion( targetFramework, sdkPackageID, config.ProcessSDKFrameworkPackageVersion ?? sdkPackageVersion );
+         sdkPackageID = NuGetUtility.GetSDKPackageID( targetFramework, config.ProcessSDKFrameworkPackageID ?? sdkPackageID );
+         sdkPackageVersion = NuGetUtility.GetSDKPackageVersion( targetFramework, sdkPackageID, config.ProcessSDKFrameworkPackageVersion ?? sdkPackageVersion );
 
          var sdkPackages = new HashSet<String>( lockFile.Targets[0].GetAllDependencies(
             sdkPackageID.Singleton()
@@ -309,7 +309,7 @@ namespace UtilPack.NuGet.Deployment
          // Starting from 2.0.0, all assemblies from all dependent packages are marked as compile-assemblies stored in sdk package.
          Version.TryParse( sdkPackageVersion, out var sdkPkgVer );
          if ( sdkPackageContainsAllPackagesAsAssemblies.IsTrue() ||
-            ( !sdkPackageContainsAllPackagesAsAssemblies.HasValue && sdkPackageID == UtilPackNuGetUtility.SDK_PACKAGE_NETCORE && sdkPkgVer != null && sdkPkgVer.Major >= 2 )
+            ( !sdkPackageContainsAllPackagesAsAssemblies.HasValue && sdkPackageID == NuGetUtility.SDK_PACKAGE_NETCORE && sdkPkgVer != null && sdkPkgVer.Major >= 2 )
             )
          {
             var sdkPackageLibraries = lockFile.Targets[0].Libraries.Where( l => l.Name == sdkPackageID );

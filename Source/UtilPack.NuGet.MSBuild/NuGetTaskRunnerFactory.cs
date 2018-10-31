@@ -270,13 +270,13 @@ namespace UtilPack.NuGet.MSBuild
             var taskBodyElement = XElement.Parse( taskBody );
 
             // Nuget stuff
-            var thisFW = UtilPackNuGetUtility.TryAutoDetectThisProcessFramework( (taskBodyElement.ElementAnyNS( NUGET_FW )?.Value, taskBodyElement.ElementAnyNS( NUGET_FW_VERSION )?.Value) );
+            var thisFW = NuGetUtility.TryAutoDetectThisProcessFramework( (taskBodyElement.ElementAnyNS( NUGET_FW )?.Value, taskBodyElement.ElementAnyNS( NUGET_FW_VERSION )?.Value) );
 
-            var nugetSettings = UtilPackNuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
+            var nugetSettings = NuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
                Path.GetDirectoryName( taskFactoryLoggingHost.ProjectFileOfTaskNode ),
                taskBodyElement.ElementAnyNS( NUGET_CONFIG_FILE )?.Value
                );
-            var runtimeIdentifier = ( taskBodyElement.ElementAnyNS( NUGET_RID )?.Value ).DefaultIfNullOrEmpty( () => UtilPackNuGetUtility.TryAutoDetectThisProcessRuntimeIdentifier() );
+            var runtimeIdentifier = ( taskBodyElement.ElementAnyNS( NUGET_RID )?.Value ).DefaultIfNullOrEmpty( () => NuGetUtility.TryAutoDetectThisProcessRuntimeIdentifier() );
             var runtimeGraph = ( taskBodyElement.ElementAnyNS( NUGET_RID_CATALOG_PACKAGE_ID )?.Value ).DefaultIfNullOrEmpty( BoundRestoreCommandUser.DEFAULT_RUNTIME_GRAPH_PACKAGE_ID );
 
             BoundRestoreCommandUser nugetResolver;
@@ -384,7 +384,7 @@ namespace UtilPack.NuGet.MSBuild
 #endif
                            )[packageID];
                         var assemblyPathHint = taskBodyElement.ElementAnyNS( ASSEMBLY_PATH )?.Value;
-                        var assemblyPath = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
+                        var assemblyPath = NuGetUtility.GetAssemblyPathFromNuGetAssemblies(
                            packageID,
                            taskAssemblies.Assemblies,
                            assemblyPathHint,
@@ -752,7 +752,7 @@ namespace UtilPack.NuGet.MSBuild
          Lazy<IDictionary<String, LockFileLibrary>> libraries
          )
       {
-         var retVal = UtilPackNuGetUtility.GetRuntimeAssembliesDelegate( runtimeGraph, runtimeIdentifier, targetLibrary, libraries );
+         var retVal = NuGetUtility.GetRuntimeAssembliesDelegate( runtimeGraph, runtimeIdentifier, targetLibrary, libraries );
          if ( !retVal.Any() && libraries.Value.TryGetValue( targetLibrary.Name, out var lib ) )
          {
 

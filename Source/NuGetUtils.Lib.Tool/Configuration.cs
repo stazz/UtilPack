@@ -68,7 +68,7 @@ namespace NuGetUtils.Lib.Tool
       public const String LockFileCacheDirectoryDescription = LockFileCacheDirectoryDescription1 + Consts.LOCK_FILE_CACHE_DIR_ENV_NAME + LockFileCacheDirectoryDescription2 + Consts.LOCK_FILE_CACHE_DIR_WITHIN_HOME_DIR + LockFileCacheDirectoryDescription3;
 
       public const String SDKFrameworkPackageIDValue = "packageID";
-      public const String SDKFrameworkPackageIDDescription = "The package ID of the current framework SDK package. This depends on a auto-detected or explicitly specified restore framework, but is typically \"" + UtilPackNuGetUtility.SDK_PACKAGE_NETCORE + "\".";
+      public const String SDKFrameworkPackageIDDescription = "The package ID of the current framework SDK package. This depends on a auto-detected or explicitly specified restore framework, but is typically \"" + NuGetUtility.SDK_PACKAGE_NETCORE + "\".";
 
       public const String SDKFrameworkPackageVersionValue = "version";
       public const String SDKFrameworkPackageVersionDescription = "The package version of the framework SDK package. By default, it is deduced from path of the assembly containing " + nameof( Object ) + " type.";

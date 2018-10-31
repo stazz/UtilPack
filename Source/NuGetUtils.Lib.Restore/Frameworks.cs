@@ -35,7 +35,7 @@ namespace NuGetUtils.Lib.Restore
    /// <summary>
    /// This class contains extension method which are for types not contained in this library.
    /// </summary>
-   public static partial class UtilPackNuGetUtility
+   public static partial class NuGetUtility
    {
 
 #if NUGET_430

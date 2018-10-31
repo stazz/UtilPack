@@ -55,11 +55,10 @@ namespace NuGetUtils.Tool.Restore
          ConfigurationInformation info
          )
       {
-         var docu = this.GetDocumentation();
          var config = info.Configuration;
-         var isSinglePackage = String.IsNullOrEmpty( config.PackageID );
-         return isSinglePackage ^ config.PackageIDs.IsNullOrEmpty()
-            && ( isSinglePackage ? config.PackageVersions.IsNullOrEmpty() : String.IsNullOrEmpty( config.PackageVersion ) );
+         var isMultiPackage = String.IsNullOrEmpty( config.PackageID );
+         return isMultiPackage ^ config.PackageIDs.IsNullOrEmpty()
+            && ( isMultiPackage ? String.IsNullOrEmpty( config.PackageVersion ) : config.PackageVersions.IsNullOrEmpty() );
       }
 
       protected override async Task<Int32> UseRestorerAsync(

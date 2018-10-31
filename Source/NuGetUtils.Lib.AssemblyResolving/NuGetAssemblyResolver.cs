@@ -394,7 +394,7 @@ namespace NuGetUtils.Lib.AssemblyResolving
       {
          if ( defaultGetFiles == null )
          {
-            defaultGetFiles = UtilPackNuGetUtility.GetRuntimeAssembliesDelegate;
+            defaultGetFiles = NuGetUtility.GetRuntimeAssembliesDelegate;
          }
          var resolver = new NuGetRestorerWrapper(
             restorer,
@@ -998,7 +998,7 @@ namespace NuGetUtils.Lib.AssemblyResolving
                   var packageID = packageIDs[i];
                   if ( assemblyInfos.TryGetValue( packageID, out var possibleAssemblyPaths ) )
                   {
-                     var assemblyPath = UtilPackNuGetUtility.GetAssemblyPathFromNuGetAssemblies(
+                     var assemblyPath = NuGetUtility.GetAssemblyPathFromNuGetAssemblies(
                         packageID,
                         possibleAssemblyPaths.Assemblies,
                         assemblyPaths[i],

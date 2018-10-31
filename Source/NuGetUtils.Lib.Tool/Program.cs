@@ -229,7 +229,7 @@ namespace NuGetUtils.Lib.Tool
          var targetFWString = programConfig.RestoreFramework;
 
          using ( var restorer = new BoundRestoreCommandUser(
-            UtilPackNuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
+            NuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
                   Path.GetDirectoryName( new Uri( this.GetType().GetTypeInfo().Assembly.CodeBase ).LocalPath ),
                   programConfig.NuGetConfigurationFile
                ),

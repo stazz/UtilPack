@@ -153,7 +153,7 @@ namespace NuGetUtils.Lib.Restore
          )
       {
          ArgumentValidator.ValidateNotNull( nameof( nugetSettings ), nugetSettings );
-         this.ThisFramework = thisFramework ?? UtilPackNuGetUtility.TryAutoDetectThisProcessFramework();
+         this.ThisFramework = thisFramework ?? NuGetUtility.TryAutoDetectThisProcessFramework();
          if ( nugetLogger == null )
          {
             nugetLogger = NullLogger.Instance;
@@ -168,7 +168,7 @@ namespace NuGetUtils.Lib.Restore
          var ctx = sourceCacheContext ?? new SourceCacheContext();
          var psp = new PackageSourceProvider( nugetSettings );
          var csp = new CachingSourceProvider( psp );
-         this.RuntimeIdentifier = UtilPackNuGetUtility.TryAutoDetectThisProcessRuntimeIdentifier( runtimeIdentifier );
+         this.RuntimeIdentifier = NuGetUtility.TryAutoDetectThisProcessRuntimeIdentifier( runtimeIdentifier );
          this._cacheContext = ctx;
          this._disposeSourceCacheContext = !leaveSourceCacheOpen;
 
@@ -569,7 +569,7 @@ namespace NuGetUtils.Lib.Restore
    /// <returns>The assembly paths for this <see cref="LockFileTargetLibrary"/>.</returns>
    public delegate IEnumerable<String> GetFileItemsDelegate( Lazy<RuntimeGraph> runtimeGraph, String currentRID, LockFileTargetLibrary targetLibrary, Lazy<IDictionary<String, LockFileLibrary>> libraries );
 
-   public static partial class UtilPackNuGetUtility
+   public static partial class NuGetUtility
    {
 
       /// <summary>
@@ -770,7 +770,7 @@ public static partial class E_NuGetUtils
       var retVal = new Dictionary<String, TResult>();
       if ( fileGetter == null )
       {
-         fileGetter = UtilPackNuGetUtility.GetRuntimeAssembliesDelegate;
+         fileGetter = NuGetUtility.GetRuntimeAssembliesDelegate;
       }
       var libDic = new Lazy<IDictionary<String, LockFileLibrary>>( () =>
       {

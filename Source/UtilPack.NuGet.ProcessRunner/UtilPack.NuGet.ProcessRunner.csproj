@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\UtilPack.NuGet.Deployment\UtilPack.NuGet.Deployment.csproj" />
+    <ProjectReference Include="..\NuGetUtils.Lib.Deployment\NuGetUtils.Lib.Deployment.csproj" />
     <ProjectReference Include="..\UtilPack.ProcessMonitor\UtilPack.ProcessMonitor.csproj" />
   </ItemGroup>
 

@@ -17,7 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\UtilPack.NuGet.Common.MSBuild\UtilPack.NuGet.Common.MSBuild.csproj" />
-    <ProjectReference Include="..\UtilPack.NuGet.Deployment\UtilPack.NuGet.Deployment.csproj" />
+    <ProjectReference Include="..\NuGetUtils.Lib.Deployment\NuGetUtils.Lib.Deployment.csproj" />
   </ItemGroup>
 
   <!-- Assembly information stuff -->

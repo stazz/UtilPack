@@ -125,7 +125,7 @@ namespace NuGetUtils.Lib.Deployment
                      token
                      );
 
-                  CreateTargetDirectory( targetDirectory );
+                  targetDirectory = CreateTargetDirectory( targetDirectory );
 
                   switch ( processConfig.DeploymentKind )
                   {
@@ -223,7 +223,7 @@ namespace NuGetUtils.Lib.Deployment
                {
                   var targetFW = NuGetFramework.ParseFolder( targetFWString );
 
-                  var nearestFW = new global::NuGet.Frameworks.FrameworkReducer().GetNearest( targetFW, possibleAssemblies.Select( t => t.Item1.TargetFramework ) );
+                  var nearestFW = new FrameworkReducer().GetNearest( targetFW, possibleAssemblies.Select( t => t.Item1.TargetFramework ) );
                   if ( nearestFW == null )
                   {
                      nearestFW = targetFW;
@@ -500,7 +500,7 @@ namespace NuGetUtils.Lib.Deployment
          return targetAssemblyName;
       }
 
-      private static void CreateTargetDirectory(
+      private static String CreateTargetDirectory(
          String targetDirectory
          )
       {
@@ -513,6 +513,8 @@ namespace NuGetUtils.Lib.Deployment
          {
             Directory.CreateDirectory( targetDirectory );
          }
+
+         return targetDirectory;
       }
 
       private static void WriteRuntimeConfigFile(

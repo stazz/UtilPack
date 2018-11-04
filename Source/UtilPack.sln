@@ -63,7 +63,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Documentation", "U
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.Lib.Tool", "NuGetUtils.Lib.Tool\NuGetUtils.Lib.Tool.csproj", "{0DE7CB43-ACC7-41D1-9EA7-D47BABD371C6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NuGetUtils.Tool.Restore", "NuGetUtils.Tool.Restore\NuGetUtils.Tool.Restore.csproj", "{1DC90AB0-F017-4F11-B51A-1DEB4DF2FC9F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.Tool.Restore", "NuGetUtils.Tool.Restore\NuGetUtils.Tool.Restore.csproj", "{1DC90AB0-F017-4F11-B51A-1DEB4DF2FC9F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NuGetUtils.Lib.Exec", "NuGetUtils.Lib.Exec\NuGetUtils.Lib.Exec.csproj", "{AD8DE2B1-8734-4576-A2F5-BD560653C436}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -195,6 +197,10 @@ Global
 		{1DC90AB0-F017-4F11-B51A-1DEB4DF2FC9F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1DC90AB0-F017-4F11-B51A-1DEB4DF2FC9F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1DC90AB0-F017-4F11-B51A-1DEB4DF2FC9F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AD8DE2B1-8734-4576-A2F5-BD560653C436}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AD8DE2B1-8734-4576-A2F5-BD560653C436}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AD8DE2B1-8734-4576-A2F5-BD560653C436}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AD8DE2B1-8734-4576-A2F5-BD560653C436}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

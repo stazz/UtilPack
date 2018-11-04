@@ -16,9 +16,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-     <ProjectReference Include="..\NuGetUtils.Lib.AssemblyResolving\NuGetUtils.Lib.AssemblyResolving.csproj" />
+     <ProjectReference Include="..\NuGetUtils.Lib.Exec\NuGetUtils.Lib.Exec.csproj" />
      <ProjectReference Include="..\NuGetUtils.Lib.Tool\NuGetUtils.Lib.Tool.csproj" />
-     <ProjectReference Include="..\NuGetUtils.Lib.EntryPoint\NuGetUtils.Lib.EntryPoint.csproj" />
   </ItemGroup>
 
   <!-- Assembly information stuff -->

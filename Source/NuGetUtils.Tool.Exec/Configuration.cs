@@ -18,6 +18,7 @@
 using NuGet.Common;
 using NuGet.ProjectModel;
 using NuGetUtils.Lib.EntryPoint;
+using NuGetUtils.Lib.Exec;
 using NuGetUtils.Lib.Restore;
 using NuGetUtils.Lib.Tool;
 using System;
@@ -26,7 +27,7 @@ using static NuGetUtils.Lib.Tool.DefaultDocumentation;
 
 namespace NuGetUtils.Tool.Exec
 {
-   internal sealed class NuGetExecutionConfiguration : NuGetUsageConfiguration
+   internal sealed class NuGetExecutionConfigurationImpl : NuGetExecutionConfiguration, NuGetUsageConfiguration
    {
 
       [
@@ -115,7 +116,7 @@ namespace NuGetUtils.Tool.Exec
    {
       [
          Required,
-         Description( ValueName = ConfigurationFileLocationValue, Description = ConfigurationFileLocationDescription + " In addition, the \"" + nameof( NuGetExecutionConfiguration.ProcessArguments ) + "\" key (with JSON array as value) may be specified for always-present process arguments." )
+         Description( ValueName = ConfigurationFileLocationValue, Description = ConfigurationFileLocationDescription + " In addition, the \"" + nameof( NuGetExecutionConfigurationImpl.ProcessArguments ) + "\" key (with JSON array as value) may be specified for always-present process arguments." )
          ]
       public String ConfigurationFileLocation { get; set; }
    }

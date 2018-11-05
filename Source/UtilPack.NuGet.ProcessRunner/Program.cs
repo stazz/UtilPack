@@ -37,7 +37,7 @@ namespace UtilPack.NuGet.ProcessRunner
       {
          var retVal = -1;
 
-         DeploymentConfiguration deployConfig = null;
+         NuGetDeploymentConfiguration deployConfig = null;
          DefaultMonitoringConfiguration monitorConfig = null;
          ProcessRunnerConfiguration programConfig = null;
          var isConfigFile = false;
@@ -150,7 +150,7 @@ namespace UtilPack.NuGet.ProcessRunner
                }
                else
                {
-                  Console.Error.WriteLine( $"Failed to resolve assembly path within package, try specifying \"{nameof( DeploymentConfiguration.ProcessFramework )}\" and/or \"{nameof( DeploymentConfiguration.ProcessAssemblyPath )}\" configuration properties." );
+                  Console.Error.WriteLine( $"Failed to resolve assembly path within package, try specifying \"{nameof( NuGetDeploymentConfiguration.ProcessFramework )}\" and/or \"{nameof( NuGetDeploymentConfiguration.AssemblyPath )}\" configuration properties." );
                }
             }
             catch ( Exception exc )
@@ -196,7 +196,7 @@ namespace UtilPack.NuGet.ProcessRunner
          return retVal;
       }
 
-      private static (DeploymentConfiguration, DefaultMonitoringConfiguration, ProcessRunnerConfiguration) GetConfigs(
+      private static (NuGetDeploymentConfiguration, DefaultMonitoringConfiguration, ProcessRunnerConfiguration) GetConfigs(
          IConfigurationRoot config
          )
       {

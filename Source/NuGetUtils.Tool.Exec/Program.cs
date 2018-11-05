@@ -86,7 +86,7 @@ namespace NuGetUtils.Tool.Exec
          var programArgs = new Lazy<String[]>( () => info.IsConfigurationConfiguration ? ( config.ProcessArguments ?? Empty<String>.Array ).Concat( info.RemainingArguments ).ToArray() : info.RemainingArguments.ToArray() );
          var programArgsConfig = new Lazy<IConfigurationRoot>( () => new ConfigurationBuilder().AddCommandLine( programArgs.Value ).Build() );
 
-         return config.ExecuteNuGetAssemblyEntryPoint(
+         return config.ExecuteNuGetAssemblyEntryPointAsync(
             token,
             restorer,
             type =>

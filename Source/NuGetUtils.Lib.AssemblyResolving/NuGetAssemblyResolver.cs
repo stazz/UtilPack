@@ -1001,8 +1001,7 @@ namespace NuGetUtils.Lib.AssemblyResolving
                      var assemblyPath = NuGetUtility.GetAssemblyPathFromNuGetAssemblies(
                         packageID,
                         possibleAssemblyPaths.Assemblies,
-                        assemblyPaths[i],
-                        ap => File.Exists( ap )
+                        assemblyPaths[i]
                         );
                      AssemblyName name;
                      if ( !String.IsNullOrEmpty( assemblyPath ) && ( name = assemblyNames[assemblyPath = Path.GetFullPath( assemblyPath )].Value ) != null )

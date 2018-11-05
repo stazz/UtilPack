@@ -57,14 +57,18 @@ namespace NuGetUtils.Lib.Restore
          String packageID,
          String[] assemblyPaths,
          String optionalGivenAssemblyPath,
-         Func<String, Boolean> suitableAssemblyPathChecker
+         Func<String, Boolean> suitableAssemblyPathChecker = null
          )
       {
+         if ( suitableAssemblyPathChecker == null )
+         {
+            suitableAssemblyPathChecker = path => File.Exists( path );
+         }
          String assemblyPath;
          if ( assemblyPaths.Length == 1 )
          {
             assemblyPath = assemblyPaths[0];
-            if ( suitableAssemblyPathChecker != null && !suitableAssemblyPathChecker( assemblyPath ) )
+            if ( !suitableAssemblyPathChecker( assemblyPath ) )
             {
                assemblyPath = null;
             }
@@ -78,7 +82,7 @@ namespace NuGetUtils.Lib.Restore
 
             assemblyPath = assemblyPaths
                .FirstOrDefault( ap => String.Equals( Path.GetFullPath( ap ), Path.GetFullPath( Path.Combine( Path.GetDirectoryName( ap ), optionalGivenAssemblyPath ) ) )
-               && ( suitableAssemblyPathChecker?.Invoke( ap ) ?? true ) );
+               && ( suitableAssemblyPathChecker( ap ) ) );
          }
          else
          {

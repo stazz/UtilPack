@@ -1,0 +1,46 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+   <PropertyGroup>
+      <OutputType>Exe</OutputType>
+      <TargetFramework>netcoreapp2.1</TargetFramework>
+      <PackAsTool>true</PackAsTool>
+      <LangVersion>latest</LangVersion>
+      <GenerateDocumentationFile>false</GenerateDocumentationFile>
+   </PropertyGroup>
+
+   <PropertyGroup>
+      <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+      <TreatSpecificWarningsAsErrors />
+      <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+      <ToolCommandName>nuget-restore</ToolCommandName>
+   </PropertyGroup>
+
+   <ItemGroup>
+      <ProjectReference Include="..\NuGetUtils.Lib.Tool\NuGetUtils.Lib.Tool.csproj" />
+      <ProjectReference Include="..\NuGetUtils.Lib.Deployment\NuGetUtils.Lib.Deployment.csproj" />
+   </ItemGroup>
+
+   <!-- Assembly information stuff -->
+   <PropertyGroup>
+      <VersionPrefix>1.0.0</VersionPrefix>
+      <VersionSuffix></VersionSuffix>
+      <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
+      <Description>This package will deploy the given NuGet package by generating .deps.json and .runtimeconfig.json files, or by copying all non-framework assemblies into single folder.</Description>
+   </PropertyGroup>
+
+   <!-- NuGet package stuff -->
+   <PropertyGroup>
+      <PackageVersion>$(VersionPrefix)</PackageVersion>
+      <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
+      <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
+      <PackageTags>nuget package execute assembly load managed</PackageTags>
+      <Title>NuGet Package Restorer</Title>
+      <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(MSBuildProjectName)</PackageProjectUrl>
+   </PropertyGroup>
+
+   <PropertyGroup>
+      <Product>NuGetUtils</Product>
+      <AssemblyOriginatorKeyFile>$(MSBuildThisProjectDirectory)..\..\Keys\NuGetUtils.sha1.snk</AssemblyOriginatorKeyFile>
+   </PropertyGroup>
+
+</Project>

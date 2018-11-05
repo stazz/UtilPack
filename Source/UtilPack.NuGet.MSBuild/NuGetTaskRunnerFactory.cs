@@ -387,8 +387,7 @@ namespace UtilPack.NuGet.MSBuild
                         var assemblyPath = NuGetUtility.GetAssemblyPathFromNuGetAssemblies(
                            packageID,
                            taskAssemblies.Assemblies,
-                           assemblyPathHint,
-                           ap => File.Exists( ap )
+                           assemblyPathHint
                            );
                         if ( !String.IsNullOrEmpty( assemblyPath ) )
                         {

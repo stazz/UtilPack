@@ -185,7 +185,7 @@ namespace NuGetUtils.Lib.Exec
 
 public static class E_NuGetUtils
 {
-   public static async Task<Int32> ExecuteNuGetAssemblyEntryPoint(
+   public static async Task<Int32> ExecuteNuGetAssemblyEntryPointAsync(
       this NuGetExecutionConfiguration programConfig,
       CancellationToken token,
       BoundRestoreCommandUser restorer,

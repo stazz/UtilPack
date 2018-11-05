@@ -25,7 +25,7 @@ using UtilPack.NuGet.Common.MSBuild;
 
 namespace UtilPack.NuGet.Deployment.MSBuild
 {
-   public class DeployNuGetPackageTask : Microsoft.Build.Utilities.Task, DeploymentConfiguration
+   public class DeployNuGetPackageTask : Microsoft.Build.Utilities.Task, NuGetDeploymentConfiguration
    {
       public override Boolean Execute()
       {
@@ -51,13 +51,13 @@ namespace UtilPack.NuGet.Deployment.MSBuild
          return success;
       }
 
-      public String ProcessPackageID { get; set; }
+      public String PackageID { get; set; }
 
-      public String ProcessPackageVersion { get; set; }
+      public String PackageVersion { get; set; }
 
       public String ProcessFramework { get; set; }
 
-      public String ProcessAssemblyPath { get; set; }
+      public String AssemblyPath { get; set; }
 
       public String ProcessSDKFrameworkPackageID { get; set; }
 

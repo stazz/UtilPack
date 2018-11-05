@@ -230,12 +230,12 @@ public static class E_NuGetUtils
          {
             var paramsByType = new Object[]
             {
-                     token,
-                     assemblyLoader.CreateAssemblyByPathResolverCallback(),
-                     assemblyLoader.CreateAssemblyNameResolverCallback(),
-                     assemblyLoader.CreateNuGetPackageResolverCallback(),
-                     assemblyLoader.CreateNuGetPackagesResolverCallback(),
-                     assemblyLoader.CreateTypeStringResolverCallback()
+               token,
+               assemblyLoader.CreateAssemblyByPathResolverCallback(),
+               assemblyLoader.CreateAssemblyNameResolverCallback(),
+               assemblyLoader.CreateNuGetPackageResolverCallback(),
+               assemblyLoader.CreateNuGetPackagesResolverCallback(),
+               assemblyLoader.CreateTypeStringResolverCallback()
             }.ToDictionary( o => o.GetType(), o => o );
             Object invocationResult;
             try
@@ -272,7 +272,6 @@ public static class E_NuGetUtils
                   break;
 #endif
                default:
-
                   var type = invocationResult.GetType().GetTypeInfo();
                   if (
                      ( ( type.IsGenericType && type.GenericTypeArguments.Length == 1 && Equals( type.GetGenericTypeDefinition(), typeof( ValueTask<> ) ) ) // Check for ValueTask<X>

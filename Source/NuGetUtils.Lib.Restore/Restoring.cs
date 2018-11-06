@@ -841,7 +841,7 @@ public static partial class E_NuGetUtils
          .Select( f =>
          {
             return restorer.LocalRepositories.TryGetValue( f.Path, out var curRepo ) ?
-                  Path.Combine( curRepo.RepositoryRoot, pathExtractor( curRepo.PathResolver ) ) :
+                  Path.GetFullPath( Path.Combine( curRepo.RepositoryRoot, pathExtractor( curRepo.PathResolver ) ) ) :
                   null;
          } )
          .FirstOrDefault( fp => !String.IsNullOrEmpty( fp ) && ( onlyOnePackageFolder || Directory.Exists( fp ) ) );

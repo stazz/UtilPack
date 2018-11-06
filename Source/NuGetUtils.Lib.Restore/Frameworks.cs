@@ -172,7 +172,16 @@ namespace NuGetUtils.Lib.Restore
             switch ( sdkPackageID )
             {
                case SDK_PACKAGE_NETSTANDARD:
-                  retVal = "2.0.3";
+                  switch ( framework.Version.Major )
+                  {
+                     case 1:
+                        retVal = "1.6.1";
+                        break;
+                     default:
+                        retVal = "2.0.3";
+                        break;
+                  }
+                  //retVal = "2.0.3";
                   //if ( String.Equals( framework.Framework, FrameworkConstants.FrameworkIdentifiers.NetStandard, StringComparison.OrdinalIgnoreCase ) )
                   //{
                   //   retVal = framework.Version.ToString();

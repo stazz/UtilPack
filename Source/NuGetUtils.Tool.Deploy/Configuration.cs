@@ -52,6 +52,10 @@ namespace NuGetUtils.Tool.Deploy
 
       public String TargetDirectory { get; set; }
 
+      public String PackageSDKFrameworkPackageID { get; }
+
+      public String PackageSDKFrameworkPackageVersion { get; }
+
 
       [
          Description( ValueName = NuGetConfigurationFileValue, Description = NuGetConfigurationFileDescription )

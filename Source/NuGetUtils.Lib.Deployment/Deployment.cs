@@ -572,13 +572,18 @@ public static class E_UtilPack
       //sdkPackageID = NuGetUtility.GetSDKPackageID( targetFramework, config.ProcessSDKFrameworkPackageID ?? sdkPackageID );
       //sdkPackageVersion = NuGetUtility.GetSDKPackageVersion( targetFramework, sdkPackageID, config.ProcessSDKFrameworkPackageVersion ?? sdkPackageVersion );
 
+      // Warning: The code below exploits the de facto behaviour that package named "System.XYZ" will contain assembly named "System.XYZ". Should sometime in the future this change, this code will then result in possibly wrong behaviour.
+      // TODO I wonder if this assumption is needed anymore with .NET Standard and .NET Core 2+?
+
       var packageSDKPackageID = packageFramework.GetSDKPackageID( config.PackageSDKFrameworkPackageID );
       var sdkPackages = new HashSet<String>( StringComparer.OrdinalIgnoreCase );
       if ( !String.Equals( packageSDKPackageID, restoreSDKPackageID, StringComparison.OrdinalIgnoreCase ) )
       {
          // Typically when package is for .NET Standard and target framework is .NET Core
          var restoreLockFile = await restorer.RestoreIfNeeded( restoreSDKPackageID, restoreSDKPackageVersion, token );
-         sdkPackages.UnionWith( restoreLockFile.Targets[0].GetAllDependencies( restoreSDKPackageID.Singleton() ).Select( lib => lib.Name ) );
+         sdkPackages.UnionWith( restoreLockFile.Targets[0].GetAllDependencies( restoreSDKPackageID.Singleton() )
+            .SelectMany( lib => lib.Name.Singleton().Concat( lib.CompileTimeAssemblies.Select( cta => Path.GetFileNameWithoutExtension( cta.Path ) ).FilterUnderscores() ) )
+            );
       }
       sdkPackages.UnionWith( lockFile.Targets[0].GetAllDependencies( packageSDKPackageID.Singleton() ).Select( lib => lib.Name ) );
 
@@ -604,12 +609,12 @@ public static class E_UtilPack
          if ( sdkPackageLibrary == null && sdkPkgVer != null )
          {
             // We need to restore the correctly versioned SDK package
-            sdkPackageLibrary = ( await restorer.RestoreIfNeeded( packageSDKPackageID, packageSDKPackageVersion, token ) ).Targets[0].Libraries.Where( l => l.Name == packageSDKPackageID ).FirstOrDefault();
+            sdkPackageLibrary = ( await restorer.RestoreIfNeeded( packageSDKPackageID, packageSDKPackageVersion, token ) ).Targets[0].GetTargetLibrary( packageSDKPackageID );
          }
 
          if ( sdkPackageLibrary != null )
          {
-            sdkPackages.UnionWith( sdkPackageLibrary.CompileTimeAssemblies.Select( cta => Path.GetFileNameWithoutExtension( cta.Path ) ) );
+            sdkPackages.UnionWith( sdkPackageLibrary.CompileTimeAssemblies.Select( cta => Path.GetFileNameWithoutExtension( cta.Path ) ).FilterUnderscores() );
          }
       }
 
@@ -621,7 +626,7 @@ public static class E_UtilPack
          var contains = sdkPackages.Contains( curLib.Name );
          if ( contains
             || (
-               ( curLib.RuntimeAssemblies.Count <= 0 || curLib.RuntimeAssemblies.All( ass => ass.Path.EndsWith( "_._" ) ) )
+               ( curLib.RuntimeAssemblies.Count <= 0 || !curLib.RuntimeAssemblies.Select( ra => ra.Path ).FilterUnderscores().Any() )
                && curLib.RuntimeTargets.Count <= 0
                && curLib.ResourceAssemblies.Count <= 0
                && curLib.NativeLibraries.Count <= 0

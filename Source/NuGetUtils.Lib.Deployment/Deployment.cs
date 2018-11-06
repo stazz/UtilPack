@@ -457,7 +457,7 @@ public static class E_UtilPack
       String sdkPackageVersion
       )
    {
-      (var lockFile, var entryPointAssembly, var runtimeConfig, var actualSDPackageID, var actualSDKPackageVersion) = await config.RestoreAndFilterOutSDKPackages(
+      (var lockFile, var entryPointAssembly, var runtimeConfig, var actualSDKPackageID, var actualSDKPackageVersion) = await config.RestoreAndFilterOutSDKPackages(
                      restorer,
                      token,
                      sdkPackageID,
@@ -519,12 +519,14 @@ public static class E_UtilPack
       this NuGetDeploymentConfiguration config,
       BoundRestoreCommandUser restorer,
       CancellationToken token,
-      String sdkPackageID,
-      String sdkPackageVersion
+      String restoreSDKPackageID,
+      String restoreSDKPackageVersion
       )
    {
       var packageID = config.PackageID;
       var lockFile = await restorer.RestoreIfNeeded( packageID, config.PackageVersion, token );
+      var kek = lockFile.Libraries.FirstOrDefault( l => String.Equals( l.Name, packageID, StringComparison.OrdinalIgnoreCase ) );
+      var lel = lockFile.Targets[0].GetTargetLibrary( packageID );
       // TODO better error messages
       var packagePath = restorer.ResolveFullPath(
          lockFile,
@@ -541,9 +543,14 @@ public static class E_UtilPack
          config.AssemblyPath
          );
 
+      // We might be restoring .NETStandard package against .NETCoreApp framework, so find out the actual framework the package was built against.
+      // So from path "/path/to/nuget/repo/package-id/package-version/lib/target-fw/package-id.dll" we want to extract the target-fw portion.
+      // packagePath variable holds everything before the 'lib', so we just need to name of the folder 1 hierarchy level down from packagePath.
+      var start = GetNextSeparatorIndex( epAssemblyPath, packagePath.Length + 1 ) + 1;
+      var end = GetNextSeparatorIndex( epAssemblyPath, start );
+      var packageFramework = NuGetFramework.ParseFolder( epAssemblyPath.Substring( start, end - start ) );
+
       JToken runtimeConfig = null;
-      //if ( String.IsNullOrEmpty( sdkPackageID ) )
-      //{
       var runtimeConfigPath = Path.ChangeExtension( epAssemblyPath, RUNTIME_CONFIG_EXTENSION );
       if ( File.Exists( runtimeConfigPath ) )
       {
@@ -554,8 +561,6 @@ public static class E_UtilPack
             {
                runtimeConfig = JToken.ReadFrom( jsonReader );
             }
-            //sdkPackageID = ( runtimeConfig.SelectToken( RUNTIME_CONFIG_FW_NAME ) as JValue )?.Value?.ToString();
-            //sdkPackageVersion = ( runtimeConfig.SelectToken( RUNTIME_CONFIG_FW_VERSION ) as JValue )?.Value?.ToString();
          }
          catch
          {
@@ -567,21 +572,27 @@ public static class E_UtilPack
       //sdkPackageID = NuGetUtility.GetSDKPackageID( targetFramework, config.ProcessSDKFrameworkPackageID ?? sdkPackageID );
       //sdkPackageVersion = NuGetUtility.GetSDKPackageVersion( targetFramework, sdkPackageID, config.ProcessSDKFrameworkPackageVersion ?? sdkPackageVersion );
 
-      var sdkPackages = new HashSet<String>( lockFile.Targets[0].GetAllDependencies(
-         sdkPackageID.Singleton()
-         )
-         .Select( lib => lib.Name )
-         );
+      var packageSDKPackageID = packageFramework.GetSDKPackageID( config.PackageSDKFrameworkPackageID );
+      var sdkPackages = new HashSet<String>( StringComparer.OrdinalIgnoreCase );
+      if ( !String.Equals( packageSDKPackageID, restoreSDKPackageID, StringComparison.OrdinalIgnoreCase ) )
+      {
+         // Typically when package is for .NET Standard and target framework is .NET Core
+         var restoreLockFile = await restorer.RestoreIfNeeded( restoreSDKPackageID, restoreSDKPackageVersion, token );
+         sdkPackages.UnionWith( restoreLockFile.Targets[0].GetAllDependencies( restoreSDKPackageID.Singleton() ).Select( lib => lib.Name ) );
+      }
+      sdkPackages.UnionWith( lockFile.Targets[0].GetAllDependencies( packageSDKPackageID.Singleton() ).Select( lib => lib.Name ) );
 
+
+      var packageSDKPackageVersion = packageFramework.GetSDKPackageVersion( packageSDKPackageID, config.PackageSDKFrameworkPackageVersion );
       // In addition, check all compile assemblies from sdk package (e.g. Microsoft.NETCore.App )
       // Starting from 2.0.0, all assemblies from all dependent packages are marked as compile-assemblies stored in sdk package.
       var sdkPackageContainsAllPackagesAsAssemblies = config.SDKPackageContainsAllPackagesAsAssemblies;
-      Version.TryParse( sdkPackageVersion, out var sdkPkgVer );
+      Version.TryParse( packageSDKPackageVersion, out var sdkPkgVer );
       if ( sdkPackageContainsAllPackagesAsAssemblies.IsTrue() ||
-         ( !sdkPackageContainsAllPackagesAsAssemblies.HasValue && sdkPackageID == NuGetUtility.SDK_PACKAGE_NETCORE && sdkPkgVer != null && sdkPkgVer.Major >= 2 )
+         ( !sdkPackageContainsAllPackagesAsAssemblies.HasValue && packageFramework.IsPackageBased ) // sdkPackageID == NuGetUtility.SDK_PACKAGE_NETCORE && sdkPkgVer != null && sdkPkgVer.Major >= 2 )
          )
       {
-         var sdkPackageLibraries = lockFile.Targets[0].Libraries.Where( l => l.Name == sdkPackageID );
+         var sdkPackageLibraries = lockFile.Targets[0].Libraries.Where( l => l.Name == packageSDKPackageID );
 
          if ( sdkPkgVer != null )
          {
@@ -593,7 +604,7 @@ public static class E_UtilPack
          if ( sdkPackageLibrary == null && sdkPkgVer != null )
          {
             // We need to restore the correctly versioned SDK package
-            sdkPackageLibrary = ( await restorer.RestoreIfNeeded( sdkPackageID, sdkPackageVersion, token ) ).Targets[0].Libraries.Where( l => l.Name == sdkPackageID ).FirstOrDefault();
+            sdkPackageLibrary = ( await restorer.RestoreIfNeeded( packageSDKPackageID, packageSDKPackageVersion, token ) ).Targets[0].Libraries.Where( l => l.Name == packageSDKPackageID ).FirstOrDefault();
          }
 
          if ( sdkPackageLibrary != null )
@@ -643,7 +654,15 @@ public static class E_UtilPack
          }
       }
 
-      return (lockFile, epAssemblyPath, runtimeConfig, sdkPackageID, sdkPackageVersion);
+      return (lockFile, epAssemblyPath, runtimeConfig, packageSDKPackageID, packageSDKPackageVersion);
+   }
+
+   private static Int32 GetNextSeparatorIndex( String path, Int32 start )
+   {
+      return path.IndexOfAny(
+         new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+         start );
+
    }
 
    private static String CreateTargetDirectory(
@@ -802,7 +821,7 @@ public static class E_UtilPack
       }
       runtimeConfig.SetToken( RUNTIME_CONFIG_FW_NAME, sdkPackageID );
       runtimeConfig.SetToken( RUNTIME_CONFIG_FW_VERSION, sdkPackageVersion );
-      runtimeConfig.SetToken( RUNTIME_CONFIG_TFM, lockFile.Targets[0].TargetFramework.Framework );
+      runtimeConfig.SetToken( RUNTIME_CONFIG_TFM, lockFile.Targets[0].TargetFramework.GetShortFolderName() );
       if ( lockFile != null )
       {
          var probingPaths = ( runtimeConfig.SelectToken( RUNTIME_CONFIG_PROBING_PATHS ) as JArray ) ?? new JArray();

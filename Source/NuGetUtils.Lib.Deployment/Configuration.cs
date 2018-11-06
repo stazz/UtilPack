@@ -44,23 +44,23 @@ namespace NuGetUtils.Lib.Deployment
       /// </remarks>
       String AssemblyPath { get; }
 
-      ///// <summary>
-      ///// Gets the package ID of the SDK of the framework of the NuGet package.
-      ///// </summary>
-      ///// <value>The package ID of the SDK of the framework of the NuGet package.</value>
-      ///// <remarks>
-      ///// If this property is <c>null</c> or empty string, then <see cref="NuGetDeployment"/> will try to use automatic detection of SDK package ID.
-      ///// </remarks>
-      //String ProcessSDKFrameworkPackageID { get; }
+      /// <summary>
+      /// Gets the package ID of the SDK of the framework of the NuGet package.
+      /// </summary>
+      /// <value>The package ID of the SDK of the framework of the NuGet package.</value>
+      /// <remarks>
+      /// If this property is <c>null</c> or empty string, then <see cref="NuGetDeployment"/> will try to use automatic detection of SDK package ID.
+      /// </remarks>
+      String PackageSDKFrameworkPackageID { get; }
 
-      ///// <summary>
-      ///// Gets the package version of the SDK of the framework of the NuGet package.
-      ///// </summary>
-      ///// <value>The package version of the SDK of the framework of the NuGet package.</value>
-      ///// <remarks>
-      ///// If this property is <c>null</c> or empty string, then <see cref="NuGetDeployment"/> will try to use automatic detection of SDK package version.
-      ///// </remarks>
-      //String ProcessSDKFrameworkPackageVersion { get; }
+      /// <summary>
+      /// Gets the package version of the SDK of the framework of the NuGet package.
+      /// </summary>
+      /// <value>The package version of the SDK of the framework of the NuGet package.</value>
+      /// <remarks>
+      /// If this property is <c>null</c> or empty string, then <see cref="NuGetDeployment"/> will try to use automatic detection of SDK package version.
+      /// </remarks>
+      String PackageSDKFrameworkPackageVersion { get; }
 
       /// <summary>
       /// Gets the deployment kind.

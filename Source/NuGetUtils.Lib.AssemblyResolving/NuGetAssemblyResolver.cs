@@ -1499,10 +1499,7 @@ public static partial class E_NuGetUtils
       return ( typeString ) => resolver.TryLoadTypeFromPreviouslyLoadedAssemblies( typeString );
    }
 
-   internal static IEnumerable<String> FilterUnderscores( this IEnumerable<String> paths )
-   {
-      return paths?.Where( p => !p.EndsWith( "_._" ) );
-   }
+
 
    internal static void LogAssemblyPathResolveError( this BoundRestoreCommandUser restorer, String packageID, String[] possiblePaths, String pathHint, String seenAssemblyPath )
    {

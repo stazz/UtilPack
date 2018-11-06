@@ -24,6 +24,7 @@ using NuGet.Repositories;
 using NuGet.Versioning;
 using NuGetUtils.Lib.Restore;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -587,5 +588,10 @@ namespace NuGetUtils.Lib.Restore
             .Select( x => x.FrameworkName )
             .FirstOrDefault();
       }
+      public static IEnumerable<String> FilterUnderscores( this IEnumerable<String> paths )
+      {
+         return paths?.Where( p => !p.EndsWith( "_._" ) );
+      }
+
    }
 }

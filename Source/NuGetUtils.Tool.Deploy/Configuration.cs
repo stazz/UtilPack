@@ -17,6 +17,7 @@
  */
 using NuGet.Common;
 using NuGetUtils.Lib.Deployment;
+using NuGetUtils.Lib.Restore;
 using NuGetUtils.Lib.Tool;
 using System;
 using UtilPack.Documentation;
@@ -48,7 +49,7 @@ namespace NuGetUtils.Tool.Deploy
 
       public DeploymentKind DeploymentKind { get; set; }
 
-      public Boolean? SDKPackageContainsAllPackagesAsAssemblies { get; set; }
+      public Boolean? PackageFrameworkIsPackageBased { get; set; }
 
       public String TargetDirectory { get; set; }
 

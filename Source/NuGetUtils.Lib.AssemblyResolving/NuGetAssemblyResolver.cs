@@ -1461,10 +1461,10 @@ public static partial class E_NuGetUtils
    }
 
    /// <summary>
-   /// Creates a callback to <see cref="E_NuGetUtils.LoadNuGetAssembly"/> method.
+   /// Creates a callback to <see cref="LoadNuGetAssembly"/> method.
    /// </summary>
    /// <param name="resolver">This <see cref="NuGetAssemblyResolver"/>.</param>
-   /// <returns>A callback to <see cref="E_NuGetUtils.LoadNuGetAssembly"/> method.</returns>
+   /// <returns>A callback to <see cref="LoadNuGetAssembly"/> method.</returns>
    public static TNuGetPackageResolverCallback CreateNuGetPackageResolverCallback(
       this NuGetAssemblyResolver resolver
       )

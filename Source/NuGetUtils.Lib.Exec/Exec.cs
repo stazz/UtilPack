@@ -53,19 +53,19 @@ namespace NuGetUtils.Lib.Exec
          var assembly = this._assembly;
          if ( this._entryPointTypeName.IsNullOrEmpty() && this._entryPointMethodName.IsNullOrEmpty() )
          {
-            suitableMethod = assembly.EntryPoint;
-            if ( suitableMethod == null )
+            configuredEP = assembly.GetCustomAttribute<ConfiguredEntryPointAttribute>();
+            if ( configuredEP == null )
             {
-               configuredEP = assembly.GetCustomAttribute<ConfiguredEntryPointAttribute>();
-            }
-            else if ( suitableMethod.IsSpecialName )
-            {
-               // Synthetic Main method which actually wraps the async main method (e.g. "<Main>" -> "Main")
-               var actualName = suitableMethod.Name.Substring( 1, suitableMethod.Name.Length - 2 );
-               var actual = suitableMethod.DeclaringType.GetTypeInfo().DeclaredMethods.FirstOrDefault( m => String.Equals( actualName, m.Name ) );
-               if ( actual != null )
+               suitableMethod = assembly.EntryPoint;
+               if ( suitableMethod != null && suitableMethod.IsSpecialName )
                {
-                  suitableMethod = actual;
+                  // Synthetic Main method which actually wraps the async main method (e.g. "<Main>" -> "Main")
+                  var actualName = suitableMethod.Name.Substring( 1, suitableMethod.Name.Length - 2 );
+                  var actual = suitableMethod.DeclaringType.GetTypeInfo().DeclaredMethods.FirstOrDefault( m => String.Equals( actualName, m.Name ) );
+                  if ( actual != null )
+                  {
+                     suitableMethod = actual;
+                  }
                }
             }
          }
@@ -183,10 +183,38 @@ namespace NuGetUtils.Lib.Exec
    }
 }
 
+/// <summary>
+/// This class contains extension methods for types defined in this assembly.
+/// </summary>
 public static class E_NuGetUtils
 {
-   public static async Task<Int32> ExecuteNuGetAssemblyEntryPointAsync(
-      this NuGetExecutionConfiguration programConfig,
+#if NET46
+   /// <summary>
+   /// Using information from this <see cref="NuGetExecutionConfiguration"/>, restores the NuGet package, finds an assembly and executes a method within the assembly.
+   /// If the method returns <see cref="ValueTask{TResult}"/> (also non-generic variant for .NET Core 2.1), <see cref="Task"/> or <see cref="Task{TResult}"/>, it is <c>await</c>ed upon.
+   /// </summary>
+   /// <param name="configuration">This <see cref="NuGetExecutionConfiguration"/></param>
+   /// <param name="token">The <see cref="CancellationToken"/> to use when performing <c>async</c> operations.</param>
+   /// <param name="restorer">The <see cref="BoundRestoreCommandUser"/> to use for restoring.</param>
+   /// <param name="additionalParameterTypeProvider">The callback to provide values for method parameters with custom types.</param>
+   /// <returns>The return value of the method, if the method returns integer synchronously or asynchronously.</returns>
+   /// <remarks>The <paramref name="additionalParameterTypeProvider"/> is not used for certain <see cref="Func{T, TResult}"/> delegate types, see remarks for more.</remarks>
+#else
+   /// <summary>
+   /// Using information from this <see cref="NuGetExecutionConfiguration"/>, restores the NuGet package, finds an assembly and executes a method within the assembly.
+   /// If the method returns <see cref="ValueTask{TResult}"/> (also non-generic variant for .NET Core 2.1), <see cref="Task"/> or <see cref="Task{TResult}"/>, it is <c>await</c>ed upon.
+   /// </summary>
+   /// <param name="configuration">This <see cref="NuGetExecutionConfiguration"/></param>
+   /// <param name="token">The <see cref="CancellationToken"/> to use when performing <c>async</c> operations.</param>
+   /// <param name="restorer">The <see cref="BoundRestoreCommandUser"/> to use for restoring.</param>
+   /// <param name="additionalParameterTypeProvider">The callback to provide values for method parameters with custom types.</param>
+   /// <param name="sdkPackageID">The SDK package ID.</param>
+   /// <param name="sdkPackageVersion">The SDK package version.</param>
+   /// <returns>The return value of the method, if the method returns integer synchronously or asynchronously.</returns>
+   /// <remarks>The <paramref name="additionalParameterTypeProvider"/> is not used for certain <see cref="Func{T, TResult}"/> delegate types, see remarks for more.</remarks>
+#endif
+   public static async Task<Int32> ExecuteMethodWithinNuGetAssemblyAsync(
+      this NuGetExecutionConfiguration configuration,
       CancellationToken token,
       BoundRestoreCommandUser restorer,
       Func<Type, Object> additionalParameterTypeProvider
@@ -196,6 +224,7 @@ public static class E_NuGetUtils
 #endif
       )
    {
+      ArgumentValidator.ValidateNotNullReference( configuration );
       Int32 retVal;
 
       using ( var assemblyLoader = NuGetAssemblyResolverFactory.NewNuGetAssemblyResolver(
@@ -220,11 +249,11 @@ public static class E_NuGetUtils
       using ( new UsingHelper( () => { try { AppDomain.Unload( appDomain ); } catch { } } ) )
 #endif
       {
-         var packageID = programConfig.PackageID;
-         var packageVersion = programConfig.PackageVersion;
+         var packageID = configuration.PackageID;
+         var packageVersion = configuration.PackageVersion;
 
-         var assembly = ( await assemblyLoader.LoadNuGetAssembly( packageID, packageVersion, token, programConfig.AssemblyPath ) ) ?? throw new ArgumentException( $"Could not find package \"{packageID}\" at {( String.IsNullOrEmpty( packageVersion ) ? "latest version" : ( "version \"" + packageVersion + "\"" ) )}." );
-         var suitableMethod = new MethodSearcher( assembly, programConfig.EntrypointTypeName, programConfig.EntrypointMethodName ).GetSuitableMethod();
+         var assembly = ( await assemblyLoader.LoadNuGetAssembly( packageID, packageVersion, token, configuration.AssemblyPath ) ) ?? throw new ArgumentException( $"Could not find package \"{packageID}\" at {( String.IsNullOrEmpty( packageVersion ) ? "latest version" : ( "version \"" + packageVersion + "\"" ) )}." );
+         var suitableMethod = new MethodSearcher( assembly, configuration.EntrypointTypeName, configuration.EntrypointMethodName ).GetSuitableMethod();
 
          if ( suitableMethod != null )
          {

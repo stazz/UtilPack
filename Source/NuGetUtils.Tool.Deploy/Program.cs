@@ -64,14 +64,18 @@ namespace NuGetUtils.Tool.Deploy
          String sdkPackageVersion
          )
       {
-         var entryPointAssembly = await info.Configuration.DeployAsync(
+         (var epAssembly, var packageFramework) = await info.Configuration.DeployAsync(
             restorer,
             token,
             sdkPackageID,
             sdkPackageVersion
             );
 
-         restorer.NuGetLogger.Log( NuGet.Common.LogLevel.Information, $"Deployed assembly to {entryPointAssembly}." );
+         if ( !String.IsNullOrEmpty( epAssembly ) && packageFramework != null )
+         {
+            restorer.NuGetLogger.Log( NuGet.Common.LogLevel.Information, $"Deployed assembly to {epAssembly} (package framework is {packageFramework})." );
+         }
+
 
          return 0;
       }

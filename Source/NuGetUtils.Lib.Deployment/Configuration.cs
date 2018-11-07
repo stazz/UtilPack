@@ -78,7 +78,7 @@ namespace NuGetUtils.Lib.Deployment
       /// Setting this to <c>false</c> will force the SDK package logic to assume that main SDK package only has the assemblies that are exposed via NuGet package dependency chain.
       /// Leaving this unset (<c>null</c>) will use auto-detection (which will use <c>true</c> when deploying for .NET Core 2.0+, and will use <c>false</c> when deploying for other frameworks).
       /// </remarks>
-      Boolean? SDKPackageContainsAllPackagesAsAssemblies { get; }
+      Boolean? PackageFrameworkIsPackageBased { get; }
 
       String TargetDirectory { get; }
 

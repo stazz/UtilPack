@@ -23,7 +23,7 @@ using System.Threading.Tasks;
 
 namespace NuGetUtils.Tool.Deploy
 {
-   static class Program
+   internal static class Program
    {
       public static Task<Int32> Main( String[] args )
          => new NuGetExecutingProgram().MainAsync( args );

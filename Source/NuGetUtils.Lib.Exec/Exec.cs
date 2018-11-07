@@ -198,7 +198,7 @@ public static class E_NuGetUtils
    /// <param name="restorer">The <see cref="BoundRestoreCommandUser"/> to use for restoring.</param>
    /// <param name="additionalParameterTypeProvider">The callback to provide values for method parameters with custom types.</param>
    /// <returns>The return value of the method, if the method returns integer synchronously or asynchronously.</returns>
-   /// <remarks>The <paramref name="additionalParameterTypeProvider"/> is not used for certain <see cref="Func{T, TResult}"/> delegate types, see remarks for more.</remarks>
+   /// <remarks>The <paramref name="additionalParameterTypeProvider"/> is only used when the method parameter type is not <see cref="CancellationToken"/>, or <see cref="Func{T, TResult}"/> delegate types which represent signatures of <see cref="NuGetAssemblyResolver"/> methods.</remarks>
 #else
    /// <summary>
    /// Using information from this <see cref="NuGetExecutionConfiguration"/>, restores the NuGet package, finds an assembly and executes a method within the assembly.
@@ -211,7 +211,7 @@ public static class E_NuGetUtils
    /// <param name="sdkPackageID">The SDK package ID.</param>
    /// <param name="sdkPackageVersion">The SDK package version.</param>
    /// <returns>The return value of the method, if the method returns integer synchronously or asynchronously.</returns>
-   /// <remarks>The <paramref name="additionalParameterTypeProvider"/> is not used for certain <see cref="Func{T, TResult}"/> delegate types, see remarks for more.</remarks>
+   /// <remarks>The <paramref name="additionalParameterTypeProvider"/> is only used when the method parameter type is not <see cref="CancellationToken"/>, or <see cref="Func{T, TResult}"/> delegate types which represent signatures of <see cref="NuGetAssemblyResolver"/> methods.</remarks>
 #endif
    public static async Task<Int32> ExecuteMethodWithinNuGetAssemblyAsync(
       this NuGetExecutionConfiguration configuration,

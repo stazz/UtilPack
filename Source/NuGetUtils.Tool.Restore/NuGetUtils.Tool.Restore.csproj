@@ -5,7 +5,6 @@
       <TargetFramework>netcoreapp2.1</TargetFramework>
       <PackAsTool>true</PackAsTool>
       <LangVersion>latest</LangVersion>
-      <GenerateDocumentationFile>false</GenerateDocumentationFile>
    </PropertyGroup>
 
    <PropertyGroup>

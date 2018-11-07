@@ -25,7 +25,7 @@ using UtilPack;
 
 namespace NuGetUtils.Tool.Restore
 {
-   static class Program
+   internal static class Program
    {
       public static Task<Int32> Main( String[] args )
          => new NuGetRestoringProgram().MainAsync( args );

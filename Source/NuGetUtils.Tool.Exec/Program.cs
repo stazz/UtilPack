@@ -33,7 +33,7 @@ using UtilPack.Documentation;
 namespace NuGetUtils.Tool.Exec
 {
 
-   static class Program
+   internal static class Program
    {
       public static Task<Int32> Main( String[] args )
          => new NuGetExecutingProgram().MainAsync( args, NuGetExecutingProgram.EXEC_ARGS_SEPARATOR );
@@ -86,7 +86,7 @@ namespace NuGetUtils.Tool.Exec
          var programArgs = new Lazy<String[]>( () => info.IsConfigurationConfiguration ? ( config.ProcessArguments ?? Empty<String>.Array ).Concat( info.RemainingArguments ).ToArray() : info.RemainingArguments.ToArray() );
          var programArgsConfig = new Lazy<IConfigurationRoot>( () => new ConfigurationBuilder().AddCommandLine( programArgs.Value ).Build() );
 
-         return config.ExecuteNuGetAssemblyEntryPointAsync(
+         return config.ExecuteMethodWithinNuGetAssemblyAsync(
             token,
             restorer,
             type =>

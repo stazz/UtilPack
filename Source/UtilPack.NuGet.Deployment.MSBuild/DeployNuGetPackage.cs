@@ -16,30 +16,38 @@
  * limitations under the License. 
  */
 using Microsoft.Build.Framework;
+using NuGet.Common;
 using NuGetUtils.Lib.Deployment;
 using NuGetUtils.Lib.Restore;
 using System;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 using UtilPack.NuGet.Common.MSBuild;
 
 namespace UtilPack.NuGet.Deployment.MSBuild
 {
-   public class DeployNuGetPackageTask : Microsoft.Build.Utilities.Task, NuGetDeploymentConfiguration
+   public class DeployNuGetPackageTask : Microsoft.Build.Utilities.Task, NuGetDeploymentConfiguration, NuGetUsageConfiguration, ICancelableTask
    {
+      private readonly CancellationTokenSource _cancelTokenSource;
+
+      public DeployNuGetPackageTask()
+      {
+         this._cancelTokenSource = new CancellationTokenSource();
+      }
+
       public override Boolean Execute()
       {
-         // TODO maybe use this.BuildEngine.Yield?
-         var retVal = new NuGetDeployment( this ).DeployAsync(
-            NuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
-               Path.GetDirectoryName( this.BuildEngine.ProjectFileOfTaskNode ),
-               this.NuGetConfigurationFile
-            ),
-            this.TargetDirectory,
-            logger: new NuGetMSBuildLogger( "NDE001", "NDE002", this.GetType().FullName, null, this.BuildEngine )
-            ).GetAwaiter().GetResult();
-
-         var epAssembly = retVal.Item1;
+         String epAssembly;
+         using ( new UsingHelper( () => this._cancelTokenSource.DisposeSafely() ) )
+         {
+            epAssembly = this.CreateAndUseRestorerAsync(
+               this.GetType(),
+               this.LockFileCacheDirEnvName,
+               this.LockFileCacheDirWithinHomeDir,
+               restorer => this.DeployAsync( restorer.Restorer, this._cancelTokenSource.Token, restorer.SDKPackageID, restorer.SDKPackageVersion )
+               ).GetAwaiter().GetResult().EntryPointAssemblyPath;
+         }
 
          var success = !this.Log.HasLoggedErrors
             && !String.IsNullOrEmpty( epAssembly )
@@ -51,31 +59,48 @@ namespace UtilPack.NuGet.Deployment.MSBuild
          return success;
       }
 
-      public String PackageID { get; set; }
-
-      public String PackageVersion { get; set; }
-
-      public String ProcessFramework { get; set; }
-
-      public String AssemblyPath { get; set; }
-
-      public String ProcessSDKFrameworkPackageID { get; set; }
-
-      public String ProcessSDKFrameworkPackageVersion { get; set; }
-
-      public DeploymentKind DeploymentKind { get; set; }
-
-      public Boolean? SDKPackageContainsAllPackagesAsAssemblies { get; }
-
-      public String NuGetConfigurationFile { get; set; }
-
-      public String TargetDirectory { get; set; }
+      public void Cancel()
+      {
+         this._cancelTokenSource.Cancel();
+      }
 
       [Output]
       public String EntryPointAssemblyPath { get; set; }
 
+      public String NuGetConfigurationFile { get; set; }
+
       public String RestoreFramework { get; set; }
 
-      public String RuntimeIdentifier { get; set; }
+      public String LockFileCacheDirectory { get; set; }
+
+      public String SDKFrameworkPackageID { get; set; }
+
+      public String SDKFrameworkPackageVersion { get; set; }
+
+      public Boolean DisableLockFileCache { get; set; }
+
+      public LogLevel LogLevel { get; set; }
+
+      public Boolean DisableLogging { get; set; }
+
+      [Required]
+      public String PackageID { get; set; }
+
+      public String PackageVersion { get; set; }
+
+      public String AssemblyPath { get; set; }
+
+      public String PackageSDKFrameworkPackageID { get; set; }
+
+      public String PackageSDKFrameworkPackageVersion { get; set; }
+
+      public DeploymentKind DeploymentKind { get; set; }
+
+      public Boolean? PackageFrameworkIsPackageBased { get; set; }
+
+      public String TargetDirectory { get; set; }
+
+      public String LockFileCacheDirEnvName { get; set; }
+      public String LockFileCacheDirWithinHomeDir { get; set; }
    }
 }

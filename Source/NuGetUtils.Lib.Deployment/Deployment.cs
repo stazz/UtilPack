@@ -449,7 +449,7 @@ public static class E_UtilPack
    private const String DEPS_EXTENSION = ".deps.json";
    private const String RUNTIME_CONFIG_EXTENSION = ".runtimeconfig.json";
 
-   public static async Task<String> DeployAsync(
+   public static async Task<(String EntryPointAssemblyPath, NuGetFramework DeployedPackageFramework)> DeployAsync(
       this NuGetDeploymentConfiguration config,
       BoundRestoreCommandUser restorer,
       CancellationToken token,
@@ -457,12 +457,12 @@ public static class E_UtilPack
       String sdkPackageVersion
       )
    {
-      (var lockFile, var entryPointAssembly, var runtimeConfig, var actualSDKPackageID, var actualSDKPackageVersion) = await config.RestoreAndFilterOutSDKPackages(
-                     restorer,
-                     token,
-                     sdkPackageID,
-                     sdkPackageVersion
-                     );
+      (var lockFile, var packageFramework, var entryPointAssembly, var runtimeConfig) = await config.RestoreAndFilterOutSDKPackages(
+         restorer,
+         token,
+         sdkPackageID,
+         sdkPackageVersion
+         );
 
       var targetDirectory = CreateTargetDirectory( config.TargetDirectory );
 
@@ -512,10 +512,10 @@ public static class E_UtilPack
             throw new NotSupportedException( $"Unrecognized deployment kind: {config.DeploymentKind}." );
       }
 
-      return assemblyToBeExecuted;
+      return (assemblyToBeExecuted, packageFramework);
    }
 
-   private static async Task<(LockFile, String, JToken, String, String)> RestoreAndFilterOutSDKPackages(
+   private static async Task<(LockFile, NuGetFramework, String, JToken)> RestoreAndFilterOutSDKPackages(
       this NuGetDeploymentConfiguration config,
       BoundRestoreCommandUser restorer,
       CancellationToken token,
@@ -591,7 +591,7 @@ public static class E_UtilPack
       var packageSDKPackageVersion = packageFramework.GetSDKPackageVersion( packageSDKPackageID, config.PackageSDKFrameworkPackageVersion );
       // In addition, check all compile assemblies from sdk package (e.g. Microsoft.NETCore.App )
       // Starting from 2.0.0, all assemblies from all dependent packages are marked as compile-assemblies stored in sdk package.
-      var sdkPackageContainsAllPackagesAsAssemblies = config.SDKPackageContainsAllPackagesAsAssemblies;
+      var sdkPackageContainsAllPackagesAsAssemblies = config.PackageFrameworkIsPackageBased;
       Version.TryParse( packageSDKPackageVersion, out var sdkPkgVer );
       if ( sdkPackageContainsAllPackagesAsAssemblies.IsTrue() ||
          ( !sdkPackageContainsAllPackagesAsAssemblies.HasValue && packageFramework.IsPackageBased ) // sdkPackageID == NuGetUtility.SDK_PACKAGE_NETCORE && sdkPkgVer != null && sdkPkgVer.Major >= 2 )
@@ -659,7 +659,7 @@ public static class E_UtilPack
          }
       }
 
-      return (lockFile, epAssemblyPath, runtimeConfig, packageSDKPackageID, packageSDKPackageVersion);
+      return (lockFile, packageFramework, epAssemblyPath, runtimeConfig);
    }
 
    private static Int32 GetNextSeparatorIndex( String path, Int32 start )

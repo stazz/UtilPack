@@ -18,19 +18,20 @@
 using Microsoft.Build.Framework;
 using NuGet.Commands;
 using NuGet.Configuration;
+using NuGet.Packaging;
 using NuGet.Packaging.Core;
+using NuGet.Protocol.Core.Types;
+using NuGet.Repositories;
+using NuGetUtils.Lib.Restore;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using System.Linq;
 using System.Net.Http;
-using NuGet.Protocol.Core.Types;
-using NuGet.Packaging;
-using NuGet.Repositories;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using UtilPack.NuGet.Common.MSBuild;
-using System.Threading;
 
 namespace UtilPack.NuGet.Push.MSBuild
 {
@@ -53,7 +54,7 @@ namespace UtilPack.NuGet.Push.MSBuild
          var sourceNames = this.SourceNames;
          if ( !sourceNames.IsNullOrEmpty() )
          {
-            var settings = UtilPackNuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
+            var settings = NuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
                Path.GetDirectoryName( this.BuildEngine.ProjectFileOfTaskNode ),
                this.NuGetConfigurationFilePath );
             var psp = new PackageSourceProvider( settings );
@@ -97,7 +98,7 @@ namespace UtilPack.NuGet.Push.MSBuild
          }
          else
          {
-            this.Log.LogWarning( $"No sources specified for push command, please specify at least one source via \"{nameof( SourceNames )}\" property." );
+            this.Log.LogWarning( $"No sources specified for push command, please specify at least one source via \"{nameof( this.SourceNames )}\" property." );
          }
 
          return true;

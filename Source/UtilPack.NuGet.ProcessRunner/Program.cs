@@ -16,6 +16,7 @@
  * limitations under the License. 
  */
 using Microsoft.Extensions.Configuration;
+using NuGet.Common;
 using NuGet.Frameworks;
 using NuGetUtils.Lib.Deployment;
 using NuGetUtils.Lib.Restore;
@@ -37,7 +38,7 @@ namespace UtilPack.NuGet.ProcessRunner
       {
          var retVal = -1;
 
-         NuGetDeploymentConfiguration deployConfig = null;
+         DefaultDeploymentConfiguration deployConfig = null;
          DefaultMonitoringConfiguration monitorConfig = null;
          ProcessRunnerConfiguration programConfig = null;
          var isConfigFile = false;
@@ -82,20 +83,12 @@ namespace UtilPack.NuGet.ProcessRunner
 
                var targetDirectory = Path.Combine( Path.GetTempPath(), "NuGetProcess_" + Guid.NewGuid().ToString() );
 
-               // Initialization step - restore needed packages, copy required files, etc
-               (var assemblyPath, var framework) = await new NuGetDeployment( deployConfig )
-                  .DeployAsync(
-                     NuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
-                        Path.GetDirectoryName( new Uri( typeof( Program ).GetTypeInfo().Assembly.CodeBase ).LocalPath ),
-                        programConfig.NuGetConfigurationFile
-                     ),
-                     targetDirectory,
-                     token: source.Token,
-                     logger: new TextWriterLogger( new TextWriterLoggerOptions()
-                     {
-                        DebugWriter = null
-                     } )
-                     );
+               (var assemblyPath, var framework) = await deployConfig.CreateAndUseRestorerAsync(
+                  typeof( Program ),
+                  deployConfig.LockFileCacheDirEnvName,
+                  deployConfig.LockFileCacheDirWithinHomeDir,
+                  restorer => deployConfig.DeployAsync( restorer.Restorer, source.Token, restorer.SDKPackageID, restorer.SDKPackageVersion )
+                  );
 
                if ( !String.IsNullOrEmpty( assemblyPath ) && framework != null )
                {
@@ -150,7 +143,7 @@ namespace UtilPack.NuGet.ProcessRunner
                }
                else
                {
-                  Console.Error.WriteLine( $"Failed to resolve assembly path within package, try specifying \"{nameof( NuGetDeploymentConfiguration.ProcessFramework )}\" and/or \"{nameof( NuGetDeploymentConfiguration.AssemblyPath )}\" configuration properties." );
+                  Console.Error.WriteLine( $"Failed to resolve assembly path within package, try specifying \"{nameof( NuGetUsageConfiguration.RestoreFramework )}\" and/or \"{nameof( NuGetDeploymentConfiguration.AssemblyPath )}\" configuration properties." );
                }
             }
             catch ( Exception exc )
@@ -196,13 +189,51 @@ namespace UtilPack.NuGet.ProcessRunner
          return retVal;
       }
 
-      private static (NuGetDeploymentConfiguration, DefaultMonitoringConfiguration, ProcessRunnerConfiguration) GetConfigs(
+      private static (DefaultDeploymentConfiguration, DefaultMonitoringConfiguration, ProcessRunnerConfiguration) GetConfigs(
          IConfigurationRoot config
          )
       {
          return (config.Get<DefaultDeploymentConfiguration>(), config.Get<DefaultMonitoringConfiguration>(), config.Get<ProcessRunnerConfiguration>());
       }
 
+   }
+
+   internal class DefaultDeploymentConfiguration : NuGetUsageConfiguration, NuGetDeploymentConfiguration
+   {
+      public String NuGetConfigurationFile { get; set; }
+
+      public String RestoreFramework { get; set; }
+
+      public String LockFileCacheDirectory { get; set; }
+
+      public String SDKFrameworkPackageID { get; set; }
+
+      public String SDKFrameworkPackageVersion { get; set; }
+
+      public Boolean DisableLockFileCache { get; set; }
+
+      public LogLevel LogLevel { get; set; }
+
+      public Boolean DisableLogging { get; set; }
+
+      public String PackageID { get; set; }
+
+      public String PackageVersion { get; set; }
+
+      public String AssemblyPath { get; set; }
+
+      public String PackageSDKFrameworkPackageID { get; set; }
+
+      public String PackageSDKFrameworkPackageVersion { get; set; }
+
+      public DeploymentKind DeploymentKind { get; set; }
+
+      public Boolean? PackageFrameworkIsPackageBased { get; set; }
+
+      public String TargetDirectory { get; set; }
+
+      public String LockFileCacheDirEnvName { get; set; }
+      public String LockFileCacheDirWithinHomeDir { get; set; }
    }
 
    internal class ProcessRunnerConfiguration

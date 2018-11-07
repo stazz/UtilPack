@@ -588,6 +588,12 @@ namespace NuGetUtils.Lib.Restore
             .Select( x => x.FrameworkName )
             .FirstOrDefault();
       }
+
+      /// <summary>
+      /// Given an enumerable of strings (paths), filters out those which end with <c>"_._"</c>. This is/was NuGet's way of telling that assembly is supported for specific framework, but it is included as framework's own assembly.
+      /// </summary>
+      /// <param name="paths">This enumerable of strings (paths).</param>
+      /// <returns>Those strings, which do not end with <c>"_._"</c>.</returns>
       public static IEnumerable<String> FilterUnderscores( this IEnumerable<String> paths )
       {
          return paths?.Where( p => !p.EndsWith( "_._" ) );

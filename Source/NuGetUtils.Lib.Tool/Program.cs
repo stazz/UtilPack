@@ -346,37 +346,12 @@ namespace NuGetUtils.Lib.Tool
          CancellationToken token
          )
       {
-         var programConfig = info.Configuration;
-         var targetFWString = programConfig.RestoreFramework;
-
-         using ( var restorer = new BoundRestoreCommandUser(
-            NuGetUtility.GetNuGetSettingsWithDefaultRootDirectory(
-                  Path.GetDirectoryName( new Uri( this.GetType().GetTypeInfo().Assembly.CodeBase ).LocalPath ),
-                  programConfig.NuGetConfigurationFile
-               ),
-            thisFramework: String.IsNullOrEmpty( targetFWString ) ? null : NuGetFramework.Parse( targetFWString ),
-            nugetLogger: programConfig.DisableLogging ? null : new TextWriterLogger()
-            {
-               VerbosityLevel = programConfig.LogLevel
-            },
-            lockFileCacheDir: programConfig.LockFileCacheDirectory,
-            lockFileCacheEnvironmentVariableName: this.LockFileCacheDirEnvName,
-            getDefaultLockFileCacheDir: homeDir => Path.Combine( homeDir, this.LockFileCacheDirWithinHomeDir ),
-            disableLockFileCacheDir: programConfig.DisableLockFileCache
-            ) )
-         {
-
-            var thisFramework = restorer.ThisFramework;
-            var sdkPackageID = thisFramework.GetSDKPackageID( programConfig.SDKFrameworkPackageID );
-
-            return this.UseRestorerAsync(
-               info,
-               token,
-               restorer,
-               sdkPackageID,
-               thisFramework.GetSDKPackageVersion( sdkPackageID, programConfig.SDKFrameworkPackageVersion )
-               );
-         }
+         return info.Configuration.CreateAndUseRestorerAsync(
+            this.GetType(),
+            this.LockFileCacheDirEnvName,
+            this.LockFileCacheDirWithinHomeDir,
+            restorer => this.UseRestorerAsync( info, token, restorer.Restorer, restorer.SDKPackageID, restorer.SDKPackageVersion )
+            );
       }
 
       /// <summary>

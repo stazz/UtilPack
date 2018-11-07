@@ -400,47 +400,12 @@ namespace NuGetUtils.Lib.Deployment
 
 
    //}
-
-   ///// <summary>
-   ///// This class provides easy-to-use implementation of <see cref="DeploymentConfiguration"/>.
-   ///// </summary>
-   //public class DefaultDeploymentConfiguration : DeploymentConfiguration
-   //{
-   //   /// <inheritdoc />
-   //   public String ProcessPackageID { get; set; }
-
-   //   /// <inheritdoc />
-   //   public String ProcessPackageVersion { get; set; }
-
-   //   /// <inheritdoc />
-   //   public String ProcessAssemblyPath { get; set; }
-
-   //   /// <inheritdoc />
-   //   public String ProcessFramework { get; set; }
-
-   //   /// <inheritdoc />
-   //   public String ProcessSDKFrameworkPackageID { get; set; }
-
-   //   /// <inheritdoc />
-   //   public String ProcessSDKFrameworkPackageVersion { get; set; }
-
-   //   /// <inheritdoc />
-   //   public DeploymentKind DeploymentKind { get; set; }
-
-   //   /// <inheritdoc />
-   //   public Boolean? SDKPackageContainsAllPackagesAsAssemblies { get; set; }
-
-   //   /// <inheritdoc />
-   //   public String RestoreFramework { get; set; }
-
-   //   /// <inheritdoc />
-   //   public String RuntimeIdentifier { get; set; }
-   //}
-
-
 }
 
-public static class E_UtilPack
+/// <summary>
+/// This class contains extension methods for types defined in this assembly.
+/// </summary>
+public static partial class E_NuGetUtils
 {
    private const String RUNTIME_CONFIG_TFM = "runtimeOptions.tfm";
    private const String RUNTIME_CONFIG_FW_NAME = "runtimeOptions.framework.name";
@@ -449,6 +414,17 @@ public static class E_UtilPack
    private const String DEPS_EXTENSION = ".deps.json";
    private const String RUNTIME_CONFIG_EXTENSION = ".runtimeconfig.json";
 
+   /// <summary>
+   /// Using information from this <see cref="NuGetDeploymentConfiguration"/>, restores the NuGet package, and deploys it by copying non-framework dependencies to target directory or by creating a <c>.deps.json</c> and <c>.runtimeconfig.json</c> files.
+   /// </summary>
+   /// <param name="config">This <see cref="NuGetDeploymentConfiguration"/>.</param>
+   /// <param name="restorer">The <see cref="BoundRestoreCommandUser"/> to restore the NuGet package.</param>
+   /// <param name="token">The <see cref="CancellationToken"/> to use when performing <c>async</c> operations.</param>
+   /// <param name="sdkPackageID">The SDK package ID.</param>
+   /// <param name="sdkPackageVersion">The SDK package version.</param>
+   /// <returns>Asynchronously returns the full path to the deployed assembly, and a <see cref="NuGetFramework"/> which the assembly was built against.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="NuGetDeploymentConfiguration"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="restorer"/> is <c>null</c>.</exception>
    public static async Task<(String EntryPointAssemblyPath, NuGetFramework DeployedPackageFramework)> DeployAsync(
       this NuGetDeploymentConfiguration config,
       BoundRestoreCommandUser restorer,
@@ -457,12 +433,34 @@ public static class E_UtilPack
       String sdkPackageVersion
       )
    {
-      (var lockFile, var packageFramework, var entryPointAssembly, var runtimeConfig) = await config.RestoreAndFilterOutSDKPackages(
+      ArgumentValidator.ValidateNotNullReference( config );
+      ArgumentValidator.ValidateNotNull( nameof( restorer ), restorer );
+
+      (var lockFile, var entryPointAssembly, var packageFramework) = await config.RestoreAndFilterOutSDKPackages(
          restorer,
          token,
          sdkPackageID,
          sdkPackageVersion
          );
+
+
+      JToken runtimeConfig = null;
+      var runtimeConfigPath = Path.ChangeExtension( entryPointAssembly, RUNTIME_CONFIG_EXTENSION );
+      if ( File.Exists( runtimeConfigPath ) )
+      {
+         try
+         {
+            using ( var streamReader = new StreamReader( File.OpenRead( runtimeConfigPath ) ) )
+            using ( var jsonReader = new JsonTextReader( streamReader ) )
+            {
+               runtimeConfig = JToken.ReadFrom( jsonReader );
+            }
+         }
+         catch
+         {
+            // Ignore
+         }
+      }
 
       var targetDirectory = CreateTargetDirectory( config.TargetDirectory );
 
@@ -515,7 +513,7 @@ public static class E_UtilPack
       return (assemblyToBeExecuted, packageFramework);
    }
 
-   private static async Task<(LockFile, NuGetFramework, String, JToken)> RestoreAndFilterOutSDKPackages(
+   private static async Task<(LockFile, String, NuGetFramework)> RestoreAndFilterOutSDKPackages(
       this NuGetDeploymentConfiguration config,
       BoundRestoreCommandUser restorer,
       CancellationToken token,
@@ -525,8 +523,6 @@ public static class E_UtilPack
    {
       var packageID = config.PackageID;
       var lockFile = await restorer.RestoreIfNeeded( packageID, config.PackageVersion, token );
-      var kek = lockFile.Libraries.FirstOrDefault( l => String.Equals( l.Name, packageID, StringComparison.OrdinalIgnoreCase ) );
-      var lel = lockFile.Targets[0].GetTargetLibrary( packageID );
       // TODO better error messages
       var packagePath = restorer.ResolveFullPath(
          lockFile,
@@ -550,23 +546,6 @@ public static class E_UtilPack
       var end = GetNextSeparatorIndex( epAssemblyPath, start );
       var packageFramework = NuGetFramework.ParseFolder( epAssemblyPath.Substring( start, end - start ) );
 
-      JToken runtimeConfig = null;
-      var runtimeConfigPath = Path.ChangeExtension( epAssemblyPath, RUNTIME_CONFIG_EXTENSION );
-      if ( File.Exists( runtimeConfigPath ) )
-      {
-         try
-         {
-            using ( var streamReader = new StreamReader( File.OpenRead( runtimeConfigPath ) ) )
-            using ( var jsonReader = new JsonTextReader( streamReader ) )
-            {
-               runtimeConfig = JToken.ReadFrom( jsonReader );
-            }
-         }
-         catch
-         {
-            // Ignore
-         }
-      }
       //}
       //var targetFramework = restorer.ThisFramework;
       //sdkPackageID = NuGetUtility.GetSDKPackageID( targetFramework, config.ProcessSDKFrameworkPackageID ?? sdkPackageID );
@@ -659,7 +638,7 @@ public static class E_UtilPack
          }
       }
 
-      return (lockFile, packageFramework, epAssemblyPath, runtimeConfig);
+      return (lockFile, epAssemblyPath, packageFramework);
    }
 
    private static Int32 GetNextSeparatorIndex( String path, Int32 start )
@@ -845,11 +824,13 @@ public static class E_UtilPack
          runtimeConfig.SetToken( RUNTIME_CONFIG_PROBING_PATHS, probingPaths );
       }
 
-      File.WriteAllText(
-         Path.ChangeExtension( targetAssemblyPath, RUNTIME_CONFIG_EXTENSION ),
-         runtimeConfig.ToString( Formatting.Indented ), // Runtimeconfig is small file usually so just use this instead of filestream + textwriter + jsontextwriter combo.
-         new UTF8Encoding( false, false ) // The Encoding.UTF8 emits byte order mark, which we don't want to do
-         );
+      using ( var fs = File.Open( Path.ChangeExtension( targetAssemblyPath, RUNTIME_CONFIG_EXTENSION ), FileMode.Create, FileAccess.Write, FileShare.None ) )
+      using ( var streamWriter = new StreamWriter( fs ) )
+      using ( var jsonWriter = new JsonTextWriter( streamWriter ) )
+      {
+         jsonWriter.Formatting = Formatting.Indented;
+         runtimeConfig.WriteTo( jsonWriter );
+      }
    }
 
    internal static void SetToken( this JToken obj, String path, JToken value )

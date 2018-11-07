@@ -190,7 +190,7 @@ public static class E_NuGetUtils
 {
 #if NET46
    /// <summary>
-   /// Using information from this <see cref="NuGetExecutionConfiguration"/>, restores the NuGet package, finds an assembly and executes a method within the assembly.
+   /// Using information from this <see cref="NuGetExecutionConfiguration"/>, restores the NuGet package, finds an assembly, and executes a method within the assembly.
    /// If the method returns <see cref="ValueTask{TResult}"/> (also non-generic variant for .NET Core 2.1), <see cref="Task"/> or <see cref="Task{TResult}"/>, it is <c>await</c>ed upon.
    /// </summary>
    /// <param name="configuration">This <see cref="NuGetExecutionConfiguration"/></param>
@@ -198,10 +198,12 @@ public static class E_NuGetUtils
    /// <param name="restorer">The <see cref="BoundRestoreCommandUser"/> to use for restoring.</param>
    /// <param name="additionalParameterTypeProvider">The callback to provide values for method parameters with custom types.</param>
    /// <returns>The return value of the method, if the method returns integer synchronously or asynchronously.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="NuGetExecutionConfiguration"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="restorer"/> is <c>null</c>.</exception>
    /// <remarks>The <paramref name="additionalParameterTypeProvider"/> is only used when the method parameter type is not <see cref="CancellationToken"/>, or <see cref="Func{T, TResult}"/> delegate types which represent signatures of <see cref="NuGetAssemblyResolver"/> methods.</remarks>
 #else
    /// <summary>
-   /// Using information from this <see cref="NuGetExecutionConfiguration"/>, restores the NuGet package, finds an assembly and executes a method within the assembly.
+   /// Using information from this <see cref="NuGetExecutionConfiguration"/>, restores the NuGet package, finds an assembly, and executes a method within the assembly.
    /// If the method returns <see cref="ValueTask{TResult}"/> (also non-generic variant for .NET Core 2.1), <see cref="Task"/> or <see cref="Task{TResult}"/>, it is <c>await</c>ed upon.
    /// </summary>
    /// <param name="configuration">This <see cref="NuGetExecutionConfiguration"/></param>
@@ -211,6 +213,8 @@ public static class E_NuGetUtils
    /// <param name="sdkPackageID">The SDK package ID.</param>
    /// <param name="sdkPackageVersion">The SDK package version.</param>
    /// <returns>The return value of the method, if the method returns integer synchronously or asynchronously.</returns>
+   /// <exception cref="NullReferenceException">If this <see cref="NuGetExecutionConfiguration"/> is <c>null</c>.</exception>
+   /// <exception cref="ArgumentNullException">If <paramref name="restorer"/> is <c>null</c>.</exception>
    /// <remarks>The <paramref name="additionalParameterTypeProvider"/> is only used when the method parameter type is not <see cref="CancellationToken"/>, or <see cref="Func{T, TResult}"/> delegate types which represent signatures of <see cref="NuGetAssemblyResolver"/> methods.</remarks>
 #endif
    public static async Task<Int32> ExecuteMethodWithinNuGetAssemblyAsync(
@@ -225,6 +229,7 @@ public static class E_NuGetUtils
       )
    {
       ArgumentValidator.ValidateNotNullReference( configuration );
+      ArgumentValidator.ValidateNotNull( nameof( restorer ), restorer );
       Int32 retVal;
 
       using ( var assemblyLoader = NuGetAssemblyResolverFactory.NewNuGetAssemblyResolver(

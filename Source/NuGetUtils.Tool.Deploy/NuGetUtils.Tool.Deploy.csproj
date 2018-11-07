@@ -11,7 +11,7 @@
       <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
       <TreatSpecificWarningsAsErrors />
       <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
-      <ToolCommandName>nuget-restore</ToolCommandName>
+      <ToolCommandName>nuget-deploy</ToolCommandName>
    </PropertyGroup>
 
    <ItemGroup>

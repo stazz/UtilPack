@@ -37,6 +37,7 @@ namespace NuGetUtils.Lib.Exec
       /// Gets the package version of the NuGet package containing assembly with the method to execute.
       /// </summary>
       /// <value>The package version of the NuGet package containing assembly with the method to execute.</value>
+      /// <remarks>If this property is <c>null</c> or empty string, then NuGet source will be queried for the newest version.</remarks>
       String PackageVersion { get; }
 
       /// <summary>

@@ -8,7 +8,8 @@ namespace NuGetUtils.Lib.Deployment
    /// <summary>
    /// This configuration provides a way to get information for deploying a single NuGet package.
    /// </summary>
-   /// <seealso cref="DefaultDeploymentConfiguration"/>
+   /// <remarks>All properties except <see cref="PackageID"/> are optional.</remarks>
+   /// <seealso cref="E_NuGetUtils.DeployAsync"/>
    public interface NuGetDeploymentConfiguration
    {
       /// <summary>
@@ -26,22 +27,11 @@ namespace NuGetUtils.Lib.Deployment
       /// </remarks>
       String PackageVersion { get; }
 
-      ///// <summary>
-      ///// Gets the framework name (the folder name of the 'lib' folder within NuGet package) which should be deployed.
-      ///// </summary>
-      ///// <value>The framework name (the folder name of the 'lib' folder within NuGet package) which should be deployed.</value>
-      ///// <remarks>
-      ///// This property will not be used for NuGet packages with only one framework.
-      ///// </remarks>
-      //String ProcessFramework { get; }
-
       /// <summary>
-      /// Gets the path within the package where the entrypoint assembly resides.
+      /// Gets the path within the target folder (e.g. <c>"lib/netstandard1.3"</c>) of the NuGet package pointing to the assembly containing method to execute.
       /// </summary>
-      /// <value>The path within the package where the entrypoint assembly resides.</value>
-      /// <remarks>
-      /// This property will not be used for NuGet packages with only one assembly.
-      /// </remarks>
+      /// <value>The path within the target folder (e.g. <c>"lib/netstandard1.3"</c>) of the NuGet package pointing to the assembly containing method to execute.</value>
+      /// <remarks>This is required only when the NuGet package contains more than one assembly in its target folder, and the method to execute is not located in assembly named as package ID.</remarks>
       String AssemblyPath { get; }
 
       /// <summary>
@@ -49,7 +39,7 @@ namespace NuGetUtils.Lib.Deployment
       /// </summary>
       /// <value>The package ID of the SDK of the framework of the NuGet package.</value>
       /// <remarks>
-      /// If this property is <c>null</c> or empty string, then <see cref="NuGetDeployment"/> will try to use automatic detection of SDK package ID.
+      /// If this property is <c>null</c> or empty string, then automatic detection of SDK package ID will be used.
       /// </remarks>
       String PackageSDKFrameworkPackageID { get; }
 
@@ -58,7 +48,7 @@ namespace NuGetUtils.Lib.Deployment
       /// </summary>
       /// <value>The package version of the SDK of the framework of the NuGet package.</value>
       /// <remarks>
-      /// If this property is <c>null</c> or empty string, then <see cref="NuGetDeployment"/> will try to use automatic detection of SDK package version.
+      /// If this property is <c>null</c> or empty string, then automatic detection of SDK package version will be used.
       /// </remarks>
       String PackageSDKFrameworkPackageVersion { get; }
 
@@ -80,23 +70,16 @@ namespace NuGetUtils.Lib.Deployment
       /// </remarks>
       Boolean? PackageFrameworkIsPackageBased { get; }
 
+      /// <summary>
+      /// Gets the target directory where the NuGet package should be deployed to.
+      /// </summary>
+      /// <value>The target directory where the NuGet package should be deployed to.</value>
+      /// <remarks>A randomly named directory within the system's temporary directory will be used if this is <c>null</c> or empty.</remarks>
       String TargetDirectory { get; }
-
-      ///// <summary>
-      ///// Gets the framework to use when performing the restore for the target package. By default, the framework is auto-detected to be whichever matches the assembly that was resolved.
-      ///// </summary>
-      ///// <value>The framework to use when performing the restore for the target package.</value>
-      //String RestoreFramework { get; }
-
-      ///// <summary>
-      ///// Gets the runtime identifier to use when performing the restore the target package. By default, the runtime identifier is auto-detected to be the runtime identifier matching the current platform.
-      ///// </summary>
-      ///// <value>The runtime identifier to use when performing the restore the target package.</value>
-      //String RuntimeIdentifier { get; }
    }
 
    /// <summary>
-   /// This enumeration controls which files are copied and generated during deployment process of <see cref="NuGetDeployment.DeployAsync"/>.
+   /// This enumeration controls which files are copied and generated during deployment process of <see cref="E_NuGetUtils.DeployAsync"/>.
    /// </summary>
    public enum DeploymentKind
    {

@@ -47,14 +47,29 @@ namespace NuGetUtils.Tool.Deploy
          ]
       public String AssemblyPath { get; set; }
 
+      [
+         Description( ValueName = "GenerateConfigFiles|CopyNonSDKAssemblies", Description = "How the deployment is performed: by generating .deps.json and .runtimeconfig.json files (GenerateConfigFiles), or by copying all non-framework dependency assemblies to target folder (CopyNonSDKAssemblies). The GenerateConfigFiles option is not available for .NET Desktop deployments." )
+         ]
       public DeploymentKind DeploymentKind { get; set; }
 
+      [
+         Description( Description = "Set this to true in order to force package framework to be interpreted as package-based-framework." )
+         ]
       public Boolean? PackageFrameworkIsPackageBased { get; set; }
 
+      [
+         Description( ValueName = "path", Description = "Where to deploy the assembly and supplemental files. If not specified, a randomly-generated folder will be created within the system temporary directory." )
+         ]
       public String TargetDirectory { get; set; }
 
+      [
+         Description( ValueName = "packageID", Description = "Use this to override the package ID of the SDK package of the framework of the restored NuGet package." )
+         ]
       public String PackageSDKFrameworkPackageID { get; }
 
+      [
+         Description( ValueName = "packageVersion", Description = "Use this to override the package version of the SDK package of the framework of the restored NuGet package." )
+         ]
       public String PackageSDKFrameworkPackageVersion { get; }
 
 

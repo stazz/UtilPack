@@ -106,7 +106,7 @@ namespace UtilPack
                .ToArray();
             var groupInfo = this.CreateGroupInfo( documentationType, namedGroups, defaultGroup );
             return
-   $@"Usage: {execName} {String.Join( " ", groups.Select( g => this.CreateGroupDescriptionString( g ) ) )}
+$@"Usage: {execName} {String.Join( " ", groups.Select( g => this.CreateGroupDescriptionString( g ) ) )}
 
 {purpose}
 

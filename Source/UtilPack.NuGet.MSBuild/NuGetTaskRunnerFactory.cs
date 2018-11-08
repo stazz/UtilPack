@@ -373,15 +373,11 @@ namespace UtilPack.NuGet.MSBuild
                             thisFW.GetSDKPackageVersion( sdkPackageID, taskBodyElement.ElementAnyNS( NUGET_FW_PACKAGE_VERSION )?.Value ),
                             cancelSource.Token
                             ).GetAwaiter().GetResult();
-                        var sdkPackages = sdkRestoreResult.Libraries.Select( lib => lib.Name ).ToArray();
 #endif
 
                         var taskAssemblies = nugetResolver.ExtractAssemblyPaths(
                            restoreResult,
                            getFiles
-#if IS_NETSTANDARD
-                           ,sdkPackages
-#endif
                            )[packageID];
                         var assemblyPathHint = taskBodyElement.ElementAnyNS( ASSEMBLY_PATH )?.Value;
                         var assemblyPath = NuGetUtility.GetAssemblyPathFromNuGetAssemblies(

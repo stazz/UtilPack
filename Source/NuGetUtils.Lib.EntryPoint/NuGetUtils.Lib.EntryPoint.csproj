@@ -9,6 +9,7 @@
       <TreatSpecificWarningsAsErrors />
       <LangVersion>latest</LangVersion>
       <GeneratePackageOnBuild Condition=" '$(Configuration)' == 'Release' ">true</GeneratePackageOnBuild>
+      <NuGetExecToolName>NuGetUtils.Tool.Exec</NuGetExecToolName>
    </PropertyGroup>
 
    <!-- Assembly information stuff -->
@@ -25,9 +26,9 @@
       <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
       <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
       <PackageTags>nuget entry point execution dynamic</PackageTags>
-      <Title>Entry Point Information For NuGetUtils.Exec.</Title>
+      <Title>Entry Point Information For $(NuGetExecToolName).</Title>
       <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(MSBuildProjectName)</PackageProjectUrl>
-      <Description>This library contains attribute which is used by NuGetUtils.Exec tool when it executes a method within a NuGet package. This attribute can be used to modify the behaviour of NuGetUtils.Exec and how it passes parameters to the method.</Description>
+      <Description>This library contains attribute which is used by $(NuGetExecToolName) tool when it executes a method within a NuGet package. This attribute can be used to modify the behaviour of $(NuGetExecToolName) and how it passes detects the method to be executed.</Description>
    </PropertyGroup>
 
    <PropertyGroup>

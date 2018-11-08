@@ -76,6 +76,7 @@ namespace NuGetUtils.Lib.Tool
       {
          TCommandLineConfiguration programConfig = null;
          var isConfigConfig = false;
+         var hasHelp = false;
          try
          {
             Int32 programArgStart;
@@ -94,6 +95,7 @@ namespace NuGetUtils.Lib.Tool
                {
                   // Extra arguments
                   configRoot = null;
+                  hasHelp = HasHelp( args, null );
                }
                else
                {
@@ -142,7 +144,7 @@ namespace NuGetUtils.Lib.Tool
                   // The Get<x> method returns always null in this case
                   programConfig = Activator.CreateInstance<TCommandLineConfiguration>(); // Using Activator is not always ok, but we are only using it once here so should be fine.
                }
-               else
+               else if ( !( hasHelp = HasHelp( args, programArgStart ) ) )
                {
                   args = args.Skip( programArgStart ).ToArray();
 
@@ -190,11 +192,21 @@ namespace NuGetUtils.Lib.Tool
          if ( !retVal.HasValue )
          {
             Console.Out.WriteLine( this.GetDocumentation() );
-            retVal = ERROR_INVALID_CONFIG;
+            retVal = hasHelp ? 0 : ERROR_INVALID_CONFIG;
          }
 
 
          return retVal.Value;
+      }
+
+      private static Boolean HasHelp( String[] args, Int32? count )
+      {
+         return Array.FindIndex(
+            args,
+            0,
+            count ?? args.Length,
+            arg => String.Equals( "--help", arg, StringComparison.OrdinalIgnoreCase ) || String.Equals( "-help", arg, StringComparison.OrdinalIgnoreCase )
+            ) >= 0;
       }
 
       /// <summary>

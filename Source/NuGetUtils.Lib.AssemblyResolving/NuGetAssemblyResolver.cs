@@ -977,13 +977,17 @@ namespace NuGetUtils.Lib.AssemblyResolving
                foreach ( var kvp in assemblyNames )
                {
                   var curPath = kvp.Key;
-                  var assembly = kvp.Value.Value;
-                  if ( assembly != null )
+                  if ( curPath.IndexOf( PackagingConstants.Folders.Native ) < 0
+                     || !String.Equals( PackagingConstants.Folders.Native, Path.GetFileName( Path.GetDirectoryName( curPath ) ) ) )
                   {
-                     this._assemblies.TryAdd(
-                        assembly,
-                        new AssemblyInformation( curPath, this )
-                        );
+                     var assembly = kvp.Value.Value;
+                     if ( assembly != null )
+                     {
+                        this._assemblies.TryAdd(
+                           assembly,
+                           new AssemblyInformation( curPath, this )
+                           );
+                     }
                   }
                }
 

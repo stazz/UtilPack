@@ -30,10 +30,12 @@ For the method parameter types, the following strategy is used:
 - `CancellationToken` - will contain the cancellation token which will get canceled on `Console.CancelKeyPress` event.
 - `Func<String, Assembly>` - will contain callback to load assembly by path.
 - `Func<AssemblyName, Assembly>` - will contain callback to load previously restored assembly by AssemblyName.
-- `Func<String, String, String, CancellationToken, Task<Assembly>>` - will contain callback to load assembly, by given package ID, package version (optional), assembly path within target folder (optional), and cancellation token (optional).
-- `Func<String[], String[], String[], CancellationToken, Task<Assembly[]>>`- will contain callback to load multiple assemblies, by given package IDs, package versions (optional), assembly paths within target folders (optional), and cancellation token (optional).
+- `Func<String, String, String, CancellationToken, Task<Assembly>>` - will contain callback to restore NuGet package and load assembly, by given package ID, package version (optional), assembly path within target folder (optional), and cancellation token (optional).
+- `Func<String[], String[], String[], CancellationToken, Task<Assembly[]>>`- will contain callback to restore NuGet packages and load multiple assemblies, by given package IDs, package versions (optional), assembly paths within target folders (optional), and cancellation token (optional).
 - `Func<String, Type>` - will contain callback to load type from previously restored assemblies given the assembly-qualified type name.
 - Anything else - the `Microsoft.Extensions.Configuration.Binder` package will be used to create instance of given type from the command line arguments passed to `nuget-exec` tool after `--` switch.
+
+Note that when using `ConfiguredEntryPointAttribute`, the assembly does not need to be compiled as executable with `<OutputType>Exe</OutputType>`.
 
 ## Command-line documentation
 

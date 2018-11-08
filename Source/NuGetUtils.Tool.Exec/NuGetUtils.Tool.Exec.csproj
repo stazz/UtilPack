@@ -24,7 +24,7 @@
      <VersionPrefix>1.0.0</VersionPrefix>
      <VersionSuffix></VersionSuffix>
      <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
-     <Description>This package will restore the given NuGet package and then execute a method within the restored DLLs.</Description>
+     <Description>This tool will restore the given NuGet package and then execute a method within the restored DLLs. The method does not need to be marked as entrypoint, and it may contain other parameter types than the default string array type.</Description>
   </PropertyGroup>
 
   <!-- NuGet package stuff -->
@@ -32,7 +32,7 @@
      <PackageVersion>$(VersionPrefix)</PackageVersion>
      <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
      <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
-     <PackageTags>nuget package execute assembly load managed</PackageTags>
+     <PackageTags>nuget package execute assembly tool load managed</PackageTags>
      <Title>NuGet Package Executor</Title>
      <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(MSBuildProjectName)</PackageProjectUrl>
   </PropertyGroup>

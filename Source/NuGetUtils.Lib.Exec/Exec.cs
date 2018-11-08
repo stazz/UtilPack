@@ -211,8 +211,7 @@ public static class E_NuGetUtils
    /// <param name="token">The <see cref="CancellationToken"/> to use when performing <c>async</c> operations.</param>
    /// <param name="restorer">The <see cref="BoundRestoreCommandUser"/> to use for restoring.</param>
    /// <param name="additionalParameterTypeProvider">The callback to provide values for method parameters with custom types.</param>
-   /// <param name="sdkPackageID">The SDK package ID.</param>
-   /// <param name="sdkPackageVersion">The SDK package version.</param>
+   /// <param name="thisFrameworkRestoreResult">The optional <see cref="LockFile"/> containing restoration result of SDK package, or enumerable of SDK assembly paths.</param>
    /// <returns>The return value of the method, if the method returns integer synchronously or asynchronously.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="NuGetExecutionConfiguration"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="restorer"/> is <c>null</c>.</exception>

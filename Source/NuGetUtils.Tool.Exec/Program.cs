@@ -74,7 +74,7 @@ namespace NuGetUtils.Tool.Exec
          return !String.IsNullOrEmpty( info.Configuration.PackageID );
       }
 
-      protected override Task<Int32> UseRestorerAsync(
+      protected override async Task<Int32> UseRestorerAsync(
          ConfigurationInformation info,
          CancellationToken token,
          BoundRestoreCommandUser restorer,
@@ -86,7 +86,7 @@ namespace NuGetUtils.Tool.Exec
          var programArgs = new Lazy<String[]>( () => info.IsConfigurationConfiguration ? ( config.ProcessArguments ?? Empty<String>.Array ).Concat( info.RemainingArguments ).ToArray() : info.RemainingArguments.ToArray() );
          var programArgsConfig = new Lazy<IConfigurationRoot>( () => new ConfigurationBuilder().AddCommandLine( programArgs.Value ).Build() );
 
-         return config.ExecuteMethodWithinNuGetAssemblyAsync(
+         return await config.ExecuteMethodWithinNuGetAssemblyAsync(
             token,
             restorer,
             type =>
@@ -95,8 +95,9 @@ namespace NuGetUtils.Tool.Exec
                   programArgs.Value :
                   programArgsConfig.Value.Get( type );
             },
-            sdkPackageID,
-            sdkPackageVersion
+            config.RestoreSDKPackage ?
+               await restorer.RestoreIfNeeded( sdkPackageID, sdkPackageVersion, token ) :
+               default( EitherOr<IEnumerable<String>, NuGet.ProjectModel.LockFile> )
             );
       }
    }

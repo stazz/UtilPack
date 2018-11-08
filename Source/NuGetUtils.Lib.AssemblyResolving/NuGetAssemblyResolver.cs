@@ -23,6 +23,7 @@ using NuGetUtils.Lib.Restore;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -369,8 +370,6 @@ namespace NuGetUtils.Lib.AssemblyResolving
          BoundRestoreCommandUser restorer,
 #if NET45 || NET46
          AppDomainSetup appDomainSetup,
-#else
-         LockFile thisFrameworkRestoreResult,
 #endif
          out
 #if NET45 || NET46
@@ -382,6 +381,7 @@ namespace NuGetUtils.Lib.AssemblyResolving
 #if NET45 || NET46
          Func<AssemblyName, String> overrideLocation = null,
 #else
+         EitherOr<IEnumerable<String>, LockFile> thisFrameworkRestoreResult = default,
          Func<AssemblyName, Boolean> additionalCheckForDefaultLoader = null, // return true if nuget-based assembly loading should not be used
 #endif
          GetFileItemsDelegate defaultGetFiles = null,
@@ -399,9 +399,6 @@ namespace NuGetUtils.Lib.AssemblyResolving
          var resolver = new NuGetRestorerWrapper(
             restorer,
             ( rGraph, rid, targetLib, libs ) => defaultGetFiles( rGraph, rid, targetLib, libs ).FilterUnderscores()
-#if !NET45 && !NET46
-            , ArgumentValidator.ValidateNotNull( nameof( thisFrameworkRestoreResult ), thisFrameworkRestoreResult ).Libraries.Select( lib => lib.Name )
-#endif
             );
 
          NuGetAssemblyResolver retVal;
@@ -561,7 +558,6 @@ namespace NuGetUtils.Lib.AssemblyResolving
                   x => x?.Name?.GetHashCode() ?? 0
                   );
 
-         private readonly ISet<String> _frameworkAssemblySimpleNames;
          private readonly System.Runtime.Loader.AssemblyLoadContext _parentLoadContext;
          private readonly ConcurrentDictionary<AssemblyName, Lazy<Assembly>> _loadedAssemblies; // We will get multiple request for same assembly name, so let's cache them
          private readonly Func<AssemblyName, Boolean> _additionalCheckForDefaultLoader;
@@ -572,7 +568,7 @@ namespace NuGetUtils.Lib.AssemblyResolving
          public NuGetAssemblyLoadContext(
             NuGetAssemblyResolverImpl resolver,
             BoundRestoreCommandUser restorer,
-            LockFile thisFrameworkRestoreResult,
+            EitherOr<IEnumerable<String>, LockFile> thisFrameworkRestoreResult,
             Func<AssemblyName, Boolean> additionalCheckForDefaultLoader,
             OtherLoadersRegistration loadersRegistration,
             UnmanagedAssemblyPathProcessorDelegate unmanagedAssemblyNameProcessor
@@ -582,16 +578,8 @@ namespace NuGetUtils.Lib.AssemblyResolving
             var parentLoader = GetLoadContext( this.GetType().GetTypeInfo().Assembly );
             this._parentLoadContext = parentLoader;
             this._loadedAssemblies = new ConcurrentDictionary<AssemblyName, Lazy<Assembly>>( AssemblyNameEqualityComparer );
-            // .NET Core is package-based framework, so we need to find out which packages are part of framework, and which ones are actually client ones.
-            this._frameworkAssemblySimpleNames = new HashSet<String>(
-               restorer.ExtractAssemblyPaths(
-                     thisFrameworkRestoreResult,
-                     ( rGraph, rid, lib, libs ) => lib.CompileTimeAssemblies.Select( i => i.Path ).FilterUnderscores(),
-                     null
-                     ).Values
-                  .SelectMany( p => p.Assemblies )
-                  .Select( p => Path.GetFileNameWithoutExtension( p ) ) // For framework assemblies, we can assume that file name without extension = assembly name
-               );
+            // .NET Core is package-based framework, so we need to find out which packages are part of framework, and which ones are actually client ones.          
+            this.FrameworkAssemblySimpleNames = thisFrameworkRestoreResult.GetSimpleAssemblyNames( restorer ).ToImmutableHashSet();
             this._additionalCheckForDefaultLoader = additionalCheckForDefaultLoader;
 
             // We do this to catch scenarios like using Type.GetType(String) method.
@@ -612,7 +600,11 @@ namespace NuGetUtils.Lib.AssemblyResolving
             this._unmanagedDLLPaths = new ConcurrentDictionary<String, Lazy<String[]>>();
          }
 
-         internal NuGetAssemblyResolverImpl Resolver { get; }
+
+
+         private NuGetAssemblyResolverImpl Resolver { get; }
+
+         internal ImmutableHashSet<String> FrameworkAssemblySimpleNames { get; }
 
          private Assembly OtherResolving( System.Runtime.Loader.AssemblyLoadContext loadContext, AssemblyName assemblyName )
          {
@@ -630,7 +622,7 @@ namespace NuGetUtils.Lib.AssemblyResolving
             return this._loadedAssemblies.GetOrAdd( assemblyName, an => new Lazy<Assembly>( () =>
             {
                Assembly retVal = null;
-               if ( this._frameworkAssemblySimpleNames.Contains( an.Name ) || ( this._additionalCheckForDefaultLoader?.Invoke( an ) ?? false ) )
+               if ( this.FrameworkAssemblySimpleNames.Contains( an.Name ) || ( this._additionalCheckForDefaultLoader?.Invoke( an ) ?? false ) )
                {
                   // We use default loader for framework assemblies, in order to avoid loading from different path for same assembly name.
                   try
@@ -815,7 +807,7 @@ namespace NuGetUtils.Lib.AssemblyResolving
       }
 
 #if NET46
-      internal static NuGetAssemblyResolver ThisDomainResolver { get; private set; }
+      //internal static NuGetAssemblyResolver ThisDomainResolver { get; private set; }
 #endif
 
       private readonly ConcurrentDictionary<AssemblyName, AssemblyInformation> _assemblies;
@@ -846,7 +838,7 @@ namespace NuGetUtils.Lib.AssemblyResolving
 #endif
          pathProcessor
 #if !NET45 && !NET46
-         , LockFile thisFrameworkRestoreResult,
+         , EitherOr<IEnumerable<String>, LockFile> thisFrameworkRestoreResult,
          Func<AssemblyName, Boolean> additionalCheckForDefaultLoader,
          OtherLoadersRegistration loadersRegistration,
          UnmanagedAssemblyPathProcessorDelegate unmanagedAssemblyNameProcessor,
@@ -888,7 +880,7 @@ namespace NuGetUtils.Lib.AssemblyResolving
             ;
 
 #if NET46
-         ThisDomainResolver = this;
+         //ThisDomainResolver = this;
 #endif
 
          this._assemblyNames = new ConcurrentDictionary<String, Lazy<AssemblyName>>();
@@ -960,8 +952,7 @@ namespace NuGetUtils.Lib.AssemblyResolving
 #else
             this._restorer.Restorer.ExtractAssemblyPaths(
                await this._restorer.Restorer.RestoreIfNeeded( token, packageIDs.Select( ( p, idx ) => (p, packageVersions[idx]) ).ToArray() ),
-               this._restorer.GetFiles,
-               this._restorer.SDKPackageIDs
+               this._restorer.GetFiles
                )
 #endif
             ;
@@ -975,6 +966,9 @@ namespace NuGetUtils.Lib.AssemblyResolving
                   .Where( p => !String.IsNullOrEmpty( p ) )
                   .Select( p => Path.GetFullPath( p ) )
                   .Distinct()
+#if !NET45 && !NET46
+                  .Where( p => !this._loader.FrameworkAssemblySimpleNames.Contains( Path.GetFileNameWithoutExtension( p ) ) )
+#endif
                   .ToDictionary(
                      p => p,
                      p => this._assemblyNames.GetOrAdd( p, this.LoadAssemblyNameFromPath )
@@ -1195,16 +1189,10 @@ namespace NuGetUtils.Lib.AssemblyResolving
       public NuGetRestorerWrapper(
          BoundRestoreCommandUser resolver,
          GetFileItemsDelegate getFiles
-#if !NET45 && !NET46
-         , IEnumerable<String> sdkPackages
-#endif
          )
       {
          this.Restorer = resolver;
          this.GetFiles = getFiles;
-#if !NET45 && !NET46
-         this.SDKPackageIDs = sdkPackages?.ToList();
-#endif
       }
 
 #if NET45 || NET46
@@ -1264,10 +1252,6 @@ namespace NuGetUtils.Lib.AssemblyResolving
 #endif
          GetFileItemsDelegate GetFiles
       { get; }
-
-#if !NET45 && !NET46
-      public IReadOnlyList<String> SDKPackageIDs { get; }
-#endif
    }
 
 
@@ -1331,18 +1315,18 @@ public static partial class E_NuGetUtils
       this BoundRestoreCommandUser restorer,
       LockFile lockFile,
       GetFileItemsDelegate fileGetter
-#if !NET45 && !NET46
-      , IEnumerable<String> sdkPackages
-#endif
+   //#if !NET45 && !NET46
+   //      , IEnumerable<String> sdkPackages
+   //#endif
    )
    {
       return restorer.ExtractAssemblyPaths(
          lockFile,
          ( packageFolder, filePaths ) => new ResolvedPackageInfo( packageFolder, filePaths.ToArray() ),
          fileGetter: fileGetter
-#if !NET46 && !NET46
-         , filterablePackages: sdkPackages
-#endif
+         //#if !NET46 && !NET46
+         //         , filterablePackages: sdkPackages
+         //#endif
          );
    }
 
@@ -1504,5 +1488,41 @@ public static partial class E_NuGetUtils
    internal static void LogAssemblyPathResolveError( this BoundRestoreCommandUser restorer, String packageID, String[] possiblePaths, String pathHint, String seenAssemblyPath )
    {
       restorer.NuGetLogger.LogError( $"Failed to resolve assemblies for \"{packageID}\"{( String.IsNullOrEmpty( seenAssemblyPath ) ? "" : ( " from \"" + seenAssemblyPath + "\"" ) )}, considered {String.Join( ";", possiblePaths.Select( pp => "\"" + pp + "\"" ) )}, with path hint of \"{pathHint}\"." );
+   }
+
+   internal static IEnumerable<String> GetSimpleAssemblyNames(
+      this EitherOr<IEnumerable<String>, LockFile> namesOrLockFile,
+      BoundRestoreCommandUser restorer
+      )
+   {
+      var suppliedPaths = namesOrLockFile.GetFirstOrDefault();
+      if ( suppliedPaths == null )
+      {
+         var thisFrameworkRestoreResult = namesOrLockFile.GetSecondOrDefault();
+         if ( thisFrameworkRestoreResult != null )
+         {
+            suppliedPaths = ArgumentValidator.ValidateNotNull( nameof( restorer ), restorer )
+               .ExtractAssemblyPaths(
+                     thisFrameworkRestoreResult,
+                     ( rGraph, rid, lib, libs ) => lib.CompileTimeAssemblies.Select( i => i.Path ).FilterUnderscores()
+                     ).Values
+               .SelectMany( p => p.Assemblies );
+         }
+         else
+         {
+            suppliedPaths = GetSDKFolderAssemblies();
+         }
+      }
+
+      return suppliedPaths.Select( p => Path.GetFileNameWithoutExtension( p ) );
+   }
+
+   private static IEnumerable<String> GetSDKFolderAssemblies()
+   {
+      return Directory.EnumerateFiles(
+         Path.GetDirectoryName( new Uri( typeof( Object ).GetTypeInfo().Assembly.CodeBase ).LocalPath ),
+         "*.dll",
+         SearchOption.TopDirectoryOnly
+         );
    }
 }

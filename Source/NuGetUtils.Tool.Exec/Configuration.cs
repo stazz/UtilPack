@@ -67,6 +67,11 @@ namespace NuGetUtils.Tool.Exec
       public String[] ProcessArguments { get; set; }
 
       [
+         Description( Description = "Whether to explicitly restore SDK package. Use only if getting assembly load errors." )
+         ]
+      public Boolean RestoreSDKPackage { get; set; }
+
+      [
          Description( ValueName = NuGetConfigurationFileValue, Description = NuGetConfigurationFileDescription )
          ]
       public String NuGetConfigurationFile { get; set; }

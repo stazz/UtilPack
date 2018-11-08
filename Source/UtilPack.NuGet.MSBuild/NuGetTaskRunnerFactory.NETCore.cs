@@ -137,8 +137,8 @@ namespace UtilPack.NuGet.MSBuild
 
          var thisLoader = NuGetAssemblyResolverFactory.NewNuGetAssemblyResolver(
             restorer,
-            thisFrameworkRestoreResult,
             out var assemblyLoader,
+            thisFrameworkRestoreResult: thisFrameworkRestoreResult,
             defaultGetFiles: getFiles,
             additionalCheckForDefaultLoader: IsMBFAssembly, // Use default loader for Microsoft.Build assemblies
             pathProcessor: CreatePathProcessor( assemblyCopyTargetFolder ),

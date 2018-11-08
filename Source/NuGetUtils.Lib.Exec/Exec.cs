@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
+using NuGet.ProjectModel;
 using NuGetUtils.Lib.AssemblyResolving;
 using NuGetUtils.Lib.EntryPoint;
 using NuGetUtils.Lib.Exec;
@@ -223,8 +224,7 @@ public static class E_NuGetUtils
       BoundRestoreCommandUser restorer,
       Func<Type, Object> additionalParameterTypeProvider
 #if !NET46
-      , String sdkPackageID,
-      String sdkPackageVersion
+      , EitherOr<IEnumerable<String>, LockFile> thisFrameworkRestoreResult = default
 #endif
       )
    {
@@ -241,12 +241,8 @@ public static class E_NuGetUtils
          },
          out var appDomain
 #else
-         await restorer.RestoreIfNeeded(
-            sdkPackageID,
-            sdkPackageVersion,
-            token
-            ),
          out var loadContext,
+         thisFrameworkRestoreResult: thisFrameworkRestoreResult,
          additionalCheckForDefaultLoader: NuGetAssemblyResolverFactory.ReturnFromParentAssemblyLoaderForAssemblies( new[] { typeof( ConfiguredEntryPointAttribute ) } )
 #endif
          ) )

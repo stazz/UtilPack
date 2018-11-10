@@ -36,7 +36,6 @@
     <PackageReleaseNotes>No changes since last RC.</PackageReleaseNotes>
     <PackageTags>json utility binary serialization extensions async asynchronous deserialization</PackageTags>
     <Title>Asynchronous JSON Serialization</Title>
-    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
   
   <!--

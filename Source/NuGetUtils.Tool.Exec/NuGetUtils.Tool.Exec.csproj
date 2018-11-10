@@ -34,7 +34,6 @@
      <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
      <PackageTags>nuget package execute assembly tool load managed</PackageTags>
      <Title>NuGet Package Executor</Title>
-     <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(MSBuildProjectName)</PackageProjectUrl>
   </PropertyGroup>
 
    <PropertyGroup>

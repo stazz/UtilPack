@@ -32,7 +32,6 @@
       <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
       <PackageTags>utility nuget extensions dynamically load execute assembly</PackageTags>
       <Title></Title>
-      <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
    </PropertyGroup>
 
    <PropertyGroup>

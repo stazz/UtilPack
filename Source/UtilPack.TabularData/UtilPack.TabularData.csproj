@@ -32,6 +32,5 @@
     <PackageReleaseNotes>Fixed few bugs, and added utility methods to transform AsyncDataRows into ValueTuples.</PackageReleaseNotes>
     <PackageTags>utility async tabular data</PackageTags>
     <Title>Tabular Data</Title>
-    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
 </Project>

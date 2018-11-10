@@ -25,7 +25,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>2.2.0</VersionPrefix>
+    <VersionPrefix>1.0.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Description>Library containing NuGetAssemblyResolver interface, which provides uniform way for both .NET Desktop and Core to dynamically load assemblies from NuGet packages and dependencies.</Description>
@@ -36,10 +36,9 @@
     <PackageId>$(AssemblyName)</PackageId>
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
-    <PackageReleaseNotes>Updated to newest (4.7.0) NuGet version.</PackageReleaseNotes>
+    <PackageReleaseNotes>Initial release after renaming the project from UtilPack.NuGet.AssemblyLoading.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions dynamically load assembly</PackageTags>
     <Title>NuGet Assembly Resolving Helper</Title>
-    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
 
    <PropertyGroup>

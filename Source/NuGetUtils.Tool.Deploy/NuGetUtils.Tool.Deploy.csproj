@@ -34,7 +34,6 @@
       <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
       <PackageTags>nuget package deploy assembly tool</PackageTags>
       <Title>NuGet Package Deployer</Title>
-      <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(MSBuildProjectName)</PackageProjectUrl>
    </PropertyGroup>
 
    <PropertyGroup>

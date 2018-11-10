@@ -33,7 +33,6 @@
       <PackageReleaseNotes>Renaming method to be more suitable for its meaning.</PackageReleaseNotes>
       <PackageTags>utility log logging</PackageTags>
       <Title>Metadata-Based Logging</Title>
-      <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
    </PropertyGroup>
 
 

@@ -35,7 +35,6 @@ The task in this package should be loaded by UtilPack.NuGet.MSBuild task factory
     <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
     <PackageTags>utility extensions msbuild async exec</PackageTags>
     <Title>Asynchronous Exec MSBuild Task</Title>
-    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
 
   <!--

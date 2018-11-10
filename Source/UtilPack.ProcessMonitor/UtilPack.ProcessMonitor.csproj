@@ -40,7 +40,6 @@
     <PackageReleaseNotes>Added ability to declare shutdown/restart functionality as optional, so that the process would still be started even if e.g. named semaphores are not available on the platform.</PackageReleaseNotes>
     <PackageTags>utility extensions process monitor start restart shutdown</PackageTags>
     <Title>Advanced Process Monitoring</Title>
-    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
 
   <!--

@@ -33,7 +33,6 @@
       <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
       <PackageTags>nuget package restore tool</PackageTags>
       <Title>NuGet Package Restorer</Title>
-      <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(MSBuildProjectName)</PackageProjectUrl>
    </PropertyGroup>
 
    <PropertyGroup>

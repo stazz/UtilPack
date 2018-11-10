@@ -12,7 +12,12 @@
     <GeneratePackageOnBuild Condition=" '$(Configuration)' == 'Release' ">true</GeneratePackageOnBuild>
   </PropertyGroup>
 
-  <PropertyGroup>
+   <ItemGroup>
+      <ProjectReference Include="..\UtilPack.Configuration.NetworkStream\UtilPack.Configuration.NetworkStream.csproj" />
+      <ProjectReference Include="..\UtilPack.ResourcePooling\UtilPack.ResourcePooling.csproj" />
+   </ItemGroup>
+
+   <PropertyGroup>
     <VersionPrefix>1.0.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
@@ -27,15 +32,10 @@
     <PackageReleaseNotes>Separated common configuration into its own project, and added easy-to-use methods to default usecases of transforming that configuration into NetworkStreamFactoryConfiguration. Added possibility to connect to Unix sockets.</PackageReleaseNotes>
     <PackageTags>utilpack async resource pool network stream factory socket</PackageTags>
     <Title>NetworkStream Pooling</Title>
-    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
 
   <PropertyGroup>
     <NuGetPushOnBuildFile>$([MSBuild]::GetPathOfFileAbove(NuGetPushOnBuild.targets))</NuGetPushOnBuildFile>
   </PropertyGroup>
   <Import Project="$(NuGetPushOnBuildFile)" Condition="Exists('$(NuGetPushOnBuildFile)')" />
-  <ItemGroup>
-    <ProjectReference Include="..\UtilPack.Configuration.NetworkStream\UtilPack.Configuration.NetworkStream.csproj" />
-    <ProjectReference Include="..\UtilPack.ResourcePooling\UtilPack.ResourcePooling.csproj" />
-  </ItemGroup>
 </Project>

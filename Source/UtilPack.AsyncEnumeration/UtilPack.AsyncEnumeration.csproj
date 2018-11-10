@@ -13,14 +13,8 @@
   </PropertyGroup>
 
   <ItemGroup Condition=" '$(Configuration)' == 'Debug' ">
-    <!-- We must use package reference in debug mode, since we are using .InvokeAllEventHandlers extension method written in IL code, which is not available in MSVS when using direct project reference. -->
-    <PackageReference Include="UtilPack" Version="1.5.1" />
+     <ProjectReference Include="../UtilPack/UtilPack.csproj" />
   </ItemGroup>
-  <ItemGroup Condition=" '$(Configuration)' != 'Debug' ">
-    <!-- Release mode compilation is always done via command-line, so we can use normal project reference there. -->
-    <ProjectReference Include="../UtilPack/UtilPack.csproj" />
-  </ItemGroup>
-
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
@@ -39,7 +33,6 @@
     <PackageReleaseNotes>Fixed a bug occuring under special circumstances in the async version of TakeWhile aLINQ method, causing the enumeration not to stop when needed.</PackageReleaseNotes>
     <PackageTags>utility async enumerable enumerator</PackageTags>
     <Title>Asynchronous Enumeration</Title>
-    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
 
 

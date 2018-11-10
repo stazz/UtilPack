@@ -35,7 +35,6 @@
     <PackageReleaseNotes>Adapting to changes done in UtilPack.ResourcePooling project.</PackageReleaseNotes>
     <PackageTags>utility async resource pool msbuild task</PackageTags>
     <Title>MSBuild Resource Pooling Support</Title>
-    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
 
 </Project>

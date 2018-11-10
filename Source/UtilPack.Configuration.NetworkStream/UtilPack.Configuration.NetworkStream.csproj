@@ -27,7 +27,6 @@
     <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
     <PackageTags>binary serialization async asynchronous connection tabular sql data postgresql pgsql</PackageTags>
     <Title>Common Configuration Types for Network Protocols</Title>
-    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
 
 

@@ -37,7 +37,6 @@ The task in this package should be loaded by UtilPack.NuGet.MSBuild task factory
     <PackageReleaseNotes>Updated to newest (4.7.0) NuGet version..</PackageReleaseNotes>
     <PackageTags>utility nuget extensions deployment msbuild</PackageTags>
     <Title>NuGet Package Deployment MSBuild Task</Title>
-    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
 
   <!--

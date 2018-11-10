@@ -109,14 +109,14 @@ namespace UtilPack.AsyncEnumeration
          {
             // Initial call
             TStartedArgs args = null;
-            this.BeforeEnumerationStart?.InvokeAllEventHandlers( evt => evt( ( args = this.CreateBeforeEnumerationStartedArgs() ) ), throwExceptions: false );
+            this.BeforeEnumerationStart?.InvokeAllEventHandlers( args = this.CreateBeforeEnumerationStartedArgs(), throwExceptions: false );
             try
             {
                retVal = await this._source.WaitForNextAsync();
             }
             finally
             {
-               this.AfterEnumerationStart?.InvokeAllEventHandlers( evt => evt( ( args = this.CreateAfterEnumerationStartedArgs( args ) ) ), throwExceptions: false );
+               this.AfterEnumerationStart?.InvokeAllEventHandlers( args = this.CreateAfterEnumerationStartedArgs( args ), throwExceptions: false );
             }
          }
          else
@@ -138,7 +138,7 @@ namespace UtilPack.AsyncEnumeration
          if ( success )
          {
             TItemArgs args = null;
-            this.AfterEnumerationItemEncountered?.InvokeAllEventHandlers( evt => evt( ( args = this.CreateEnumerationItemArgs( item ) ) ), throwExceptions: false );
+            this.AfterEnumerationItemEncountered?.InvokeAllEventHandlers( args = this.CreateEnumerationItemArgs( item ), throwExceptions: false );
          }
          return item;
       }
@@ -147,10 +147,10 @@ namespace UtilPack.AsyncEnumeration
       {
          //var moveNextReturnedFalse = this._state == STATE_ENDED;
          TEndedArgs args = null;
-         this.BeforeEnumerationEnd?.InvokeAllEventHandlers( evt => evt( ( args = this.CreateBeforeEnumerationEndedArgs() ) ), throwExceptions: false );
+         this.BeforeEnumerationEnd?.InvokeAllEventHandlers( args = this.CreateBeforeEnumerationEndedArgs(), throwExceptions: false );
 
          return this._source.DisposeAsync().ContinueWith( t =>
-            this.AfterEnumerationEnd?.InvokeAllEventHandlers( evt => evt( ( args = this.CreateAfterEnumerationEndedArgs( args ) ) ), throwExceptions: false ),
+            this.AfterEnumerationEnd?.InvokeAllEventHandlers( args = this.CreateAfterEnumerationEndedArgs( args ), throwExceptions: false ),
             TaskContinuationOptions.ExecuteSynchronously );
       }
 
@@ -366,11 +366,11 @@ namespace UtilPack.AsyncEnumeration
          )
       {
          this._source = ArgumentValidator.ValidateNotNull( nameof( source ), source );
-         this._beforeStart = ( args ) => this.BeforeEnumerationStart?.InvokeAllEventHandlers( evt => evt( args ) );
-         this._afterStart = ( args ) => this.AfterEnumerationStart?.InvokeAllEventHandlers( evt => evt( args ) );
-         this._afterItem = ( args ) => this.AfterEnumerationItemEncountered?.InvokeAllEventHandlers( evt => evt( args ) );
-         this._beforeEnd = ( args ) => this.BeforeEnumerationEnd?.InvokeAllEventHandlers( evt => evt( args ) );
-         this._afterEnd = ( args ) => this.AfterEnumerationEnd?.InvokeAllEventHandlers( evt => evt( args ) );
+         this._beforeStart = ( args ) => this.BeforeEnumerationStart?.InvokeAllEventHandlers( args, throwExceptions: false );
+         this._afterStart = ( args ) => this.AfterEnumerationStart?.InvokeAllEventHandlers( args, throwExceptions: false );
+         this._afterItem = ( args ) => this.AfterEnumerationItemEncountered?.InvokeAllEventHandlers( args, throwExceptions: false );
+         this._beforeEnd = ( args ) => this.BeforeEnumerationEnd?.InvokeAllEventHandlers( args, throwExceptions: false );
+         this._afterEnd = ( args ) => this.AfterEnumerationEnd?.InvokeAllEventHandlers( args, throwExceptions: false );
       }
 
       public event GenericEventHandler<TStartedArgs> BeforeEnumerationStart;

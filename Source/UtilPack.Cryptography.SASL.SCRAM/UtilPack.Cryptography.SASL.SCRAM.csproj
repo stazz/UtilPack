@@ -33,7 +33,6 @@
     <PackageReleaseNotes>Updating to newer version of UtilPack.Cryptography.Digest. This introduces binary-incompatible change, resulting in major version number increase.</PackageReleaseNotes>
     <PackageTags>utility cryptography sasl scram sha-128 sha-256 sha-512 digest hash</PackageTags>
     <Title>SASL SCRAM Library</Title>
-    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
 
 </Project>

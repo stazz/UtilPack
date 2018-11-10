@@ -33,7 +33,6 @@
     <PackageReleaseNotes>Fixed a bug in detecting property which should be traversed recursively when scanning for NestedDynamicConfiguration attributes.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions configuration dynamically load assembly type</PackageTags>
     <Title>Dynamic Configuration</Title>
-    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
 
 </Project>

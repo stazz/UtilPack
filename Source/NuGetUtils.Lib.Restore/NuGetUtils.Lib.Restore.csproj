@@ -29,7 +29,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>2.2.0</VersionPrefix>
+    <VersionPrefix>1.0.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Description>Library containing BoundRestoreCommandUser class, which can be used to easily restore NuGet packages. Also several extension methods are provided to make life easier when working with NuGet types.</Description>
@@ -40,10 +40,9 @@
     <PackageId>$(AssemblyName)</PackageId>
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
-    <PackageReleaseNotes>Updated to newest (4.7.0) NuGet version.</PackageReleaseNotes>
+    <PackageReleaseNotes>Initial release after renaming the project from UtilPack.NuGet.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions restore</PackageTags>
     <Title>NuGet Restore Helper</Title>
-    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
 
    <PropertyGroup>

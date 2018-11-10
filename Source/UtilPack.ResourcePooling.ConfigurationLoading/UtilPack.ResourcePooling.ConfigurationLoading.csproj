@@ -37,7 +37,6 @@
       <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
       <PackageTags>utility extensions dynamically load assembly resource pool async</PackageTags>
       <Title>Resource Pooling Dynamic Configuration Loading</Title>
-      <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
    </PropertyGroup>
 
 </Project>

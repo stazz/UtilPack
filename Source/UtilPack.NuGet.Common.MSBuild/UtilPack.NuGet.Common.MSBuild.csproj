@@ -32,7 +32,6 @@
     <PackageReleaseNotes>Updated to newer NuGet version.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions nuget msbuild</PackageTags>
     <Title>Common NuGet Types for MSBuild Tasks</Title>
-    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
 
   <!--

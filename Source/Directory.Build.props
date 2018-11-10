@@ -14,7 +14,8 @@
     <Product>UtilPack</Product>
     <Copyright>Stanislav Muhametsin</Copyright>
     <AssemblyOriginatorKeyFilePath>$(MSBuildThisFileDirectory)\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
-    <RepositoryUrl>https://github.com/stazz/$(Product)</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/stazz/$(Product)</PackageProjectUrl>
+    <RepositoryUrl>$(PackageProjectUrl)/tree/develop/Source/$(MSBuildProjectName)</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>

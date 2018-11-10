@@ -27,7 +27,6 @@
       <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
       <PackageTags>nuget entry point execution dynamic</PackageTags>
       <Title>Entry Point Information For $(NuGetExecToolName).</Title>
-      <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(MSBuildProjectName)</PackageProjectUrl>
       <Description>This library contains attribute which is used by $(NuGetExecToolName) tool when it executes a method within a NuGet package. This attribute can be used to modify the behaviour of $(NuGetExecToolName) and how it detects the method to be executed.</Description>
    </PropertyGroup>
 

@@ -40,7 +40,6 @@
     <PackageReleaseNotes>Updated to newest (1.0.5) Theraot.Core version. Also minor fix in AsyncEventArgs class hierarchy.</PackageReleaseNotes>
     <PackageTags>bcl utility binary serialization collection extensions</PackageTags>
     <Title>Utility Package for CLR</Title>
-    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
   
   <!--

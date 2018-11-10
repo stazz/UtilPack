@@ -31,7 +31,6 @@
     <PackageReleaseNotes>Updating UtilPack version.</PackageReleaseNotes>
     <PackageTags>utility cryptography random</PackageTags>
     <Title>Cryptographic Abstractions</Title>
-    <PackageProjectUrl>$(RepositoryUrl)/tree/develop/Source/$(AssemblyName)</PackageProjectUrl>
   </PropertyGroup>
 
   <!--

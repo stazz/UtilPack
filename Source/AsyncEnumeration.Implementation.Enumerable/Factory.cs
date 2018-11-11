@@ -33,7 +33,7 @@ namespace AsyncEnumeration.Implementation.Enumerable
    {
       public static IAsyncEnumerable<T> FromGeneratorCallback<T>(
          Func<IAsyncEnumerator<T>> getEnumerator,
-         IAsyncProvider asyncProvider = null
+         IAsyncProvider asyncProvider
          )
       {
          return new EnumerableGenerator<T>( asyncProvider, getEnumerator );
@@ -42,7 +42,7 @@ namespace AsyncEnumeration.Implementation.Enumerable
       public static IAsyncEnumerable<T> FromGeneratorCallback<T, TArg>(
          TArg arg,
          Func<TArg, IAsyncEnumerator<T>> getEnumerator,
-         IAsyncProvider asyncProvider = null
+         IAsyncProvider asyncProvider
          )
       {
          return new EnumerableGenerator<T, TArg>( asyncProvider, arg, getEnumerator );
@@ -60,7 +60,7 @@ namespace AsyncEnumeration.Implementation.Enumerable
       /// <seealso cref="CreateSequentialStartInfo{T}(MoveNextAsyncDelegate{T}, EnumerationEndedDelegate)"/>
       public static IAsyncEnumerable<T> CreateSequentialEnumerable<T>(
          Func<SequentialEnumerationStartInfo<T>> enumerationStart,
-         IAsyncProvider aLINQProvider = null
+         IAsyncProvider aLINQProvider
          ) => enumerationStart == null ? EmptyAsync<T>.Enumerable : new AsyncSequentialOnlyEnumerable<T>( enumerationStart, aLINQProvider );
 
       /// <summary>
@@ -71,7 +71,7 @@ namespace AsyncEnumeration.Implementation.Enumerable
       /// <returns>A new instance of <see cref="IAsyncEnumerable{T}"/> which behaves like callbacks in <paramref name="startInfo"/> specified.</returns>
       public static IAsyncEnumerable<T> CreateExclusiveSequentialEnumerable<T>(
          SequentialEnumerationStartInfo<T> startInfo,
-         IAsyncProvider aLINQProvider = null
+         IAsyncProvider aLINQProvider
          ) => new AsyncEnumerableExclusive<T>( SequentialCurrentInfoFactory.GetInstance( startInfo.MoveNext, startInfo.Dispose ), aLINQProvider );
 
       /// <summary>
@@ -114,7 +114,7 @@ namespace AsyncEnumeration.Implementation.Enumerable
       /// <seealso cref="CreateWrappingStartInfo"/>
       public static IAsyncEnumerable<T> CreateStatefulWrappingEnumerable<T>(
          Func<WrappingEnumerationStartInfo<T>> startInfoFactory,
-         IAsyncProvider aLINQProvider = null
+         IAsyncProvider aLINQProvider
          )
       {
          return new StatefulAsyncEnumerableWrapper<T>( startInfoFactory, aLINQProvider );
@@ -132,7 +132,7 @@ namespace AsyncEnumeration.Implementation.Enumerable
       /// <seealso cref="CreateWrappingStartInfo"/>
       public static IAsyncEnumerable<T> CreateStatelessWrappingEnumerable<T>(
          WrappingEnumerationStartInfo<T> startInfo,
-         IAsyncProvider aLINQProvider = null
+         IAsyncProvider aLINQProvider
          )
       {
          return new StatelessAsyncEnumerableWrapper<T>( startInfo, aLINQProvider );

@@ -42,7 +42,7 @@ namespace AsyncEnumeration.Implementation.Enumerable
       public static IAsyncEnumerable<T> Repeat<T>(
          T item,
          Int32 count,
-         IAsyncProvider provider = null
+         IAsyncProvider provider
          )
       {
          return count <= 0 ?
@@ -62,7 +62,7 @@ namespace AsyncEnumeration.Implementation.Enumerable
       public static IAsyncEnumerable<T> Repeat<T>(
          T item,
          Int64 count,
-         IAsyncProvider provider = null
+         IAsyncProvider provider
          )
       {
          return count <= 0 ?
@@ -81,7 +81,7 @@ namespace AsyncEnumeration.Implementation.Enumerable
       public static IAsyncEnumerable<T> Repeat<T>(
          Func<T> generator,
          Int32 count,
-         IAsyncProvider provider = null
+         IAsyncProvider provider
          )
       {
          return count <= 0 ?
@@ -100,12 +100,12 @@ namespace AsyncEnumeration.Implementation.Enumerable
       public static IAsyncEnumerable<T> Repeat<T>(
          Func<ValueTask<T>> asyncGenerator,
          Int32 count,
-         IAsyncProvider provider = null
+         IAsyncProvider provider
          )
       {
          return count <= 0 ?
             EmptyAsync<T>.Enumerable :
-            Neverending( asyncGenerator ).Take( count );
+            Neverending( asyncGenerator, provider ).Take( count );
       }
 
 
@@ -124,8 +124,8 @@ namespace AsyncEnumeration.Implementation.Enumerable
       public static IAsyncEnumerable<Int32> Range(
          Int32 initial,
          Int32 target,
-         Int32 step = 1,
-         IAsyncProvider provider = null
+         IAsyncProvider provider,
+         Int32 step = 1
          )
       {
          IAsyncEnumerable<Int32> retVal;
@@ -187,8 +187,8 @@ namespace AsyncEnumeration.Implementation.Enumerable
       public static IAsyncEnumerable<Int64> Range(
          Int64 initial,
          Int64 target,
-         Int64 step = 1,
-         IAsyncProvider provider = null
+         IAsyncProvider provider,
+         Int64 step = 1
          )
       {
          IAsyncEnumerable<Int64> retVal;
@@ -243,7 +243,7 @@ namespace AsyncEnumeration.Implementation.Enumerable
       /// <returns>An enumerable that will indefinetly repeat the given value.</returns>
       public static IAsyncEnumerable<T> Neverending<T>(
          T item,
-         IAsyncProvider provider = null
+         IAsyncProvider provider
          )
       {
          return AsyncEnumerationFactory.CreateStatelessWrappingEnumerable( AsyncEnumerationFactory.CreateSynchronousWrappingStartInfo(
@@ -263,7 +263,7 @@ namespace AsyncEnumeration.Implementation.Enumerable
       /// <returns>An enumerable that will indefinetly repeat the given value.</returns>
       public static IAsyncEnumerable<T> Neverending<T>(
          Func<T> generator,
-         IAsyncProvider provider = null
+         IAsyncProvider provider
          )
       {
          return AsyncEnumerationFactory.CreateStatelessWrappingEnumerable( AsyncEnumerationFactory.CreateSynchronousWrappingStartInfo(
@@ -283,7 +283,7 @@ namespace AsyncEnumeration.Implementation.Enumerable
       /// <returns>An enumerable that will indefinetly repeat the given value.</returns>
       public static IAsyncEnumerable<T> Neverending<T>(
          Func<ValueTask<T>> asyncGenerator,
-         IAsyncProvider provider = null
+         IAsyncProvider provider
          )
       {
          return AsyncEnumerationFactory.CreateSequentialEnumerable( () => AsyncEnumerationFactory.CreateSequentialStartInfo(

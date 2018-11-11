@@ -103,8 +103,8 @@ namespace AsyncEnumeration.Implementation.Enumerable
       /// <exception cref="NullReferenceException">If this array is <c>null</c>.</exception>
       public static IAsyncEnumerable<T> AsAsyncEnumerable<T>(
          this T[] array,
-         IAsyncProvider alinqProvider = null
-         ) => AsyncEnumerationFactory.FromGeneratorCallback( ArgumentValidator.ValidateNotNullReference( array ), a => new ArrayEnumerator<T>( a ), alinqProvider );
+         IAsyncProvider asyncProvider
+         ) => AsyncEnumerationFactory.FromGeneratorCallback( ArgumentValidator.ValidateNotNullReference( array ), a => new ArrayEnumerator<T>( a ), asyncProvider );
 
       /// <summary>
       /// This extension method will wrap this <see cref="IEnumerable{T}"/> into <see cref="IAsyncEnumerable{T}"/>.
@@ -115,7 +115,7 @@ namespace AsyncEnumeration.Implementation.Enumerable
       /// <exception cref="NullReferenceException">If this <see cref="IEnumerable{T}"/> is <c>null</c>.</exception>
       public static IAsyncEnumerable<T> AsAsyncEnumerable<T>(
          this IEnumerable<T> enumerable,
-         IAsyncProvider alinqProvider = null
-         ) => AsyncEnumerationFactory.FromGeneratorCallback( ArgumentValidator.ValidateNotNullReference( enumerable ), e => new SynchronousEnumerableEnumerator<T>( e.GetEnumerator() ), alinqProvider );
+         IAsyncProvider asyncProvider
+         ) => AsyncEnumerationFactory.FromGeneratorCallback( ArgumentValidator.ValidateNotNullReference( enumerable ), e => new SynchronousEnumerableEnumerator<T>( e.GetEnumerator() ), asyncProvider );
    }
 }

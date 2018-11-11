@@ -16,7 +16,6 @@
  * limitations under the License. 
  */
 using AsyncEnumeration.Abstractions;
-using AsyncEnumeration.Implementation.Provider;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -31,11 +30,11 @@ namespace AsyncEnumeration.Implementation.Enumerable
 
       public AsyncSequentialOnlyEnumerable(
          Func<SequentialEnumerationStartInfo<T>> enumerationStart,
-         IAsyncProvider alinqProvider
+         IAsyncProvider asyncProvider
          )
       {
          this._enumerationStart = ArgumentValidator.ValidateNotNull( nameof( enumerationStart ), enumerationStart );
-         this.AsyncProvider = alinqProvider ?? DefaultAsyncProvider.Instance;
+         this.AsyncProvider = ArgumentValidator.ValidateNotNull( nameof( asyncProvider ), asyncProvider );
       }
 
       public IAsyncEnumerator<T> GetAsyncEnumerator()
@@ -190,10 +189,10 @@ namespace AsyncEnumeration.Implementation.Enumerable
 
       public AsyncEnumerableExclusive(
          SequentialEnumeratorCurrentInfo<T> currentInfo,
-         IAsyncProvider aLINQProvider
+         IAsyncProvider asyncProvider
          ) : base( currentInfo, STATE_RESERVED )
       {
-         this.AsyncProvider = aLINQProvider ?? DefaultAsyncProvider.Instance;
+         this.AsyncProvider = ArgumentValidator.ValidateNotNull( nameof( asyncProvider ), asyncProvider );
       }
 
       public IAsyncProvider AsyncProvider { get; }

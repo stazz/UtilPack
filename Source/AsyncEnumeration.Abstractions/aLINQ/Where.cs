@@ -56,7 +56,7 @@ namespace AsyncEnumeration.Abstractions
 }
 
 
-public static partial class E_UtilPack
+public static partial class E_AsyncEnumeration
 {
 
    /// <summary>

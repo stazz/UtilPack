@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
+using AsyncEnumeration.Implementation.Enumerable;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Concurrent;
@@ -23,7 +24,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using UtilPack.AsyncEnumeration;
 
 namespace UtilPack.Tests.AsyncEnumeration
 {

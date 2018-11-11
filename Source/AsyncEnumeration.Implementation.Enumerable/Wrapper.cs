@@ -31,11 +31,11 @@ namespace AsyncEnumeration.Implementation.Enumerable
 
       public StatefulAsyncEnumerableWrapper(
          Func<WrappingEnumerationStartInfo<T>> startInfoFactory,
-         IAsyncProvider aLINQProvider
+         IAsyncProvider asyncProvider
       )
       {
          this._factory = ArgumentValidator.ValidateNotNull( nameof( startInfoFactory ), startInfoFactory );
-         this.AsyncProvider = aLINQProvider;
+         this.AsyncProvider = ArgumentValidator.ValidateNotNull( nameof( asyncProvider ), asyncProvider );
       }
 
       public IAsyncProvider AsyncProvider { get; }
@@ -52,11 +52,11 @@ namespace AsyncEnumeration.Implementation.Enumerable
 
       public StatelessAsyncEnumerableWrapper(
          WrappingEnumerationStartInfo<T> startInfo,
-         IAsyncProvider aLINQProvider
+         IAsyncProvider asyncProvider
          )
       {
          this._enumerator = new AsyncEnumeratorWrapper<T>( startInfo );
-         this.AsyncProvider = aLINQProvider;
+         this.AsyncProvider = ArgumentValidator.ValidateNotNull( nameof( asyncProvider ), asyncProvider );
       }
 
       public IAsyncProvider AsyncProvider { get; }

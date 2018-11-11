@@ -43,7 +43,7 @@ namespace AsyncEnumeration.Implementation.Enumerable
          )
       {
          this._getEnumerator = ArgumentValidator.ValidateNotNull( nameof( getEnumerator ), getEnumerator );
-         this._asyncProvider = provider;
+         this._asyncProvider = ArgumentValidator.ValidateNotNull( nameof( provider ), provider );
       }
 
       IAsyncProvider IAsyncEnumerable.AsyncProvider => this._asyncProvider;
@@ -70,7 +70,7 @@ namespace AsyncEnumeration.Implementation.Enumerable
       {
          this._getEnumerator = ArgumentValidator.ValidateNotNull( nameof( getEnumerator ), getEnumerator );
          this._arg = arg;
-         this._asyncProvider = provider;
+         this._asyncProvider = ArgumentValidator.ValidateNotNull( nameof( provider ), provider );
       }
 
       IAsyncProvider IAsyncEnumerable.AsyncProvider => this._asyncProvider;

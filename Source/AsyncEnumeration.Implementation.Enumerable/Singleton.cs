@@ -162,10 +162,10 @@ namespace AsyncEnumeration.Implementation.Enumerable
       /// <returns><see cref="IAsyncEnumerable{T}"/> containing only this value.</returns>
       public static IAsyncEnumerable<T> AsSingletonAsync<T>(
          this T value,
-         IAsyncProvider aLINQProvider = null
+         IAsyncProvider asyncProvider
          )
       {
-         return AsyncEnumerationFactory.FromGeneratorCallback( value, v => new SingletonEnumerator<T>( v ), aLINQProvider );
+         return AsyncEnumerationFactory.FromGeneratorCallback( value, v => new SingletonEnumerator<T>( v ), asyncProvider );
       }
 
       /// <summary>
@@ -177,8 +177,8 @@ namespace AsyncEnumeration.Implementation.Enumerable
       /// <exception cref="NullReferenceException">If this <see cref="Task{TResult}"/> is <c>null</c>.</exception>
       public static IAsyncEnumerable<T> AsSingletonAsync<T>(
          this Task<T> task,
-         IAsyncProvider aLINQProvider = null
-         ) => AsyncEnumerationFactory.FromGeneratorCallback( ArgumentValidator.ValidateNotNullReference( task ), t => new AsyncSingletonEnumerator<T>( t ), aLINQProvider );
+         IAsyncProvider asyncProvider
+         ) => AsyncEnumerationFactory.FromGeneratorCallback( ArgumentValidator.ValidateNotNullReference( task ), t => new AsyncSingletonEnumerator<T>( t ), asyncProvider );
 
       /// <summary>
       /// Encapsulates this asynchronous value as <see cref="IAsyncEnumerable{T}"/> containing only this value.
@@ -188,8 +188,8 @@ namespace AsyncEnumeration.Implementation.Enumerable
       /// <returns><see cref="IAsyncEnumerable{T}"/> containing only this value.</returns>
       public static IAsyncEnumerable<T> AsSingletonAsync<T>(
          this ValueTask<T> task,
-         IAsyncProvider aLINQProvider = null
-         ) => AsyncEnumerationFactory.FromGeneratorCallback( task, t => new ValueTaskAsyncSingletonEnumerator<T>( t ), aLINQProvider );
+         IAsyncProvider asyncProvider
+         ) => AsyncEnumerationFactory.FromGeneratorCallback( task, t => new ValueTaskAsyncSingletonEnumerator<T>( t ), asyncProvider );
 
    }
 }

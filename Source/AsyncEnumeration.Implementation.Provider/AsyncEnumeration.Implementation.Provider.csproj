@@ -19,7 +19,7 @@
   <!-- Assembly information stuff -->
   <PropertyGroup>
      <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <VersionPrefix>2.0.0</VersionPrefix>
+    <VersionPrefix>1.0.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Description>Library containing IAsyncEnumerable, and async LINQ methods.</Description>

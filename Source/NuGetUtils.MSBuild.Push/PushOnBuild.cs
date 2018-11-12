@@ -22,6 +22,7 @@ using NuGet.Packaging;
 using NuGet.Packaging.Core;
 using NuGet.Protocol.Core.Types;
 using NuGet.Repositories;
+using NuGetUtils.Lib.MSBuild;
 using NuGetUtils.Lib.Restore;
 using System;
 using System.Collections.Generic;
@@ -31,9 +32,9 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using UtilPack.NuGet.Common.MSBuild;
+using UtilPack;
 
-namespace UtilPack.NuGet.Push.MSBuild
+namespace NuGetUtils.MSBuild.Push
 {
    public class PushTask : Microsoft.Build.Utilities.Task, ICancelableTask
    {
@@ -110,7 +111,7 @@ namespace UtilPack.NuGet.Push.MSBuild
          PackageSourceProvider psp,
          Lazy<PackageIdentity> identity,
          Lazy<NuGetv3LocalRepository[]> allRepositories,
-         global::NuGet.Common.ILogger logger,
+         NuGet.Common.ILogger logger,
          ITaskItem sourceItem
          )
       {

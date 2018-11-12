@@ -22,7 +22,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace UtilPack.NuGet.Common.MSBuild
+namespace NuGetUtils.Lib.MSBuild
 {
    /// <summary>
    /// This class delegates NuGet logging messages to underlying <see cref="IBuildEngine"/>, if it is specified.

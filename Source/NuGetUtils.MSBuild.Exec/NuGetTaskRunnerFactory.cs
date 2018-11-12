@@ -24,6 +24,7 @@ using NuGet.ProjectModel;
 using NuGet.RuntimeModel;
 using NuGet.Versioning;
 using NuGetUtils.Lib.AssemblyResolving;
+using NuGetUtils.Lib.MSBuild;
 using NuGetUtils.Lib.Restore;
 using System;
 using System.Collections.Concurrent;
@@ -35,14 +36,12 @@ using System.Reflection.Emit;
 using System.Threading;
 using System.Xml.Linq;
 using UtilPack;
-using UtilPack.NuGet.Common.MSBuild;
-using TPropertyInfo = System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyTypeModifier, UtilPack.NuGet.MSBuild.WrappedPropertyInfo, System.Reflection.PropertyInfo>;
-using TTaskPropertyInfoDictionary = System.Collections.Generic.IDictionary<System.String, System.ValueTuple<UtilPack.NuGet.MSBuild.WrappedPropertyKind, UtilPack.NuGet.MSBuild.WrappedPropertyTypeModifier, UtilPack.NuGet.MSBuild.WrappedPropertyInfo>>;
 
 
-namespace UtilPack.NuGet.MSBuild
+namespace NuGetUtils.MSBuild.Exec
 {
-   using TTaskTypeGenerationParameters = ValueTuple<Boolean, TTaskPropertyInfoDictionary>;
+   using TPropertyInfo = ValueTuple<WrappedPropertyKind, WrappedPropertyTypeModifier, WrappedPropertyInfo, PropertyInfo>;
+   using TTaskPropertyInfoDictionary = IDictionary<String, ValueTuple<WrappedPropertyKind, WrappedPropertyTypeModifier, WrappedPropertyInfo>>;
 
    internal struct RestorerCacheKey : IEquatable<RestorerCacheKey>
    {
@@ -54,7 +53,7 @@ namespace UtilPack.NuGet.MSBuild
          )
       {
          this.NuGetFramework = framework;
-         this.PackageFolders = new HashSet<String>( SettingsUtility.GetFallbackPackageFolders( settings ).Append( SettingsUtility.GetGlobalPackagesFolder( settings ) ) );
+         this.PackageFolders = new HashSet<String>( SettingsUtility.GetFallbackPackageFolders( settings ).Prepend( SettingsUtility.GetGlobalPackagesFolder( settings ) ) );
          this.RuntimeID = runtimeID;
          this.RuntimeGraphPackageID = runtimeGraphPackageID;
       }
@@ -931,7 +930,7 @@ namespace UtilPack.NuGet.MSBuild
 
    internal static class TaskCodeGenerator
    {
-      public static Type GenerateTaskType( TTaskTypeGenerationParameters parameters )
+      public static Type GenerateTaskType( (Boolean IsCancelable, TTaskPropertyInfoDictionary propertyInfos) parameters )
       {
          // Since we are executing task in different app domain, our task type must inherit MarshalByRefObject
          // However, we don't want to impose such restriction to task writers - ideal situation would be for task writer to only target .netstandard 1.3 (or .netstandard1.4+ and .net45+, but we still don't want to make such restriction).

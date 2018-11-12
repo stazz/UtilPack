@@ -13,9 +13,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Tests", "UtilPack.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.MSBuild.Exec", "NuGetUtils.MSBuild.Exec\NuGetUtils.MSBuild.Exec.csproj", "{465F915D-A876-485A-8AE2-C2CAB224D23E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Cryptography.Digest", "UtilPack.Cryptography.Digest\UtilPack.Cryptography.Digest.csproj", "{D6F43E1B-BD28-428C-8AA5-7C97E4F7D9F1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentCryptography.Digest", "FluentCryptography.Digest\FluentCryptography.Digest.csproj", "{D6F43E1B-BD28-428C-8AA5-7C97E4F7D9F1}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Cryptography", "UtilPack.Cryptography\UtilPack.Cryptography.csproj", "{7A3817AE-6B9B-444E-95AC-F9D7D758688B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentCryptography.Abstractions", "FluentCryptography.Abstractions\FluentCryptography.Abstractions.csproj", "{7A3817AE-6B9B-444E-95AC-F9D7D758688B}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Configuration", "UtilPack.Configuration\UtilPack.Configuration.csproj", "{E8614DA1-1CD5-4244-B13F-C92C937B4618}"
 EndProject
@@ -39,9 +39,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.ResourcePooling.MS
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.ResourcePooling.NetworkStream", "UtilPack.ResourcePooling.NetworkStream\UtilPack.ResourcePooling.NetworkStream.csproj", "{0CC65E99-25B5-4B64-A330-9FC4BC41AE97}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Cryptography.SASL", "UtilPack.Cryptography.SASL\UtilPack.Cryptography.SASL.csproj", "{D8D38563-AEE6-4244-BE8F-05C8F39E3366}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentCryptography.SASL", "FluentCryptography.SASL\FluentCryptography.SASL.csproj", "{D8D38563-AEE6-4244-BE8F-05C8F39E3366}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Cryptography.SASL.SCRAM", "UtilPack.Cryptography.SASL.SCRAM\UtilPack.Cryptography.SASL.SCRAM.csproj", "{C11F826C-9CB6-488C-B488-2CD8A514AB0E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentCryptography.SASL.SCRAM", "FluentCryptography.SASL.SCRAM\FluentCryptography.SASL.SCRAM.csproj", "{C11F826C-9CB6-488C-B488-2CD8A514AB0E}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Logging", "UtilPack.Logging\UtilPack.Logging.csproj", "{6BB0EB38-7766-4C4A-8D57-BA594F85FC46}"
 EndProject

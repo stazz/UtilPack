@@ -13,8 +13,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\UtilPack.Cryptography.Digest\UtilPack.Cryptography.Digest.csproj" />
-    <ProjectReference Include="..\UtilPack.Cryptography.SASL\UtilPack.Cryptography.SASL.csproj" />
+    <ProjectReference Include="..\FluentCryptography.Digest\FluentCryptography.Digest.csproj" />
+    <ProjectReference Include="..\FluentCryptography.SASL\FluentCryptography.SASL.csproj" />
   </ItemGroup>
 
   <!-- Assembly information stuff -->

@@ -238,7 +238,7 @@ namespace FluentCryptography.Abstractions
 /// <summary>
 /// This class contains extensions methods defined in UtilPack products.
 /// </summary>
-public static partial class E_UtilPack
+public static partial class E_FluentCryptography
 {
    /// <summary>
    /// Helper method to add whole contents of given byte array as seed material to this <see cref="RandomGenerator"/>.

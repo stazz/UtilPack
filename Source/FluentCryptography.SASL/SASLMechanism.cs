@@ -218,7 +218,7 @@ namespace FluentCryptography
 /// <summary>
 /// This class contains extension methods for types defined in this assembly.
 /// </summary>
-public static partial class E_UtilPack
+public static partial class E_FluentCryptography
 {
    /// <summary>
    /// Helper method to create a new <see cref="SASLChallengeArguments"/> from this <see cref="SASLCredentialsHolder"/>.

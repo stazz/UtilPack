@@ -32,13 +32,16 @@ namespace UtilPack.ResourcePooling
    /// <typeparam name="TResource">The type of resources handled by this pool.</typeparam>
    public interface AsyncResourcePool<out TResource> : ResourceFactoryInformation
    {
-      /// <summary>
-      /// Takes an existing resource or creates a new one, runs the given asynchronous callback for it, and returns it back into the pool.
-      /// </summary>
-      /// <param name="user">The asynchronous callback to use the resource.</param>
-      /// <param name="token">The optional <see cref="CancellationToken"/> to use during asynchronous operations inside <paramref name="user"/> callback.</param>
-      /// <returns>A task which completes when <paramref name="user"/> callback completes and resource is returned back to the pool.</returns>
-      Task UseResourceAsync( Func<TResource, Task> user, CancellationToken token = default ); // We could use special "AsyncResourceUsageScope : IDisposable" struct, but it does not allow asynchronous disposing! i.e. we need Task DisposeAsync() instead of void Dispose()!
+      ResourceUsage<TResource> GetResourceUsage( CancellationToken token );
+   }
+
+
+
+   public interface ResourceUsage<out TResource> : IAsyncDisposable
+   {
+      Task AwaitForResource();
+
+      TResource Resource { get; }
    }
 
    /// <summary>
@@ -347,8 +350,29 @@ namespace UtilPack.ResourcePooling
 /// <summary>
 /// This class contains extension methods for types defined in this assembly.
 /// </summary>
-public static partial class E_UtilPack
+public static partial class E_ResourcePooling
 {
+   /// <summary>
+   /// Takes an existing resource or creates a new one, runs the given asynchronous callback for it, and returns it back into the pool.
+   /// </summary>
+   /// <param name="user">The asynchronous callback to use the resource.</param>
+   /// <param name="token">The optional <see cref="CancellationToken"/> to use during asynchronous operations inside <paramref name="user"/> callback.</param>
+   /// <returns>A task which completes when <paramref name="user"/> callback completes and resource is returned back to the pool.</returns>
+   public static async Task UseResourceAsync<TResource>( this AsyncResourcePool<TResource> pool, Func<TResource, Task> user, CancellationToken token )
+   {
+      var usage = pool.GetResourceUsage( token );
+      try
+      {
+         await usage.AwaitForResource();
+         await user( usage.Resource );
+      }
+      finally
+      {
+         await usage.DisposeAsync();
+      }
+   }
+
+
    /// <summary>
    /// Helper method to invoke <see cref="AsyncResourcePool{TResource}.UseResourceAsync(Func{TResource, Task}, CancellationToken)"/> with callback which asynchronously returns value of type <typeparamref name="T"/>.
    /// </summary>
@@ -359,7 +383,7 @@ public static partial class E_UtilPack
    /// <param name="token">The optional <see cref="CancellationToken"/> to use during asynchronous operations inside <paramref name="user"/> callback.</param>
    /// <returns>A task which returns the result of <paramref name="user"/> on its completion.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="AsyncResourcePool{TResource}"/> is <c>null</c>.</exception>
-   public static async Task<T> UseResourceAsync<TResource, T>( this AsyncResourcePool<TResource> pool, Func<TResource, Task<T>> user, CancellationToken token = default( CancellationToken ) )
+   public static async Task<T> UseResourceAsync<TResource, T>( this AsyncResourcePool<TResource> pool, Func<TResource, Task<T>> user, CancellationToken token )
    {
       var retVal = default( T );
       await pool.UseResourceAsync( async resource => retVal = await user( resource ), token );
@@ -376,7 +400,7 @@ public static partial class E_UtilPack
    /// <param name="token">The optional <see cref="CancellationToken"/> to use during resource acquirement.</param>
    /// <returns>A task which returns the result of <paramref name="user"/> on its completion.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="AsyncResourcePool{TResource}"/> is <c>null</c>.</exception>
-   public static async Task<T> UseResourceAsync<TResource, T>( this AsyncResourcePool<TResource> pool, Func<TResource, T> user, CancellationToken token = default( CancellationToken ) )
+   public static async Task<T> UseResourceAsync<TResource, T>( this AsyncResourcePool<TResource> pool, Func<TResource, T> user, CancellationToken token )
    {
       var retVal = default( T );
       await pool.UseResourceAsync( resource =>
@@ -397,7 +421,7 @@ public static partial class E_UtilPack
    /// <param name="token">The optional <see cref="CancellationToken"/> to use during resource acquirement.</param>
    /// <returns>A task which completes after resource has been returned to the pool.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="AsyncResourcePool{TResource}"/> is <c>null</c>.</exception>
-   public static async Task UseResourceAsync<TResource>( this AsyncResourcePool<TResource> pool, Action<TResource> user, CancellationToken token = default( CancellationToken ) )
+   public static async Task UseResourceAsync<TResource>( this AsyncResourcePool<TResource> pool, Action<TResource> user, CancellationToken token )
    {
       await pool.UseResourceAsync( resource =>
       {

@@ -31,7 +31,7 @@
     <ProjectReference Include="..\AsyncEnumeration.Implementation.Enumerable\AsyncEnumeration.Implementation.Enumerable.csproj" />
     <ProjectReference Include="..\AsyncEnumeration.Implementation.Provider\AsyncEnumeration.Implementation.Provider.csproj" />
     <ProjectReference Include="..\UtilPack.Configuration.NetworkStream\UtilPack.Configuration.NetworkStream.csproj" />
-    <ProjectReference Include="..\UtilPack.Cryptography.SASL.SCRAM\UtilPack.Cryptography.SASL.SCRAM.csproj" />
+    <ProjectReference Include="..\FluentCryptography.SASL.SCRAM\FluentCryptography.SASL.SCRAM.csproj" />
     <ProjectReference Include="..\NuGetUtils.Lib.AssemblyResolving\NuGetUtils.Lib.AssemblyResolving.csproj" />
     <ProjectReference Include="..\NuGetUtils.Lib.Restore\NuGetUtils.Lib.Restore.csproj" />
     <ProjectReference Include="..\UtilPack.ResourcePooling.NetworkStream\UtilPack.ResourcePooling.NetworkStream.csproj" />

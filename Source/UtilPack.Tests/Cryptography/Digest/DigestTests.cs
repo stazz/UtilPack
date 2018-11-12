@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
+using FluentCryptography.Digest;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
-using System.Text;
-using UtilPack.Cryptography.Digest;
 using System.Linq;
+using System.Text;
 
 namespace UtilPack.Tests.Cryptography.Digest
 {
@@ -68,13 +68,13 @@ namespace UtilPack.Tests.Cryptography.Digest
          Byte[] key
          )
       {
-         VerifyNativeVsUtilPack(
+         this.VerifyNativeVsUtilPack(
             PickBasedOnKey( NativeMD5, NativeHMACMD5, key ),
             PickBasedOnKey( UtilPackMD5, UtilPackHMACMD5, key ),
             key,
             1, 10
             );
-         VerifyNativeVsUtilPack(
+         this.VerifyNativeVsUtilPack(
             PickBasedOnKey( NativeMD5, NativeHMACMD5, key ),
             PickBasedOnKey( UtilPackMD5, UtilPackHMACMD5, key ),
             key,
@@ -90,13 +90,13 @@ namespace UtilPack.Tests.Cryptography.Digest
          Byte[] key
          )
       {
-         VerifyNativeVsUtilPack(
+         this.VerifyNativeVsUtilPack(
             PickBasedOnKey( NativeSHA128, NativeHMACSHA128, key ),
             PickBasedOnKey( UtilPackSHA128, UtilPackHMACSHA128, key ),
             key,
             1, 10
             );
-         VerifyNativeVsUtilPack(
+         this.VerifyNativeVsUtilPack(
             PickBasedOnKey( NativeSHA128, NativeHMACSHA128, key ),
             PickBasedOnKey( UtilPackSHA128, UtilPackHMACSHA128, key ),
             key,
@@ -112,13 +112,13 @@ namespace UtilPack.Tests.Cryptography.Digest
          Byte[] key
          )
       {
-         VerifyNativeVsUtilPack(
+         this.VerifyNativeVsUtilPack(
             PickBasedOnKey( NativeSHA256, NativeHMACSHA256, key ),
             PickBasedOnKey( UtilPackSHA256, UtilPackHMACSHA256, key ),
             key,
             1, 10
             );
-         VerifyNativeVsUtilPack(
+         this.VerifyNativeVsUtilPack(
             PickBasedOnKey( NativeSHA256, NativeHMACSHA256, key ),
             PickBasedOnKey( UtilPackSHA256, UtilPackHMACSHA256, key ),
             key,
@@ -134,13 +134,13 @@ namespace UtilPack.Tests.Cryptography.Digest
          Byte[] key
          )
       {
-         VerifyNativeVsUtilPack(
+         this.VerifyNativeVsUtilPack(
             PickBasedOnKey( NativeSHA384, NativeHMACSHA384, key ),
             PickBasedOnKey( UtilPackSHA384, UtilPackHMACSHA384, key ),
             key,
             1, 10
             );
-         VerifyNativeVsUtilPack(
+         this.VerifyNativeVsUtilPack(
             PickBasedOnKey( NativeSHA384, NativeHMACSHA384, key ),
             PickBasedOnKey( UtilPackSHA384, UtilPackHMACSHA384, key ),
             key,
@@ -156,13 +156,13 @@ namespace UtilPack.Tests.Cryptography.Digest
          Byte[] key
          )
       {
-         VerifyNativeVsUtilPack(
+         this.VerifyNativeVsUtilPack(
             PickBasedOnKey( NativeSHA512, NativeHMACSHA512, key ),
             PickBasedOnKey( UtilPackSHA512, UtilPackHMACSHA512, key ),
             key,
             1, 10
             );
-         VerifyNativeVsUtilPack(
+         this.VerifyNativeVsUtilPack(
             PickBasedOnKey( NativeSHA512, NativeHMACSHA512, key ),
             PickBasedOnKey( UtilPackSHA512, UtilPackHMACSHA512, key ),
             key,

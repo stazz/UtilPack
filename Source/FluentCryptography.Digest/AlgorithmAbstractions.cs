@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
+using FluentCryptography.Digest;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
-using UtilPack.Cryptography.Digest;
 
-namespace UtilPack.Cryptography.Digest
+namespace FluentCryptography.Digest
 {
 
    /// <summary>

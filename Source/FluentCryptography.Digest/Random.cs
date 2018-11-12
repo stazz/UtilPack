@@ -15,10 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
+using FluentCryptography.Abstractions;
 using System;
 using System.Threading;
+using UtilPack;
 
-namespace UtilPack.Cryptography.Digest
+namespace FluentCryptography.Digest
 {
    /// <summary>
    /// This class specializes <see cref="NotThreadsafeRandomGenerator"/> and uses <see cref="BlockDigestAlgorithm"/> to mutate its state when producing random data.
@@ -183,7 +185,7 @@ namespace UtilPack.Cryptography.Digest
       /// <param name="seedCycleCount">How often the seed will be re-digested.</param>
       /// <param name="isURLSafe">Whether to use url-safe base64 characters.</param>
       /// <returns>A base64 lookup character array, shuffled using the given <paramref name="seed"/>.</returns>
-      /// <seealso cref="StringConversions.EncodeBinary(byte[], char[])"/>
+      /// <seealso cref="StringConversions.EncodeBinary(global::System.Byte[], global::System.Char[])"/>
       /// <seealso cref="UtilPackExtensions.Shuffle{T}(T[], Random)"/>
       public static Char[] ShuffleBase64CharactersFromSeed(
          Int64 seed,
@@ -204,7 +206,7 @@ namespace UtilPack.Cryptography.Digest
       /// <param name="seed">The seed material to <see cref="DigestBasedRandomGenerator"/>, as <see cref="Int64"/>.</param>
       /// <param name="algorithm">The <see cref="DigestAlgorithm"/> to use. If <c>null</c>, then <see cref="SHA512"/> will be used.</param>
       /// <param name="seedCycleCount">How often the seed will be re-digested.</param>
-      /// <seealso cref="StringConversions.EncodeBinary(byte[], char[])"/>
+      /// <seealso cref="StringConversions.EncodeBinary(global::System.Byte[], global::System.Char[])"/>
       /// <seealso cref="UtilPackExtensions.Shuffle{T}(T[], Random)"/>
       public static void ShuffleBinaryEncodingCharactersFromSeed(
          Char[] chars,
@@ -231,7 +233,7 @@ namespace UtilPack.Cryptography.Digest
       /// <param name="seedCycleCount">How often the seed will be re-digested.</param>
       /// <param name="isURLSafe">Whether to use url-safe base64 characters.</param>
       /// <returns>A base64 lookup character array, shuffled using the given <paramref name="seed"/>.</returns>
-      /// <seealso cref="StringConversions.EncodeBinary(byte[], char[])"/>
+      /// <seealso cref="StringConversions.EncodeBinary(global::System.Byte[], global::System.Char[])"/>
       public static Char[] ShuffleBase64CharactersFromSeed(
          Byte[] seed,
          DigestAlgorithm algorithm = null,
@@ -251,7 +253,7 @@ namespace UtilPack.Cryptography.Digest
       /// <param name="seed">The seed material to <see cref="DigestBasedRandomGenerator"/>, as <see cref="Byte"/> array.</param>
       /// <param name="algorithm">The <see cref="DigestAlgorithm"/> to use. If <c>null</c>, then <see cref="SHA512"/> will be used.</param>
       /// <param name="seedCycleCount">How often the seed will be re-digested.</param>
-      /// <seealso cref="StringConversions.EncodeBinary(byte[], char[])"/>
+      /// <seealso cref="StringConversions.EncodeBinary(global::System.Byte[], global::System.Char[])"/>
       /// <seealso cref="UtilPackExtensions.Shuffle{T}(T[], Random)"/>
       public static void ShuffleBinaryEncodingCharactersFromSeed(
          Char[] chars,

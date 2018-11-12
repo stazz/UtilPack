@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
+using FluentCryptography.Digest;
+using FluentCryptography.SASL;
+using FluentCryptography.SASL.SCRAM;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using UtilPack.Cryptography.Digest;
-using UtilPack.Cryptography.SASL;
-using UtilPack.Cryptography.SASL.SCRAM;
 
 namespace UtilPack.Tests.Cryptography.SASL.SCRAM
 {

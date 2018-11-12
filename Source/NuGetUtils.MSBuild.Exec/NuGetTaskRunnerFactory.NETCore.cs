@@ -33,9 +33,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using UtilPack;
-using TResolveResult = System.Collections.Generic.IDictionary<System.String, UtilPack.NuGet.MSBuild.ResolvedPackageInfo>;
 
-namespace UtilPack.NuGet.MSBuild
+namespace NuGetUtils.MSBuild.Exec
 {
    partial class NuGetTaskRunnerFactory
    {

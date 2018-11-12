@@ -86,6 +86,7 @@ public static partial class E_NuGetUtils
       EitherOr<String, Type> nugetSettingsPath,
       String lockFileCacheDirEnvName,
       String lockFileCacheDirWithinHomeDir,
+      Func<ILogger> loggerFactory,
       Func<(BoundRestoreCommandUser Restorer, String SDKPackageID, String SDKPackageVersion), TResult> callback
       )
    {
@@ -97,10 +98,7 @@ public static partial class E_NuGetUtils
             configuration.NuGetConfigurationFile
             ),
          thisFramework: String.IsNullOrEmpty( targetFWString ) ? null : NuGetFramework.Parse( targetFWString ),
-         nugetLogger: configuration.DisableLogging ? null : new TextWriterLogger()
-         {
-            VerbosityLevel = configuration.LogLevel
-         },
+         nugetLogger: configuration.DisableLogging ? null : loggerFactory(),
          lockFileCacheDir: configuration.LockFileCacheDirectory,
          lockFileCacheEnvironmentVariableName: lockFileCacheDirEnvName,
          getDefaultLockFileCacheDir: homeDir => Path.Combine( homeDir, lockFileCacheDirWithinHomeDir ),

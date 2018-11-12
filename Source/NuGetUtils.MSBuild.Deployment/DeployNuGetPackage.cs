@@ -18,14 +18,15 @@
 using Microsoft.Build.Framework;
 using NuGet.Common;
 using NuGetUtils.Lib.Deployment;
+using NuGetUtils.Lib.MSBuild;
 using NuGetUtils.Lib.Restore;
 using System;
 using System.IO;
 using System.Reflection;
 using System.Threading;
-using UtilPack.NuGet.Common.MSBuild;
+using UtilPack;
 
-namespace UtilPack.NuGet.Deployment.MSBuild
+namespace NuGetUtils.MSBuild.Deployment
 {
    public class DeployNuGetPackageTask : Microsoft.Build.Utilities.Task, NuGetDeploymentConfiguration, NuGetUsageConfiguration, ICancelableTask
    {
@@ -45,6 +46,7 @@ namespace UtilPack.NuGet.Deployment.MSBuild
                this.GetType(),
                this.LockFileCacheDirEnvName,
                this.LockFileCacheDirWithinHomeDir,
+               () => new NuGetMSBuildLogger( "NDE001", "NDE002", this.GetType().FullName, null, this.BuildEngine ),
                restorer => this.DeployAsync( restorer.Restorer, this._cancelTokenSource.Token, restorer.SDKPackageID, restorer.SDKPackageVersion )
                ).GetAwaiter().GetResult().EntryPointAssemblyPath;
          }

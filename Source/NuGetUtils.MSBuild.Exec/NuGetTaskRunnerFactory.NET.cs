@@ -31,7 +31,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
-namespace UtilPack.NuGet.MSBuild
+namespace NuGetUtils.MSBuild.Exec
 {
    partial class NuGetTaskRunnerFactory
    {

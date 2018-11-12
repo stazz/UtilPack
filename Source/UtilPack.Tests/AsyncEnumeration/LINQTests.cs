@@ -16,6 +16,7 @@
  * limitations under the License. 
  */
 using AsyncEnumeration.Implementation.Enumerable;
+using AsyncEnumeration.Implementation.Provider;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
@@ -31,7 +32,7 @@ namespace UtilPack.Tests.AsyncEnumeration
       [TestMethod]
       public async Task TestTake()
       {
-         var array = await AsyncEnumerable.Repeat( count: 5, item: 1 ).Take( 3 ).ToArrayAsync();
+         var array = await AsyncEnumerable.Repeat( count: 5, item: 1, provider: DefaultAsyncProvider.Instance ).Take( 3 ).ToArrayAsync();
 
          Assert.IsTrue( ArrayEqualityComparer<Int32>.ArrayEquality( array, Enumerable.Repeat( 1, 3 ).ToArray() ) );
       }
@@ -39,7 +40,7 @@ namespace UtilPack.Tests.AsyncEnumeration
       [TestMethod, Timeout( 1000 )]
       public async Task TestTakeNeverEnding()
       {
-         var array = await AsyncEnumerable.Neverending( 1 ).Take( 3 ).ToArrayAsync();
+         var array = await AsyncEnumerable.Neverending( 1, provider: DefaultAsyncProvider.Instance ).Take( 3 ).ToArrayAsync();
          Assert.IsTrue( ArrayEqualityComparer<Int32>.ArrayEquality( array, Enumerable.Repeat( 1, 3 ).ToArray() ) );
       }
 
@@ -47,7 +48,7 @@ namespace UtilPack.Tests.AsyncEnumeration
       public async Task TestTakeWhile()
       {
          var idx = 0;
-         var array = await AsyncEnumerable.Neverending( 1 ).TakeWhile( item => ++idx <= 3 ).ToArrayAsync();
+         var array = await AsyncEnumerable.Neverending( 1, provider: DefaultAsyncProvider.Instance ).TakeWhile( item => ++idx <= 3 ).ToArrayAsync();
          Assert.IsTrue( ArrayEqualityComparer<Int32>.ArrayEquality( array, Enumerable.Repeat( 1, 3 ).ToArray() ) );
       }
 
@@ -55,7 +56,7 @@ namespace UtilPack.Tests.AsyncEnumeration
       public async Task TestTakeWhileAsync()
       {
          var idx = 0;
-         var array = await AsyncEnumerable.Neverending( 1 ).TakeWhile( async item => { await Task.Delay( 100 ); return ++idx <= 3; } ).ToArrayAsync();
+         var array = await AsyncEnumerable.Neverending( 1, provider: DefaultAsyncProvider.Instance ).TakeWhile( async item => { await Task.Delay( 100 ); return ++idx <= 3; } ).ToArrayAsync();
          Assert.IsTrue( ArrayEqualityComparer<Int32>.ArrayEquality( array, Enumerable.Repeat( 1, 3 ).ToArray() ) );
       }
    }

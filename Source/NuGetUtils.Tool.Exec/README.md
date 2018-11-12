@@ -36,6 +36,27 @@ For the method parameter types, the following strategy is used:
 - Anything else - the `Microsoft.Extensions.Configuration.Binder` package will be used to create instance of given type from the command line arguments passed to `nuget-exec` tool after `--` switch.
 
 Note that when using `ConfiguredEntryPointAttribute`, the assembly does not need to be compiled as executable with `<OutputType>Exe</OutputType>`.
+So to fully tune in with `nuget-exec` tool, one can do the following:
+```cs
+[assembly: ConfiguredEntryPoint( typeof( MyClass ), nameof( MyClass.MyMethod ) )]
+
+public class MyClass {
+   public static void MyMethod(
+     CancellationToken cancellationToken,
+     MyConfiguration config
+   ) {
+      // your code here...
+   }
+}
+
+public class MyConfiguration {
+   public String StringParameter { get; set; }
+   public Boolean BooleanParameter { get; set; }
+}
+```
+
+Compile the code as a normal library, push it to NuGet registry, and invoke using e.g. `nuget-exec /PackageID=MyPushedPackageID -- /StringParameter=SomeValue /BooleanParameter=true`.
+The parameters for `MyConfiguration` type will be automatically handled by `nuget-exec`, which will also provide cancelable `CancellationToken` for the method.
 
 ## Command-line documentation
 

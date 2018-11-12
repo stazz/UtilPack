@@ -1,6 +1,6 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <TargetProjectFile>"$(MSBuildThisFileDirectory)UtilPack.NuGet.MSBuild.Release.csproj"</TargetProjectFile>
+    <TargetProjectFile>"$(MSBuildThisFileDirectory)NuGetUtils.MSBuild.Exec.Release.csproj"</TargetProjectFile>
     <NewestNuGetVersion>4.8.0</NewestNuGetVersion>
     <MSBuildExecCMD Condition=" '$(MSBuildRuntimeType)' == 'Core' ">dotnet msbuild</MSBuildExecCMD>
     <MSBuildExecCMD Condition=" '$(MSBuildRuntimeType)' != 'Core' ">"$(MSBuildBinPath)\MSBuild.exe"</MSBuildExecCMD>

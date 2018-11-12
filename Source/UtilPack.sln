@@ -11,7 +11,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.Lib.Restore", "N
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Tests", "UtilPack.Tests\UtilPack.Tests.csproj", "{9F1E8C76-8B7E-43B1-821B-6D7854680B09}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.MSBuild", "UtilPack.NuGet.MSBuild\UtilPack.NuGet.MSBuild.csproj", "{465F915D-A876-485A-8AE2-C2CAB224D23E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.MSBuild.Exec", "NuGetUtils.MSBuild.Exec\NuGetUtils.MSBuild.Exec.csproj", "{465F915D-A876-485A-8AE2-C2CAB224D23E}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Cryptography.Digest", "UtilPack.Cryptography.Digest\UtilPack.Cryptography.Digest.csproj", "{D6F43E1B-BD28-428C-8AA5-7C97E4F7D9F1}"
 EndProject
@@ -21,17 +21,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Configuration", "U
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.Lib.AssemblyResolving", "NuGetUtils.Lib.AssemblyResolving\NuGetUtils.Lib.AssemblyResolving.csproj", "{92442473-CF41-4F1D-95AC-E9BA3684D5D9}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.Push.MSBuild", "UtilPack.NuGet.Push.MSBuild\UtilPack.NuGet.Push.MSBuild.csproj", "{68E0F5BF-5874-4C30-8275-EC8555AC9916}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.MSBuild.Push", "NuGetUtils.MSBuild.Push\NuGetUtils.MSBuild.Push.csproj", "{68E0F5BF-5874-4C30-8275-EC8555AC9916}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.Common.MSBuild", "UtilPack.NuGet.Common.MSBuild\UtilPack.NuGet.Common.MSBuild.csproj", "{D277A436-1D02-4FBB-A12A-ADDCC058C647}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.ProcessRunner", "UtilPack.NuGet.ProcessRunner\UtilPack.NuGet.ProcessRunner.csproj", "{3403D3A2-9397-42D9-A424-13702D563C9E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.Lib.MSBuild", "NuGetUtils.Lib.MSBuild\NuGetUtils.Lib.MSBuild.csproj", "{D277A436-1D02-4FBB-A12A-ADDCC058C647}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.Lib.Deployment", "NuGetUtils.Lib.Deployment\NuGetUtils.Lib.Deployment.csproj", "{8DA594F2-424D-45C0-A159-F7B1C0D1F79C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.ProcessMonitor", "UtilPack.ProcessMonitor\UtilPack.ProcessMonitor.csproj", "{B5CBEA41-01E2-4496-BEE9-77D117695EF8}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.NuGet.Deployment.MSBuild", "UtilPack.NuGet.Deployment.MSBuild\UtilPack.NuGet.Deployment.MSBuild.csproj", "{B0BE3461-258E-4ACA-AF2C-39F62F5C3966}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.MSBuild.Deployment", "NuGetUtils.MSBuild.Deployment\NuGetUtils.MSBuild.Deployment.csproj", "{B0BE3461-258E-4ACA-AF2C-39F62F5C3966}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.MSBuild.AsyncExec", "UtilPack.MSBuild.AsyncExec\UtilPack.MSBuild.AsyncExec.csproj", "{980BFAC3-28AD-411A-AF38-38A6E4C0CBEB}"
 EndProject

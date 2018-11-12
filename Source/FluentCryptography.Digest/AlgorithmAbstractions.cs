@@ -112,7 +112,7 @@ namespace FluentCryptography.Digest
 /// <summary>
 /// This class contains extensions methods defined in UtilPack products.
 /// </summary>
-public static partial class E_UtilPack
+public static partial class E_FluentCryptography
 {
    /// <summary>
    /// Helper method to compute digest over the whole contents of given byte array.

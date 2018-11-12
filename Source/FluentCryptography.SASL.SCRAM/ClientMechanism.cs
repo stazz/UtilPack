@@ -589,7 +589,7 @@ namespace FluentCryptography.SASL.SCRAM
    /// <summary>
    /// This class contains utility methods and extension methods for types defined in other assemblies than this.
    /// </summary>
-   public static partial class UtilPackUtility
+   public static partial class FluentCryptographyUtility
    {
       /// <summary>
       /// Creates a new instance of <see cref="SASLMechanism"/> that implements client-side SCRAM mechanism with this <see cref="BlockDigestAlgorithm"/>.
@@ -620,7 +620,7 @@ namespace FluentCryptography.SASL.SCRAM
 /// <summary>
 /// This class contains extension methods for types defined in this assembly.
 /// </summary>
-public static partial class E_UtilPack
+public static partial class E_FluentCryptography
 {
    /// <summary>
    /// Creates new <see cref="SASLChallengeArguments"/> from this client-side <see cref="SASLCredentialsSCRAMForClient"/>.

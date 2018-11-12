@@ -35,7 +35,7 @@ namespace UtilPack.ResourcePooling
    /// </remarks>
    /// <seealso cref="CachingAsyncResourcePoolWithTimeout{TResource}"/>
    /// <seealso cref="CachingAsyncResourcePool{TResource, TResourceInstance}"/>
-   internal class OneTimeUseAsyncResourcePool<TResource, TResourceInstance> : ExplicitAsyncResourcePoolObservable<TResource>
+   internal class OneTimeUseAsyncResourcePool<TResource, TResourceInstance> : AsyncResourcePoolObservable<TResource>
    {
 
       /// <summary>
@@ -83,67 +83,88 @@ namespace UtilPack.ResourcePooling
          this.Factory.ResetFactoryState();
       }
 
-      /// <summary>
-      /// Implements <see cref="AsyncResourcePool{TResource}.UseResourceAsync(Func{TResource, Task}, CancellationToken)"/> method by validating that the given callback is not <c>null</c> and delegating implementation to private method.
-      /// </summary>
-      /// <param name="user">The callback to asynchronously use the resource.</param>
-      /// <param name="token">The optional <see cref="CancellationToken"/>.</param>
-      /// <returns>Task which completes after the <paramref name="user"/> callback completes and this resource pool has cleaned up any of its own internal resources.</returns>
-      /// <remarks>
-      /// Will return completed task if <paramref name="user"/> is <c>null</c> or cancellation is pequested for given <paramref name="token"/>.
-      /// </remarks>
-      public Task UseResourceAsync( Func<TResource, Task> user, CancellationToken token = default( CancellationToken ) )
+      public ResourceUsage<TResource> GetResourceUsage( CancellationToken token )
       {
-         // Avoid potentially allocating new instance of Task on every call to this method, and check for user and token cancellation first.
-         return user == null ? TaskUtils.CompletedTask : ( token.IsCancellationRequested ?
-            TaskUtils.FromCanceled( token ) :
-            this.DoUseResourceAsync( user, token )
+         var instanceAcquired = 0;
+         TResourceInstance instance = default;
+         ResourceUsageInfo<TResource> usage = null;
+         return new ResourceUsageImpl<TResource>(
+            async () =>
+            {
+               instance = await this.AcquireResourceAsync( token );
+               Interlocked.Exchange( ref instanceAcquired, 1 );
+               usage = this.ResourceExtractor( instance ).GetResourceUsageForToken( token );
+               return usage.Resource;
+            },
+            async () =>
+            {
+               try
+               {
+                  usage?.Dispose();
+               }
+               finally
+               {
+                  if ( instanceAcquired == 1 )
+                  {
+                     await ( this.DisposeResourceAsync( instance, token ) ?? TaskUtils.CompletedTask );
+                  }
+               }
+            }
             );
-
       }
 
-      private async Task DoUseResourceAsync( Func<TResource, Task> executer, CancellationToken token )
-      {
-         var instance = await this.AcquireResourceAsync( token );
-         try
-         {
-            using ( var usageInfo = this.ResourceExtractor( instance ).GetResourceUsageForToken( token ) )
-            {
-               await executer( usageInfo.Resource );
-            }
-         }
-         finally
-         {
-            await ( this.DisposeResourceAsync( instance, token ) ?? TaskUtils.CompletedTask );
-         }
-      }
+      //public Task UseResourceAsync( Func<TResource, Task> user, CancellationToken token = default( CancellationToken ) )
+      //{
+      //   // Avoid potentially allocating new instance of Task on every call to this method, and check for user and token cancellation first.
+      //   return user == null ? TaskUtils.CompletedTask : ( token.IsCancellationRequested ?
+      //      TaskUtils.FromCanceled( token ) :
+      //      this.DoUseResourceAsync( user, token )
+      //      );
 
-      public async ValueTask<ExplicitResourceAcquireInfo<TResource>> TakeResourceAsync( CancellationToken token )
-      {
-         var acquireResult = await this.AcquireResourceAsync( token );
-         return new ExplicitResourceAcquireInfoImpl<TResource, TResourceInstance>( acquireResult, this.ResourceExtractor( acquireResult ), token );
-      }
+      //}
 
-      public async ValueTask<Boolean> ReturnResource( ExplicitResourceAcquireInfo<TResource> resourceInfo )
-      {
-         var retVal = false;
-         if ( resourceInfo != null )
-         {
-            if ( resourceInfo is ExplicitResourceAcquireInfoImpl<TResource, TResourceInstance> resource )
-            {
-               retVal = true;
-               resource.UsageInfo.DisposeSafely();
-               await this.DisposeResourceAsync( resource.InstanceInfo, resource.Token );
-            }
-            else
-            {
-               await ( resourceInfo.Resource as IAsyncDisposable ).DisposeAsyncSafely();
-               ( resourceInfo.Resource as IDisposable ).DisposeSafely();
-            }
-         }
+      //private async Task DoUseResourceAsync( Func<TResource, Task> executer, CancellationToken token )
+      //{
+      //   var instance = await this.AcquireResourceAsync( token );
+      //   try
+      //   {
+      //      using ( var usageInfo = this.ResourceExtractor( instance ).GetResourceUsageForToken( token ) )
+      //      {
+      //         await executer( usageInfo.Resource );
+      //      }
+      //   }
+      //   finally
+      //   {
+      //      await ( this.DisposeResourceAsync( instance, token ) ?? TaskUtils.CompletedTask );
+      //   }
+      //}
 
-         return retVal;
-      }
+      //public async ValueTask<ExplicitResourceAcquireInfo<TResource>> TakeResourceAsync( CancellationToken token )
+      //{
+      //   var acquireResult = await this.AcquireResourceAsync( token );
+      //   return new ExplicitResourceAcquireInfoImpl<TResource, TResourceInstance>( acquireResult, this.ResourceExtractor( acquireResult ), token );
+      //}
+
+      //public async ValueTask<Boolean> ReturnResource( ExplicitResourceAcquireInfo<TResource> resourceInfo )
+      //{
+      //   var retVal = false;
+      //   if ( resourceInfo != null )
+      //   {
+      //      if ( resourceInfo is ExplicitResourceAcquireInfoImpl<TResource, TResourceInstance> resource )
+      //      {
+      //         retVal = true;
+      //         resource.UsageInfo.DisposeSafely();
+      //         await this.DisposeResourceAsync( resource.InstanceInfo, resource.Token );
+      //      }
+      //      else
+      //      {
+      //         await ( resourceInfo.Resource as IAsyncDisposable ).DisposeAsyncSafely();
+      //         ( resourceInfo.Resource as IDisposable ).DisposeSafely();
+      //      }
+      //   }
+
+      //   return retVal;
+      //}
 
       /// <summary>
       /// Implements <see cref="ResourcePoolObservation{TResource, TCreationArgs, TAcquiringArgs, TReturningArgs, TCloseArgs}.AfterResourceCreationEvent"/>.
@@ -250,6 +271,70 @@ namespace UtilPack.ResourcePooling
 
 
 
+   }
+
+   internal sealed class ResourceUsageImpl<TResource> : ResourceUsage<TResource>
+   {
+      private const Int32 INITIAL = 0;
+      private const Int32 AWAITING = 1;
+      private const Int32 AWAITED = 2;
+      private const Int32 DISPOSING = 3;
+
+      private Int32 _state;
+      private readonly Func<Task<TResource>> _acquire;
+      private TResource _resource;
+      private readonly Func<Task> _dispose;
+
+      public ResourceUsageImpl(
+         Func<Task<TResource>> acquire,
+         Func<Task> dispose
+         )
+      {
+         this._acquire = ArgumentValidator.ValidateNotNull( nameof( acquire ), acquire );
+         this._dispose = ArgumentValidator.ValidateNotNull( nameof( dispose ), dispose );
+      }
+
+
+      public async Task AwaitForResource()
+      {
+         if ( Interlocked.CompareExchange( ref this._state, AWAITING, INITIAL ) == INITIAL )
+         {
+            try
+            {
+               this._resource = await this._acquire();
+            }
+            finally
+            {
+               Interlocked.Exchange( ref this._state, AWAITED );
+            }
+         }
+         else
+         {
+            throw new InvalidOperationException();
+         }
+      }
+
+      public TResource Resource
+      {
+         get
+         {
+            if ( this._state != AWAITED )
+            {
+               throw new InvalidOperationException();
+            }
+            return this._resource;
+         }
+      }
+
+      public async Task DisposeAsync()
+      {
+         if ( Interlocked.CompareExchange( ref this._state, DISPOSING, AWAITED ) == AWAITED
+            || Interlocked.CompareExchange( ref this._state, DISPOSING, INITIAL ) == INITIAL
+            )
+         {
+            await this._dispose();
+         }
+      }
    }
 
    /// <summary>
@@ -449,7 +534,7 @@ namespace UtilPack.ResourcePooling
    /// This class extends <see cref="CachingAsyncResourcePool{TResource, TCachedResource}"/> to add information when the resource was returned to the pool, in order to be able to clean it up later using <see cref="CleanUpAsync(TimeSpan, CancellationToken)"/> method.
    /// </summary>
    /// <typeparam name="TResource">The type of resource exposed to public.</typeparam>
-   internal class CachingAsyncResourcePoolWithTimeout<TResource> : CachingAsyncResourcePool<TResource, InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>>>, ExplicitAsyncResourcePoolObservable<TResource, TimeSpan>
+   internal class CachingAsyncResourcePoolWithTimeout<TResource> : CachingAsyncResourcePool<TResource, InstanceHolderWithTimestamp<AsyncResourceAcquireInfo<TResource>>>, AsyncResourcePoolObservable<TResource, TimeSpan>
    {
       ///// <summary>
       ///// Creates a new instance of <see cref="CachingAsyncResourcePoolWithTimeout{TResource, TResourceCreationParams}"/> with given parameters.
@@ -574,122 +659,122 @@ namespace UtilPack.ResourcePooling
       }
    }
 
-   internal sealed class ExplicitResourceAcquireInfoImpl<TResource, TInstance> : ExplicitResourceAcquireInfo<TResource>
-   {
-      public ExplicitResourceAcquireInfoImpl(
-         TInstance instance,
-         AsyncResourceAcquireInfo<TResource> acquireInfo,
-         CancellationToken token
-         )
-      {
-         this.Token = token;
-         this.InstanceInfo = instance;
-         this.UsageInfo = acquireInfo.GetResourceUsageForToken( token );
-      }
+   //internal sealed class ExplicitResourceAcquireInfoImpl<TResource, TInstance> : ExplicitResourceAcquireInfo<TResource>
+   //{
+   //   public ExplicitResourceAcquireInfoImpl(
+   //      TInstance instance,
+   //      AsyncResourceAcquireInfo<TResource> acquireInfo,
+   //      CancellationToken token
+   //      )
+   //   {
+   //      this.Token = token;
+   //      this.InstanceInfo = instance;
+   //      this.UsageInfo = acquireInfo.GetResourceUsageForToken( token );
+   //   }
 
 
-      public TResource Resource => this.UsageInfo.Resource;
+   //   public TResource Resource => this.UsageInfo.Resource;
 
-      internal ResourceUsageInfo<TResource> UsageInfo { get; }
+   //   internal ResourceUsageInfo<TResource> UsageInfo { get; }
 
-      internal TInstance InstanceInfo { get; }
+   //   internal TInstance InstanceInfo { get; }
 
-      internal CancellationToken Token { get; }
-   }
+   //   internal CancellationToken Token { get; }
+   //}
 
-   internal class AsyncResourcePoolWrapper<TResource> : AsyncResourcePoolObservable<TResource>
-   {
-      private readonly AsyncResourcePoolObservable<TResource> _actual;
+   //internal class AsyncResourcePoolWrapper<TResource> : AsyncResourcePoolObservable<TResource>
+   //{
+   //   private readonly AsyncResourcePoolObservable<TResource> _actual;
 
-      public AsyncResourcePoolWrapper( AsyncResourcePoolObservable<TResource> actual )
-      {
-         this._actual = ArgumentValidator.ValidateNotNull( nameof( actual ), actual );
-      }
+   //   public AsyncResourcePoolWrapper( AsyncResourcePoolObservable<TResource> actual )
+   //   {
+   //      this._actual = ArgumentValidator.ValidateNotNull( nameof( actual ), actual );
+   //   }
 
-      public event GenericEventHandler<AfterAsyncResourceCreationEventArgs<TResource>> AfterResourceCreationEvent
-      {
-         add
-         {
-            this._actual.AfterResourceCreationEvent += value;
-         }
+   //   public event GenericEventHandler<AfterAsyncResourceCreationEventArgs<TResource>> AfterResourceCreationEvent
+   //   {
+   //      add
+   //      {
+   //         this._actual.AfterResourceCreationEvent += value;
+   //      }
 
-         remove
-         {
-            this._actual.AfterResourceCreationEvent -= value;
-         }
-      }
+   //      remove
+   //      {
+   //         this._actual.AfterResourceCreationEvent -= value;
+   //      }
+   //   }
 
-      public event GenericEventHandler<AfterAsyncResourceAcquiringEventArgs<TResource>> AfterResourceAcquiringEvent
-      {
-         add
-         {
-            this._actual.AfterResourceAcquiringEvent += value;
-         }
+   //   public event GenericEventHandler<AfterAsyncResourceAcquiringEventArgs<TResource>> AfterResourceAcquiringEvent
+   //   {
+   //      add
+   //      {
+   //         this._actual.AfterResourceAcquiringEvent += value;
+   //      }
 
-         remove
-         {
-            this._actual.AfterResourceAcquiringEvent -= value;
-         }
-      }
+   //      remove
+   //      {
+   //         this._actual.AfterResourceAcquiringEvent -= value;
+   //      }
+   //   }
 
-      public event GenericEventHandler<BeforeAsyncResourceReturningEventArgs<TResource>> BeforeResourceReturningEvent
-      {
-         add
-         {
-            this._actual.BeforeResourceReturningEvent += value;
-         }
+   //   public event GenericEventHandler<BeforeAsyncResourceReturningEventArgs<TResource>> BeforeResourceReturningEvent
+   //   {
+   //      add
+   //      {
+   //         this._actual.BeforeResourceReturningEvent += value;
+   //      }
 
-         remove
-         {
-            this._actual.BeforeResourceReturningEvent -= value;
-         }
-      }
+   //      remove
+   //      {
+   //         this._actual.BeforeResourceReturningEvent -= value;
+   //      }
+   //   }
 
-      public event GenericEventHandler<BeforeAsyncResourceCloseEventArgs<TResource>> BeforeResourceCloseEvent
-      {
-         add
-         {
-            this._actual.BeforeResourceCloseEvent += value;
-         }
+   //   public event GenericEventHandler<BeforeAsyncResourceCloseEventArgs<TResource>> BeforeResourceCloseEvent
+   //   {
+   //      add
+   //      {
+   //         this._actual.BeforeResourceCloseEvent += value;
+   //      }
 
-         remove
-         {
-            this._actual.BeforeResourceCloseEvent -= value;
-         }
-      }
+   //      remove
+   //      {
+   //         this._actual.BeforeResourceCloseEvent -= value;
+   //      }
+   //   }
 
-      public void ResetFactoryState()
-      {
-         this._actual.ResetFactoryState();
-      }
+   //   public void ResetFactoryState()
+   //   {
+   //      this._actual.ResetFactoryState();
+   //   }
 
-      public Task UseResourceAsync( Func<TResource, Task> user, CancellationToken token )
-      {
-         return this._actual.UseResourceAsync( user, token );
-      }
-   }
+   //   public Task UseResourceAsync( Func<TResource, Task> user, CancellationToken token )
+   //   {
+   //      return this._actual.UseResourceAsync( user, token );
+   //   }
+   //}
 
-   internal sealed class CleanUpAsyncResourcePoolWrapper<TResource, TCleanUpParameter> : AsyncResourcePoolWrapper<TResource>, AsyncResourcePoolObservable<TResource, TCleanUpParameter>
-   {
-      private readonly AsyncResourcePoolObservable<TResource, TCleanUpParameter> _actual;
+   //internal sealed class CleanUpAsyncResourcePoolWrapper<TResource, TCleanUpParameter> : AsyncResourcePoolWrapper<TResource>, AsyncResourcePoolObservable<TResource, TCleanUpParameter>
+   //{
+   //   private readonly AsyncResourcePoolObservable<TResource, TCleanUpParameter> _actual;
 
-      public CleanUpAsyncResourcePoolWrapper(
-         AsyncResourcePoolObservable<TResource, TCleanUpParameter> actual
-         ) : base( actual )
-      {
-         this._actual = actual;
-      }
+   //   public CleanUpAsyncResourcePoolWrapper(
+   //      AsyncResourcePoolObservable<TResource, TCleanUpParameter> actual
+   //      ) : base( actual )
+   //   {
+   //      this._actual = actual;
+   //   }
 
-      public Task CleanUpAsync( TCleanUpParameter cleanupParameter, CancellationToken token )
-      {
-         return _actual.CleanUpAsync( cleanupParameter, token );
-      }
+   //   public Task CleanUpAsync( TCleanUpParameter cleanupParameter, CancellationToken token )
+   //   {
+   //      return this._actual.CleanUpAsync( cleanupParameter, token );
+   //   }
 
-      public void Dispose()
-      {
-         _actual.Dispose();
-      }
-   }
+   //   public void Dispose()
+   //   {
+   //      this._actual.Dispose();
+   //   }
+   //}
 }
 
 

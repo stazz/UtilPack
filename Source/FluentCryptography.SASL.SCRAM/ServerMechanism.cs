@@ -435,7 +435,7 @@ namespace FluentCryptography.SASL.SCRAM
 
    }
 
-   public static partial class UtilPackUtility
+   public static partial class FluentCryptographyUtility
    {
       /// <summary>
       /// Creates a new instance of <see cref="SASLMechanism"/> that implements server-side SCRAM mechanism with this <see cref="BlockDigestAlgorithm"/>.

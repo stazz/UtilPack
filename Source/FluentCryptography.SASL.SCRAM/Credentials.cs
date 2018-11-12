@@ -101,7 +101,7 @@ namespace FluentCryptography.SASL.SCRAM
    /// The <see cref="SASLChallengeArguments.Credentials"/> property should be set to <see cref="SASLCredentialsHolder"/>, and its <see cref="SASLCredentialsHolder.Credentials"/> property will be then modified by <see cref="SASLMechanism"/> to instance of this class.
    /// </summary>
    /// <remarks>
-   /// The instances of this classes are created by callback supplied to <see cref="UtilPackUtility.CreateSASLServerSCRAM"/> method.
+   /// The instances of this classes are created by callback supplied to <see cref="FluentCryptographyUtility.CreateSASLServerSCRAM"/> method.
    /// </remarks>
    public sealed class SASLCredentialsSCRAMForServer
    {

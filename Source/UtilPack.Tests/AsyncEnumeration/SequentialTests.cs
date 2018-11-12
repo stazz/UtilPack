@@ -16,6 +16,7 @@
  * limitations under the License. 
  */
 using AsyncEnumeration.Implementation.Enumerable;
+using AsyncEnumeration.Implementation.Provider;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Concurrent;
@@ -48,7 +49,8 @@ namespace UtilPack.Tests.AsyncEnumeration
          var enumerable = AsyncEnumerationFactory.CreateSequentialEnumerable( () => AsyncEnumerationFactory.CreateSequentialStartInfo(
             moveNext,
             null
-            ) );
+            ),
+            DefaultAsyncProvider.Instance );
          Func<Int32, Task> callback = async idx =>
          {
             await Task.Delay( r.Next( 100, 900 ) );
@@ -75,7 +77,8 @@ namespace UtilPack.Tests.AsyncEnumeration
          var enumerable = AsyncEnumerationFactory.CreateSequentialEnumerable( () => AsyncEnumerationFactory.CreateSequentialStartInfo(
             moveNext,
             null
-            ) );
+            ),
+            DefaultAsyncProvider.Instance );
          Action<Int32> callback = idx =>
          {
             Assert.IsTrue( completionState.Take( idx ).All( s => s == 1 ) );
@@ -198,7 +201,7 @@ namespace UtilPack.Tests.AsyncEnumeration
       public async Task TestAsyncLINQ()
       {
          var array = Enumerable.Range( 0, 10 ).ToArray();
-         var enumerable = array.AsAsyncEnumerable();
+         var enumerable = array.AsAsyncEnumerable( DefaultAsyncProvider.Instance );
          var array2 = await enumerable.ToArrayAsync();
          Assert.IsTrue( ArrayEqualityComparer<Int32>.ArrayEquality( array, array2 ) );
 

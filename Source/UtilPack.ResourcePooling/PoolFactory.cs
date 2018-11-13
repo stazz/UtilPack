@@ -123,7 +123,7 @@ public static partial class E_UtilPack
 {
 
    /// <summary>
-   /// Binds the given creation parameters and creates a <see cref="ExplicitAsyncResourcePoolObservable{TResource}"/> which will always create new instance of resource when invoking <see cref="AsyncResourcePool{TResource}.UseResourceAsync"/> and <see cref="ExplicitAsyncResourcePool{TResource}.TakeResourceAsync"/> methods.
+   /// Binds the given creation parameters and creates a <see cref="AsyncResourcePoolObservable{TResource}"/> which will always create new instance of resource when invoking <see cref="AsyncResourcePool{TResource}.UseResourceAsync"/> and <see cref="AsyncResourcePool{TResource}.TakeResourceAsync"/> methods.
    /// </summary>
    /// <typeparam name="TResource">The type of resource.</typeparam>
    /// <param name="factory">This <see cref="AsyncResourceFactory{TResource}"/>.</param>
@@ -138,7 +138,7 @@ public static partial class E_UtilPack
          );
 
    /// <summary>
-   /// Binds the given creation parameters and creates a <see cref="ExplicitAsyncResourcePoolObservable{TResource, TCleanUpParameter}"/> which will cache the resources it manages, but will not have upper bound on how many resources it caches. By calling <see cref="AsyncResourcePoolCleanUp{TCleanUpParameter}.CleanUpAsync"/> method it will close all resources which have been opened for too long.
+   /// Binds the given creation parameters and creates a <see cref="AsyncResourcePoolObservable{TResource, TCleanUpParameter}"/> which will cache the resources it manages, but will not have upper bound on how many resources it caches. By calling <see cref="AsyncResourcePoolCleanUp{TCleanUpParameter}.CleanUpAsync"/> method it will close all resources which have been opened for too long.
    /// </summary>
    /// <typeparam name="TResource">The type of resource.</typeparam>
    /// <param name="factory">This <see cref="AsyncResourceFactory{TResource}"/>.</param>
@@ -149,7 +149,7 @@ public static partial class E_UtilPack
      ) => factory.CreateGenericTimeoutingResourcePool( null, null );
 
    /// <summary>
-   /// Binds the given creation parameters and creates a <see cref="ExplicitAsyncResourcePoolObservable{TResource}"/> which will create up to given dynamic maximum of resources when invoking <see cref="AsyncResourcePool{TResource}.UseResourceAsync"/> and <see cref="ExplicitAsyncResourcePool{TResource}.TakeResourceAsync"/> methods, but will never release them.
+   /// Binds the given creation parameters and creates a <see cref="AsyncResourcePoolObservable{TResource}"/> which will create up to given dynamic maximum of resources when invoking <see cref="AsyncResourcePool{TResource}.UseResourceAsync"/> and <see cref="AsyncResourcePool{TResource}.TakeResourceAsync"/> methods, but will never release them.
    /// </summary>
    /// <typeparam name="TResource">The type of resource.</typeparam>
    /// <param name="factory">This <see cref="AsyncResourceFactory{TResource}"/>.</param>
@@ -157,7 +157,7 @@ public static partial class E_UtilPack
    /// <returns>An <see cref="AsyncResourcePoolObservable{TResource}"/> using this <see cref="AsyncResourceFactory{TResource}"/> to create new resources.</returns>
    /// <exception cref="NullReferenceException">If this <see cref="AsyncResourceFactory{TResource}"/> is <c>null</c>.</exception>
    /// <exception cref="ArgumentNullException">If <paramref name="getMaximumConcurrentlyUsedResources"/> is <c>null</c>.</exception>
-   public static AsyncResourcePoolObservable<TResource> CreateExplicitLimitedResourcePool<TResource>(
+   public static AsyncResourcePoolObservable<TResource> CreateLimitedResourcePool<TResource>(
       this AsyncResourceFactory<TResource> factory,
       Func<Int32> getMaximumConcurrentlyUsedResources
       )
@@ -193,7 +193,7 @@ public static partial class E_UtilPack
    }
 
    /// <summary>
-   /// Binds the given creation parameters and creates a <see cref="ExplicitAsyncResourcePoolObservable{TResource}"/> which will create up to given static maximum of resources when invoking <see cref="AsyncResourcePool{TResource}.UseResourceAsync"/> and <see cref="ExplicitAsyncResourcePool{TResource}.TakeResourceAsync"/> methods.
+   /// Binds the given creation parameters and creates a <see cref="AsyncResourcePoolObservable{TResource}"/> which will create up to given static maximum of resources when invoking <see cref="AsyncResourcePool{TResource}.UseResourceAsync"/> and <see cref="AsyncResourcePool{TResource}.TakeResourceAsync"/> methods.
    /// </summary>
    /// <typeparam name="TResource">The type of resource.</typeparam>
    /// <param name="factory">This <see cref="AsyncResourceFactory{TResource}"/>.</param>
@@ -203,10 +203,10 @@ public static partial class E_UtilPack
    public static AsyncResourcePoolObservable<TResource> CreateLimitedResourcePool<TResource>(
       this AsyncResourceFactory<TResource> factory,
       Int32 maximumConcurrentlyUsedResources
-      ) => factory.CreateExplicitLimitedResourcePool( () => maximumConcurrentlyUsedResources );
+      ) => factory.CreateLimitedResourcePool( () => maximumConcurrentlyUsedResources );
 
    /// <summary>
-   /// Binds the given creation parameters and creates a <see cref="ExplicitAsyncResourcePoolObservable{TResource, TCleanUpParameter}"/> which will cache the resources it manages, and also will have a static upper bound on how many resources it caches. By calling <see cref="AsyncResourcePoolCleanUp{TCleanUpParameter}.CleanUpAsync"/> method it will close all resources which have been opened for too long.
+   /// Binds the given creation parameters and creates a <see cref="AsyncResourcePoolObservable{TResource, TCleanUpParameter}"/> which will cache the resources it manages, and also will have a static upper bound on how many resources it caches. By calling <see cref="AsyncResourcePoolCleanUp{TCleanUpParameter}.CleanUpAsync"/> method it will close all resources which have been opened for too long.
    /// </summary>
    /// <typeparam name="TResource">The type of resource.</typeparam>
    /// <param name="factory">This <see cref="AsyncResourceFactory{TResource}"/>.</param>
@@ -219,7 +219,7 @@ public static partial class E_UtilPack
        ) => factory.CreateTimeoutingAndLimitedResourcePool( () => maximumConcurrentlyUsedResources );
 
    /// <summary>
-   /// Binds the given creation parameters and creates a <see cref="ExplicitAsyncResourcePoolObservable{TResource}"/> which will call given callbacks when invoking <see cref="AsyncResourcePool{TResource}.UseResourceAsync"/>, <see cref="ExplicitAsyncResourcePool{TResource}.TakeResourceAsync"/> and <see cref="ExplicitAsyncResourcePool{TResource}.ReturnResource"/> methods.
+   /// Binds the given creation parameters and creates a <see cref="AsyncResourcePoolObservable{TResource}"/> which will call given callbacks when invoking <see cref="AsyncResourcePool{TResource}.UseResourceAsync"/>, <see cref="AsyncResourcePool{TResource}.TakeResourceAsync"/> and <see cref="AsyncResourcePool{TResource}.ReturnResource"/> methods.
    /// </summary>
    /// <typeparam name="TResource">The type of resource.</typeparam>
    /// <param name="factory">This <see cref="AsyncResourceFactory{TResource}"/>.</param>
@@ -242,7 +242,7 @@ public static partial class E_UtilPack
          );
 
    /// <summary>
-   /// Binds the given creation parameters and creates a <see cref="ExplicitAsyncResourcePoolObservable{TResource, TCleanUp}"/> which will cache the resources, and call given callbacks when invoking <see cref="AsyncResourcePool{TResource}.UseResourceAsync"/>, <see cref="ExplicitAsyncResourcePool{TResource}.TakeResourceAsync"/> and <see cref="ExplicitAsyncResourcePool{TResource}.ReturnResource"/> methods. By calling <see cref="AsyncResourcePoolCleanUp{TCleanUpParameter}.CleanUpAsync"/> method it will close all resources which have been opened for too long.
+   /// Binds the given creation parameters and creates a <see cref="AsyncResourcePoolObservable{TResource, TCleanUp}"/> which will cache the resources, and call given callbacks when invoking <see cref="AsyncResourcePool{TResource}.UseResourceAsync"/>, <see cref="AsyncResourcePool{TResource}.TakeResourceAsync"/> and <see cref="AsyncResourcePool{TResource}.ReturnResource"/> methods. By calling <see cref="AsyncResourcePoolCleanUp{TCleanUpParameter}.CleanUpAsync"/> method it will close all resources which have been opened for too long.
    /// </summary>
    /// <typeparam name="TResource">The type of resource.</typeparam>
    /// <param name="factory">This <see cref="AsyncResourceFactory{TResource}"/>.</param>

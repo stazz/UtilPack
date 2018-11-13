@@ -21,7 +21,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
-using UtilPack.ResourcePooling;
+using ResourcePooling.Async.Abstractions;
 
 using TTypeInfo = System.
 #if NET40
@@ -31,7 +31,7 @@ using TTypeInfo = System.
 #endif
    ;
 
-namespace UtilPack.ResourcePooling
+namespace ResourcePooling.Async.Abstractions
 {
 
    public interface ResourceFactoryDynamicCreationConfiguration
@@ -90,7 +90,7 @@ namespace UtilPack.ResourcePooling
    }
 }
 
-public static partial class E_UtilPack
+public static partial class E_ResourcePooling
 {
    public static async Task<AsyncResourceFactory<TResource>> CreateAsyncResourceFactory<TResource>(
       this ResourceFactoryDynamicCreationConfiguration configuration,

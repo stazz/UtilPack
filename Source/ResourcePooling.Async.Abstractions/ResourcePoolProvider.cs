@@ -18,12 +18,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Reflection;
 
-namespace UtilPack.ResourcePooling
+namespace ResourcePooling.Async.Abstractions
 {
    /// <summary>
    /// Typically, most client code won't need to use this interface - it is provided for the sake of generic scenarios, where resource pool needs to be instantiated dynamically based on some kind of configuration.

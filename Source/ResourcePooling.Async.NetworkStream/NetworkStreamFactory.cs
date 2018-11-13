@@ -15,6 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
+using ResourcePooling.Async.Abstractions;
+using ResourcePooling.Async.NetworkStream;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -24,12 +26,28 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
-using UtilPack.Configuration.NetworkStream;
-using UtilPack.ResourcePooling.NetworkStream;
+using static UtilPack.Configuration.NetworkStream.ConnectionSSLMode;
+//#if NETSTANDARD1_3
+//   UtilPack.Configuration.NetworkStream
+//#else
+//   System.Net.Security
+//#endif
+//   .LocalCertificateSelectionCallback;
 
+using TAuthenticateAsClientAsync = UtilPack.Configuration.NetworkStream.AuthenticateAsClientAsync;
+//#if NETSTANDARD1_3
+//   UtilPack.Configuration.NetworkStream
+//#else
+//   System.Net.Security
+//#endif
+//   .RemoteCertificateValidationCallback;
+
+using TLocalCertificateSelectionCallback = UtilPack.Configuration.NetworkStream.LocalCertificateSelectionCallback;
 using TNetworkStream = System.Net.Sockets.NetworkStream;
+using TProvideSSLStream = UtilPack.Configuration.NetworkStream.ProvideSSLStream;
+using TRemoteCertificateValidationCallback = UtilPack.Configuration.NetworkStream.RemoteCertificateValidationCallback;
 
-namespace UtilPack.ResourcePooling.NetworkStream
+namespace ResourcePooling.Async.NetworkStream
 {
    /// <summary>
    /// This is abstract base class for <see cref="NetworkStreamFactory"/> and <see cref="NetworkStreamFactory{TState}"/>.
@@ -364,9 +382,9 @@ namespace UtilPack.ResourcePooling.NetworkStream
             }
             stream = nwStream;
             var remoteCanSSL = await ( parameters.IsSSLPossible?.Invoke( state ) ?? TaskUtils.False );
-            var connectionMode = parameters.ConnectionSSLMode?.Invoke( state ) ?? ConnectionSSLMode.NotRequired;
-            var isSSLRequired = connectionMode == ConnectionSSLMode.Required;
-            var isSSLPreferred = connectionMode == ConnectionSSLMode.Preferred;
+            var connectionMode = parameters.ConnectionSSLMode?.Invoke( state ) ?? NotRequired;
+            var isSSLRequired = connectionMode == Required;
+            var isSSLPreferred = connectionMode == Preferred;
             if ( remoteCanSSL && ( isSSLRequired || isSSLPreferred ) )
             {
                // Start SSL session
@@ -378,7 +396,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
                   {
                      var clientCerts = new System.Security.Cryptography.X509Certificates.X509CertificateCollection();
                      parameters.ProvideClientCertificates?.Invoke( clientCerts );
-                     sslStream = provideSSLStream( stream, false, parameters.ValidateServerCertificate, parameters.SelectLocalCertificate, out AuthenticateAsClientAsync authenticateAsClient );
+                     sslStream = provideSSLStream( stream, false, parameters.ValidateServerCertificate, parameters.SelectLocalCertificate, out var authenticateAsClient );
                      if ( isSSLRequired )
                      {
                         if ( sslStream == null )
@@ -434,7 +452,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
                   }
                }
             }
-            else if ( !remoteCanSSL && ( connectionMode == ConnectionSSLMode.NotRequired || isSSLPreferred ) )
+            else if ( !remoteCanSSL && ( connectionMode == NotRequired || isSSLPreferred ) )
             {
                // Nothing to do - continue normally
             }
@@ -507,9 +525,9 @@ namespace UtilPack.ResourcePooling.NetworkStream
          this.ProvideSSLStream = (
             Stream innerStream,
             Boolean leaveInnerStreamOpen,
-            RemoteCertificateValidationCallback userCertificateValidationCallback,
-            LocalCertificateSelectionCallback userCertificateSelectionCallback,
-            out AuthenticateAsClientAsync authenticateAsClientAsync
+            TRemoteCertificateValidationCallback userCertificateValidationCallback,
+            TLocalCertificateSelectionCallback userCertificateSelectionCallback,
+            out TAuthenticateAsClientAsync authenticateAsClientAsync
             ) =>
          {
             authenticateAsClientAsync = (
@@ -608,7 +626,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// <remarks>
       /// In .NET Core App 1.1+ and .NET Desktop 4.0+ environments this will be set to default by the constructor.
       /// </remarks>
-      public ProvideSSLStream ProvideSSLStream { get; set; }
+      public TProvideSSLStream ProvideSSLStream { get; set; }
 
       /// <summary>
       /// This callback will be used to validate server certificate when using SSL to connect to the remote endpoint.
@@ -617,7 +635,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// <remarks>
       /// When not specified (i.e. left to <c>null</c>), server certificate (if provided) will always be accepted.
       /// </remarks>
-      public RemoteCertificateValidationCallback ValidateServerCertificate { get; set; }
+      public TRemoteCertificateValidationCallback ValidateServerCertificate { get; set; }
 
       /// <summary>
       /// This callback will be used to select local certificate when using SSL to connect to the remote endpoint.
@@ -626,7 +644,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// <remarks>
       /// When not specified (i.e. left to <c>null</c>), the first of the certificates is selected, if any.
       /// </remarks>
-      public LocalCertificateSelectionCallback SelectLocalCertificate { get; set; }
+      public TLocalCertificateSelectionCallback SelectLocalCertificate { get; set; }
 
 
       /// <summary>
@@ -698,7 +716,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// <remarks>
       /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory"/> will default to <see cref="Configuration.NetworkStream.ConnectionSSLMode.NotRequired"/>.
       /// </remarks>
-      public Func<ConnectionSSLMode> ConnectionSSLMode { get; set; }
+      public Func<UtilPack.Configuration.NetworkStream.ConnectionSSLMode> ConnectionSSLMode { get; set; }
 
       /// <summary>
       /// Gets or sets the callback to check whether SSL is possible.
@@ -752,7 +770,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
       /// <remarks>
       /// If this callback is <c>null</c>, the <see cref="NetworkStreamFactory{TState}"/> will default to <see cref="Configuration.NetworkStream.ConnectionSSLMode.NotRequired"/>.
       /// </remarks>
-      public Func<TState, ConnectionSSLMode> ConnectionSSLMode { get; set; }
+      public Func<TState, UtilPack.Configuration.NetworkStream.ConnectionSSLMode> ConnectionSSLMode { get; set; }
 
       /// <summary>
       /// Gets or sets the callback to potentially asynchronously check whether SSL is possible.
@@ -786,7 +804,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
 /// <summary>
 /// This class contains extensions methods for types defined in this assembly.
 /// </summary>
-public static partial class E_UtilPack
+public static partial class E_ResourcePooling
 {
    /// <summary>
    /// Helper method to transform this stateless <see cref="NetworkStreamFactoryConfiguration"/> into stateful <see cref="NetworkStreamFactoryConfiguration{TState}"/>.
@@ -806,7 +824,7 @@ public static partial class E_UtilPack
          IsSSLPossible = ( state ) => configuration.IsSSLPossible?.Invoke() ?? TaskUtils.TaskFromBoolean( default ),
          GetSSLProtocols = ( state ) => configuration.GetSSLProtocols?.Invoke() ?? AbstractNetworkStreamFactoryConfiguration.DEFAULT_SSL_PROTOCOLS,
          ProvideSSLHost = ( state ) => configuration.ProvideSSLHost?.Invoke(),
-         ConnectionSSLMode = ( state ) => configuration.ConnectionSSLMode?.Invoke() ?? ConnectionSSLMode.NotRequired,
+         ConnectionSSLMode = ( state ) => configuration.ConnectionSSLMode?.Invoke() ?? NotRequired,
          CreateState = createState,
          TransformStreamAfterCreation = configuration.TransformStreamAfterCreation,
 
@@ -817,7 +835,7 @@ public static partial class E_UtilPack
          SocketType = configuration.SocketType,
          ProtocolType = configuration.ProtocolType,
          SelectLocalIPEndPoint = localEP => configuration.SelectLocalIPEndPoint?.Invoke( localEP ),
-         ProvideSSLStream = ( Stream arg1, Boolean arg2, RemoteCertificateValidationCallback arg3, LocalCertificateSelectionCallback arg4, out AuthenticateAsClientAsync arg5 ) =>
+         ProvideSSLStream = ( Stream arg1, Boolean arg2, TRemoteCertificateValidationCallback arg3, TLocalCertificateSelectionCallback arg4, out TAuthenticateAsClientAsync arg5 ) =>
          {
             arg5 = null;
             return configuration.ProvideSSLStream?.Invoke( arg1, arg2, arg3, arg4, out arg5 );

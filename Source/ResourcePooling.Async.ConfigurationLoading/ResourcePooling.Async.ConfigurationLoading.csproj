@@ -18,7 +18,7 @@
    </ItemGroup>
 
    <ItemGroup>
-      <ProjectReference Include="..\UtilPack.ResourcePooling\UtilPack.ResourcePooling.csproj" />
+      <ProjectReference Include="..\ResourcePooling.Async.Abstractions\ResourcePooling.Async.Abstractions.csproj" />
    </ItemGroup>
 
    <!-- Assembly information stuff -->

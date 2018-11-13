@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
+using ResourcePooling.Async.NetworkStream;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -24,12 +25,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
-using UtilPack.ResourcePooling.NetworkStream;
 using UtilPack.Configuration.NetworkStream;
-
 using TNetworkStream = System.Net.Sockets.NetworkStream;
 
-namespace UtilPack.ResourcePooling.NetworkStream
+namespace ResourcePooling.Async.NetworkStream
 {
 
    /// <summary>
@@ -138,7 +137,7 @@ namespace UtilPack.ResourcePooling.NetworkStream
 /// <summary>
 /// Contains extension methods for types defined in this assembly.
 /// </summary>
-public static partial class E_UtilPack
+public static partial class E_ResourcePooling
 {
    /// <summary>
    /// Creates a <see cref="NetworkStreamFactoryConfiguration"/> along with other items based on this <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/>.

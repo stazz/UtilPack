@@ -21,7 +21,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
 
-namespace UtilPack.ResourcePooling.NetworkStream
+namespace ResourcePooling.Async.NetworkStream
 {
    /// <summary>
    /// This class contains miscellaneous methods.

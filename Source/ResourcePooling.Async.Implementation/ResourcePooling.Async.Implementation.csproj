@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard1.0;net40;net45</TargetFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <TreatSpecificWarningsAsErrors />
+    <LangVersion>latest</LangVersion>
+    <GeneratePackageOnBuild Condition=" '$(Configuration)' == 'Release' ">true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ResourcePooling.Async.Abstractions\ResourcePooling.Async.Abstractions.csproj" />
+  </ItemGroup>
+
+  <!-- Assembly information stuff -->
+  <PropertyGroup>
+    <VersionPrefix>1.1.0</VersionPrefix>
+    <VersionSuffix></VersionSuffix>
+    <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
+    <Description>Library containing types which support pooling asynchronous and synchronous resources.</Description>
+  </PropertyGroup>
+
+  <!-- NuGet package stuff -->
+  <PropertyGroup>
+    <PackageId>$(AssemblyName)</PackageId>
+    <PackageVersion>$(VersionPrefix)</PackageVersion>
+    <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
+    <PackageReleaseNotes>Adding type and extension method for uniform way of dynamically loading AsyncResourceFactory. See also UtilPack.ResourcePooling.(ConfigurationLoading|NuGetAssemblyLoading|NuGetAssemblyLoading.WithConfiguration) packages.</PackageReleaseNotes>
+    <PackageTags>utility async resource pool</PackageTags>
+    <Title>Resource Pooling Support</Title>
+  </PropertyGroup>
+
+</Project>

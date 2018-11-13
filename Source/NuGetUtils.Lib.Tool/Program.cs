@@ -17,6 +17,7 @@
  */
 using Microsoft.Extensions.Configuration;
 using NuGet.Frameworks;
+using NuGetUtils.Lib.Common;
 using NuGetUtils.Lib.Restore;
 using NuGetUtils.Lib.Tool;
 using System;

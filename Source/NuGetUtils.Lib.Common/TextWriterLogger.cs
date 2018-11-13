@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
+using NuGet.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -22,13 +23,13 @@ using System.Text;
 using System.Threading.Tasks;
 using UtilPack;
 
-namespace NuGetUtils.Lib.Restore
+namespace NuGetUtils.Lib.Common
 {
    /// <summary>
-   /// This class implements <see cref="global::NuGet.Common.ILogger"/> using <see cref="TextWriter"/>s.
+   /// This class implements <see cref="ILogger"/> using <see cref="TextWriter"/>s.
    /// </summary>
    /// <seealso cref="TextWriterLoggerOptions"/>
-   public class TextWriterLogger : global::NuGet.Common.LoggerBase
+   public class TextWriterLogger : LoggerBase
    {
 
       private readonly TextWriterLoggerOptions _options;
@@ -49,7 +50,7 @@ namespace NuGetUtils.Lib.Restore
       public event GenericEventHandler<LogMessageEventArgs> LogEvent;
 
       /// <inheritdoc/>
-      public override void Log( global::NuGet.Common.ILogMessage message )
+      public override void Log( ILogMessage message )
       {
          // For some reason, we get here even when this.DisplayMessage returns false - this should not happen at least according to the code of LoggerBase...
          if ( message != null && this.DisplayMessage( message.Level ) )
@@ -67,7 +68,7 @@ namespace NuGetUtils.Lib.Restore
       }
 
       /// <inheritdoc/>
-      public override async Task LogAsync( global::NuGet.Common.ILogMessage message )
+      public override async Task LogAsync( ILogMessage message )
       {
          if ( message != null && this.DisplayMessage( message.Level ) )
          {
@@ -83,7 +84,7 @@ namespace NuGetUtils.Lib.Restore
          }
       }
 
-      private TextWriter GetWriter( global::NuGet.Common.ILogMessage msg )
+      private TextWriter GetWriter( ILogMessage msg )
       {
          TextWriter retVal = null;
          TextWriterLoggerOptions options;
@@ -95,22 +96,22 @@ namespace NuGetUtils.Lib.Restore
             // TODO dictionary to options
             switch ( msg.Level )
             {
-               case global::NuGet.Common.LogLevel.Debug:
+               case LogLevel.Debug:
                   retVal = options.DebugWriter;
                   break;
-               case global::NuGet.Common.LogLevel.Verbose:
+               case LogLevel.Verbose:
                   retVal = options.VerboseWriter;
                   break;
-               case global::NuGet.Common.LogLevel.Information:
+               case LogLevel.Information:
                   retVal = options.InfoWriter;
                   break;
-               case global::NuGet.Common.LogLevel.Minimal:
+               case LogLevel.Minimal:
                   retVal = options.MinimalWriter;
                   break;
-               case global::NuGet.Common.LogLevel.Warning:
+               case LogLevel.Warning:
                   retVal = options.WarningWriter;
                   break;
-               case global::NuGet.Common.LogLevel.Error:
+               case LogLevel.Error:
                   retVal = options.ErrorWriter;
                   break;
             }
@@ -119,8 +120,8 @@ namespace NuGetUtils.Lib.Restore
          return retVal;
       }
 
-      private static global::NuGet.Common.ILogMessage InvokeEvent(
-         global::NuGet.Common.ILogMessage msg,
+      private static ILogMessage InvokeEvent(
+         ILogMessage msg,
          GenericEventHandler<LogMessageEventArgs> evt
          )
       {
@@ -152,7 +153,7 @@ namespace NuGetUtils.Lib.Restore
       /// Creates a new instance of <see cref="LogMessageEventArgs"/> with given message.
       /// </summary>
       /// <param name="message">The message.</param>
-      public LogMessageEventArgs( global::NuGet.Common.ILogMessage message )
+      public LogMessageEventArgs( ILogMessage message )
       {
          this.Message = message;
       }
@@ -161,7 +162,7 @@ namespace NuGetUtils.Lib.Restore
       /// Gets or sets the message to log.
       /// </summary>
       /// <value>The message to log.</value>
-      public global::NuGet.Common.ILogMessage Message { get; }
+      public ILogMessage Message { get; }
    }
 
    /// <summary>
@@ -169,61 +170,61 @@ namespace NuGetUtils.Lib.Restore
    /// </summary>
    public class TextWriterLoggerOptions
    {
-      private const String DEFAULT_FORMAT = "[NuGet {0}]: {1}";
+      //private const String DEFAULT_FORMAT = "[NuGet {0}]: {1}";
+
+      ///// <summary>
+      ///// Gets or sets the format string for messages logged.
+      ///// The arguments for format string are the following, in that order: <see cref="ILogMessage.Level"/>, <see cref="ILogMessage.Message"/>, and <see cref="ILogMessage"/>.
+      ///// </summary>
+      ///// <value>The format string for messages logged.</value>
+      //public String Format { get; set; } = DEFAULT_FORMAT;
 
       /// <summary>
-      /// Gets or sets the format string for messages logged.
-      /// The arguments for format string are the following, in that order: <see cref="global::NuGet.Common.ILogMessage.Level"/>, <see cref="global::NuGet.Common.ILogMessage.Message"/>, and <see cref="global::NuGet.Common.ILogMessage"/>.
-      /// </summary>
-      /// <value>The format string for messages logged.</value>
-      public String Format { get; set; } = DEFAULT_FORMAT;
-
-      /// <summary>
-      /// Gets or sets the <see cref="TextWriter"/> for <see cref="global::NuGet.Common.LogLevel.Debug"/>
+      /// Gets or sets the <see cref="TextWriter"/> for <see cref="LogLevel.Debug"/>
       /// By default, this is the <see cref="Console.Out"/>.
-      /// Set to <c>null</c> to disable logging done via <see cref="global::NuGet.Common.LogLevel.Debug"/>.
+      /// Set to <c>null</c> to disable logging done via <see cref="LogLevel.Debug"/>.
       /// </summary>
-      /// <value>The <see cref="TextWriter"/> for <see cref="global::NuGet.Common.LogLevel.Debug"/>.</value>
+      /// <value>The <see cref="TextWriter"/> for <see cref="LogLevel.Debug"/>.</value>
       public TextWriter DebugWriter { get; set; } = Console.Out;
 
       /// <summary>
-      /// Gets or sets the <see cref="TextWriter"/> for <see cref="global::NuGet.Common.LogLevel.Error"/>.
+      /// Gets or sets the <see cref="TextWriter"/> for <see cref="LogLevel.Error"/>.
       /// By default, this is the <see cref="Console.Error"/>.
-      /// Set to <c>null</c> to disable logging done via <see cref="global::NuGet.Common.LogLevel.Error"/>.
+      /// Set to <c>null</c> to disable logging done via <see cref="LogLevel.Error"/>.
       /// </summary>
-      /// <value>The <see cref="TextWriter"/> for <see cref="global::NuGet.Common.LogLevel.Error"/>.</value>
+      /// <value>The <see cref="TextWriter"/> for <see cref="LogLevel.Error"/>.</value>
       public TextWriter ErrorWriter { get; set; } = Console.Error;
 
       /// <summary>
-      /// Gets or sets the <see cref="TextWriter"/> for <see cref="global::NuGet.Common.LogLevel.Information"/>.
+      /// Gets or sets the <see cref="TextWriter"/> for <see cref="LogLevel.Information"/>.
       /// By default, this is the <see cref="Console.Out"/>.
-      /// Set to <c>null</c> to disable logging done via <see cref="global::NuGet.Common.LogLevel.Information"/>.
+      /// Set to <c>null</c> to disable logging done via <see cref="LogLevel.Information"/>.
       /// </summary>
-      /// <value>The <see cref="TextWriter"/> for <see cref="global::NuGet.Common.LogLevel.Information"/>.</value>
+      /// <value>The <see cref="TextWriter"/> for <see cref="LogLevel.Information"/>.</value>
       public TextWriter InfoWriter { get; set; } = Console.Out;
 
       /// <summary>
-      /// Gets or sets the <see cref="TextWriter"/> for <see cref="global::NuGet.Common.LogLevel.Minimal"/>.
+      /// Gets or sets the <see cref="TextWriter"/> for <see cref="LogLevel.Minimal"/>.
       /// By default, this is the <see cref="Console.Out"/>.
-      /// Set to <c>null</c> to disable logging done via <see cref="global::NuGet.Common.LogLevel.Minimal"/>.
+      /// Set to <c>null</c> to disable logging done via <see cref="LogLevel.Minimal"/>.
       /// </summary>
-      /// <value>The <see cref="TextWriter"/> for <see cref="global::NuGet.Common.LogLevel.Minimal"/>.</value>
+      /// <value>The <see cref="TextWriter"/> for <see cref="LogLevel.Minimal"/>.</value>
       public TextWriter MinimalWriter { get; set; } = Console.Out;
 
       /// <summary>
-      /// Gets or sets the <see cref="TextWriter"/> for <see cref="global::NuGet.Common.LogLevel.Verbose"/>.
+      /// Gets or sets the <see cref="TextWriter"/> for <see cref="LogLevel.Verbose"/>.
       /// By default, this is the <see cref="Console.Out"/>.
-      /// Set to <c>null</c> to disable logging done via <see cref="global::NuGet.Common.LogLevel.Verbose"/>.
+      /// Set to <c>null</c> to disable logging done via <see cref="LogLevel.Verbose"/>.
       /// </summary>
-      /// <value>The <see cref="TextWriter"/> for <see cref="global::NuGet.Common.LogLevel.Verbose"/>.</value>
+      /// <value>The <see cref="TextWriter"/> for <see cref="LogLevel.Verbose"/>.</value>
       public TextWriter VerboseWriter { get; set; } = Console.Out;
 
       /// <summary>
-      /// Gets or sets the <see cref="TextWriter"/> for <see cref="global::NuGet.Common.LogLevel.Warning"/>.
+      /// Gets or sets the <see cref="TextWriter"/> for <see cref="LogLevel.Warning"/>.
       /// By default, this is the <see cref="Console.Error"/>.
-      /// Set to <c>null</c> to disable logging done via <see cref="global::NuGet.Common.LogLevel.Warning"/>.
+      /// Set to <c>null</c> to disable logging done via <see cref="LogLevel.Warning"/>.
       /// </summary>
-      /// <value>The <see cref="TextWriter"/> for <see cref="global::NuGet.Common.LogLevel.Warning"/>.</value>
+      /// <value>The <see cref="TextWriter"/> for <see cref="LogLevel.Warning"/>.</value>
       public TextWriter WarningWriter { get; set; } = Console.Error;
    }
 }

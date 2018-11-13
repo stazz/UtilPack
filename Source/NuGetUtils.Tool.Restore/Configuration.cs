@@ -16,6 +16,7 @@
  * limitations under the License. 
  */
 using NuGet.Common;
+using NuGetUtils.Lib.Common;
 using NuGetUtils.Lib.Restore;
 using NuGetUtils.Lib.Tool;
 using System;
@@ -39,7 +40,7 @@ namespace NuGetUtils.Tool.Restore
       [Description( ValueName = "packageVersion list", Description = "The versions of the packages to be restored, IDs of which were specified using \"" + nameof( PackageIDs ) + "\" option. For each version, the normal NuGet version notation is supported. If the version is not specified, then highest floating version is assumed, thus causing queries to remote NuGet servers." )]
       public String[] PackageVersions { get; set; }
 
-      [Description( Description = "Whether to restored the SDK package (typically \"" + NuGetUtility.SDK_PACKAGE_NETCORE + "\") as well. This is useful in conjunction with nuget-exec tool. The default value is true." )]
+      [Description( Description = "Whether to restore the SDK package (typically \"" + NuGetUtility.SDK_PACKAGE_NETCORE + "\") as well. This is useful in conjunction with nuget-exec tool. The default value is true." )]
       public Boolean SkipRestoringSDKPackage { get; set; }
 
       [

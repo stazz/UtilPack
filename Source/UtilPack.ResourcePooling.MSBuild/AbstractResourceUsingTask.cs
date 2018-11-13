@@ -142,11 +142,9 @@ namespace UtilPack.ResourcePooling.MSBuild
          var retVal = factory != null;
          if ( retVal )
          {
-            Func<TResource, Task<Boolean>> func = this.UseResource;
             return await factory
                .CreateOneTimeUseResourcePool()
-               .WithoutExplicitAPI()
-               .UseResourceAsync<TResource, Boolean>( func, this.CancellationToken );
+               .UseResourceAsync( this.UseResource, this.CancellationToken );
          }
          return retVal;
       }

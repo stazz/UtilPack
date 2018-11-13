@@ -87,7 +87,7 @@ namespace UtilPack.ResourcePooling
       {
          var instanceAcquired = 0;
          TResourceInstance instance = default;
-         ResourceUsageInfo<TResource> usage = null;
+         ResourceUsageInfo<TResource> usage = default;
          return new ResourceUsageImpl<TResource>(
             async () =>
             {

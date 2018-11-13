@@ -15,15 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
+using ResourcePooling.Async.Abstractions;
+using ResourcePooling.Async.Implementation;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
-using UtilPack.ResourcePooling;
 
-namespace UtilPack.ResourcePooling
+namespace ResourcePooling.Async.Implementation
 {
    /// <summary>
    /// This class implements the <see cref="AsyncResourcePoolObservable{TResource}"/> interface in such way that the resource is disposed of after each use in <see cref="UseResourceAsync(Func{TResource, Task}, CancellationToken)"/> method.

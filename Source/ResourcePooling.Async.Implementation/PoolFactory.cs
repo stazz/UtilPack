@@ -15,15 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
+using ResourcePooling.Async.Abstractions;
+using ResourcePooling.Async.Implementation;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
-using UtilPack.ResourcePooling;
 
-namespace UtilPack.ResourcePooling
+namespace ResourcePooling.Async.Implementation
 {
    /// <summary>
    /// This delegate can be used to customize what exactly happens when taking the resource from <see cref="AsyncResourcePool{TResource}"/> which caches resources.

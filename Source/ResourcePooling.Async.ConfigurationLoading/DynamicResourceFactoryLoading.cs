@@ -17,16 +17,17 @@
  */
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
+using ResourcePooling.Async.Abstractions;
+using ResourcePooling.Async.ConfigurationLoading;
 using System;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using UtilPack.ResourcePooling;
-using UtilPack.ResourcePooling.ConfigurationLoading;
+using UtilPack;
 
-namespace UtilPack.ResourcePooling.ConfigurationLoading
+namespace ResourcePooling.Async.ConfigurationLoading
 {
    public interface ResourceFactoryDynamicCreationNuGetBasedConfiguration : ResourceFactoryDynamicCreationConfiguration
    {
@@ -218,7 +219,7 @@ namespace UtilPack.ResourcePooling.ConfigurationLoading
    }
 }
 
-public static partial class E_UtilPack
+public static partial class E_ResourcePooling
 {
    public static Task<AsyncResourceFactory<TResource>> CreateAsyncResourceFactoryUsingConfiguration<TResource>(
       this ResourceFactoryDynamicCreationNuGetBasedConfiguration configuration,

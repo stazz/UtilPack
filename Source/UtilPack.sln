@@ -33,11 +33,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.MSBuild.AsyncExec"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.TabularData", "UtilPack.TabularData\UtilPack.TabularData.csproj", "{A5C7A366-142B-4D47-956C-E96777E6B48E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.ResourcePooling", "UtilPack.ResourcePooling\UtilPack.ResourcePooling.csproj", "{7360F115-A801-43E2-AF48-F27F5FC67DD6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ResourcePooling.Async.Abstractions", "ResourcePooling.Async.Abstractions\ResourcePooling.Async.Abstractions.csproj", "{7360F115-A801-43E2-AF48-F27F5FC67DD6}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.ResourcePooling.MSBuild", "UtilPack.ResourcePooling.MSBuild\UtilPack.ResourcePooling.MSBuild.csproj", "{FB4F98E6-A94C-41F9-8808-45A3B01DBB20}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ResourcePooling.Async.MSBuild", "ResourcePooling.Async.MSBuild\ResourcePooling.Async.MSBuild.csproj", "{FB4F98E6-A94C-41F9-8808-45A3B01DBB20}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.ResourcePooling.NetworkStream", "UtilPack.ResourcePooling.NetworkStream\UtilPack.ResourcePooling.NetworkStream.csproj", "{0CC65E99-25B5-4B64-A330-9FC4BC41AE97}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ResourcePooling.Async.NetworkStream", "ResourcePooling.Async.NetworkStream\ResourcePooling.Async.NetworkStream.csproj", "{0CC65E99-25B5-4B64-A330-9FC4BC41AE97}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentCryptography.SASL", "FluentCryptography.SASL\FluentCryptography.SASL.csproj", "{D8D38563-AEE6-4244-BE8F-05C8F39E3366}"
 EndProject
@@ -49,7 +49,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Configuration.Netw
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.Tool.Exec", "NuGetUtils.Tool.Exec\NuGetUtils.Tool.Exec.csproj", "{B452ACB2-B298-482E-9999-94BD093FBB32}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.ResourcePooling.ConfigurationLoading", "UtilPack.ResourcePooling.ConfigurationLoading\UtilPack.ResourcePooling.ConfigurationLoading.csproj", "{55CD6D08-1D2C-489D-9303-3F992A74260F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ResourcePooling.Async.ConfigurationLoading", "ResourcePooling.Async.ConfigurationLoading\ResourcePooling.Async.ConfigurationLoading.csproj", "{55CD6D08-1D2C-489D-9303-3F992A74260F}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.Lib.EntryPoint", "NuGetUtils.Lib.EntryPoint\NuGetUtils.Lib.EntryPoint.csproj", "{14296039-5C39-43F9-AC03-A6E3DBBE8AF5}"
 EndProject
@@ -74,6 +74,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AsyncEnumeration.Observability.Implementation", "AsyncEnumeration.Observability.Implementation\AsyncEnumeration.Observability.Implementation.csproj", "{5CCFF0EB-937E-4E1E-B477-3DE3B69D3A9C}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.Lib.Common", "NuGetUtils.Lib.Common\NuGetUtils.Lib.Common.csproj", "{8DE7F05A-09CF-4F5E-91FC-EF3CD678A426}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ResourcePooling.Async.Implementation", "ResourcePooling.Async.Implementation\ResourcePooling.Async.Implementation.csproj", "{CC0ED6DD-16DE-48C6-A944-13A9EE1D2E65}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -225,6 +227,10 @@ Global
 		{8DE7F05A-09CF-4F5E-91FC-EF3CD678A426}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8DE7F05A-09CF-4F5E-91FC-EF3CD678A426}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8DE7F05A-09CF-4F5E-91FC-EF3CD678A426}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CC0ED6DD-16DE-48C6-A944-13A9EE1D2E65}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CC0ED6DD-16DE-48C6-A944-13A9EE1D2E65}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CC0ED6DD-16DE-48C6-A944-13A9EE1D2E65}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CC0ED6DD-16DE-48C6-A944-13A9EE1D2E65}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

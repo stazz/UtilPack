@@ -15,15 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
+using ResourcePooling.Async.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
-using UtilPack.ResourcePooling;
 
-namespace UtilPack.ResourcePooling
+namespace ResourcePooling.Async.Abstractions
 {
    /// <summary>
    /// This interface is typically entrypoint for scenarios using CBAM.

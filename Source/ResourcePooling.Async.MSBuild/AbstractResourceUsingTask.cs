@@ -19,6 +19,8 @@ using Microsoft.Build.Framework;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Primitives;
+using ResourcePooling.Async.Abstractions;
+using ResourcePooling.Async.ConfigurationLoading;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,11 +29,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
-using UtilPack.ResourcePooling;
-using UtilPack.ResourcePooling.ConfigurationLoading;
 using TNuGetPackageResolverCallback = System.Func<System.String, System.String, System.String, System.Threading.CancellationToken, System.Threading.Tasks.Task<System.Reflection.Assembly>>;
 
-namespace UtilPack.ResourcePooling.MSBuild
+namespace ResourcePooling.Async.MSBuild
 {
 
 

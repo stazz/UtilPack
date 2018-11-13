@@ -14,7 +14,7 @@
 
    <ItemGroup>
       <ProjectReference Include="..\UtilPack.Configuration.NetworkStream\UtilPack.Configuration.NetworkStream.csproj" />
-      <ProjectReference Include="..\UtilPack.ResourcePooling\UtilPack.ResourcePooling.csproj" />
+      <ProjectReference Include="..\ResourcePooling.Async.Abstractions\ResourcePooling.Async.Abstractions.csproj" />
    </ItemGroup>
 
    <PropertyGroup>

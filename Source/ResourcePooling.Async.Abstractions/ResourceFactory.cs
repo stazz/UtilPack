@@ -15,14 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
+using ResourcePooling.Async.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using UtilPack.ResourcePooling;
+using UtilPack;
 
-namespace UtilPack.ResourcePooling
+namespace ResourcePooling.Async.Abstractions
 {
    /// <summary>
    /// This interface allows the <see cref="AsyncResourceFactory{TResource, TParams}"/> itself and <see cref="AsyncResourcePool{TResource}"/> to clean up the state factory possibly has.
@@ -402,7 +403,7 @@ namespace UtilPack.ResourcePooling
       /// <param name="publicResource">The public resource.</param>
       /// <param name="privateResource">The private resource or other disposable object.</param>
       /// <param name="setCancellationToken">The callback to set cancellation token to some external resource. Will be invoked in this constructor.</param>
-      /// <param name="resetCancellationToken">The callback to reset cancellation token to some external resource. Will be invoked in <see cref="AbstractDisposable.Dispose(bool)"/> method.</param>
+      /// <param name="resetCancellationToken">The callback to reset cancellation token to some external resource. Will be invoked in <see cref="AbstractDisposable.Dispose(Boolean)"/> method.</param>
       /// <exception cref="ArgumentNullException">If <paramref name="publicResource"/> or <paramref name="privateResource"/> is <c>null</c>.</exception>
       public AsyncResourceAcquireInfoImpl(
          TPublicResource publicResource,
@@ -537,7 +538,7 @@ namespace UtilPack.ResourcePooling
    }
 
    /// <summary>
-   /// This class provides implementation for <see cref="ResourceUsageInfo{TResource}"/> where the constructor invokes callback to set cancellation token, and <see cref="Dispose(bool)"/> method invokes callback to reset cancellation token.
+   /// This class provides implementation for <see cref="ResourceUsageInfo{TResource}"/> where the constructor invokes callback to set cancellation token, and <see cref="Dispose(Boolean)"/> method invokes callback to reset cancellation token.
    /// </summary>
    /// <typeparam name="TResource">The type of useable resource.</typeparam>
    public class CancelableResourceUsageInfo<TResource> : AbstractDisposable, ResourceUsageInfo<TResource>
@@ -554,7 +555,7 @@ namespace UtilPack.ResourcePooling
       /// <param name="token">The <see cref="CancellationToken"/>.</param>
       /// <param name="registration">The <see cref="CancellationTokenRegistration"/> associated with this <see cref="CancelableResourceUsageInfo{TResource}"/>.</param>
       /// <param name="setCancellationToken">The callback to set cancellation token to some external resource. Will be invoked in this constructor.</param>
-      /// <param name="resetCancellationToken">The callback to reset cancellation token to some external resource. Will be invoked in <see cref="Dispose(bool)"/> method.</param>
+      /// <param name="resetCancellationToken">The callback to reset cancellation token to some external resource. Will be invoked in <see cref="Dispose(Boolean)"/> method.</param>
       public CancelableResourceUsageInfo(
          TResource resource,
          CancellationToken token,
@@ -597,7 +598,7 @@ namespace UtilPack.ResourcePooling
    }
 }
 
-public static partial class E_UtilPack
+public static partial class E_ResourcePooling
 {
    ///// <summary>
    ///// Asynchronously creates a new instance of resource with given parameters.

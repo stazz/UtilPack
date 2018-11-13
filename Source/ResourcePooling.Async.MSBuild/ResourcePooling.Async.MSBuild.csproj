@@ -16,7 +16,8 @@
    </ItemGroup>
 
    <ItemGroup>
-     <ProjectReference Include="..\UtilPack.ResourcePooling.ConfigurationLoading\UtilPack.ResourcePooling.ConfigurationLoading.csproj" />
+     <ProjectReference Include="..\ResourcePooling.Async.ConfigurationLoading\ResourcePooling.Async.ConfigurationLoading.csproj" />
+      <ProjectReference Include="..\ResourcePooling.Async.Implementation\ResourcePooling.Async.Implementation.csproj" />
    </ItemGroup>
 
   <!-- Assembly information stuff -->

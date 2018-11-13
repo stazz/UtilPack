@@ -16,14 +16,8 @@
  * limitations under the License. 
  */
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
-namespace UtilPack.Configuration.NetworkStream
+namespace NetworkUtils.Configuration
 {
    /// <summary>
    /// This class extends <see cref="NetworkConnectionCreationInfo{TCreationData, TConnectionConfiguration, TInitializationConfiguration, TProtocolConfiguration, TPoolingConfiguration}"/> to add possibility for protocol-level authentication configuration.

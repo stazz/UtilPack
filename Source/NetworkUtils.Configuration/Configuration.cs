@@ -16,18 +16,15 @@
  * limitations under the License. 
  */
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Net;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
+using System.Net;
 
 #if !NETSTANDARD1_0
 using System.Security.Authentication;
 #endif
 
-namespace UtilPack.Configuration.NetworkStream
+namespace NetworkUtils.Configuration
 {
    /// <summary>
    /// This class represents typical creation parameters for resource pools using some kind of network protocol.
@@ -67,7 +64,7 @@ namespace UtilPack.Configuration.NetworkStream
                Stream stream,
                String targetHost,
                System.Security.Cryptography.X509Certificates.X509CertificateCollection clientCertificates,
-               System.Security.Authentication.SslProtocols enabledSslProtocols,
+               SslProtocols enabledSslProtocols,
                Boolean checkCertificateRevocation
             ) =>
             {
@@ -98,7 +95,7 @@ namespace UtilPack.Configuration.NetworkStream
 #endif
 
 #if !NETSTANDARD1_0 && !NETSTANDARD1_3
-         this.DNSResolve = (host) =>
+         this.DNSResolve = ( host ) =>
 #if NET40
             Task.Factory.FromAsync(
                ( hostArg, cb, state ) => Dns.BeginGetHostAddresses( hostArg, cb, state ),

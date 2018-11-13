@@ -22,7 +22,7 @@ using System.Text;
 using System.Threading.Tasks;
 using UtilPack;
 
-namespace NuGetUtils.Lib.Restore
+namespace NuGetUtils.Lib.Common
 {
    /// <summary>
    /// During restore for agnostic framework, there will be two error messages that package is not compatible with Agnostic framework.

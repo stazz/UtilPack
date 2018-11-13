@@ -19,6 +19,7 @@ using NuGet.Frameworks;
 using NuGet.Packaging;
 using NuGet.ProjectModel;
 using NuGetUtils.Lib.AssemblyResolving;
+using NuGetUtils.Lib.Common;
 using NuGetUtils.Lib.Restore;
 using System;
 using System.Collections.Concurrent;

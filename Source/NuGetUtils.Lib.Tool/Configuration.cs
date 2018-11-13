@@ -17,6 +17,7 @@
  */
 using NuGet.Common;
 using NuGet.ProjectModel;
+using NuGetUtils.Lib.Common;
 using NuGetUtils.Lib.Restore;
 using System;
 

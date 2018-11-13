@@ -1,5 +1,6 @@
 ﻿using NuGet.Common;
 using NuGet.Frameworks;
+using NuGetUtils.Lib.Common;
 using NuGetUtils.Lib.Restore;
 using System;
 using System.Collections.Generic;

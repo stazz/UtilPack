@@ -65,7 +65,7 @@
     <Compile Include="NuGetTaskRunnerFactory.NET.cs" />
     <Compile Include="NuGetTaskRunnerFactory.NETCore.cs" />
     <Compile Include="..\NuGetUtils.Lib.AssemblyResolving\NuGetAssemblyResolver.cs" Link="NuGetUtils.Lib.AssemblyResolving.NuGetAssemblyResolver.cs" />
-    <Compile Include="..\NuGetUtils.Lib.Restore\Frameworks.cs" Link="NuGetUtils.Lib.Restore.Frameworks.cs" />
+    <Compile Include="..\NuGetUtils.Lib.Common\NuGetUtility.cs" Link="NuGetUtils.Lib.Common.NuGetUtility.cs" />
     <Compile Include="..\NuGetUtils.Lib.Restore\Restoring.cs" Link="NuGetUtils.Lib.Restore.Restoring.cs" />
     <Compile Include="..\UtilPack\Asynchrony.cs" Link="UtilPack.Asynchrony.cs" />
     <Compile Include="..\UtilPack\Events.cs" Link="UtilPack.Events.cs" />

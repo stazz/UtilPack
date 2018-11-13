@@ -17,7 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NuGetUtils.Lib.MSBuild\NuGetUtils.Lib.MSBuild.csproj" />
-    <ProjectReference Include="..\NuGetUtils.Lib.Restore\NuGetUtils.Lib.Restore.csproj" />
+    <ProjectReference Include="..\NuGetUtils.Lib.Common\NuGetUtils.Lib.Common.csproj" />
   </ItemGroup>
 
   <!-- Assembly information stuff -->

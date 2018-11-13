@@ -24,6 +24,7 @@ using NuGet.ProjectModel;
 using NuGet.RuntimeModel;
 using NuGet.Versioning;
 using NuGetUtils.Lib.AssemblyResolving;
+using NuGetUtils.Lib.Common;
 using NuGetUtils.Lib.MSBuild;
 using NuGetUtils.Lib.Restore;
 using System;

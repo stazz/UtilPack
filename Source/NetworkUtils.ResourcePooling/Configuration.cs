@@ -15,7 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
-using ResourcePooling.Async.NetworkStream;
+using NetworkUtils.Configuration;
+using NetworkUtils.ResourcePooling;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -25,10 +26,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
-using UtilPack.Configuration.NetworkStream;
 using TNetworkStream = System.Net.Sockets.NetworkStream;
 
-namespace ResourcePooling.Async.NetworkStream
+namespace NetworkUtils.ResourcePooling
 {
 
    /// <summary>

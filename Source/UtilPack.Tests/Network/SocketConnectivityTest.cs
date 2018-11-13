@@ -16,13 +16,13 @@
  * limitations under the License. 
  */
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using ResourcePooling.Async.NetworkStream;
+using NetworkUtils.Configuration;
+using NetworkUtils.ResourcePooling;
 using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using UtilPack.Configuration.NetworkStream;
 
 namespace UtilPack.Tests.Network
 {

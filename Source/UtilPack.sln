@@ -37,7 +37,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ResourcePooling.Async.Abstr
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ResourcePooling.Async.MSBuild", "ResourcePooling.Async.MSBuild\ResourcePooling.Async.MSBuild.csproj", "{FB4F98E6-A94C-41F9-8808-45A3B01DBB20}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ResourcePooling.Async.NetworkStream", "ResourcePooling.Async.NetworkStream\ResourcePooling.Async.NetworkStream.csproj", "{0CC65E99-25B5-4B64-A330-9FC4BC41AE97}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetworkUtils.ResourcePooling", "NetworkUtils.ResourcePooling\NetworkUtils.ResourcePooling.csproj", "{0CC65E99-25B5-4B64-A330-9FC4BC41AE97}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentCryptography.SASL", "FluentCryptography.SASL\FluentCryptography.SASL.csproj", "{D8D38563-AEE6-4244-BE8F-05C8F39E3366}"
 EndProject
@@ -45,7 +45,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FluentCryptography.SASL.SCR
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Logging", "UtilPack.Logging\UtilPack.Logging.csproj", "{6BB0EB38-7766-4C4A-8D57-BA594F85FC46}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Configuration.NetworkStream", "UtilPack.Configuration.NetworkStream\UtilPack.Configuration.NetworkStream.csproj", "{3D166A33-E02B-4368-93A7-B18B00505AF3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetworkUtils.Configuration", "NetworkUtils.Configuration\NetworkUtils.Configuration.csproj", "{3D166A33-E02B-4368-93A7-B18B00505AF3}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetUtils.Tool.Exec", "NuGetUtils.Tool.Exec\NuGetUtils.Tool.Exec.csproj", "{B452ACB2-B298-482E-9999-94BD093FBB32}"
 EndProject

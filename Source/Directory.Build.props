@@ -17,7 +17,7 @@
     <PackageProjectUrl>https://github.com/stazz/$(Product)</PackageProjectUrl>
     <RepositoryUrl>$(PackageProjectUrl)/tree/develop/Source/$(MSBuildProjectName)</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <!--<PackageLicenseUrl>https://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>-->
+    <license type="expression">Apache-2.0</license>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
   </PropertyGroup>
   

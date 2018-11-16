@@ -1,8 +1,0 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <PropertyGroup>
-    <NuGetUtilsMSBuildExecToolsRootPath Condition=" '$(NuGetUtilsMSBuildExecToolsRootPath)' == '' ">$(MSBuildThisFileDirectory)\..\build\</NuGetUtilsMSBuildExecToolsRootPath>
-    <NuGetUtilsMSBuildExecToolsSubPath Condition=" '$(MSBuildRuntimeType)' == 'Core' ">netcoreapp1.1\</NuGetUtilsMSBuildExecToolsSubPath>
-    <NuGetUtilsMSBuildExecToolsSubPath Condition=" '$(MSBuildRuntimeType)' != 'Core' ">net46\</NuGetUtilsMSBuildExecToolsSubPath>
-    <NuGetUtilsMSBuildExecAssemblyPath Condition=" '$(NuGetUtilsMSBuildExecAssemblyPath)' == '' ">$(NuGetUtilsMSBuildExecToolsRootPath)$(NuGetUtilsMSBuildExecToolsSubPath)NuGetUtils.MSBuild.Exec.dll</NuGetUtilsMSBuildExecAssemblyPath>
-  </PropertyGroup>
-</Project>

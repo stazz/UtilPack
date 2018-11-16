@@ -15,31 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-using NuGet.Commands;
-using NuGet.Common;
-using NuGet.Configuration;
-using NuGet.DependencyResolver;
-using NuGet.Frameworks;
-using NuGet.LibraryModel;
-using NuGet.Packaging;
-using NuGet.ProjectModel;
-using NuGet.Protocol;
-using NuGet.Protocol.Core.Types;
-using NuGet.Repositories;
-using NuGet.Versioning;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Runtime.Loader;
-using System.Text;
-using System.Threading.Tasks;
+//using Microsoft.VisualStudio.TestTools.UnitTesting;
+//using NuGet.Commands;
+//using NuGet.Common;
+//using NuGet.Configuration;
+//using NuGet.DependencyResolver;
+//using NuGet.Frameworks;
+//using NuGet.LibraryModel;
+//using NuGet.Packaging;
+//using NuGet.ProjectModel;
+//using NuGet.Protocol;
+//using NuGet.Protocol.Core.Types;
+//using NuGet.Repositories;
+//using NuGet.Versioning;
+//using System;
+//using System.Collections.Generic;
+//using System.IO;
+//using System.Linq;
+//using System.Reflection;
+//using System.Runtime.Loader;
+//using System.Text;
+//using System.Threading.Tasks;
 
 namespace UtilPack.Tests.NuGet
 {
-   [TestClass]
+   //[TestClass]
    public class NuGetAssemblyResolveTest
    {
 

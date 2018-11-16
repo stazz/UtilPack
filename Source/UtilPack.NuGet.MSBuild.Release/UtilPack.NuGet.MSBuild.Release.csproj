@@ -9,6 +9,13 @@
     <TargetFrameworks Condition=" '$(TargetFramework)' == '' ">net46;netcoreapp1.1</TargetFrameworks>
     <ActualAssemblyName>UtilPack.NuGet.MSBuild</ActualAssemblyName>
   </PropertyGroup>
+  
+  <PropertyGroup Condition=" '$(NuGetTargetVersion)' != '' " >
+    <NuGetTargetVersionDashIndex>$(NuGetTargetVersion.IndexOf('-'))</NuGetTargetVersionDashIndex>
+    <NuGetVersionPlain Condition=" '$(NuGetTargetVersionDashIndex)' != '-1' " >$(NuGetTargetVersion.Substring(0, $(NuGetTargetVersion.IndexOf('-'))))</NuGetVersionPlain>
+    <NuGetVersionPlain Condition=" '$(NuGetVersionPlain)' == ''">$(NuGetTargetVersion)</NuGetVersionPlain>
+    <DefineConstants>$(DefineConstants);NUGET_$(NuGetVersionPlain.Replace('.', ''))</DefineConstants>
+  </PropertyGroup>
 
   <PropertyGroup>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
@@ -27,8 +34,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(NuGetTargetVersion)' != '' ">
-    <AssemblyName Condition=" '$(TargetFramework)' != 'net46' ">$(ActualAssemblyName).NuGet.$(NuGetTargetVersion)</AssemblyName>
-    <DefineConstants>$(DefineConstants);NUGET_$(NuGetTargetVersion.Replace('.', ''))</DefineConstants>
+    <AssemblyName Condition=" '$(TargetFramework)' != 'net46' ">$(ActualAssemblyName).NuGet.$(NuGetVersionPlain)</AssemblyName>
   </PropertyGroup>
   
   <PropertyGroup Condition=" '$(NuGetTargetVersion)' == '' or '$(TargetFramework)' == 'net46' ">

@@ -49,6 +49,10 @@ LocalPackageFileCache
          ;
 #endif
 
+#if !NUGET_430 && !NUGET_440 && !NUGET_450 && !NUGET_460 && !NUGET_470 && !NUGET_480
+using NuGet.Packaging.Signing;
+#endif
+
 
 namespace UtilPack.NuGet
 {
@@ -90,12 +94,16 @@ namespace UtilPack.NuGet
       private readonly ConcurrentDictionary<String, ConcurrentDictionary<NuGetVersion, RestoreResult>> _allLockFiles;
       private readonly Boolean _disposeSourceCacheContext;
 
+#if !NUGET_430 && !NUGET_440 && !NUGET_450 && !NUGET_460 && !NUGET_470 && !NUGET_480
+      private readonly ClientPolicyContext _clientPolicyContext;
+#endif
+
       /// <summary>
       /// Creates new instance of <see cref="BoundRestoreCommandUser"/> with given parameters.
       /// </summary>
       /// <param name="nugetSettings">The settings to use.</param>
       /// <param name="thisFramework">The framework to bind to.</param>
-      /// <param name="runtimeIdentifier">The runtime identifier. Will be used by <see cref="E_UtilPack.ExtractAssemblyPaths{TResult}(BoundRestoreCommandUser, LockFile, Func{string, IEnumerable{string}, TResult}, GetFileItemsDelegate, IEnumerable{string})"/> method.</param>
+      /// <param name="runtimeIdentifier">The runtime identifier. Will be used by <see cref="E_UtilPack.ExtractAssemblyPaths{TResult}(BoundRestoreCommandUser, LockFile, Func{String, IEnumerable{String}, TResult}, GetFileItemsDelegate, IEnumerable{String})"/> method.</param>
       /// <param name="runtimeGraph">Optional value indicating runtime graph information: either <see cref="global::NuGet.RuntimeModel.RuntimeGraph"/> directly, or <see cref="String"/> containing package ID of package holding <c>runtime.json</c> file, containing serialized runtime graph definition. If neither is specified, then <c>"Microsoft.NETCore.Platforms"</c> package ID used to locate <c>runtime.json</c> file, as per <see href="https://docs.microsoft.com/en-us/dotnet/core/rid-catalog">official documentation</see>.</param>
       /// <param name="nugetLogger">The logger to use in restore command.</param>
       /// <param name="sourceCacheContext">The optional <see cref="SourceCacheContext"/> to use.</param>
@@ -111,6 +119,9 @@ namespace UtilPack.NuGet
          SourceCacheContext sourceCacheContext = null,
 #if !NUGET_430
          TLocalNuspecCache nuspecCache = null,
+#if !NUGET_430 && !NUGET_440 && !NUGET_450 && !NUGET_460 && !NUGET_470 && !NUGET_480
+         ClientPolicyContext clientPolicyContext = null,
+#endif
 #endif
          Boolean leaveSourceCacheOpen = false
          )
@@ -175,6 +186,9 @@ namespace UtilPack.NuGet
             }, LazyThreadSafetyMode.ExecutionAndPublication );
 
          this._allLockFiles = new ConcurrentDictionary<String, ConcurrentDictionary<NuGetVersion, RestoreResult>>();
+#if !NUGET_430 && !NUGET_440 && !NUGET_450 && !NUGET_460 && !NUGET_470 && !NUGET_480
+         this._clientPolicyContext = clientPolicyContext ?? ClientPolicyContext.GetClientPolicy( nugetSettings, nugetLogger );
+#endif
       }
 
       /// <summary>
@@ -320,6 +334,9 @@ namespace UtilPack.NuGet
             this.CreatePackageSpec( targets ),
             this._restoreCommandProvider,
             this._cacheContext,
+#if !NUGET_430 && !NUGET_440 && !NUGET_450 && !NUGET_460 && !NUGET_470 && !NUGET_480
+            this._clientPolicyContext,
+#endif
             this.NuGetLogger
             )
          {

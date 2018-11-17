@@ -16,6 +16,7 @@
  * limitations under the License. 
  */
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using TTypeInfo =
 #if NET40
@@ -27,6 +28,12 @@ using TTypeInfo =
 
 namespace AsyncEnumeration.Abstractions
 {
+   public interface IAsyncEnumerable
+   {
+      IAsyncProvider AsyncProvider { get; }
+
+   }
+
    public partial interface IAsyncProvider
    {
 

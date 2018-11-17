@@ -15,18 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
+using AsyncEnumeration.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace AsyncEnumeration.Abstractions
+namespace System.Collections.Generic
 {
-   public interface IAsyncEnumerable
-   {
-      IAsyncProvider AsyncProvider { get; }
-
-   }
-
    /// <summary>
    /// This interface mimics <see cref="IEnumerable{T}"/> for enumerables which must perform asynchronous waiting when moving to next item.
    /// </summary>

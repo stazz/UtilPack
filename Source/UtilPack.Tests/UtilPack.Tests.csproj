@@ -28,8 +28,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NetworkUtils.ResourcePooling\NetworkUtils.ResourcePooling.csproj" />
-    <ProjectReference Include="..\ResourcePooling.Async.Implementation\ResourcePooling.Async.Implementation.csproj" />
     <ProjectReference Include="..\UtilPack\UtilPack.csproj" />
     <ProjectReference Include="..\UtilPack.JSON\UtilPack.JSON.csproj" />
   </ItemGroup>

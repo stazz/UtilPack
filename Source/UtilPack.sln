@@ -15,11 +15,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.MSBuild.AsyncExec"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.TabularData", "UtilPack.TabularData\UtilPack.TabularData.csproj", "{A5C7A366-142B-4D47-956C-E96777E6B48E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetworkUtils.ResourcePooling", "NetworkUtils.ResourcePooling\NetworkUtils.ResourcePooling.csproj", "{0CC65E99-25B5-4B64-A330-9FC4BC41AE97}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Logging", "UtilPack.Logging\UtilPack.Logging.csproj", "{6BB0EB38-7766-4C4A-8D57-BA594F85FC46}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetworkUtils.Configuration", "NetworkUtils.Configuration\NetworkUtils.Configuration.csproj", "{3D166A33-E02B-4368-93A7-B18B00505AF3}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Documentation", "UtilPack.Documentation\UtilPack.Documentation.csproj", "{F0606F42-2A0E-40BB-B7AE-691EB5995A9D}"
 EndProject

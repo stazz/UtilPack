@@ -16,13 +16,13 @@
  * limitations under the License. 
  */
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using ResourcePooling.Async.Abstractions;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
-using UtilPack.ResourcePooling;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Linq;
 
 namespace UtilPack.Tests.ResourcePooling
 {
@@ -42,7 +42,7 @@ namespace UtilPack.Tests.ResourcePooling
             .Select( unused => pool.UseResourceAsync( async resource =>
             {
                await Task.Delay( 50 );
-            } )
+            }, default )
             )
             .ToArray()
             );

@@ -28,10 +28,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AsyncEnumeration.Implementation.Enumerable\AsyncEnumeration.Implementation.Enumerable.csproj" />
-    <ProjectReference Include="..\AsyncEnumeration.Implementation.Provider\AsyncEnumeration.Implementation.Provider.csproj" />
     <ProjectReference Include="..\FluentCryptography.SASL.SCRAM\FluentCryptography.SASL.SCRAM.csproj" />
     <ProjectReference Include="..\NetworkUtils.ResourcePooling\NetworkUtils.ResourcePooling.csproj" />
+    <ProjectReference Include="..\ResourcePooling.Async.Implementation\ResourcePooling.Async.Implementation.csproj" />
     <ProjectReference Include="..\UtilPack\UtilPack.csproj" />
     <ProjectReference Include="..\UtilPack.JSON\UtilPack.JSON.csproj" />
   </ItemGroup>

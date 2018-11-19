@@ -14,6 +14,7 @@ cp "${SCRIPTDIR}/NuGet.Config" "${GIT_ROOT}/NuGet.Config.ci"
 # Create key
 # echo "${ASSEMBLY_SIGN_KEY}" | base64 -d > "${SCRIPTDIR}/Keys/UtilPack.snk"
 
+# find "${GIT_ROOT}/Source" -type f -name '*.csproj' -maxdepth 2
 # Build within docker
 docker run \
   --rm \

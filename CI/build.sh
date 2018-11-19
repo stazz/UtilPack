@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -xe
 
 # Find out the path and directory where this script resides
 SCRIPTPATH=$(readlink -f "$0")

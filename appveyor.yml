@@ -4,11 +4,9 @@ services:
   - docker
 cache:
   - '/nuget_package_dir'
+  - '/var/lib/docker'
 build_script:
-  - sh: >-
-      sudo ls -al /var/lib/docker
-    
-      ${APPVEYOR_BUILD_FOLDER}/CI/build.sh
+  - sh: '${APPVEYOR_BUILD_FOLDER}/CI/build.sh'
 
 test_script:
   - sh: '${APPVEYOR_BUILD_FOLDER}/CI/test.sh'

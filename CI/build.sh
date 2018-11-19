@@ -5,7 +5,7 @@ set -xe
 # Find out the path and directory where this script resides
 SCRIPTPATH=$(readlink -f "$0")
 SCRIPTDIR=$(dirname "$SCRIPTPATH")
-GIT_ROOT=$(readlink -f "${SCRIPTPATH}/.." )
+GIT_ROOT=$(readlink -f "${SCRIPTDIR}/..")
 
 # Copy required files to GIT root
 cp "${SCRIPTDIR}/CISupport.props" "${GIT_ROOT}/CISupport.props"
@@ -15,7 +15,7 @@ cp "${SCRIPTDIR}/NuGet.config" "${GIT_ROOT}/NuGet.Config.ci"
 docker run \
   --rm \
   -v "${GIT_ROOT}/:/repo-dir/contents/:ro" \
-  -v "/output/:/repo-dir/BuildTarget/:rw" \
+  -v "${CS_OUTPUT}:/repo-dir/BuildTarget/:rw" \
   -v "${GIT_ROOT}/NuGet.config.ci:/root/.nuget/NuGet/NuGet.Config:ro" \
   -v "/nuget_package_dir/:/root/.nuget/packages/:rw" \
   microsoft/dotnet:2.1-sdk-alpine \

@@ -5,6 +5,8 @@ services:
 cache:
 #  - '/nuget_package_dir'
   - '/var/lib/docker'
+init:
+  - sh: git config --global core.autocrlf false
 build_script:
   - sh: '${APPVEYOR_BUILD_FOLDER}/CI/build.sh'
 

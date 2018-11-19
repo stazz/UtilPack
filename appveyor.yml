@@ -3,7 +3,7 @@ image: Ubuntu1804
 services:
   - docker
 cache:
-  - '/nuget_package_dir'
+#  - '/nuget_package_dir'
   - '/var/lib/docker'
 build_script:
   - sh: '${APPVEYOR_BUILD_FOLDER}/CI/build.sh'

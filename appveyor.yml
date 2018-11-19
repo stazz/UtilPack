@@ -5,7 +5,13 @@ services:
 cache:
   - '/nuget_package_dir'
 build_script:
-- sh: >-
-    ls -al /var/lib/docker
+  - sh: >-
+      sudo ls -al /var/lib/docker
     
-    docker run --rm -v "${APPVEYOR_BUILD_FOLDER}/:/repo-dir/contents/:ro" -v "/output/:/repo-dir/BuildTarget/:rw" -v "${APPVEYOR_BUILD_FOLDER}/Source/NuGet.config.ci:/root/.nuget/NuGet/NuGet.Config:ro" -v "/nuget_package_dir/:/root/.nuget/packages/:rw" microsoft/dotnet:2.1-sdk-alpine dotnet build '/p:Configuration=Release' '/p:IsCIBuild=true' '/t:Build;Pack' '/repo-dir/contents/Source/UtilPack.Logging'
+      ${APPVEYOR_BUILD_FOLDER}/CI/build.sh
+
+test_script:
+  - sh: '${APPVEYOR_BUILD_FOLDER}/CI/test.sh'
+  
+deploy_script:
+  - sh: '${APPVEYOR_BUILD_FOLDER}/CI/test.sh'

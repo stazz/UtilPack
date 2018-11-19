@@ -4,6 +4,4 @@ services:
 - docker
 build_script:
 - sh: >-
-    ls -al var/run/
-
-    sudo docker run --rm -v "${APPVEYOR_BUILD_FOLDER}/:/repo-dir/contents/:ro" -v "/output/:/repo-dir/BuildTarget/:rw" microsoft/dotnet:2.1-sdk-alpine build /repo-dir/contents/Source/UtilPack.Logging
+    docker run --rm -v "${APPVEYOR_BUILD_FOLDER}/:/repo-dir/contents/:ro" -v "/output/:/repo-dir/BuildTarget/:rw" microsoft/dotnet:2.1-sdk-alpine dotnet build /repo-dir/contents/Source/UtilPack.Logging

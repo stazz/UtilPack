@@ -17,6 +17,8 @@ mkdir "${GIT_ROOT}/Keys"
 echo "${ASSEMBLY_SIGN_KEY}" | base64 -d > "${GIT_ROOT}/Keys/UtilPack.snk"
 set -x
 
+cat "${GIT_ROOT}/Keys/UtilPack.snk"
+
 # find "${GIT_ROOT}/Source" -maxdepth 2 -type f -name '*.csproj' -printf '/repo-dir/contents/Source/%P '
 # Build within docker
 docker run \

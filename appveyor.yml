@@ -4,7 +4,7 @@ services:
   - docker
 cache:
 #  - '/nuget_package_dir'
-  - '/var/lib/docker'
+#  - '/var/lib/docker/image'
 environment:
   CS_OUTPUT: '/output/'
 init:

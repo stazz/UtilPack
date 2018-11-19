@@ -20,6 +20,7 @@ ls -al "${GIT_ROOT}/Keys"
 
 # cat "${GIT_ROOT}/Keys/UtilPack.snk"
 
+
 # find "${GIT_ROOT}/Source" -maxdepth 2 -type f -name '*.csproj' -printf '/repo-dir/contents/Source/%P '
 # Build within docker
 docker run \

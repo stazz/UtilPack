@@ -23,10 +23,11 @@ docker run \
   -v "/nuget_package_dir/:/root/.nuget/packages/:rw" \
   -u 0 \
   microsoft/dotnet:2.1-sdk-alpine \
-  dotnet \
-  build \
-  '/p:Configuration=Release' \
-  '/p:IsCIBuild=true' \
-  '/t:Build;Pack' \
-  '/repo-dir/contents/Source/UtilPack.Logging'
+  ls -al /root/.nuget/NuGet/NuGet.Config
+  # dotnet \
+  #build \
+  #'/p:Configuration=Release' \
+  #'/p:IsCIBuild=true' \
+  #'/t:Build;Pack' \
+  #'/repo-dir/contents/Source/UtilPack.Logging'
 

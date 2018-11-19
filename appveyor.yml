@@ -7,13 +7,19 @@ cache:
 #  - '/var/lib/docker/image'
 environment:
   CS_OUTPUT: '/output/'
+  CI_FOLDER: 'CI'
+  
+artifacts:
+  - path: '/output/bin/*/Release/*.nupkg'
 init:
   - sh: git config --global core.autocrlf false
+# install:
+#   - sh: git submodule update --init --recursive
 build_script:
-  - sh: '${APPVEYOR_BUILD_FOLDER}/CI/build.sh'
+  - sh: '${APPVEYOR_BUILD_FOLDER}/${CI_FOLDER}/build.sh'
 
 test_script:
-  - sh: '${APPVEYOR_BUILD_FOLDER}/CI/test.sh'
+  - sh: '${APPVEYOR_BUILD_FOLDER}/${CI_FOLDER}/test.sh'
   
 deploy_script:
-  - sh: '${APPVEYOR_BUILD_FOLDER}/CI/test.sh'
+  - sh: '${APPVEYOR_BUILD_FOLDER}/${CI_FOLDER}/test.sh'

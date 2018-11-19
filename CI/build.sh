@@ -12,9 +12,11 @@ cp "${SCRIPTDIR}/CISupport.props" "${GIT_ROOT}/CISupport.props"
 cp "${SCRIPTDIR}/NuGet.Config" "${GIT_ROOT}/NuGet.Config.ci"
 
 # Create key
-# echo "${ASSEMBLY_SIGN_KEY}" | base64 -d > "${SCRIPTDIR}/Keys/UtilPack.snk"
+set +x
+echo "${ASSEMBLY_SIGN_KEY}" | base64 -d > "${SCRIPTDIR}/Keys/UtilPack.snk"
+set -x
 
-# find "${GIT_ROOT}/Source" -type f -name '*.csproj' -maxdepth 2
+# find "${GIT_ROOT}/Source" -maxdepth 2 -type f -name '*.csproj' -printf '/repo-dir/contents/Source/%P '
 # Build within docker
 docker run \
   --rm \

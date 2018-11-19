@@ -13,8 +13,8 @@ cp "${SCRIPTDIR}/NuGet.Config" "${GIT_ROOT}/NuGet.Config.ci"
 
 # Create key
 set +x
-mkdir "${SCRIPTDIR}/Keys"
-echo "${ASSEMBLY_SIGN_KEY}" | base64 -d > "${SCRIPTDIR}/Keys/UtilPack.snk"
+mkdir "${GIT_ROOT}/Keys"
+echo "${ASSEMBLY_SIGN_KEY}" | base64 -d > "${GIT_ROOT}/Keys/UtilPack.snk"
 set -x
 
 # find "${GIT_ROOT}/Source" -maxdepth 2 -type f -name '*.csproj' -printf '/repo-dir/contents/Source/%P '

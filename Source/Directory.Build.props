@@ -32,21 +32,5 @@
     <DebugSymbols>False</DebugSymbols>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
-  
-  <PropertyGroup Condition=" '$(IsCIBuild)' == 'true' ">
-    <CIPropsFilePath>$([MSBuild]::GetPathOfFileAbove('CISupport.props'))</CIPropsFilePath>
-  </PropertyGroup>
-  
-  <!--<Import
-    Project="$([MSBuild]::GetPathOfFileAbove('CISupport.props'))"
-    Condition=" Exists('$([MSBuild]::GetPathOfFileAbove(CISupport.props))') "
-    /> -->
-    <!-- Support for building with dotnet in Linux -->
-  <!--<ItemGroup Condition=" '$(IsCIBuild)' == 'true' and '$(TargetFramework)' == 'net45' ">
-    <PackageReference Include="Microsoft.TargetingPack.NETFramework.v4.5" Version="1.0.1" ExcludeAssets="All" PrivateAssets="All" />
-  </ItemGroup>
-  <PropertyGroup Condition=" '$(IsCIBuild)' == 'true' and '$(TargetFramework)' == 'net45' ">
-    <FrameworkPathOverride>$(NuGetPackageRoot)microsoft.targetingpack.netframework.v4.5\1.0.1\lib\net45\</FrameworkPathOverride>
-  </PropertyGroup>-->
 
 </Project>

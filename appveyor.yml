@@ -2,6 +2,8 @@ version: 1.0.{build}
 image: Ubuntu1804
 services:
 - docker
+cache:
+  - '/nuget_package_dir'
 build_script:
 - sh: >-
-    docker run --rm -v "${APPVEYOR_BUILD_FOLDER}/:/repo-dir/contents/:ro" -v "/output/:/repo-dir/BuildTarget/:rw" microsoft/dotnet:2.1-sdk-alpine dotnet build /repo-dir/contents/Source/UtilPack.Logging
+    docker run --rm -v "${APPVEYOR_BUILD_FOLDER}/:/repo-dir/contents/:ro" -v "/output/:/repo-dir/BuildTarget/:rw" -v "${APPVEYOR_BUILD_FOLDER}/Source/NuGet.config.ci:/root/.nuget/NuGet/NuGet.Config:ro" -v "/nuget_package_dir/:/root/.nuget/packages/:rw" microsoft/dotnet:2.1-sdk-alpine dotnet build /p:Configuration=Release /p:IsCIBuild=true /t:Build;Pack /repo-dir/contents/Source/UtilPack.Logging

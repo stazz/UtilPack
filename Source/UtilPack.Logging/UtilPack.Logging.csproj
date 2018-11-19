@@ -35,5 +35,5 @@
       <Title>Metadata-Based Logging</Title>
    </PropertyGroup>
 
-
+  <Import Project="$(CIPropsFilePath)" Condition=" '$(CIPropsFilePath)' != '' and Exists('$(CIPropsFilePath)') " />
 </Project>

@@ -19,7 +19,8 @@ init:
 install:
 #   - sh: git submodule update --init --recursive
   - sh: 'mkdir "${APPVEYOR_BUILD_FOLDER}/git"'
-  - sh: 'find "${APPVEYOR_BUILD_FOLDER}" -mindepth 1 -maxdepth 1 -exec mv -t "${APPVEYOR_BUILD_FOLDER}/git" {} +'
+  - sh: 'find "${APPVEYOR_BUILD_FOLDER}" -mindepth 1 -maxdepth 1 -not -name "git" -exec mv -t "${APPVEYOR_BUILD_FOLDER}/git" {} +'
+  - sh: 'ls -al "${APPVEYOR_BUILD_FOLDER}"'
 #  - sh: 'mv "${APPVEYOR_BUILD_FOLDER}/*" "${APPVEYOR_BUILD_FOLDER}/git/"'
 build_script:
   - sh: '"${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/build.sh"'

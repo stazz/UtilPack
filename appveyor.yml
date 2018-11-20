@@ -3,14 +3,16 @@ image: Ubuntu1804
 services:
   - docker
 cache:
-#  - '/nuget_package_dir'
+  - '${NUGET_PACKAGE_DIR}'
 #  - '/var/lib/docker/image'
 environment:
+  NUGET_PACKAGE_DIR: '"${APPVEYOR_BUILD_FOLDER}/../.nuget-package-dir/"'
   CS_OUTPUT: '/output/'
   CI_FOLDER: 'CI'
   
 artifacts:
   - path: 'bin/*/Release/*.nupkg'
+  
 init:
   - sh: git config --global core.autocrlf false
   - sh: appveyor UpdateBuild -Version "1.0.${APPVEYOR_BUILD_NUMBER}-${APPVEYOR_REPO_COMMIT0:8}"
@@ -20,7 +22,6 @@ build_script:
   - sh: '"${APPVEYOR_BUILD_FOLDER}/${CI_FOLDER}/build.sh"'
   - sh: 'sudo chown -R `id -u` "${CS_OUTPUT}"'
   - sh: 'mv "${CS_OUTPUT}/bin" "${APPVEYOR_BUILD_FOLDER}"'
-  - sh: 'sudo ls -al "${APPVEYOR_BUILD_FOLDER}"'
 
 test_script:
   - sh: '${APPVEYOR_BUILD_FOLDER}/${CI_FOLDER}/test.sh'

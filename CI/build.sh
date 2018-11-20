@@ -12,10 +12,10 @@ cp "${SCRIPTDIR}/CISupport.props" "${GIT_ROOT}/CISupport.props"
 cp "${SCRIPTDIR}/NuGet.Config" "${GIT_ROOT}/NuGet.Config.ci"
 
 # Create key
-set +x-v
+set -v
 mkdir "${GIT_ROOT}/Keys"
 echo "${ASSEMBLY_SIGN_KEY}" | base64 -d > "${GIT_ROOT}/Keys/UtilPack.snk"
-set -x+v
+set -x
 ls -al "${GIT_ROOT}/Keys"
 
 # find "${GIT_ROOT}/Source" -maxdepth 2 -type f -name '*.csproj' -printf '/repo-dir/contents/Source/%P '

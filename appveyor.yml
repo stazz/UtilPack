@@ -3,29 +3,31 @@ image: Ubuntu1804
 services:
   - docker
 cache:
-  - '"${APPVEYOR_BUILD_FOLDER}/../.nuget-package-dir/"'
+  - 'nuget-package-dir'
 #  - '/var/lib/docker/image'
 environment:
-  RELATIVE_NUGET_PACKAGE_DIR: '../.nuget-package-dir/'
-  CS_OUTPUT: '/output/'
+  RELATIVE_NUGET_PACKAGE_DIR: 'nuget-package-dir/'
+  RELATIVE_CS_OUTPUT: 'output/'
   CI_FOLDER: 'CI'
   
 artifacts:
-  - path: 'bin/*/Release/*.nupkg'
+  - path: 'output/bin/*/Release/*.nupkg'
   
 init:
   - sh: git config --global core.autocrlf false
   - sh: appveyor UpdateBuild -Version "1.0.${APPVEYOR_BUILD_NUMBER}-${APPVEYOR_REPO_COMMIT0:8}"
-# install:
+install:
 #   - sh: git submodule update --init --recursive
+  - sh: 'mv "${APPVEYOR_BUILD_FOLDER}/*" "${APPVEYOR_BUILD_FOLDER}/git/"'
 build_script:
-  - sh: '"${APPVEYOR_BUILD_FOLDER}/${CI_FOLDER}/build.sh"'
-  - sh: 'sudo chown -R `id -u` "${CS_OUTPUT}"'
-  - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_NUGET_PACKAGE_DIR}"'
-  - sh: 'mv "${CS_OUTPUT}/bin" "${APPVEYOR_BUILD_FOLDER}"'
+  - sh: '"${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/build.sh"'
+  - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_CS_OUTPUT}"'
 
 test_script:
-  - sh: '${APPVEYOR_BUILD_FOLDER}/${CI_FOLDER}/test.sh'
+  - sh: '${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/test.sh'
   
 deploy_script:
-  - sh: '${APPVEYOR_BUILD_FOLDER}/${CI_FOLDER}/deploy.sh'
+  - sh: '${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/deploy.sh'
+  
+after_deploy:
+  - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_NUGET_PACKAGE_DIR}"'

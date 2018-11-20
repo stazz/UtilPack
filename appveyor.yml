@@ -6,7 +6,7 @@ cache:
   - '"${APPVEYOR_BUILD_FOLDER}/../.nuget-package-dir/"'
 #  - '/var/lib/docker/image'
 environment:
-  RELATIVE_NUGET_PACKAGE_DIR: '../.nuget-package-dir/"'
+  RELATIVE_NUGET_PACKAGE_DIR: '../.nuget-package-dir/'
   CS_OUTPUT: '/output/'
   CI_FOLDER: 'CI'
   

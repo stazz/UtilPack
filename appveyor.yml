@@ -10,7 +10,7 @@ environment:
   CI_FOLDER: 'CI'
   
 artifacts:
-  - path: '/output/bin/*/Release/*.nupkg'
+  - path: 'bin/*/Release/*.nupkg'
 init:
   - sh: git config --global core.autocrlf false
   - sh: appveyor UpdateBuild -Version "1.0.${APPVEYOR_BUILD_NUMBER}-${APPVEYOR_REPO_COMMIT0:8}"
@@ -19,9 +19,8 @@ init:
 build_script:
   - sh: '"${APPVEYOR_BUILD_FOLDER}/${CI_FOLDER}/build.sh"'
   - sh: 'sudo chown -R `id -u` "${CS_OUTPUT}"'
-  - sh: 'sudo ls -al "${CS_OUTPUT}"'
-  - sh: 'sudo ls -al "${APPVEYOR_BUILD_FOLDER}"'
   - sh: 'mv "${CS_OUTPUT}/bin" "${APPVEYOR_BUILD_FOLDER}"'
+  - sh: 'sudo ls -al "${APPVEYOR_BUILD_FOLDER}"'
 
 test_script:
   - sh: '${APPVEYOR_BUILD_FOLDER}/${CI_FOLDER}/test.sh'

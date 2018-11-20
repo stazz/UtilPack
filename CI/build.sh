@@ -6,6 +6,7 @@ set -xe
 SCRIPTPATH=$(readlink -f "$0")
 SCRIPTDIR=$(dirname "$SCRIPTPATH")
 GIT_ROOT=$(readlink -f "${SCRIPTDIR}/..")
+BASE_ROOT=$(readlink -f "${GIT_ROOT}/..")
 
 # Copy required files to GIT root
 cp "${SCRIPTDIR}/CISupport.props" "${GIT_ROOT}/CISupport.props"
@@ -19,8 +20,12 @@ echo "${ASSEMBLY_SIGN_KEY}" | base64 -d > "${GIT_ROOT}/Keys/UtilPack.snk"
 set +v
 set -x
 
-if [[ "$RELATIVE_NUGET_PACKAGE_DIR" ]]; then
-  NUGET_PACKAGE_DIR=$(readlink -f "${GIT_ROOT}/${RELATIVE_NUGET_PACKAGE_DIR}")
+if [[ "${RELATIVE_NUGET_PACKAGE_DIR}" ]]; then
+  NUGET_PACKAGE_DIR=$(readlink -f "${BASE_ROOT}/${RELATIVE_NUGET_PACKAGE_DIR}")
+fi
+
+if [[ "${RELATIVE_CS_OUTPUT}" ]]; then
+  CS_OUTPUT=$(readlink -f "${BASE_ROOT}/${RELATIVE_CS_OUTPUT}")
 fi
 
 # find "${GIT_ROOT}/Source" -maxdepth 2 -type f -name '*.csproj' -printf '/repo-dir/contents/Source/%P '

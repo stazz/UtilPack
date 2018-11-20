@@ -33,9 +33,9 @@ fi
 docker run \
   --rm \
   -v "${GIT_ROOT}/:/repo-dir/contents/:ro" \
-  -v "${CS_OUTPUT}:/repo-dir/BuildTarget/:rw" \
+  -v "${CS_OUTPUT}/:/repo-dir/BuildTarget/:rw" \
   -v "${GIT_ROOT}/NuGet.Config.ci:/root/.nuget/NuGet/NuGet.Config:ro" \
-  -v "${NUGET_PACKAGE_DIR}:/root/.nuget/packages/:rw" \
+  -v "${NUGET_PACKAGE_DIR}/:/root/.nuget/packages/:rw" \
   -u 0 \
   microsoft/dotnet:2.1-sdk-alpine \
   dotnet \

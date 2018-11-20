@@ -18,7 +18,7 @@ init:
   - sh: appveyor UpdateBuild -Version "1.0.${APPVEYOR_BUILD_NUMBER}-${APPVEYOR_REPO_COMMIT0:8}"
 install:
 #   - sh: git submodule update --init --recursive
-  - sh: 'find "${APPVEYOR_BUILD_FOLDER}" -mindepth 1 -maxdepth 1 -exec mv {} {}/../git/ \;'
+  - sh: 'find "${APPVEYOR_BUILD_FOLDER}" -mindepth 1 -maxdepth 1 -exec mv -t "${APPVEYOR_BUILD_FOLDER}/git" {} +'
 #  - sh: 'mv "${APPVEYOR_BUILD_FOLDER}/*" "${APPVEYOR_BUILD_FOLDER}/git/"'
 build_script:
   - sh: '"${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/build.sh"'

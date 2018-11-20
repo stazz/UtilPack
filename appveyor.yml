@@ -19,7 +19,7 @@ init:
 install:
 #   - sh: git submodule update --init --recursive
   - sh: 'mkdir "${APPVEYOR_BUILD_FOLDER}/git"'
-  - sh: 'find "${APPVEYOR_BUILD_FOLDER}" -mindepth 1 -maxdepth 1 -not -name "git" -exec mv -t "${APPVEYOR_BUILD_FOLDER}/git" {} +'
+  - sh: 'find "${APPVEYOR_BUILD_FOLDER}" -mindepth 1 -maxdepth 1 -not -name "git" -not -name "nuget-package-dir" -exec mv -t "${APPVEYOR_BUILD_FOLDER}/git" {} +'
 build_script:
   - sh: '"${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/build.sh"'
   - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_CS_OUTPUT}"'

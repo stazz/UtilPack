@@ -3,7 +3,7 @@ image: Ubuntu1804
 services:
   - docker
 cache:
-  - '${NUGET_PACKAGE_DIR}'
+  - '"${APPVEYOR_BUILD_FOLDER}/../.nuget-package-dir/"'
 #  - '/var/lib/docker/image'
 environment:
   NUGET_PACKAGE_DIR: '"${APPVEYOR_BUILD_FOLDER}/../.nuget-package-dir/"'

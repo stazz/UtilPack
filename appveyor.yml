@@ -21,6 +21,7 @@ init:
 build_script:
   - sh: '"${APPVEYOR_BUILD_FOLDER}/${CI_FOLDER}/build.sh"'
   - sh: 'sudo chown -R `id -u` "${CS_OUTPUT}"'
+  - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_NUGET_PACKAGE_DIR}"'
   - sh: 'mv "${CS_OUTPUT}/bin" "${APPVEYOR_BUILD_FOLDER}"'
 
 test_script:

@@ -13,8 +13,10 @@ cp "${SCRIPTDIR}/NuGet.Config" "${GIT_ROOT}/NuGet.Config.ci"
 
 # Create key
 set -v
+set +x
 mkdir "${GIT_ROOT}/Keys"
 echo "${ASSEMBLY_SIGN_KEY}" | base64 -d > "${GIT_ROOT}/Keys/UtilPack.snk"
+set +v
 set -x
 ls -al "${GIT_ROOT}/Keys"
 

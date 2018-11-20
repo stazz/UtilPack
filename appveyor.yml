@@ -17,7 +17,8 @@ init:
 # install:
 #   - sh: git submodule update --init --recursive
 build_script:
-  - sh: 'mkdir -p "${CS_OUTPUT}"'
+  - sh: 'sudo mkdir -p "${CS_OUTPUT}"'
+  - sh: 'sudo chown `id` "${CS_OUTPUT}"'
   - sh: '${APPVEYOR_BUILD_FOLDER}/${CI_FOLDER}/build.sh'
   - sh: 'mv "${CS_OUTPUT}" ${APPVEYOR_BUILD_FOLDER}'
 

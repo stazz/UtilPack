@@ -24,7 +24,6 @@ install:
   - sh: 'find "${APPVEYOR_BUILD_FOLDER}" -mindepth 1 -maxdepth 1 -not -name "git" -not -name "nuget-package-dir" -not -name "docker-images" -exec mv -t "${APPVEYOR_BUILD_FOLDER}/git" {} +'
 
 # AppVeyor does not have docker images cache support, so use the normal cache for that.
-  - sh: 'rm -rf "${APPVEYOR_BUILD_FOLDER}/docker-images"'
   - sh: 'mkdir -p "${APPVEYOR_BUILD_FOLDER}/docker-images"'
   - sh: 'sudo cp -R "${APPVEYOR_BUILD_FOLDER}/docker-images/." /var/lib/docker'
   - sh: 'sudo chown -R root:root /var/lib/docker'

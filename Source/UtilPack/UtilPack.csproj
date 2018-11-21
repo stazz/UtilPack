@@ -43,6 +43,8 @@
     <Title>Utility Package for CLR</Title>
   </PropertyGroup>
   
+  <Import Project="$(CIPropsFilePath)" Condition=" '$(CIPropsFilePath)' != '' and Exists('$(CIPropsFilePath)') " />
+  
   <ItemGroup Condition=" '$(IsCIBuild)' == 'true' ">
     <PackageReference Include="runtime.alpine.3.6-x64.Microsoft.NETCore.ILDAsm" Version="2.2.0-preview1-26425-01" ExcludeAssets="All" PrivateAssets="All" />
     <PackageReference Include="runtime.alpine.3.6-x64.Microsoft.NETCore.ILAsm" Version="2.2.0-preview1-26425-01" ExcludeAssets="All" PrivateAssets="All" />

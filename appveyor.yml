@@ -4,7 +4,7 @@ services:
   - docker
 cache:
   - 'nuget-package-dir'
-  - 'docker-images'
+#  - 'docker-images'
 #  - '/var/lib/docker/image'
 environment:
   RELATIVE_NUGET_PACKAGE_DIR: 'nuget-package-dir/'
@@ -24,10 +24,10 @@ install:
   - sh: 'find "${APPVEYOR_BUILD_FOLDER}" -mindepth 1 -maxdepth 1 -not -name "git" -not -name "nuget-package-dir" -not -name "docker-images" -exec mv -t "${APPVEYOR_BUILD_FOLDER}/git" {} +'
 
 # AppVeyor does not have docker images cache support, so use the normal cache for that.
-  - sh: 'mkdir -p "${APPVEYOR_BUILD_FOLDER}/docker-images"'
-  - sh: 'sudo cp -R "${APPVEYOR_BUILD_FOLDER}/docker-images/." /var/lib/docker'
-  - sh: 'sudo chown -R root:root /var/lib/docker'
-  - sh: 'sudo chmod u=rwX,g=,o= /var/lib/docker'
+#  - sh: 'mkdir -p "${APPVEYOR_BUILD_FOLDER}/docker-images"'
+#  - sh: 'sudo cp -R "${APPVEYOR_BUILD_FOLDER}/docker-images/." /var/lib/docker'
+#  - sh: 'sudo chown -R root:root /var/lib/docker'
+#  - sh: 'sudo chmod u=rwX,g=,o= /var/lib/docker'
 
 build_script:
   - sh: '"${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/build.sh"'
@@ -42,7 +42,7 @@ deploy_script:
 after_deploy:
   - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_NUGET_PACKAGE_DIR}"'
 # Remember to copy docker images to this folder for cache support
-  - sh: 'sudo systemctl stop docker'
-  - sh: 'sudo cp -R /var/lib/docker/. "${APPVEYOR_BUILD_FOLDER}/docker-images"'
-  - sh: 'sudo find "${APPVEYOR_BUILD_FOLDER}/docker-images" -mindepth 1 -maxdepth 1 -not -name "image" -not -name "overlay2" -exec rm -rf {} +'
-  - sh: 'sudo chown -R `id -u`:`id -u` "${APPVEYOR_BUILD_FOLDER}/docker-images"'
+#  - sh: 'sudo systemctl stop docker'
+#  - sh: 'sudo cp -R /var/lib/docker/. "${APPVEYOR_BUILD_FOLDER}/docker-images"'
+#  - sh: 'sudo find "${APPVEYOR_BUILD_FOLDER}/docker-images" -mindepth 1 -maxdepth 1 -not -name "image" -not -name "overlay2" -exec rm -rf {} +'
+#  - sh: 'sudo chown -R `id -u`:`id -u` "${APPVEYOR_BUILD_FOLDER}/docker-images"'

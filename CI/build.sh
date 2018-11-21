@@ -37,7 +37,7 @@ fi
 
 # find "${GIT_ROOT}/Source" -maxdepth 2 -type f -name '*.csproj' -printf '/repo-dir/contents/Source/%P '
 # Build within docker
-"/c/Program Files/Docker/Docker/resources/bin/docker.exe" run \
+docker run \
   --rm \
   -v "${GIT_ROOT}/:/repo-dir/contents/:ro" \
   -v "${CS_OUTPUT}/:/repo-dir/BuildTarget/:rw" \

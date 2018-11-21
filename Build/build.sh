@@ -13,5 +13,6 @@ $@
 
 /root/.nuget/packages/runtime.alpine.3.6-x64.microsoft.netcore.ildasm/2.2.0-preview1-26425-01/runtimes/alpine.3.6-x64/native/ildasm
 
-
-/c/Users/Staz/.nuget/packages/runtime.alpine.3.6-x64.microsoft.netcore.ildasm/2.2.0-preview1-26425-01/runtimes/alpine.3.6-x64/native/ildasm
+# ILDAsm each DLL
+# Jinja2 (?) templating to generate .il file
+# ILAsm each disassembled .il file + generated .il file back into the same DLL, remember to use private key.

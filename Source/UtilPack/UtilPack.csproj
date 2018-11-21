@@ -65,7 +65,7 @@
       <ILTargetsToCall Condition=" '$(DocumentationFile)' != ''">$(ILTargetsToCall);GenerateILDocFiles</ILTargetsToCall>
     </PropertyGroup>
     
-    <CallTarget Targets="$(ILTargetsToCall)" />
+    <!-- <CallTarget Targets="$(ILTargetsToCall)" /> -->
   </Target>
 
   <Target Name="GenerateILCodeFiles" Inputs="$(ILGenerationT4File)" Outputs="$(ILGenerationOutFile)">

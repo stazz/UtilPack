@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# This script is intended to run within Docker container with .NET SDK, and actual command as first parameter.
+# This script is intended to run within Docker container with .NET SDK, and actual command as parameters.
 # Therefore all folder names etc are constants.
 
 set -xe

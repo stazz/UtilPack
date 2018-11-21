@@ -25,7 +25,7 @@ install:
 
 # AppVeyor does not have docker images cache support, so use the normal cache for that.
   - sh: 'mkdir -p "${APPVEYOR_BUILD_FOLDER}/docker-images"'
-  - sh: 'cp -R "${APPVEYOR_BUILD_FOLDER}/docker-images/." /var/lib/docker/image'
+  - sh: 'sudo cp -R "${APPVEYOR_BUILD_FOLDER}/docker-images/." /var/lib/docker/image'
   - sh: 'sudo chown -R root:root /var/lib/docker/image'
   - sh: 'sudo chmod u=rwX,g=,o= /var/lib/docker/image'
 

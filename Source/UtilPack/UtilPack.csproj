@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.0;netstandard1.1;netstandard1.5;netstandard1.6;net40;net45</TargetFrameworks>
+    <!-- TODO Add net40 back once there exists a way to build for .NET Desktop 4.0 on .NET Core environment (the reference assemblies for 4.0 do not exist on dotnet.myget.org) -->
+    <TargetFrameworks>netstandard1.0;netstandard1.1;netstandard1.5;netstandard1.6;net45</TargetFrameworks>
   </PropertyGroup>
 
   <PropertyGroup>

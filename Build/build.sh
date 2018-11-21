@@ -8,5 +8,10 @@ set -xe
 # Build all projects
 $@
 
-# TODO ILDAsm -> ILAsm with the .il files
+# dotnet tool install -g NuGetUtils.Tool.Restore
+# /root/.dotnet/tools/nuget-restore /PackageID=runtime.alpine.3.6-x64.Microsoft.NETCore.ILDAsm /PackageVersion=2.2.0-preview1-26425-01
+
+dotnet /root/.nuget/packages/runtime.alpine.3.6-x64.Microsoft.NETCore.ILDAsm/2.2.0-preview1-26425-01/runtimes/alpine.3.6-x64/native/ildasm
+
+
 

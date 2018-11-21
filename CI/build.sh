@@ -28,7 +28,7 @@ if [[ "${RELATIVE_CS_OUTPUT}" ]]; then
   CS_OUTPUT=$(readlink -f "${BASE_ROOT}/${RELATIVE_CS_OUTPUT}")
 fi
 
-BUILD_COMMAND="dotnet build /p:Configuration=Release /p:IsCIBuild=true /t:Build;Pack /repo-dir/contents/Source/UtilPack.Logging"
+BUILD_COMMAND="dotnet build /p:Configuration=Release /p:IsCIBuild=true /t:Build;Pack /repo-dir/contents/Source/UtilPack"
 
 if [[ "${BUILD_SCRIPT_WITHIN_CONTAINER}" ]]; then
   # Our actual build command is to invoke a script within GIT repository, and passing it the build command as parameter

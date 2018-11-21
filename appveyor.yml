@@ -4,7 +4,7 @@ services:
   - docker
 cache:
   - 'nuget-package-dir'
-  - 'docker-images'
+#  - 'docker-images'
 #  - '/var/lib/docker/image'
 environment:
   RELATIVE_NUGET_PACKAGE_DIR: 'nuget-package-dir/'

@@ -4,6 +4,7 @@ services:
   - docker
 cache:
   - 'nuget-package-dir'
+  - 'docker-images'
 #  - '/var/lib/docker/image'
 environment:
   RELATIVE_NUGET_PACKAGE_DIR: 'nuget-package-dir/'
@@ -20,8 +21,14 @@ init:
 install:
 #   - sh: git submodule update --init --recursive
   - sh: 'mkdir "${APPVEYOR_BUILD_FOLDER}/git"'
-  - sh: 'find "${APPVEYOR_BUILD_FOLDER}" -mindepth 1 -maxdepth 1 -not -name "git" -not -name "nuget-package-dir" -exec mv -t "${APPVEYOR_BUILD_FOLDER}/git" {} +'
-# TODO This is run after restoring cache and before starting services. We could modify docker config to use cached image folder here. We would also need to add commands to shut down docker service + chown the folder in after_deploy in order for cache to be able to read from it.
+  - sh: 'find "${APPVEYOR_BUILD_FOLDER}" -mindepth 1 -maxdepth 1 -not -name "git" -not -name "nuget-package-dir" -not -name "docker-images" -exec mv -t "${APPVEYOR_BUILD_FOLDER}/git" {} +'
+
+# AppVeyor does not have docker images cache support, so use the normal cache for that.
+  - sh: 'mkdir -p "${APPVEYOR_BUILD_FOLDER}/docker-images"'
+  - sh: 'cp -R "${APPVEYOR_BUILD_FOLDER}/docker-images/." /var/lib/docker/image'
+  - sh: 'sudo chown -R root:root /var/lib/docker/image'
+  - sh: 'sudo chmod u=rwX,g=,o= /var/lib/docker/image'
+
 build_script:
   - sh: '"${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/build.sh"'
   - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_CS_OUTPUT}"'
@@ -34,3 +41,7 @@ deploy_script:
   
 after_deploy:
   - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_NUGET_PACKAGE_DIR}"'
+# Remember to copy docker images to this folder for cache support
+  - sh: 'sudo systemctl stop docker'
+  - sh: 'sudo cp -R /var/lib/docker/image/. "${APPVEYOR_BUILD_FOLDER}/docker-images"'
+  - sh: 'sudo chown -R `id -u`:`id -u` "${APPVEYOR_BUILD_FOLDER}/docker-images"'

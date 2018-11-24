@@ -28,7 +28,7 @@ if [[ "${RELATIVE_CS_OUTPUT}" ]]; then
   CS_OUTPUT=$(readlink -f "${BASE_ROOT}/${RELATIVE_CS_OUTPUT}")
 fi
 
-BUILD_COMMAND="dotnet build /p:Configuration=Release /p:IsCIBuild=true /t:Build;Pack /repo-dir/contents/Source/UtilPack"
+BUILD_COMMAND="find /repo-dir/contents/Source -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec dotnet build /p:Configuration=Release /p:IsCIBuild=true /t:Build /t:Pack {} ;"
 
 if [[ "${BUILD_SCRIPT_WITHIN_CONTAINER}" ]]; then
   # Our actual build command is to invoke a script within GIT repository, and passing it the build command as parameter
@@ -44,6 +44,7 @@ docker run \
   -v "${GIT_ROOT}/NuGet.Config.ci:/root/.nuget/NuGet/NuGet.Config:ro" \
   -v "${NUGET_PACKAGE_DIR}/:/root/.nuget/packages/:rw" \
   -u 0 \
+  -e THIS_TFM=netcoreapp2.1 \
   microsoft/dotnet:2.1-sdk-alpine \
   ${BUILD_COMMAND}
 

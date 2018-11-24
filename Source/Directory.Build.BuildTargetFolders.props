@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <BuildCommonBaseDir>$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildThisFileDirectory)', 'BuildMarker.txt'))</BuildCommonBaseDir>
+    <BuildCommonBaseDir Condition=" '$(BuildCommonBaseDir)' == '' ">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)/../../'))</BuildCommonBaseDir>
+    <BuildCommonOutputDir Condition=" '$(BuildCommonOutputDir)' == '' ">$(BuildCommonBaseDir)\BuildTarget\</BuildCommonOutputDir>
+    <BuildCommonObjDir>$(BuildCommonOutputDir)obj\</BuildCommonObjDir>
+    <BuildCommonBinDir>$(BuildCommonOutputDir)bin\</BuildCommonBinDir>
+    <BaseIntermediateOutputPath>$(BuildCommonObjDir)$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(BuildCommonBinDir)\$(MSBuildProjectName)\</BaseOutputPath>
+    <RestoreOutputPath>$(BaseIntermediateOutputPath)</RestoreOutputPath>
+  </PropertyGroup>
+</Project>

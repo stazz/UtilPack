@@ -7,4 +7,9 @@
   <PropertyGroup Condition=" '$(TargetFramework)' == 'net45' ">
     <FrameworkPathOverride>$(NuGetPackageRoot)microsoft.targetingpack.netframework.v4.5\1.0.1\lib\net45\</FrameworkPathOverride>
   </PropertyGroup>
+  
+  <PropertyGroup Condition=" '$(TargetFramework)' == 'net40' ">
+    <Net40RefAssemblyDirName Condition=" '$(Net40RefAssemblyDirName)' == '' ">v4-ref-assemblies</Net40RefAssemblyDirName>
+    <FrameworkPathOverride>$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildThisFileDirectory)', '$(Net40RefAssemblyDirName)'))\$(Net40RefAssemblyDirName)\</FrameworkPathOverride>
+  </PropertyGroup>
 </Project>

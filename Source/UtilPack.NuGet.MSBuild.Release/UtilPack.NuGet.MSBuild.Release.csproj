@@ -21,7 +21,7 @@
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
     <TreatSpecificWarningsAsErrors />
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
-    <LangVersion>7.1</LangVersion>
+    <LangVersion>latest</LangVersion>
     <DefineConstants Condition=" '$(TargetFramework)' != 'net46' ">$(DefineConstants);IS_NETSTANDARD</DefineConstants>
   </PropertyGroup>
 
@@ -126,7 +126,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>2.8.0</VersionPrefix>
+    <VersionPrefix>2.9.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <Authors>Stanislav Muhametsin</Authors>
     <Company>Cometa Solutions Ltd</Company>

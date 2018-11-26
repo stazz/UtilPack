@@ -55,5 +55,6 @@ find "${UTILPACK_DIR}/" -mindepth 1 -maxdepth 1 -type d -exec dotnet \
   "/repo-dir/contents/Keys/UtilPack.snk" \
   "{}/UtilPack.dll" \;
 
-# Re-package UtilPack
-dotnet build /p:IsCIBuild=true /t:Pack /repo-dir/contents/Source/UtilPack
+# Re-package UtilPack (using dotnet build /t:Pack will cause re-build even with /p:GeneratePackageOnBuild=false /p:NoBuild=true flags, so just use dotnet pack instead)
+# dotnet build /p:IsCIBuild=true /p:Configuration=Release /p:GeneratePackageOnBuild=false /p:NoBuild=true /t:Pack /v:detailed /repo-dir/contents/Source/UtilPack
+dotnet pack /repo-dir/contents/Source/UtilPack -c Release --no-build /p:IsCIBuild=true

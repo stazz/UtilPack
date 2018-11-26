@@ -35,6 +35,19 @@ if [[ "${BUILD_SCRIPT_WITHIN_CONTAINER}" ]]; then
   BUILD_COMMAND="/repo-dir/contents/${BUILD_SCRIPT_WITHIN_CONTAINER} ${BUILD_COMMAND}"
 fi
 
+if [[ "${ADDITIONAL_BUILD_VOLUME_DIRECTORIES}" ]]; then
+  IFS=', ' read -r -a volume_dir_array <<< "${ADDITIONAL_BUILD_VOLUME_DIRECTORIES}"
+  ADDITIONAL_VOLUMES_STRING=
+  for volume_dir in "${volume_dir_array[@]}"
+  do
+    if [[ "${ADDITIONAL_VOLUMES_STRING}" ]]; then
+      ADDITIONAL_VOLUMES_STRING+=" "
+    fi
+    
+    ADDITIONAL_VOLUMES_STRING+="-v ${BASE_ROOT}/${volume_dir}:/repo-dir/${volume_dir}/:ro"
+  done
+fi
+
 # find "${GIT_ROOT}/Source" -maxdepth 2 -type f -name '*.csproj' -printf '/repo-dir/contents/Source/%P '
 # Build within docker
 docker run \
@@ -45,6 +58,7 @@ docker run \
   -v "${NUGET_PACKAGE_DIR}/:/root/.nuget/packages/:rw" \
   -u 0 \
   -e THIS_TFM=netcoreapp2.1 \
+  ${ADDITIONAL_VOLUMES_STRING} \
   microsoft/dotnet:2.1-sdk-alpine \
   ${BUILD_COMMAND}
 

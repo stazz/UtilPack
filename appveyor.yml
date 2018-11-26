@@ -12,6 +12,7 @@ environment:
   RELATIVE_CS_OUTPUT: 'output/'
   CI_FOLDER: 'CI'
   BUILD_SCRIPT_WITHIN_CONTAINER: 'Build/build.sh'
+  ADDITIONAL_BUILD_VOLUME_DIRECTORIES: 'v4-ref-assemblies'
   
 artifacts:
   - path: 'output/bin/*/Release/*.nupkg'

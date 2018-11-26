@@ -10,6 +10,6 @@
   
   <PropertyGroup Condition=" '$(TargetFramework)' == 'net40' ">
     <Net40RefAssemblyDirName Condition=" '$(Net40RefAssemblyDirName)' == '' ">v4-ref-assemblies</Net40RefAssemblyDirName>
-    <FrameworkPathOverride>$(MSBuildThisFileDirectory)\..\$(Net40RefAssemblyDirName)\</FrameworkPathOverride>
+    <FrameworkPathOverride>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)\..\$(Net40RefAssemblyDirName)'))\</FrameworkPathOverride>
   </PropertyGroup>
 </Project>

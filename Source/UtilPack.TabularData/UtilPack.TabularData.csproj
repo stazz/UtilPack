@@ -11,6 +11,10 @@
     <GeneratePackageOnBuild Condition=" '$(Configuration)' == 'Release' ">true</GeneratePackageOnBuild>
   </PropertyGroup>
 
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net45' ">
+    <Reference Include="System.Runtime" />
+    <Reference Include="System.Threading.Tasks" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\UtilPack\UtilPack.csproj" />
@@ -33,4 +37,6 @@
     <PackageTags>utility async tabular data</PackageTags>
     <Title>Tabular Data</Title>
   </PropertyGroup>
+  
+  <Import Project="$(CIPropsFilePath)" Condition=" '$(CIPropsFilePath)' != '' and Exists('$(CIPropsFilePath)') " />
 </Project>

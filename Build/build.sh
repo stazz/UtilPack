@@ -8,17 +8,17 @@ set -xe
 # Build all projects
 $@
 
-# Remove UtilPack .nupkg file so if the IL stuff failes, it won't be included to artifacts
-UTILPACK_DIR="/repo-dir/BuildTarget/bin/UtilPack/Release"
+# Remove UtilPack .nupkg file so if the IL stuff fails, it won't be included to artifacts
+UTILPACK_DIR="/repo-dir/BuildTarget/Release/bin/UtilPack"
 find "${UTILPACK_DIR}" -mindepth 1 -maxdepth 1 -type f -name "UtilPack.*.nupkg" -exec rm "{}" \;
 
 # Build IL Generator and XML doc merger
 cp /repo-dir/contents/Source/Directory.Build.BuildTargetFolders.props /repo-dir/Directory.Build.props
-touch /repo-dir/BuildMarker.txt
-dotnet build "/p:TargetFramework=${THIS_TFM}" /repo-dir/contents/Build/UtilPackILGenerator
+# Without specifying Configuration, the (intermediate) output paths will be wrong
+dotnet build "/p:Configuration=Release" "/p:TargetFramework=${THIS_TFM}" "/p:BuildCommonOutputDir=/repo-dir/tmpout/" /repo-dir/contents/Build/UtilPackILGenerator
 
 # Invoke IL Generator and XML doc merger
-dotnet "/repo-dir/BuildTarget/bin/UtilPackILGenerator/Release/${THIS_TFM}/UtilPackILGenerator.dll" "$UTILPACK_DIR"
+dotnet "/repo-dir/tmpout/Release/bin/UtilPackILGenerator/${THIS_TFM}/UtilPackILGenerator.dll" "$UTILPACK_DIR"
 
 # Get the dotnet directory 
 DOTNET_DIR=$(dotnet --info | grep Microsoft.NETCore.App | awk '{printf substr($3, 2, length($3)-2); printf "/"; printf $2}')
@@ -48,13 +48,16 @@ find "${UTILPACK_DIR}/" -mindepth 1 -maxdepth 1 -type d -exec "${DOTNET_DIR}/ila
   "{}/UtilPack.il" \
   "{}/AdditionalIL.il" \;
   
+# Check that the IL code actually got into assembly, since find does not return error code if -exec'ed command fails
+"${DOTNET_DIR}/ildasm" "-out=/repo-dir/tmpout/UtilPack.il" -utf8 -all "${UTILPACK_DIR}/net40/UtilPack.dll"
+grep -q 'UtilPack.DelegateMultiplexer' '/repo-dir/tmpout/UtilPack.il' # This will fail whole script on non-zero return value
+  
 # Re-sign the assemblies using own tool
-dotnet build "/p:TargetFramework=${THIS_TFM}" /repo-dir/contents/Build/StrongNameSigner
+dotnet build "/p:Configuration=Release" "/p:TargetFramework=${THIS_TFM}" "/p:BuildCommonOutputDir=/repo-dir/tmpout/" /repo-dir/contents/Build/StrongNameSigner
 find "${UTILPACK_DIR}/" -mindepth 1 -maxdepth 1 -type d -exec dotnet \
-  "/repo-dir/BuildTarget/bin/StrongNameSigner/Release/${THIS_TFM}/StrongNameSigner.dll" \
+  "/repo-dir/tmpout/Release/bin/StrongNameSigner/${THIS_TFM}/StrongNameSigner.dll" \
   "/repo-dir/contents/Keys/UtilPack.snk" \
   "{}/UtilPack.dll" \;
 
 # Re-package UtilPack (using dotnet build /t:Pack will cause re-build even with /p:GeneratePackageOnBuild=false /p:NoBuild=true flags, so just use dotnet pack instead)
-# dotnet build /p:IsCIBuild=true /p:Configuration=Release /p:GeneratePackageOnBuild=false /p:NoBuild=true /t:Pack /v:detailed /repo-dir/contents/Source/UtilPack
-dotnet pack /repo-dir/contents/Source/UtilPack -c Release --no-build /p:IsCIBuild=true
+dotnet pack /repo-dir/contents/Source/Code/UtilPack -c Release --no-build /p:IsCIBuild=true

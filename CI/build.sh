@@ -28,15 +28,15 @@ if [[ "${RELATIVE_CS_OUTPUT}" ]]; then
   CS_OUTPUT=$(readlink -f "${BASE_ROOT}/${RELATIVE_CS_OUTPUT}")
 fi
 
-BUILD_COMMAND="find /repo-dir/contents/Source/Code -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec dotnet build /p:Configuration=Release /p:IsCIBuild=true /t:Build /t:Pack {} ;"
+BUILD_COMMAND="find /repo-dir/contents/Source/Code /repo-dir/contents/Source/Tests -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec dotnet build /p:Configuration=Release /p:IsCIBuild=true /t:Build {} ;"
 
 if [[ "${BUILD_SCRIPT_WITHIN_CONTAINER}" ]]; then
   # Our actual build command is to invoke a script within GIT repository, and passing it the build command as parameter
   BUILD_COMMAND="/repo-dir/contents/${BUILD_SCRIPT_WITHIN_CONTAINER} ${BUILD_COMMAND}"
 fi
 
-if [[ "${ADDITIONAL_BUILD_VOLUME_DIRECTORIES}" ]]; then
-  IFS=', ' read -r -a volume_dir_array <<< "${ADDITIONAL_BUILD_VOLUME_DIRECTORIES}"
+if [[ "${ADDITIONAL_VOLUME_DIRECTORIES}" ]]; then
+  IFS=', ' read -r -a volume_dir_array <<< "${ADDITIONAL_VOLUME_DIRECTORIES}"
   ADDITIONAL_VOLUMES_STRING=
   for volume_dir in "${volume_dir_array[@]}"
   do
@@ -62,8 +62,10 @@ docker run \
   ${BUILD_COMMAND}
   
 # Because find does not return non-0 exit code even when its -exec command does, we need to make sure that we have equal amount of artifacts as there are projects
-SOURCE_PROJECT_COUNT=$(find "${GIT_ROOT}/Source/Code" -mindepth 2 -maxdepth 2 -type f -name *.csproj | wc -l)
-SOURCE_ARTIFACT_COUNT=$(find "${CS_OUTPUT}/Release/bin" -mindepth 2 -maxdepth 2 -type f -name *.nupkg | wc -l)
+SOURCE_PROJECT_COUNT=$(find "${GIT_ROOT}/Source/Code" "${GIT_ROOT}/Source/Tests" -mindepth 2 -maxdepth 2 -type f -name *.csproj | wc -l)
+
+# For non-GNU find, use -exec basename {} \; instead
+SOURCE_ARTIFACT_COUNT=$(find "${CS_OUTPUT}/Release/bin/" -mindepth 3 -maxdepth 3 -type f -name "${ASSEMBLY_PREFIX}*.dll" -printf '%f\n' | sort -u | wc -l)
 
 if [[ ${SOURCE_PROJECT_COUNT} -ne ${SOURCE_ARTIFACT_COUNT} ]]; then
   echo "One or more project did not build successfully." 1>&2

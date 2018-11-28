@@ -8,16 +8,13 @@ set -xe
 # Build all projects
 $@
 
-# Remove UtilPack .nupkg file so if the IL stuff fails, it won't be included to artifacts
-UTILPACK_DIR="/repo-dir/BuildTarget/Release/bin/UtilPack"
-find "${UTILPACK_DIR}" -mindepth 1 -maxdepth 1 -type f -name "UtilPack.*.nupkg" -exec rm "{}" \;
-
 # Build IL Generator and XML doc merger
 cp /repo-dir/contents/Source/Directory.Build.BuildTargetFolders.props /repo-dir/Directory.Build.props
 # Without specifying Configuration, the (intermediate) output paths will be wrong
 dotnet build "/p:Configuration=Release" "/p:TargetFramework=${THIS_TFM}" "/p:BuildCommonOutputDir=/repo-dir/tmpout/" /repo-dir/contents/Build/UtilPackILGenerator
 
 # Invoke IL Generator and XML doc merger
+UTILPACK_DIR="/repo-dir/BuildTarget/Release/bin/UtilPack"
 dotnet "/repo-dir/tmpout/Release/bin/UtilPackILGenerator/${THIS_TFM}/UtilPackILGenerator.dll" "$UTILPACK_DIR"
 
 # Get the dotnet directory 
@@ -58,6 +55,3 @@ find "${UTILPACK_DIR}/" -mindepth 1 -maxdepth 1 -type d -exec dotnet \
   "/repo-dir/tmpout/Release/bin/StrongNameSigner/${THIS_TFM}/StrongNameSigner.dll" \
   "/repo-dir/contents/Keys/UtilPack.snk" \
   "{}/UtilPack.dll" \;
-
-# Re-package UtilPack (using dotnet build /t:Pack will cause re-build even with /p:GeneratePackageOnBuild=false /p:NoBuild=true flags, so just use dotnet pack instead)
-dotnet pack /repo-dir/contents/Source/Code/UtilPack -c Release --no-build /p:IsCIBuild=true

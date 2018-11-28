@@ -12,10 +12,11 @@ environment:
   RELATIVE_CS_OUTPUT: 'output/'
   CI_FOLDER: 'CI'
   BUILD_SCRIPT_WITHIN_CONTAINER: 'Build/build.sh'
-  ADDITIONAL_BUILD_VOLUME_DIRECTORIES: 'v4-ref-assemblies'
+  ADDITIONAL_VOLUME_DIRECTORIES: 'v4-ref-assemblies'
+  ASSEMBLY_PREFIX: UtilPack
   
 artifacts:
-  - path: 'output/bin/*/Release/*.nupkg'
+  - path: 'output/Release/bin/*/*.nupkg'
 
 init:
   - sh: git config --global core.autocrlf false

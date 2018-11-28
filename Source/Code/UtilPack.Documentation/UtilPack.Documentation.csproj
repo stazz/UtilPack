@@ -9,7 +9,6 @@
       <TreatSpecificWarningsAsErrors />
       <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
       <LangVersion>latest</LangVersion>
-      <GeneratePackageOnBuild Condition=" '$(Configuration)' == 'Release' ">true</GeneratePackageOnBuild>
       <GenerateDocumentationFile>false</GenerateDocumentationFile>
    </PropertyGroup>
 

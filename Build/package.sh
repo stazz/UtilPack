@@ -4,10 +4,7 @@
 # Therefore all folder names etc are constants.
 
 set -xe
-
-# Build all projects
-$@
-
+ 
 # Build IL Generator and XML doc merger
 cp /repo-dir/contents/Source/Directory.Build.BuildTargetFolders.props /repo-dir/Directory.Build.props
 # Without specifying Configuration, the (intermediate) output paths will be wrong
@@ -55,3 +52,13 @@ find "${UTILPACK_DIR}/" -mindepth 1 -maxdepth 1 -type d -exec dotnet \
   "/repo-dir/tmpout/Release/bin/StrongNameSigner/${THIS_TFM}/StrongNameSigner.dll" \
   "/repo-dir/contents/Keys/UtilPack.snk" \
   "{}/UtilPack.dll" \;
+  
+# TODO verify here that all assemblies are truly signed, since find does not return error code if -exec'ed command fails
+
+# Package all projects
+$@
+
+
+set -xe
+
+echo "TODO deploy (upload to NuGet.org if tag contains version?)"

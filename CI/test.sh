@@ -21,7 +21,7 @@ if [[ "${RELATIVE_CS_OUTPUT}" ]]; then
 fi
 
 # Run tests with hard-coded trx format, for now.
-TEST_COMMAND=(find /repo-dir/contents/Source/Tests -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec sh -c 'dotnet test -c Release --no-build --logger trx\;LogFileName=/repo-dir/BuildTarget/TestResults/$(basename {} .csproj).trx /p:IsCIBuild=true {}' \;)
+TEST_COMMAND=(find /repo-dir/contents/Source/Tests -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec sh -c 'dotnet test -nologo -c Release --no-build --logger trx\;LogFileName=/repo-dir/BuildTarget/TestResults/$(basename {} .csproj).trx /p:IsCIBuild=true {}' \;)
 
 
 if [[ "${TEST_SCRIPT_WITHIN_CONTAINER}" ]]; then
@@ -54,6 +54,12 @@ docker run \
   ${ADDITIONAL_VOLUMES_STRING} \
   microsoft/dotnet:2.1-sdk-alpine \
   "${TEST_COMMAND[@]}"
+  
+# Run custom script if it is given
+if [[ "$1" ]]; then
+  readarray -t TEST_REPORTS < <(find "${CS_OUTPUT}/TestResults" -name *.trx)
+  "$1" "${TEST_REPORTS[@]}"
+fi
 
 # Verify that all test projects produced test report
 TEST_PROJECT_COUNT=$(find "${GIT_ROOT}/Source/Tests" -mindepth 2 -maxdepth 2 -type f -name *.csproj | wc -l)

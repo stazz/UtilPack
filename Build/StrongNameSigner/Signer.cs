@@ -176,7 +176,7 @@ namespace StrongNameSigner
          }
       }
 
-      // Copypasta from UtilPack
+      // Copypasta from UtilPack and old CAM project
       public static Int32 RoundUpI32( Int32 value, Int32 multiple )
       {
          return ( multiple - 1 + value ) & ~( multiple - 1 );

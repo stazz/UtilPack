@@ -28,11 +28,11 @@ if [[ "${RELATIVE_CS_OUTPUT}" ]]; then
   CS_OUTPUT=$(readlink -f "${BASE_ROOT}/${RELATIVE_CS_OUTPUT}")
 fi
 
-BUILD_COMMAND="find /repo-dir/contents/Source/Code /repo-dir/contents/Source/Tests -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec dotnet build /p:Configuration=Release /p:IsCIBuild=true /t:Build {} ;"
+BUILD_COMMAND=(find /repo-dir/contents/Source/Code /repo-dir/contents/Source/Tests -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec dotnet build /p:Configuration=Release /p:IsCIBuild=true /t:Build {} \;)
 
 if [[ "${BUILD_SCRIPT_WITHIN_CONTAINER}" ]]; then
-  # Our actual build command is to invoke a script within GIT repository, and passing it the build command as parameter
-  BUILD_COMMAND="/repo-dir/contents/${BUILD_SCRIPT_WITHIN_CONTAINER} ${BUILD_COMMAND}"
+  # Our actual command is to invoke a script within GIT repository, and passing it the command as parameter
+  BUILD_COMMAND=("/repo-dir/contents/${BUILD_SCRIPT_WITHIN_CONTAINER}" "${BUILD_COMMAND[@]}")
 fi
 
 if [[ "${ADDITIONAL_VOLUME_DIRECTORIES}" ]]; then
@@ -59,12 +59,12 @@ docker run \
   -e THIS_TFM=netcoreapp2.1 \
   ${ADDITIONAL_VOLUMES_STRING} \
   microsoft/dotnet:2.1-sdk-alpine \
-  ${BUILD_COMMAND}
+  "${BUILD_COMMAND[@]}"
   
 # Because find does not return non-0 exit code even when its -exec command does, we need to make sure that we have equal amount of artifacts as there are projects
 SOURCE_PROJECT_COUNT=$(find "${GIT_ROOT}/Source/Code" "${GIT_ROOT}/Source/Tests" -mindepth 2 -maxdepth 2 -type f -name *.csproj | wc -l)
 
-# For non-GNU find, use -exec basename {} \; instead
+# For non-GNU find, use -exec basename {} \; instead (which is at least on WSL a lot slower)
 SOURCE_ARTIFACT_COUNT=$(find "${CS_OUTPUT}/Release/bin/" -mindepth 3 -maxdepth 3 -type f -name "${ASSEMBLY_PREFIX}*.dll" -printf '%f\n' | sort -u | wc -l)
 
 if [[ ${SOURCE_PROJECT_COUNT} -ne ${SOURCE_ARTIFACT_COUNT} ]]; then

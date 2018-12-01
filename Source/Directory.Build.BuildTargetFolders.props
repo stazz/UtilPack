@@ -10,12 +10,5 @@
     <OutputPath>$(BaseOutputPath)</OutputPath>
     
     <RestoreOutputPath>$(BaseIntermediateOutputPath)</RestoreOutputPath>
-    
-    
-    <!--<BuildCommonObjDir>$(BuildCommonOutputDir)obj\</BuildCommonObjDir>
-    <BuildCommonBinDir>$(BuildCommonOutputDir)bin\</BuildCommonBinDir>
-    <BaseIntermediateOutputPath>$(BuildCommonObjDir)$(MSBuildProjectName)\</BaseIntermediateOutputPath>
-    <BaseOutputPath>$(BuildCommonBinDir)\$(MSBuildProjectName)\</BaseOutputPath>
-    <RestoreOutputPath>$(BaseIntermediateOutputPath)</RestoreOutputPath>-->
   </PropertyGroup>
 </Project>

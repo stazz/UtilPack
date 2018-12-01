@@ -11,12 +11,13 @@ environment:
   RELATIVE_NUGET_PACKAGE_DIR: 'nuget-package-dir/'
   RELATIVE_CS_OUTPUT: 'output/'
   CI_FOLDER: 'CI'
-  BUILD_SCRIPT_WITHIN_CONTAINER: 'Build/build.sh'
+  DEPLOY_SCRIPT_WITHIN_CONTAINER: 'Build/deploy.sh'
   ADDITIONAL_VOLUME_DIRECTORIES: 'v4-ref-assemblies'
   ASSEMBLY_PREFIX: UtilPack
   
 artifacts:
   - path: 'output/Release/bin/*/*.nupkg'
+#  - path: 'output/TestResults/*.trx' # If we fail the pipeline on test stage, how do we save test reports? do we even need that, since all output is 
 
 init:
   - sh: git config --global core.autocrlf false
@@ -40,9 +41,13 @@ build_script:
 
 test_script:
   - sh: '${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/test.sh'
+  - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_CS_OUTPUT}"'
+  - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_NUGET_PACKAGE_DIR}"'
   
 deploy_script:
   - sh: '${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/deploy.sh'
+  - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_CS_OUTPUT}"'
+  - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_NUGET_PACKAGE_DIR}"'
   
 after_deploy:
 # Remember to copy docker images to this folder for cache support

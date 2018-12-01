@@ -8,7 +8,7 @@ set -xe
 # Build IL Generator and XML doc merger
 cp /repo-dir/contents/Source/Directory.Build.BuildTargetFolders.props /repo-dir/Directory.Build.props
 # Without specifying Configuration, the (intermediate) output paths will be wrong
-dotnet build "/p:Configuration=Release" "/p:TargetFramework=${THIS_TFM}" "/p:BuildCommonOutputDir=/repo-dir/tmpout/" /repo-dir/contents/Build/UtilPackILGenerator
+dotnet build -nologo "/p:Configuration=Release" "/p:TargetFramework=${THIS_TFM}" "/p:BuildCommonOutputDir=/repo-dir/tmpout/" /repo-dir/contents/Build/UtilPackILGenerator
 
 # Invoke IL Generator and XML doc merger
 UTILPACK_DIR="/repo-dir/BuildTarget/Release/bin/UtilPack"
@@ -47,7 +47,7 @@ find "${UTILPACK_DIR}/" -mindepth 1 -maxdepth 1 -type d -exec "${DOTNET_DIR}/ila
 grep -q 'UtilPack.DelegateMultiplexer' '/repo-dir/tmpout/UtilPack.il' # This will fail whole script on non-zero return value
   
 # Re-sign the assemblies using own tool
-dotnet build "/p:Configuration=Release" "/p:TargetFramework=${THIS_TFM}" "/p:BuildCommonOutputDir=/repo-dir/tmpout/" /repo-dir/contents/Build/StrongNameSigner
+dotnet build -nologo "/p:Configuration=Release" "/p:TargetFramework=${THIS_TFM}" "/p:BuildCommonOutputDir=/repo-dir/tmpout/" /repo-dir/contents/Build/StrongNameSigner
 find "${UTILPACK_DIR}/" -mindepth 1 -maxdepth 1 -type d -exec dotnet \
   "/repo-dir/tmpout/Release/bin/StrongNameSigner/${THIS_TFM}/StrongNameSigner.dll" \
   "/repo-dir/contents/Keys/UtilPack.snk" \
@@ -57,8 +57,3 @@ find "${UTILPACK_DIR}/" -mindepth 1 -maxdepth 1 -type d -exec dotnet \
 
 # Package all projects
 $@
-
-
-set -xe
-
-echo "TODO deploy (upload to NuGet.org if tag contains version?)"

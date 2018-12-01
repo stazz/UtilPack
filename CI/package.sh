@@ -21,7 +21,7 @@ if [[ "${RELATIVE_CS_OUTPUT}" ]]; then
 fi
 
 # Using dotnet build /t:Pack will cause re-build even with /p:GeneratePackageOnBuild=false /p:NoBuild=true flags, so just use dotnet pack instead
-PACKAGE_COMMAND=(find /repo-dir/contents/Source/Code -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec dotnet pack -c Release --no-build /p:IsCIBuild=true {} \;)
+PACKAGE_COMMAND=(find /repo-dir/contents/Source/Code -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec dotnet pack -nologo -c Release --no-build /p:IsCIBuild=true {} \;)
 
 
 if [[ "${PACKAGE_SCRIPT_WITHIN_CONTAINER}" ]]; then
@@ -62,4 +62,13 @@ PACKAGE_ARTIFACT_COUNT=$(find "${CS_OUTPUT}/Release/bin" -mindepth 2 -maxdepth 2
 if [[ ${PACKAGE_PROJECT_COUNT} -ne ${PACKAGE_ARTIFACT_COUNT} ]]; then
  echo "One or more project did not package successfully." 1>&2
  exit 1
+fi
+
+# Run custom script if it is given
+if [[ "$1" ]]; then
+  readarray -t PACKAGE_FILES < <(find "${CS_OUTPUT}/Release/bin" -mindepth 2 -maxdepth 2 -type f -name *.nupkg)
+  "$1" "${PACKAGE_FILES[@]}"
+fi
+if [[ "$1" ]]; then
+  "$1"
 fi

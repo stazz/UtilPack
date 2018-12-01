@@ -15,12 +15,13 @@ environment:
   ADDITIONAL_VOLUME_DIRECTORIES: 'v4-ref-assemblies'
   ASSEMBLY_PREFIX: UtilPack
   
-artifacts:
-  - path: 'output/Release/bin/*/*.nupkg'
+#artifacts:
+#  - path: 'output/Release/bin/*/*.nupkg'
 #  - path: 'output/TestResults/*.trx' # If we fail the pipeline on test stage, how do we save test reports? do we even need that, since all output is 
 
 init:
   - sh: git config --global core.autocrlf false
+  - ps: Update-AppveyorBuild -Version "0.0.$env:appveyor_build_number-$($env:appveyor_repo_commit.substring(0,7))"
   - sh: appveyor UpdateBuild -Version "1.0.${APPVEYOR_BUILD_NUMBER}-${APPVEYOR_REPO_COMMIT0:8}"
 install:
 #   - sh: git submodule update --init --recursive
@@ -40,12 +41,12 @@ build_script:
   - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_NUGET_PACKAGE_DIR}"'
 
 test_script:
-  - sh: '${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/test.sh'
+  - sh: '"${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/test.sh" "${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/appveyor/add_tests.sh"'
   - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_CS_OUTPUT}"'
   - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_NUGET_PACKAGE_DIR}"'
 
 after_test:
-  - sh: '${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/package.sh'
+  - sh: '"${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/package.sh" "${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/appveyor/upload_packages.sh"'
   - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_CS_OUTPUT}"'
   - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_NUGET_PACKAGE_DIR}"'
   

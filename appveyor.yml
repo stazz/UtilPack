@@ -11,7 +11,7 @@ environment:
   RELATIVE_NUGET_PACKAGE_DIR: 'nuget-package-dir/'
   RELATIVE_CS_OUTPUT: 'output/'
   CI_FOLDER: 'CI'
-  DEPLOY_SCRIPT_WITHIN_CONTAINER: 'Build/deploy.sh'
+  PACKAGE_SCRIPT_WITHIN_CONTAINER: 'Build/package.sh'
   ADDITIONAL_VOLUME_DIRECTORIES: 'v4-ref-assemblies'
   ASSEMBLY_PREFIX: UtilPack
   
@@ -43,11 +43,14 @@ test_script:
   - sh: '${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/test.sh'
   - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_CS_OUTPUT}"'
   - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_NUGET_PACKAGE_DIR}"'
+
+after_test:
+  - sh: '${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/package.sh'
+  - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_CS_OUTPUT}"'
+  - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_NUGET_PACKAGE_DIR}"'
   
 deploy_script:
   - sh: '${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/deploy.sh'
-  - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_CS_OUTPUT}"'
-  - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_NUGET_PACKAGE_DIR}"'
   
 after_deploy:
 # Remember to copy docker images to this folder for cache support

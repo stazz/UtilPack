@@ -34,5 +34,7 @@ docker run --rm \
 
 # Upload test results to AppVeyor
 sudo chown `id -u` "${CS_OUTPUT}/TestResultsAppVeyor/appveyor.json"
-curl -X POST -d "@${CS_OUTPUT}/TestResultsAppVeyor/appveyor.json" "${APPVEYOR_API_URL}api/tests"
+cat "${CS_OUTPUT}/TestResultsAppVeyor/appveyor.json"
+
+curl -vvv -i -X POST -d "@${CS_OUTPUT}/TestResultsAppVeyor/appveyor.json" "${APPVEYOR_API_URL}api/tests"
 

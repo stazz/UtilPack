@@ -8,10 +8,6 @@ SCRIPTDIR=$(dirname "$SCRIPTPATH")
 GIT_ROOT=$(readlink -f "${SCRIPTDIR}/..")
 BASE_ROOT=$(readlink -f "${GIT_ROOT}/..")
 
-# Copy required files to GIT root
-cp "${SCRIPTDIR}/CISupport.props" "${GIT_ROOT}/CISupport.props"
-cp "${SCRIPTDIR}/NuGet.Config" "${GIT_ROOT}/NuGet.Config.ci"
-
 if [[ "${RELATIVE_NUGET_PACKAGE_DIR}" ]]; then
   NUGET_PACKAGE_DIR=$(readlink -f "${BASE_ROOT}/${RELATIVE_NUGET_PACKAGE_DIR}")
 fi
@@ -47,7 +43,6 @@ docker run \
   --rm \
   -v "${GIT_ROOT}/:/repo-dir/contents/:ro" \
   -v "${CS_OUTPUT}/:/repo-dir/BuildTarget/:rw" \
-  -v "${GIT_ROOT}/NuGet.Config.ci:/root/.nuget/NuGet/NuGet.Config:ro" \
   -v "${NUGET_PACKAGE_DIR}/:/root/.nuget/packages/:rw" \
   -u 0 \
   -e "THIS_TFM=netcoreapp${DOTNET_VERSION}" \

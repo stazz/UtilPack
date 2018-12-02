@@ -2,7 +2,6 @@
 
 set -xe
 
-# Find out the path and directory where this script resides
 SCRIPTPATH=$(readlink -f "$0")
 SCRIPTDIR=$(dirname "$SCRIPTPATH")
 GIT_ROOT=$(readlink -f "${SCRIPTDIR}/..")

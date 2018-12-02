@@ -14,6 +14,7 @@ environment:
   PACKAGE_SCRIPT_WITHIN_CONTAINER: 'Build/package.sh'
   ADDITIONAL_VOLUME_DIRECTORIES: 'v4-ref-assemblies'
   ASSEMBLY_PREFIX: UtilPack
+  DOTNET_VERSION: '2.1'
   
 #artifacts:
 #  - path: 'output/Release/bin/*/*.nupkg'

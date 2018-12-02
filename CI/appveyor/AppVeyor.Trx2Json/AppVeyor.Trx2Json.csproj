@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+   <PropertyGroup>
+      <TargetFramework>netcoreapp2.1</TargetFramework>
+      <OutputType>Exe</OutputType>
+   </PropertyGroup>
+
+   <PropertyGroup>
+      <Configuration>Release</Configuration>
+      <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+      <TreatSpecificWarningsAsErrors />
+      <LangVersion>latest</LangVersion>
+      <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+      <DebugType>none</DebugType>
+      <DebugSymbols>False</DebugSymbols>
+   </PropertyGroup>
+
+   <ItemGroup>
+      <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+   </ItemGroup>
+
+
+</Project>

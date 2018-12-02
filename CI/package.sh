@@ -52,7 +52,7 @@ docker run \
   -u 0 \
   -e THIS_TFM=netcoreapp2.1 \
   ${ADDITIONAL_VOLUMES_STRING} \
-  microsoft/dotnet:2.1-sdk-alpine \
+  "microsoft/dotnet:${DOTNET_VERSION}-sdk-alpine" \
   "${PACKAGE_COMMAND[@]}"
 
 # Verify that all test projects produced test report

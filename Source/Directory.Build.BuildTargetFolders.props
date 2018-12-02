@@ -11,5 +11,7 @@
     
     <PackageOutputPath>$(BuildCommonOutputDir)\$(Configuration)\bin\</PackageOutputPath>
     <RestoreOutputPath>$(BaseIntermediateOutputPath)</RestoreOutputPath>
+
+    <CIPropsFilePath Condition=" '$(IsCIBuild)' == 'true' ">$([MSBuild]::GetPathOfFileAbove('CISupport.props'))</CIPropsFilePath>
   </PropertyGroup>
 </Project>

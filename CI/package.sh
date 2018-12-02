@@ -17,7 +17,8 @@ if [[ "${RELATIVE_CS_OUTPUT}" ]]; then
 fi
 
 # Using dotnet build /t:Pack will cause re-build even with /p:GeneratePackageOnBuild=false /p:NoBuild=true flags, so just use dotnet pack instead
-PACKAGE_COMMAND=(find /repo-dir/contents/Source/Code -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec dotnet pack -nologo -c Release --no-build /p:IsCIBuild=true {} \;)
+GIT_COMMIT_HASH=$(git -C "${GIT_ROOT}" show-ref --hash HEAD)
+PACKAGE_COMMAND=(find /repo-dir/contents/Source/Code -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec dotnet pack -nologo -c Release --no-build /p:IsCIBuild=true "/p:CIPackageVersionSuffix=${GIT_COMMIT_HASH}" {} \;)
 
 
 if [[ "${PACKAGE_SCRIPT_WITHIN_CONTAINER}" ]]; then

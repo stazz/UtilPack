@@ -15,7 +15,7 @@ if [[ "${RELATIVE_CS_OUTPUT}" ]]; then
   CS_OUTPUT=$(readlink -f "${BASE_ROOT}/${RELATIVE_CS_OUTPUT}")
 fi
 
-# Build Test result parser
+# Build and run test result parser
 docker run --rm \
   -v "${SCRIPTDIR}/AppVeyor.Trx2Json/:/project-dir/project/:ro" \
   -v "${NUGET_PACKAGE_DIR}/:/root/.nuget/packages/:rw" \
@@ -33,5 +33,6 @@ docker run --rm \
   "/test-report-dir/"
 
 # Upload test results to AppVeyor
-curl -X POST -d "@${CS_OUTPUT}/TestResultsAppVeyor/appveyor.json" "${APPVEYOR_API_URL}"
+sudo chown `id -u` "@${CS_OUTPUT}/TestResultsAppVeyor/appveyor.json"
+curl -X POST -d "@${CS_OUTPUT}/TestResultsAppVeyor/appveyor.json" "${APPVEYOR_API_URL}api/tests"
 

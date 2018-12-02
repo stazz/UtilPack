@@ -12,4 +12,13 @@
     <Net40RefAssemblyDirName Condition=" '$(Net40RefAssemblyDirName)' == '' ">v4-ref-assemblies</Net40RefAssemblyDirName>
     <FrameworkPathOverride>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)\..\$(Net40RefAssemblyDirName)'))\</FrameworkPathOverride>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageVersion>$(PackageVersion)+$(CIPackageVersionSuffix)</PackageVersion>
+    <!-- Using SemVer 2.0.0 implies client version 4.3 or higher. Lower clients still might fail, as they read package version before min client version.
+         See https://docs.microsoft.com/en-us/nuget/reference/errors-and-warnings/nu5105 , https://github.com/NuGet/Home/wiki/SemVer-2.0.0-support . -->
+    <MinClientVersion>4.3</MinClientVersion>
+    <!-- Disable warning about SemVer 2.0.0, as per https://github.com/NuGet/Home/issues/4687 . -->
+    <NoWarn>$(NoWarn);NU5105</NoWarn>
+  </PropertyGroup>
 </Project>

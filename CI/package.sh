@@ -50,7 +50,7 @@ docker run \
   -v "${GIT_ROOT}/NuGet.Config.ci:/root/.nuget/NuGet/NuGet.Config:ro" \
   -v "${NUGET_PACKAGE_DIR}/:/root/.nuget/packages/:rw" \
   -u 0 \
-  -e THIS_TFM=netcoreapp2.1 \
+  -e "THIS_TFM=netcoreapp${DOTNET_VERSION}" \
   ${ADDITIONAL_VOLUMES_STRING} \
   "microsoft/dotnet:${DOTNET_VERSION}-sdk-alpine" \
   "${PACKAGE_COMMAND[@]}"
@@ -68,7 +68,4 @@ fi
 if [[ "$1" ]]; then
   readarray -t PACKAGE_FILES < <(find "${CS_OUTPUT}/Release/bin" -mindepth 2 -maxdepth 2 -type f -name *.nupkg)
   "$1" "${PACKAGE_FILES[@]}"
-fi
-if [[ "$1" ]]; then
-  "$1"
 fi

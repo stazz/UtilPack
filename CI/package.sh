@@ -52,7 +52,7 @@ docker run \
 
 # Verify that all test projects produced test report
 PACKAGE_PROJECT_COUNT=$(find "${GIT_ROOT}/Source/Code" -mindepth 2 -maxdepth 2 -type f -name *.csproj | wc -l)
-PACKAGE_ARTIFACT_COUNT=$(find "${CS_OUTPUT}/Release/bin" -mindepth 2 -maxdepth 2 -type f -name *.nupkg | wc -l)
+PACKAGE_ARTIFACT_COUNT=$(find "${CS_OUTPUT}/Release/bin" -mindepth 1 -maxdepth 1 -type f -name *.nupkg | wc -l)
 
 if [[ ${PACKAGE_PROJECT_COUNT} -ne ${PACKAGE_ARTIFACT_COUNT} ]]; then
  echo "One or more project did not package successfully." 1>&2
@@ -61,6 +61,6 @@ fi
 
 # Run custom script if it is given
 if [[ "$1" ]]; then
-  readarray -t PACKAGE_FILES < <(find "${CS_OUTPUT}/Release/bin" -mindepth 2 -maxdepth 2 -type f -name *.nupkg)
+  readarray -t PACKAGE_FILES < <(find "${CS_OUTPUT}/Release/bin" -mindepth 1 -maxdepth 1 -type f -name *.nupkg)
   "$1" "${PACKAGE_FILES[@]}"
 fi

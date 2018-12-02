@@ -9,6 +9,7 @@
     <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
     <OutputPath>$(BaseOutputPath)</OutputPath>
     
+    <PackageOutputPath>$(BuildCommonOutputDir)\$(Configuration)\bin\</PackageOutputPath>
     <RestoreOutputPath>$(BaseIntermediateOutputPath)</RestoreOutputPath>
   </PropertyGroup>
 </Project>

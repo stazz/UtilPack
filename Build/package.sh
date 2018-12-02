@@ -47,6 +47,7 @@ find "${UTILPACK_DIR}/" -mindepth 1 -maxdepth 1 -type d -exec "${DOTNET_DIR}/ila
 grep -q 'UtilPack.DelegateMultiplexer' '/repo-dir/tmpout/UtilPack.il' # This will fail whole script on non-zero return value
   
 # Re-sign the assemblies using own tool
+# We need to run dotnet build first, since we can't pass MSBuild parameters to dotnet run ( see https://github.com/dotnet/cli/issues/7229 )
 dotnet build -nologo "/p:Configuration=Release" "/p:TargetFramework=${THIS_TFM}" "/p:BuildCommonOutputDir=/repo-dir/tmpout/" /repo-dir/contents/Build/StrongNameSigner
 find "${UTILPACK_DIR}/" -mindepth 1 -maxdepth 1 -type d -exec dotnet \
   "/repo-dir/tmpout/Release/bin/StrongNameSigner/${THIS_TFM}/StrongNameSigner.dll" \

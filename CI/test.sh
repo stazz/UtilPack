@@ -50,7 +50,7 @@ docker run \
   -v "${GIT_ROOT}/NuGet.Config.ci:/root/.nuget/NuGet/NuGet.Config:ro" \
   -v "${NUGET_PACKAGE_DIR}/:/root/.nuget/packages/:rw" \
   -u 0 \
-  -e THIS_TFM=netcoreapp2.1 \
+  -e "THIS_TFM=netcoreapp${DOTNET_VERSION}" \
   ${ADDITIONAL_VOLUMES_STRING} \
   "microsoft/dotnet:${DOTNET_VERSION}-sdk-alpine" \
   "${TEST_COMMAND[@]}"

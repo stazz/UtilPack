@@ -38,6 +38,10 @@ if [[ "${CURRENT_BRANCH}" == "master" ]]; then
     if [[ "${DEPLOY_NUGET_SYMBOL_SOURCE}" ]]; then
       ADDITIONAL_PUSH_ARGS+=('--symbol-source', "${DEPLOY_NUGET_SYMBOL_SOURCE}")
     fi
+
+    set -v
+    set +x
+
     if [[ "${DEPLOY_NUGET_API_KEY}" ]]; then
       ADDITIONAL_PUSH_ARGS+=('--api-key', "${DEPLOY_NUGET_API_KEY}")
     fi
@@ -55,5 +59,8 @@ if [[ "${CURRENT_BRANCH}" == "master" ]]; then
       dotnet nuget push \
       '*.nupkg' \
       "${ADDITIONAL_PUSH_ARGS[@]}"
+
+    set +v
+    set -x
   fi
 fi

@@ -58,7 +58,7 @@ docker run \
   -u 0 \
   -e THIS_TFM=netcoreapp2.1 \
   ${ADDITIONAL_VOLUMES_STRING} \
-  microsoft/dotnet:2.1-sdk-alpine \
+  "microsoft/dotnet:${DOTNET_VERSION}-sdk-alpine" \
   "${BUILD_COMMAND[@]}"
   
 # Because find does not return non-0 exit code even when its -exec command does, we need to make sure that we have equal amount of artifacts as there are projects
@@ -70,4 +70,10 @@ SOURCE_ARTIFACT_COUNT=$(find "${CS_OUTPUT}/Release/bin/" -mindepth 3 -maxdepth 3
 if [[ ${SOURCE_PROJECT_COUNT} -ne ${SOURCE_ARTIFACT_COUNT} ]]; then
   echo "One or more project did not build successfully." 1>&2
   exit 1
+fi
+
+# Run custom script if it is given
+if [[ "$1" ]]; then
+  readarray -t BUILD_ASSEMBLIES < <(find "${CS_OUTPUT}/Release/bin/" -mindepth 3 -maxdepth 3 -type f -name "${ASSEMBLY_PREFIX}*.dll")
+  "$1" "${BUILD_ASSEMBLIES[@]}"
 fi

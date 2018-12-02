@@ -28,7 +28,8 @@ if [[ "${RELATIVE_CS_OUTPUT}" ]]; then
   CS_OUTPUT=$(readlink -f "${BASE_ROOT}/${RELATIVE_CS_OUTPUT}")
 fi
 
-BUILD_COMMAND=(find /repo-dir/contents/Source/Code /repo-dir/contents/Source/Tests -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec dotnet build -nologo /p:Configuration=Release /p:IsCIBuild=true /t:Build {} \;)
+GIT_COMMIT_HASH=$(git -C "${GIT_ROOT}" show-ref --hash HEAD)
+BUILD_COMMAND=(find /repo-dir/contents/Source/Code /repo-dir/contents/Source/Tests -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec dotnet build -nologo /p:Configuration=Release /p:IsCIBuild=true "/p:CIPackageVersionSuffix=${GIT_COMMIT_HASH}" /t:Build {} \;)
 
 if [[ "${BUILD_SCRIPT_WITHIN_CONTAINER}" ]]; then
   # Our actual command is to invoke a script within GIT repository, and passing it the command as parameter

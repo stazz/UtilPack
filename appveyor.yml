@@ -15,6 +15,7 @@ environment:
   ADDITIONAL_VOLUME_DIRECTORIES: 'v4-ref-assemblies'
   ASSEMBLY_PREFIX: UtilPack
   DOTNET_VERSION: '2.1'
+  DEPLOY_NUGET_SOURCE: 'https://api.nuget.org/v3/index.json'
   
 #artifacts:
 #  - path: 'output/Release/bin/*/*.nupkg'

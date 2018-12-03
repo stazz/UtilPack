@@ -7,6 +7,16 @@ SCRIPTDIR=$(dirname "$SCRIPTPATH")
 GIT_ROOT=$(readlink -f "${SCRIPTDIR}/..")
 BASE_ROOT=$(readlink -f "${GIT_ROOT}/..")
 
+TEST_PROJECT_COUNT=$(find "${GIT_ROOT}/Source/Tests" -mindepth 2 -maxdepth 2 -type f -name *.csproj | wc -l)
+if [[ "${TEST_PROJECT_COUNT}" -eq "0" ]]; then
+  if [[ "${NO_TESTS_IS_OK}" ]]; then
+    exit 0
+  else
+    echo "Please make at least one test project or set NO_TESTS_IS_OK variable to non-empty string."
+    exit 1
+  fi
+fi
+
 if [[ "${RELATIVE_NUGET_PACKAGE_DIR}" ]]; then
   NUGET_PACKAGE_DIR=$(readlink -f "${BASE_ROOT}/${RELATIVE_NUGET_PACKAGE_DIR}")
 fi
@@ -17,7 +27,6 @@ fi
 
 # Run tests with hard-coded trx format, for now.
 TEST_COMMAND=(find /repo-dir/contents/Source/Tests -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec sh -c 'dotnet test -nologo -c Release --no-build --logger trx\;LogFileName=/repo-dir/BuildTarget/TestResults/$(basename {} .csproj).trx /p:IsCIBuild=true {}' \;)
-
 
 if [[ "${TEST_SCRIPT_WITHIN_CONTAINER}" ]]; then
   # Our actual command is to invoke a script within GIT repository, and passing it the command as parameter
@@ -56,7 +65,6 @@ if [[ "$1" ]]; then
 fi
 
 # Verify that all test projects produced test report
-TEST_PROJECT_COUNT=$(find "${GIT_ROOT}/Source/Tests" -mindepth 2 -maxdepth 2 -type f -name *.csproj | wc -l)
 TEST_REPORT_COUNT=$(find "${CS_OUTPUT}/TestResults" -mindepth 1 -maxdepth 1 -type f -name *.trx | wc -l)
 
 if [[ ${TEST_PROJECT_COUNT} -ne ${TEST_REPORT_COUNT} ]]; then

@@ -299,7 +299,14 @@ $@"{namedGroup.Name}:
                      {
                         v = "true|false";
                      }
-                     // TODO enum support
+                     else if ( propertyType.
+#if NETSTANDARD1_0
+                        GetTypeInfo().
+#endif
+                     IsEnum )
+                     {
+                        v = String.Join( "|", Enum.GetValues( propertyType ).Cast<Object>() );
+                     }
                   }
                   return (p.Item2, $"<{( String.IsNullOrEmpty( v ) ? "value" : v )}>", desc?.Description, req?.Conditional ?? false);
                } )

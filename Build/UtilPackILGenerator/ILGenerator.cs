@@ -57,6 +57,7 @@ namespace UtilPackILGenerator
          // TODO maybe reference some (nuget?) assembly to extract TFM strings from??
          switch ( tfm )
          {
+            case "netstandard2.0":
             case "netstandard1.6":
             case "netstandard1.5":
             case "netstandard1.1":

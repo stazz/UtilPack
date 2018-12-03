@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard1.1</TargetFrameworks>
+    <TargetFrameworks>netstandard1.1;netstandard2.0</TargetFrameworks>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -18,7 +18,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.0.1</VersionPrefix>
+    <VersionPrefix>1.1.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Description>Library containing DynamicConfigurableTypeLoader class, which dynamically loads and instantiates types using information in Microsoft.Extensions.Configuration.IConfiguration object.</Description>
@@ -29,7 +29,7 @@
     <PackageId>$(AssemblyName)</PackageId>
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
-    <PackageReleaseNotes>Fixed a bug in detecting property which should be traversed recursively when scanning for NestedDynamicConfiguration attributes.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added .NET Standard 2.0 to targets, in order to reduce build and restore speeds for compatible target frameworks.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions configuration dynamically load assembly type</PackageTags>
     <Title>Dynamic Configuration</Title>
   </PropertyGroup>

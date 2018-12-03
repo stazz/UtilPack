@@ -58,6 +58,9 @@ namespace UtilPackILGenerator
          switch ( tfm )
          {
             case "netstandard2.0":
+              delegateAssembly = equalityComparerAssembly = objectAssembly = actionAssembly = actionAssembly = exceptionAssembly = ienumerableAssembly = extensionAssembly = linkedListAssembly = enumerableAssembly = aggregateExceptionAssembly = "netstandard";
+              hasAggressiveInlining = true;
+              break;
             case "netstandard1.6":
             case "netstandard1.5":
             case "netstandard1.1":

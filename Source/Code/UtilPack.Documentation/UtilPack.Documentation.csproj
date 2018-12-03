@@ -33,7 +33,7 @@
       <PackageId>$(AssemblyName)</PackageId>
       <PackageVersion>$(VersionPrefix)</PackageVersion>
       <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
-      <PackageReleaseNotes>Initial release</PackageReleaseNotes>
+      <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
       <PackageTags>utility documentation command line type safe</PackageTags>
       <Title>Documentation Generator From Types</Title>
    </PropertyGroup>

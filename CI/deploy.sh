@@ -12,8 +12,12 @@ if [[ "${RELATIVE_CS_OUTPUT}" ]]; then
 fi
 
 # Get current GIT branch
-CURRENT_BRANCH=$(git -C "${GIT_ROOT}" rev-parse --abbrev-ref HEAD)
-if [[ "${CURRENT_BRANCH}" == "master" ]]; then
+# git rev-parse --abbrev-ref HEAD <- won't work, since the repo will be in "detached HEAD state" after CI tool checks out the commit.
+# git for-each-ref --format='%(objectname) %(refname:short)' refs/heads | awk "/^$(git rev-parse HEAD)/ {print \$2}" <- is nice, but only works for tip commits. Sometimes we might not be at the tip.
+# git rev-list --first-parent <branchname> <- this shows all commit hashes for a specific branch, therefore allows us to reliably determine whether we are on some specific branch, tip or not.
+GIT_COMMIT_HASH=$(git -C "${GIT_ROOT}" show-ref --hash HEAD)
+COMMIT_HASH_IN_MASTER=$(git -C "${GIT_ROOT}" rev-list --first-parent master | grep "${GIT_COMMIT_HASH}")
+if [[ "${GIT_COMMIT_HASH}" == "${COMMIT_HASH_IN_MASTER}" ]]; then
   # Get all tags for this commit
   readarray -t CURRENT_TAGS < <(git -C "${GIT_ROOT}" tag --points-at)
   

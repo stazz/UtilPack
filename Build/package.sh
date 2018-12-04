@@ -60,4 +60,4 @@ find "${UTILPACK_DIR}/" -mindepth 1 -maxdepth 1 -type d -exec dotnet \
 # TODO verify here that all assemblies are truly signed, since find does not return error code if -exec'ed command fails
 
 # Package all projects
-$@
+"$@"

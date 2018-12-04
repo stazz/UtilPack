@@ -18,7 +18,8 @@ fi
 
 # Using dotnet build /t:Pack will cause re-build even with /p:GeneratePackageOnBuild=false /p:NoBuild=true flags, so just use dotnet pack instead
 GIT_COMMIT_HASH=$(git -C "${GIT_ROOT}" show-ref --hash HEAD)
-PACKAGE_COMMAND=(find /repo-dir/contents/Source/Code -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec dotnet pack -nologo -c Release --no-build /p:IsCIBuild=true "/p:CIPackageVersionSuffix=${GIT_COMMIT_HASH}" {} \;)
+SUCCESS_DIR="${BASE_ROOT}/package_success"
+PACKAGE_COMMAND=(find /repo-dir/contents/Source/Code -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec sh -c "dotnet pack -nologo -c Release --no-build /p:IsCIBuild=true /p:CIPackageVersionSuffix=${GIT_COMMIT_HASH} {}"' && touch "/success/$(basename {} .csproj)"' \;)
 
 
 if [[ "${PACKAGE_SCRIPT_WITHIN_CONTAINER}" ]]; then
@@ -40,11 +41,13 @@ if [[ "${ADDITIONAL_VOLUME_DIRECTORIES}" ]]; then
 fi
 
 # Run package code within docker
+rm -rf "${SUCCESS_DIR}"
 docker run \
   --rm \
   -v "${GIT_ROOT}/:/repo-dir/contents/:ro" \
   -v "${CS_OUTPUT}/:/repo-dir/BuildTarget/:rw" \
   -v "${NUGET_PACKAGE_DIR}/:/root/.nuget/packages/:rw" \
+  -v "${SUCCESS_DIR}/:/success/:rw" \
   -u 0 \
   -e "THIS_TFM=netcoreapp${DOTNET_VERSION}" \
   ${ADDITIONAL_VOLUMES_STRING} \
@@ -53,9 +56,9 @@ docker run \
 
 # Verify that all test projects produced test report
 PACKAGE_PROJECT_COUNT=$(find "${GIT_ROOT}/Source/Code" -mindepth 2 -maxdepth 2 -type f -name *.csproj | wc -l)
-PACKAGE_ARTIFACT_COUNT=$(find "${CS_OUTPUT}/Release/bin" -mindepth 1 -maxdepth 1 -type f -name *.nupkg | wc -l)
+PACKAGE_SUCCESS_COUNT=$(find "${SUCCESS_DIR}" -mindepth 1 -maxdepth 1 -type f | wc -l)
 
-if [[ ${PACKAGE_PROJECT_COUNT} -ne ${PACKAGE_ARTIFACT_COUNT} ]]; then
+if [[ ${PACKAGE_PROJECT_COUNT} -ne ${PACKAGE_SUCCESS_COUNT} ]]; then
  echo "One or more project did not package successfully." 1>&2
  exit 1
 fi

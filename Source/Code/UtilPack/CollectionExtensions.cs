@@ -1616,5 +1616,49 @@ namespace UtilPack
 
          return startIndex;
       }
+
+      /// <summary>
+      /// Convenience method to call <see cref="String.Join(String, IEnumerable{String})"/> without using static method notation.
+      /// </summary>
+      /// <param name="enumerable">This <see cref="IEnumerable{T}"/>.</param>
+      /// <param name="separator">The string separator. May be <c>null</c> or empty.</param>
+      /// <returns>The joined string.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IEnumerable{T}"/> is <c>null</c>.</exception>
+      public static String JoinToString( this IEnumerable<String> enumerable, String separator )
+      {
+         return String.Join( separator, ArgumentValidator.ValidateNotNullReference( enumerable ) );
+      }
+
+      /// <summary>
+      /// Convenience method to call <see cref="String.Join(String, IEnumerable{String})"/> after first transforming items to string.
+      /// </summary>
+      /// <typeparam name="T">The type of items in this <see cref="IEnumerable{T}"/>.</typeparam>
+      /// <param name="enumerable">This <see cref="IEnumerable{T}"/>.</param>
+      /// <param name="separator">The string separator. May be <c>null</c> or empty.</param>
+      /// <param name="toString">Optional callback to transform single item to string.</param>
+      /// <returns>The joined string.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IEnumerable{T}"/> is <c>null</c>.</exception>
+      public static String JoinToString<T>( this IEnumerable<T> enumerable, String separator, Func<T, String> toString = null )
+      {
+         return ArgumentValidator.ValidateNotNullReference( enumerable )
+            .Select( toString ?? ( ( item ) => item?.ToString() ) )
+            .JoinToString( separator );
+      }
+
+      /// <summary>
+      /// Convenience method to call <see cref="String.Join(String, IEnumerable{String})"/> after first transforming items to string.
+      /// </summary>
+      /// <typeparam name="T">The type of items in this <see cref="IEnumerable{T}"/>.</typeparam>
+      /// <param name="enumerable">This <see cref="IEnumerable{T}"/>.</param>
+      /// <param name="separator">The string separator. May be <c>null</c> or empty.</param>
+      /// <param name="toString">Callback to transform single item along with its index to string. May be <c>null</c>.</param>
+      /// <returns>The joined string.</returns>
+      /// <exception cref="NullReferenceException">If this <see cref="IEnumerable{T}"/> is <c>null</c>.</exception>
+      public static String JoinToString<T>( this IEnumerable<T> enumerable, String separator, Func<T, Int32, String> toString )
+      {
+         return ArgumentValidator.ValidateNotNullReference( enumerable )
+            .Select( toString ?? ( ( item, idx ) => item?.ToString() ) )
+            .JoinToString( separator );
+      }
    }
 }

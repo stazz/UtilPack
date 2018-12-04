@@ -9,7 +9,6 @@
       <TreatSpecificWarningsAsErrors />
       <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
       <LangVersion>latest</LangVersion>
-      <GenerateDocumentationFile>false</GenerateDocumentationFile>
    </PropertyGroup>
 
    <ItemGroup>

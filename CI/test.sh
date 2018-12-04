@@ -26,7 +26,8 @@ if [[ "${RELATIVE_CS_OUTPUT}" ]]; then
 fi
 
 # Run tests with hard-coded trx format, for now.
-TEST_COMMAND=(find /repo-dir/contents/Source/Tests -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec sh -c 'dotnet test -nologo -c Release --no-build --logger trx\;LogFileName=/repo-dir/BuildTarget/TestResults/$(basename {} .csproj).trx /p:IsCIBuild=true {}' \;)
+SUCCESS_DIR="${BASE_ROOT}/test_success"
+TEST_COMMAND=(find /repo-dir/contents/Source/Tests -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec sh -c 'dotnet test -nologo -c Release --no-build --logger trx\;LogFileName=/repo-dir/BuildTarget/TestResults/$(basename {} .csproj).trx /p:IsCIBuild=true {} && touch "/success/$(basename {} .csproj)"' \;)
 
 if [[ "${TEST_SCRIPT_WITHIN_CONTAINER}" ]]; then
   # Our actual command is to invoke a script within GIT repository, and passing it the command as parameter
@@ -47,11 +48,13 @@ if [[ "${ADDITIONAL_VOLUME_DIRECTORIES}" ]]; then
 fi
 
 # Run tests code within docker
+rm -rf "${SUCCESS_DIR}"
 docker run \
   --rm \
   -v "${GIT_ROOT}/:/repo-dir/contents/:ro" \
   -v "${CS_OUTPUT}/:/repo-dir/BuildTarget/:rw" \
   -v "${NUGET_PACKAGE_DIR}/:/root/.nuget/packages/:rw" \
+  -v "${SUCCESS_DIR}/:/success/:rw" \
   -u 0 \
   -e "THIS_TFM=netcoreapp${DOTNET_VERSION}" \
   ${ADDITIONAL_VOLUMES_STRING} \
@@ -65,9 +68,9 @@ if [[ "$1" ]]; then
 fi
 
 # Verify that all test projects produced test report
-TEST_REPORT_COUNT=$(find "${CS_OUTPUT}/TestResults" -mindepth 1 -maxdepth 1 -type f -name *.trx | wc -l)
+TEST_SUCCESS_COUNT=$(find "${SUCCESS_DIR}" -mindepth 1 -maxdepth 1 -type f | wc -l)
 
-if [[ ${TEST_PROJECT_COUNT} -ne ${TEST_REPORT_COUNT} ]]; then
+if [[ ${TEST_PROJECT_COUNT} -ne ${TEST_SUCCESS_COUNT} ]]; then
  echo "One or more project did not produce test report successfully." 1>&2
  exit 1
 fi

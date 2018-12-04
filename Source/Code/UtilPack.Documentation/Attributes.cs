@@ -19,51 +19,63 @@ using System;
 
 namespace UtilPack.Documentation
 {
+   /// <summary>
+   /// Use this attribute to mark properties which are required to be specified in the configuration.
+   /// </summary>
    [AttributeUsage( AttributeTargets.Property )]
    public sealed class RequiredAttribute : Attribute
    {
+      /// <summary>
+      /// Get or sets whether this is required only in some special case, e.g. when some other property is specified or missing.
+      /// </summary>
+      /// <value>Whether this is required only in some special case, e.g. when some other property is specified or missing.</value>
+      /// <remarks>
+      /// By default, this is <c>false</c>, which means that the property is always required.
+      /// </remarks>
       public Boolean Conditional { get; set; }
-
-      //public String AdditionalInformation { get; set; }
    }
 
+   /// <summary>
+   /// Use this attribute to add a description about property value.
+   /// </summary>
    [AttributeUsage( AttributeTargets.Property )]
    public sealed class DescriptionAttribute : Attribute
    {
+      /// <summary>
+      /// Gets or sets description for what kind of value the property represents (e.g. a path in a filesystem, an url, or something else).
+      /// </summary>
+      /// <value>The description for what kind of value the property represents (e.g. a path in a filesystem, an url, or something else).</value>
+      /// <remarks>
+      /// The <see cref="CommandLineArgumentsDocumentationGenerator"/> by default knows to auto-fill this property for enum types and for <see cref="Boolean"/>.
+      /// </remarks>
       public String ValueName { get; set; }
 
+      /// <summary>
+      /// Gets or sets detailed description about the meaning of the property, and how the value is interpreted in various scenarios.
+      /// </summary>
+      /// <value>The detailed description about the meaning of the property, and how the value is interpreted in various scenarios.</value>
       public String Description { get; set; }
    }
 
+   /// <summary>
+   /// Use this attribute to mark a property belonging to a certain named parameter group by default.
+   /// </summary>
    [AttributeUsage( AttributeTargets.Property )]
    public sealed class ParameterGroupAttribute : Attribute
    {
-
+      /// <summary>
+      /// Gets or sets the name of the parameter group.
+      /// </summary>
       public String Group { get; set; }
    }
 
+   /// <summary>
+   /// Use this attribute to mark a property which should be ignored by documentation.
+   /// </summary>
    [AttributeUsage( AttributeTargets.Property )]
    public sealed class IgnoreInDocumentation : Attribute
    {
 
    }
-
-   public interface ParameterGroupOrFixedParameter
-   {
-      Boolean IsOptional { get; }
-   }
-
-   public abstract class ParameterGroupOrFixedParameterImpl : ParameterGroupOrFixedParameter
-   {
-      public ParameterGroupOrFixedParameterImpl(
-         Boolean isOptional
-         )
-      {
-         this.IsOptional = isOptional;
-      }
-
-      public Boolean IsOptional { get; }
-   }
-
 }
 

@@ -47,6 +47,7 @@ docker run \
   -v "${GIT_ROOT}/:/repo-dir/contents/:ro" \
   -v "${CS_OUTPUT}/:/repo-dir/BuildTarget/:rw" \
   -v "${NUGET_PACKAGE_DIR}/:/root/.nuget/packages/:rw" \
+  -v "${BASE_ROOT}/secrets/assembly_key.snk:/repo-dir/secrets/assembly_key.snk:ro" \
   -v "${SUCCESS_DIR}/:/success/:rw" \
   -u 0 \
   -e "THIS_TFM=netcoreapp${DOTNET_VERSION}" \

@@ -1,3 +1,5 @@
+[![Build status](https://ci.appveyor.com/api/projects/status/9d0wp07j7vo9f4qc/branch/develop?svg=true)](https://ci.appveyor.com/project/stazz/utilpack/branch/develop)
+
 # UtilPack
 Home of UtilPack - library with various useful and generic stuff for .NET Desktop and Core, and also for managing NuGet packages and assemblies.
 

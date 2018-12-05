@@ -28,14 +28,14 @@ if [[ -f "${DOTNET_SDK_FILE}" ]]; then
 
   # Save if new ID is different (we pulled new version)
   if [[ "${DOTNET_SDK_IMAGE_ID}" != "${DOTNET_SDK_IMAGE_ID_NEW}" ]]; then
-    docker image save "${DOTNET_SDK_IMAGE}"
+    docker image save -o "${DOTNET_SDK_FILE}" "${DOTNET_SDK_IMAGE}"
   fi
 else
   # Pull image
   docker pull "${DOTNET_SDK_IMAGE}"
 
   # Save image to disk
-  docker image save "${DOTNET_SDK_IMAGE}"
+  docker image save -o "${DOTNET_SDK_FILE}" "${DOTNET_SDK_IMAGE}" 
 fi
 
 

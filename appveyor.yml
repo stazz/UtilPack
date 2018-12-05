@@ -5,8 +5,8 @@ services:
 cache:
   - 'nuget-package-dir'
   - 'v4-ref-assemblies'
-#  - 'docker-images'
-#  - '/var/lib/docker/image'
+  - 'docker-images'
+
 environment:
   RELATIVE_NUGET_PACKAGE_DIR: 'nuget-package-dir/'
   RELATIVE_CS_OUTPUT: 'output/'
@@ -30,14 +30,11 @@ init:
 install:
 #   - sh: git submodule update --init --recursive
   - sh: 'mkdir "${APPVEYOR_BUILD_FOLDER}/git"'
-  - sh: 'find "${APPVEYOR_BUILD_FOLDER}" -mindepth 1 -maxdepth 1 -not -name "git" -not -name "nuget-package-dir" -not -name "docker-images" -not -name "v4-ref-assemblies" -exec mv -t "${APPVEYOR_BUILD_FOLDER}/git" {} +'
+  - sh: 'find "${APPVEYOR_BUILD_FOLDER}" -mindepth 1 -maxdepth 1 -not -name "git" -not -name "nuget-package-dir" -not -name "docker-images" -not -name "v4-ref-assemblies" -not -name "docker-images" -exec mv -t "${APPVEYOR_BUILD_FOLDER}/git" {} +'
   - sh: '"${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/download-net40-ref-assemblies.sh" "${APPVEYOR_BUILD_FOLDER}/v4-ref-assemblies"'
 
-# AppVeyor does not have docker images cache support, so use the normal cache for that.
-#  - sh: 'mkdir -p "${APPVEYOR_BUILD_FOLDER}/docker-images"'
-#  - sh: 'sudo cp -R "${APPVEYOR_BUILD_FOLDER}/docker-images/." /var/lib/docker'
-#  - sh: 'sudo chown -R root:root /var/lib/docker'
-#  - sh: 'sudo chmod u=rwX,g=,o= /var/lib/docker'
+before_build:
+  - sh: '"${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/appveyor/sync_docker_image.sh"'
 
 build_script:
   - sh: '"${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/build.sh"'
@@ -58,8 +55,3 @@ deploy_script:
   - sh: '${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/deploy.sh'
   
 after_deploy:
-# Remember to copy docker images to this folder for cache support
-#  - sh: 'sudo systemctl stop docker'
-#  - sh: 'sudo cp -R /var/lib/docker/. "${APPVEYOR_BUILD_FOLDER}/docker-images"'
-#  - sh: 'sudo find "${APPVEYOR_BUILD_FOLDER}/docker-images" -mindepth 1 -maxdepth 1 -not -name "image" -not -name "overlay2" -exec rm -rf {} +'
-#  - sh: 'sudo chown -R `id -u`:`id -u` "${APPVEYOR_BUILD_FOLDER}/docker-images"'

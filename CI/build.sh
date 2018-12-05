@@ -13,10 +13,10 @@ cp "${SCRIPTDIR}/CISupport.props" "${GIT_ROOT}/CISupport.props"
 cp "${SCRIPTDIR}/NuGet.Config" "${GIT_ROOT}/NuGet.Config.ci"
 
 # Create key
-mkdir -p "${GIT_ROOT}/Keys"
+mkdir -p "${BASE_ROOT}/secrets"
 set -v
 set +x
-echo "${ASSEMBLY_SIGN_KEY}" | base64 -d > "${GIT_ROOT}/Keys/UtilPack.snk"
+echo "${ASSEMBLY_SIGN_KEY}" | base64 -d > "${BASE_ROOT}/secrets/assembly_key.snk"
 set +v
 set -x
 
@@ -60,6 +60,7 @@ docker run \
   -v "${CS_OUTPUT}/:/repo-dir/BuildTarget/:rw" \
   -v "${GIT_ROOT}/NuGet.Config.ci:/root/.nuget/NuGet/NuGet.Config:ro" \
   -v "${NUGET_PACKAGE_DIR}/:/root/.nuget/packages/:rw" \
+  -v "${BASE_ROOT}/secrets/assembly_key.snk:/repo-dir/secrets/assembly_key.snk:ro" \
   -v "${SUCCESS_DIR}/:/success/:rw" \
   -u 0 \
   -e "THIS_TFM=netcoreapp${DOTNET_VERSION}" \

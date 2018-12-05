@@ -7,17 +7,11 @@
     <NeutralLanguage>en-US</NeutralLanguage>
     <Product>UtilPack</Product>
     <Copyright>Stanislav Muhametsin</Copyright>
-    <AssemblyOriginatorKeyFilePath>$(MSBuildThisFileDirectory)\..\Keys\$(Product).snk</AssemblyOriginatorKeyFilePath>
     <PackageProjectUrl>https://github.com/stazz/$(Product)</PackageProjectUrl>
     <RepositoryUrl>$(PackageProjectUrl)/tree/develop/Source/$(MSBuildProjectName)</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-  </PropertyGroup>
-  
-  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <AssemblyOriginatorKeyFile>$(AssemblyOriginatorKeyFilePath)</AssemblyOriginatorKeyFile>
-    <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   
   <!-- Disable all debug information in release mode-->

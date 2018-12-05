@@ -54,7 +54,7 @@ grep -q 'UtilPack.DelegateMultiplexer' '/repo-dir/tmpout/UtilPack.il' # This wil
 dotnet build -nologo "/p:Configuration=Release" "/p:TargetFramework=${THIS_TFM}" "/p:BuildCommonOutputDir=/repo-dir/tmpout/" /repo-dir/contents/CI/StrongNameSigner
 find "${UTILPACK_DIR}/" -mindepth 1 -maxdepth 1 -type d -exec dotnet \
   "/repo-dir/tmpout/Release/bin/StrongNameSigner/${THIS_TFM}/StrongNameSigner.dll" \
-  "/repo-dir/contents/Keys/UtilPack.snk" \
+  "/repo-dir/secrets/assembly_key.snk" \
   "{}/UtilPack.dll" \;
   
 # TODO verify here that all assemblies are truly signed, since find does not return error code if -exec'ed command fails

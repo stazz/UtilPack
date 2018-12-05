@@ -14,4 +14,9 @@
 
     <CIPropsFilePath Condition=" '$(IsCIBuild)' == 'true' ">$([MSBuild]::GetPathOfFileAbove('CISupport.props'))</CIPropsFilePath>
   </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(IsCIBuild)' == 'true' ">
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)/../../secrets/assembly_key.snk</AssemblyOriginatorKeyFile>
+    <SignAssembly>true</SignAssembly>
+  </PropertyGroup>
 </Project>

@@ -41,7 +41,7 @@
     <PackageId>$(AssemblyName)</PackageId>
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
-    <PackageReleaseNotes>Added .NET Standard 2.0 to targets, in order to reduce build and restore speeds for compatible target frameworks.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added .NET Standard 2.0 to targets, in order to reduce build and restore speeds for compatible target frameworks. Also added JoinToString extension methods.</PackageReleaseNotes>
     <PackageTags>bcl utility binary serialization collection extensions</PackageTags>
     <Title>Utility Package for CLR</Title>
   </PropertyGroup>

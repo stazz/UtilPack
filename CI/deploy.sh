@@ -16,7 +16,7 @@ fi
 # git for-each-ref --format='%(objectname) %(refname:short)' refs/heads | awk "/^$(git rev-parse HEAD)/ {print \$2}" <- is nice, but only works for tip commits. Sometimes we might not be at the tip.
 # git rev-list --first-parent <branchname> <- this shows all commit hashes for a specific branch, therefore allows us to reliably determine whether we are on some specific branch, tip or not.
 # Don't fail on error (e.g. if master branch does not exist)
-GIT_COMMIT_HASH="$(git -C "${GIT_ROOT}" show --format='format:%H' HEAD)"
+GIT_COMMIT_HASH="$(git -C "${GIT_ROOT}" show --quiet --format=format:%H HEAD)"
 set +e
 COMMIT_HASH_IN_MASTER="$(git -C "${GIT_ROOT}" rev-list --first-parent master -- 2>/dev/null | grep -o "${GIT_COMMIT_HASH}")"
 set -e

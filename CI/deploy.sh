@@ -46,6 +46,9 @@ if [[ "${GIT_COMMIT_HASH}" == "${COMMIT_HASH_IN_MASTER}" ]]; then
     if [[ "${DEPLOY_NUGET_SYMBOL_SOURCE}" ]]; then
       ADDITIONAL_PUSH_ARGS+=('--symbol-source' "${DEPLOY_NUGET_SYMBOL_SOURCE}")
     fi
+    if [[ "${DEPLOY_NUGET_NO_SYMBOLS}" ]]; then
+      ADDITIONAL_PUSH_ARGS+=('--no-symbols')
+    fi
 
     if [[ "${DEPLOY_NUGET_NO_SERVICE_ENDPOINT}" ]]; then
       ADDITIONAL_PUSH_ARGS+=('--no-service-endpoint')
@@ -71,6 +74,7 @@ if [[ "${GIT_COMMIT_HASH}" == "${COMMIT_HASH_IN_MASTER}" ]]; then
       "microsoft/dotnet:${DOTNET_VERSION}-sdk-alpine" \
       dotnet nuget push \
       '*.nupkg' \
+      --force-english-output \
       "${ADDITIONAL_PUSH_ARGS[@]}"
 
     set +v

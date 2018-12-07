@@ -10,7 +10,7 @@ cache:
 environment:
   RELATIVE_NUGET_PACKAGE_DIR: 'nuget-package-dir/'
   RELATIVE_CS_OUTPUT: 'output/'
-  CI_FOLDER: 'CI'
+  CI_FOLDER: 'CIPipeline'
   PACKAGE_SCRIPT_WITHIN_CONTAINER: 'Build/package.sh'
   ADDITIONAL_VOLUME_DIRECTORIES: 'v4-ref-assemblies'
   DOTNET_VERSION: '2.1'

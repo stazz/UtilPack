@@ -13,12 +13,14 @@ cp "${SCRIPTDIR}/CISupport.props" "${GIT_ROOT}/CISupport.props"
 cp "${SCRIPTDIR}/NuGet.Config" "${GIT_ROOT}/NuGet.Config.ci"
 
 # Create key
-mkdir -p "${BASE_ROOT}/secrets"
-set -v
-set +x
-echo "${ASSEMBLY_SIGN_KEY}" | base64 -d > "${BASE_ROOT}/secrets/assembly_key.snk"
-set +v
-set -x
+if [[ "${ASSEMBLY_SIGN_KEY}" ]]; then
+  mkdir -p "${BASE_ROOT}/secrets"
+  set -v
+  set +x
+  echo "${ASSEMBLY_SIGN_KEY}" | base64 -d > "${BASE_ROOT}/secrets/assembly_key.snk"
+  set +v
+  set -x
+fi
 
 if [[ "${RELATIVE_NUGET_PACKAGE_DIR}" ]]; then
   NUGET_PACKAGE_DIR=$(readlink -f "${BASE_ROOT}/${RELATIVE_NUGET_PACKAGE_DIR}")
@@ -30,7 +32,7 @@ fi
 
 GIT_COMMIT_HASH=$(git -C "${GIT_ROOT}" show-ref --hash HEAD)
 # Originally build success dir was inside the CS_OUTPUT, but that caused MSB4024 issue with generated .nuget.g.props files (dotnet claimed that file did not exist) on Windows at least, so maybe Docker or other issue. In any case, this works when the build success dir is not inside the shared CS_OUTPUT.
-SUCCESS_DIR="${BASE_ROOT}/build_success"
+SUCCESS_DIR="${BASE_ROOT}/build-success"
 BUILD_COMMAND=(find /repo-dir/contents/Source/Code /repo-dir/contents/Source/Tests -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec sh -c "dotnet build -nologo /p:Configuration=Release /p:IsCIBuild=true /p:CIPackageVersionSuffix=${GIT_COMMIT_HASH} {}"' && touch "/success/$(basename {} .csproj)"' \;)
 
 if [[ "${BUILD_SCRIPT_WITHIN_CONTAINER}" ]]; then

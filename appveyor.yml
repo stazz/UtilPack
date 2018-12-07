@@ -13,7 +13,6 @@ environment:
   CI_FOLDER: 'CI'
   PACKAGE_SCRIPT_WITHIN_CONTAINER: 'Build/package.sh'
   ADDITIONAL_VOLUME_DIRECTORIES: 'v4-ref-assemblies'
-#  ASSEMBLY_PREFIX: UtilPack
   DOTNET_VERSION: '2.1'
   DEPLOY_NUGET_SOURCE: 'https://api.nuget.org/v3/index.json'
   DEPLOY_NUGET_NO_SYMBOLS: true
@@ -22,22 +21,17 @@ environment:
   DEPLOY_NUGET_API_KEY:
     secure: y15iZvGoFG2Y0y83+h3OBGJLX+krPLpu4CdObL3SINMvt7fGCtPjZPtZB3vVx9kI
   
-#artifacts:
-#  - path: 'output/Release/bin/*/*.nupkg'
-#  - path: 'output/TestResults/*.trx' # If we fail the pipeline on test stage, how do we save test reports? do we even need that, since all output is 
-
 init:
   - sh: git config --global core.autocrlf false
-#  - ps: Update-AppveyorBuild -Version "0.0.$env:appveyor_build_number-$($env:appveyor_repo_commit.substring(0,7))"
   - sh: appveyor UpdateBuild -Version "build-${APPVEYOR_REPO_COMMIT:0:8}-${APPVEYOR_BUILD_NUMBER}"
 install:
 #   - sh: git submodule update --init --recursive
   - sh: 'mkdir "${APPVEYOR_BUILD_FOLDER}/git"'
-  - sh: 'find "${APPVEYOR_BUILD_FOLDER}" -mindepth 1 -maxdepth 1 -not -name "git" -not -name "nuget-package-dir" -not -name "docker-images" -not -name "v4-ref-assemblies" -not -name "docker-images" -exec mv -t "${APPVEYOR_BUILD_FOLDER}/git" {} +'
+  - sh: 'git -C "${APPVEYOR_BUILD_FOLDER}" ls-tree --name-only -z HEAD | xargs --null mv -t "${APPVEYOR_BUILD_FOLDER}/git"'
   - sh: '"${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/download-net40-ref-assemblies.sh" "${APPVEYOR_BUILD_FOLDER}/v4-ref-assemblies"'
 
 before_build:
-  - sh: '"${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/appveyor/sync_docker_image.sh"'
+  - sh: '"${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/appveyor/sync_docker_image.sh" "microsoft/dotnet:${DOTNET_VERSION}-sdk-alpine" "${APPVEYOR_BUILD_FOLDER}/docker-images/dotnet-sdk.tar"'
 
 build_script:
   - sh: '"${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/build.sh"'
@@ -56,5 +50,3 @@ after_test:
   
 deploy_script:
   - sh: '${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/deploy.sh'
-  
-after_deploy:

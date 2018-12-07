@@ -26,7 +26,7 @@ if [[ "${RELATIVE_CS_OUTPUT}" ]]; then
 fi
 
 # Run tests with hard-coded trx format, for now.
-SUCCESS_DIR="${BASE_ROOT}/test_success"
+SUCCESS_DIR="${BASE_ROOT}/test-success"
 TEST_COMMAND=(find /repo-dir/contents/Source/Tests -mindepth 2 -maxdepth 2 -type f -name *.csproj -exec sh -c 'dotnet test -nologo -c Release --no-build --logger trx\;LogFileName=/repo-dir/BuildTarget/TestResults/$(basename {} .csproj).trx /p:IsCIBuild=true {} && touch "/success/$(basename {} .csproj)"' \;)
 
 if [[ "${TEST_SCRIPT_WITHIN_CONTAINER}" ]]; then

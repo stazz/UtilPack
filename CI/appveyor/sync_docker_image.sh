@@ -2,40 +2,34 @@
 
 set -xe
 
-SCRIPTPATH=$(readlink -f "$0")
-SCRIPTDIR=$(dirname "$SCRIPTPATH")
-GIT_ROOT=$(readlink -f "${SCRIPTDIR}/../..")
-BASE_ROOT=$(readlink -f "${GIT_ROOT}/..")
+DOCKER_IMAGE_NAME="$1"
+DOCKER_IMAGE_FILE="$2"
 
-DOTNET_SDK_IMAGE="microsoft/dotnet:${DOTNET_VERSION}-sdk-alpine"
-DOCKER_FILE_DIR="${BASE_ROOT}/docker-images"
-DOTNET_SDK_FILE="${DOCKER_FILE_DIR}/dotnet-sdk.tar"
-
-mkdir -p "${DOCKER_FILE_DIR}"
+mkdir -p "$(basename "${DOCKER_IMAGE_FILE}")"
 # First, check if the save image file exists
-if [[ -f "${DOTNET_SDK_FILE}" ]]; then
+if [[ -f "${DOCKER_IMAGE_FILE}" ]]; then
   # Load image
-  docker image load -i "${DOTNET_SDK_FILE}"
+  docker image load -i "${DOCKER_IMAGE_FILE}"
 
   # Get image ID
-  DOTNET_SDK_IMAGE_ID="$(docker image inspect -f '{{ .Id }}' "${DOTNET_SDK_IMAGE}")"
+  DOCKER_IMAGE_ID="$(docker image inspect -f '{{ .Id }}' "${DOCKER_IMAGE_NAME}")"
   
   # Pull image
-  docker pull "${DOTNET_SDK_IMAGE}"
+  docker pull "${DOCKER_IMAGE_NAME}"
 
   # Get new ID
-  DOTNET_SDK_IMAGE_ID_NEW="$(docker image inspect -f '{{ .Id }}' "${DOTNET_SDK_IMAGE}")"
+  DOCKER_IMAGE_ID_NEW="$(docker image inspect -f '{{ .Id }}' "${DOCKER_IMAGE_NAME}")"
 
   # Save if new ID is different (we pulled new version)
-  if [[ "${DOTNET_SDK_IMAGE_ID}" != "${DOTNET_SDK_IMAGE_ID_NEW}" ]]; then
-    docker image save -o "${DOTNET_SDK_FILE}" "${DOTNET_SDK_IMAGE}"
+  if [[ "${DOCKER_IMAGE_ID}" != "${DOCKER_IMAGE_ID}" ]]; then
+    docker image save -o "${DOCKER_IMAGE_FILE}" "${DOCKER_IMAGE_NAME}"
   fi
 else
   # Pull image
-  docker pull "${DOTNET_SDK_IMAGE}"
+  docker pull "${DOCKER_IMAGE_NAME}"
 
   # Save image to disk
-  docker image save -o "${DOTNET_SDK_FILE}" "${DOTNET_SDK_IMAGE}" 
+  docker image save -o "${DOCKER_IMAGE_FILE}" "${DOCKER_IMAGE_NAME}" 
 fi
 
 

@@ -24,6 +24,7 @@ environment:
 init:
   - sh: git config --global core.autocrlf false
   - sh: appveyor UpdateBuild -Version "build-${APPVEYOR_REPO_COMMIT:0:8}-${APPVEYOR_BUILD_NUMBER}"
+
 install:
   - sh: 'git -C "${APPVEYOR_BUILD_FOLDER}" submodule update --init --recursive'
   - sh: 'mkdir "${APPVEYOR_BUILD_FOLDER}/git"'

@@ -1495,7 +1495,7 @@ namespace UtilPack
          }
       }
 
-#if !NETSTANDARD1_6 && !NETCOREAPP1_1
+#if !NETSTANDARD1_6 && !NETSTANDARD2_0 && !NETCOREAPP1_1
 
       /// <summary>
       /// Returns enumerable which will return all items in this enumerable, and then concatenate a single item at the end.

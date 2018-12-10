@@ -1,5 +1,7 @@
 version: '1.0.{build}-{branch}'
 image: Ubuntu1804
+skip_tags: true
+
 services:
   - docker
 cache:

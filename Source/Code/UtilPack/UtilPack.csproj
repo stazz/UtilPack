@@ -30,7 +30,7 @@
   
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.7.0</VersionPrefix>
+    <VersionPrefix>1.7.1</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <AssemblyTitle>UtilPack.Common</AssemblyTitle>
     <Description>Library containing useful and generic methods, which are missing from one or more BCL.</Description>
@@ -41,7 +41,7 @@
     <PackageId>$(AssemblyName)</PackageId>
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
-    <PackageReleaseNotes>Added .NET Standard 2.0 to targets, in order to reduce build and restore speeds for compatible target frameworks. Also added JoinToString extension methods.</PackageReleaseNotes>
+    <PackageReleaseNotes>Removed Prepend and Append extension methods for IEnumerable&lt;T&gt; from netstandard2.0 version.</PackageReleaseNotes>
     <PackageTags>bcl utility binary serialization collection extensions</PackageTags>
     <Title>Utility Package for CLR</Title>
   </PropertyGroup>

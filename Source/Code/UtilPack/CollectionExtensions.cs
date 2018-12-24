@@ -1660,5 +1660,269 @@ namespace UtilPack
             .Select( toString ?? ( ( item, idx ) => item?.ToString() ) )
             .JoinToString( separator );
       }
+
+      /// <summary>
+      /// Returns enumerable which will have same items as this enumerable, but paired with maximum same amount of items from given another enumerable.
+      /// </summary>
+      /// <typeparam name="T">The type of items of this enumerable.</typeparam>
+      /// <typeparam name="U">The type of items of another enumerable.</typeparam>
+      /// <param name="first">This enumerable.</param>
+      /// <param name="second">Another enumerable.</param>
+      /// <returns>Enumerable of pairs of <typeparamref name="T"/> and <typeparamref name="U"/>. Will always have same amount of items as this enumerable.</returns>
+      /// <exception cref="NullReferenceException">If this enumerable is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If <paramref name="second"/> enumerable is <c>null</c>.</exception>
+      public static IEnumerable<(T, U)> SideBySideWith<T, U>(
+         this IEnumerable<T> first,
+         IEnumerable<U> second
+         )
+      {
+         using ( var firstEnumerator = ArgumentValidator.ValidateNotNullReference( first ).GetEnumerator() )
+         using ( var secondEnumerator = ArgumentValidator.ValidateNotNull( nameof( second ), second ).GetEnumerator() )
+         {
+            var secondNotEnded = true;
+            while ( firstEnumerator.MoveNext() )
+            {
+               yield return (
+                  firstEnumerator.Current,
+                  secondNotEnded && ( secondNotEnded = secondEnumerator.MoveNext() ) ? secondEnumerator.Current : default
+                  );
+            }
+         }
+      }
+
+      /// <summary>
+      /// Returns enumerable which will have same items as this enumerable, but paired with maximum same amount of items from given another enumerables.
+      /// </summary>
+      /// <typeparam name="T">The type of items of this enumerable.</typeparam>
+      /// <typeparam name="U">The type of items of second enumerable.</typeparam>
+      /// <typeparam name="V">The type of items of third enuemrable.</typeparam>
+      /// <param name="first">This enumerable.</param>
+      /// <param name="second">Second enumerable.</param>
+      /// <param name="third">Third enumerable.</param>
+      /// <returns>Enumerable of tuples of <typeparamref name="T"/>, <typeparamref name="U"/>, and <typeparamref name="V"/>. Will always have same amount of items as this enumerable.</returns>
+      /// <exception cref="NullReferenceException">If this enumerable is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If any of the <paramref name="second"/> or <paramref name="third"/> enumerable is <c>null</c>.</exception>
+      public static IEnumerable<(T, U, V)> SideBySideWith<T, U, V>(
+         this IEnumerable<T> first,
+         IEnumerable<U> second,
+         IEnumerable<V> third
+         )
+      {
+         using ( var firstEnumerator = ArgumentValidator.ValidateNotNullReference( first ).GetEnumerator() )
+         using ( var secondEnumerator = ArgumentValidator.ValidateNotNull( nameof( second ), second ).GetEnumerator() )
+         using ( var thirdEnumerator = ArgumentValidator.ValidateNotNull( nameof( third ), third ).GetEnumerator() )
+         {
+            var secondNotEnded = true;
+            var thirdNotEnded = true;
+            while ( firstEnumerator.MoveNext() )
+            {
+               yield return (
+                  firstEnumerator.Current,
+                  secondNotEnded && ( secondNotEnded = secondEnumerator.MoveNext() ) ? secondEnumerator.Current : default,
+                  thirdNotEnded && ( thirdNotEnded = thirdEnumerator.MoveNext() ) ? thirdEnumerator.Current : default
+                  );
+            }
+         }
+      }
+
+      /// <summary>
+      /// Returns enumerable which will have same items as this enumerable, but paired with maximum same amount of items from given another enumerables.
+      /// </summary>
+      /// <typeparam name="T">The type of items of this enumerable.</typeparam>
+      /// <typeparam name="U">The type of items of second enumerable.</typeparam>
+      /// <typeparam name="V">The type of items of third enumerable.</typeparam>
+      /// <typeparam name="W">The type of items of fourth enumerable.</typeparam>
+      /// <param name="first">This enumerable.</param>
+      /// <param name="second">Second enumerable.</param>
+      /// <param name="third">Third enumerable.</param>
+      /// <param name="fourth">Fourth enumerable</param>
+      /// <returns>Enumerable of tuples of <typeparamref name="T"/>, <typeparamref name="U"/>, <typeparamref name="V"/>, and <typeparamref name="W"/>. Will always have same amount of items as this enumerable.</returns>
+      /// <exception cref="NullReferenceException">If this enumerable is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If any of the <paramref name="second"/>, <paramref name="third"/>, or <paramref name="fourth"/> enumerable is <c>null</c>.</exception>
+      public static IEnumerable<(T, U, V, W)> SideBySideWith<T, U, V, W>(
+         this IEnumerable<T> first,
+         IEnumerable<U> second,
+         IEnumerable<V> third,
+         IEnumerable<W> fourth
+         )
+      {
+         using ( var firstEnumerator = ArgumentValidator.ValidateNotNullReference( first ).GetEnumerator() )
+         using ( var secondEnumerator = ArgumentValidator.ValidateNotNull( nameof( second ), second ).GetEnumerator() )
+         using ( var thirdEnumerator = ArgumentValidator.ValidateNotNull( nameof( third ), third ).GetEnumerator() )
+         using ( var fourthEnumerator = ArgumentValidator.ValidateNotNull( nameof( fourth ), fourth ).GetEnumerator() )
+         {
+            var secondNotEnded = true;
+            var thirdNotEnded = true;
+            var fourthNotEnded = true;
+            while ( firstEnumerator.MoveNext() )
+            {
+               yield return (
+                  firstEnumerator.Current,
+                  secondNotEnded && ( secondNotEnded = secondEnumerator.MoveNext() ) ? secondEnumerator.Current : default,
+                  thirdNotEnded && ( thirdNotEnded = thirdEnumerator.MoveNext() ) ? thirdEnumerator.Current : default,
+                  fourthNotEnded && ( fourthNotEnded = fourthEnumerator.MoveNext() ) ? fourthEnumerator.Current : default
+                  );
+            }
+         }
+      }
+
+      /// <summary>
+      /// Returns enumerable which will have same items as this enumerable, but paired with maximum same amount of items from given another enumerables.
+      /// </summary>
+      /// <typeparam name="T">The type of items of this enumerable.</typeparam>
+      /// <typeparam name="U">The type of items of second enumerable.</typeparam>
+      /// <typeparam name="V">The type of items of third enumerable.</typeparam>
+      /// <typeparam name="W">The type of items of fourth enumerable.</typeparam>
+      /// <typeparam name="X">The type of items of fifth enumerable.</typeparam>
+      /// <param name="first">This enumerable.</param>
+      /// <param name="second">Second enumerable.</param>
+      /// <param name="third">Third enumerable.</param>
+      /// <param name="fourth">Fourth enumerable</param>
+      /// <param name="fifth">Fifth enumerable.</param>
+      /// <returns>Enumerable of tuples of <typeparamref name="T"/>, <typeparamref name="U"/>, <typeparamref name="V"/>, <typeparamref name="W"/>, and <typeparamref name="X"/>. Will always have same amount of items as this enumerable.</returns>
+      /// <exception cref="NullReferenceException">If this enumerable is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If any of the <paramref name="second"/>, <paramref name="third"/>, <paramref name="fourth"/>, or <paramref name="fifth"/> enumerable is <c>null</c>.</exception>
+      public static IEnumerable<(T, U, V, W, X)> SideBySideWith<T, U, V, W, X>(
+         this IEnumerable<T> first,
+         IEnumerable<U> second,
+         IEnumerable<V> third,
+         IEnumerable<W> fourth,
+         IEnumerable<X> fifth
+         )
+      {
+         using ( var firstEnumerator = ArgumentValidator.ValidateNotNullReference( first ).GetEnumerator() )
+         using ( var secondEnumerator = ArgumentValidator.ValidateNotNull( nameof( second ), second ).GetEnumerator() )
+         using ( var thirdEnumerator = ArgumentValidator.ValidateNotNull( nameof( third ), third ).GetEnumerator() )
+         using ( var fourthEnumerator = ArgumentValidator.ValidateNotNull( nameof( fourth ), fourth ).GetEnumerator() )
+         using ( var fifthEnumerator = ArgumentValidator.ValidateNotNull( nameof( fifth ), fifth ).GetEnumerator() )
+         {
+            var secondNotEnded = true;
+            var thirdNotEnded = true;
+            var fourthNotEnded = true;
+            var fifthNotEnded = true;
+            while ( firstEnumerator.MoveNext() )
+            {
+               yield return (
+                  firstEnumerator.Current,
+                  secondNotEnded && ( secondNotEnded = secondEnumerator.MoveNext() ) ? secondEnumerator.Current : default,
+                  thirdNotEnded && ( thirdNotEnded = thirdEnumerator.MoveNext() ) ? thirdEnumerator.Current : default,
+                  fourthNotEnded && ( fourthNotEnded = fourthEnumerator.MoveNext() ) ? fourthEnumerator.Current : default,
+                  fifthNotEnded && ( fifthNotEnded = fifthEnumerator.MoveNext() ) ? fifthEnumerator.Current : default
+                  );
+            }
+         }
+      }
+
+      /// <summary>
+      /// Returns enumerable which will have same items as this enumerable, but paired with maximum same amount of items from given another enumerables.
+      /// </summary>
+      /// <typeparam name="T">The type of items of this enumerable.</typeparam>
+      /// <typeparam name="U">The type of items of second enumerable.</typeparam>
+      /// <typeparam name="V">The type of items of third enumerable.</typeparam>
+      /// <typeparam name="W">The type of items of fourth enumerable.</typeparam>
+      /// <typeparam name="X">The type of items of fifth enumerable.</typeparam>
+      /// <typeparam name="Y">The type of items of sixth enumerable.</typeparam>
+      /// <param name="first">This enumerable.</param>
+      /// <param name="second">Second enumerable.</param>
+      /// <param name="third">Third enumerable.</param>
+      /// <param name="fourth">Fourth enumerable</param>
+      /// <param name="fifth">Fifth enumerable.</param>
+      /// <param name="sixth">Sixth enumerable.</param>
+      /// <returns>Enumerable of tuples of <typeparamref name="T"/>, <typeparamref name="U"/>, <typeparamref name="V"/>, <typeparamref name="W"/>, <typeparamref name="X"/>, and <typeparamref name="Y"/>. Will always have same amount of items as this enumerable.</returns>
+      /// <exception cref="NullReferenceException">If this enumerable is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If any of the <paramref name="second"/>, <paramref name="third"/>, <paramref name="fourth"/>, <paramref name="fifth"/>, or <paramref name="sixth"/> enumerable is <c>null</c>.</exception>
+      public static IEnumerable<(T, U, V, W, X, Y)> SideBySideWith<T, U, V, W, X, Y>(
+         this IEnumerable<T> first,
+         IEnumerable<U> second,
+         IEnumerable<V> third,
+         IEnumerable<W> fourth,
+         IEnumerable<X> fifth,
+         IEnumerable<Y> sixth
+         )
+      {
+         using ( var firstEnumerator = ArgumentValidator.ValidateNotNullReference( first ).GetEnumerator() )
+         using ( var secondEnumerator = ArgumentValidator.ValidateNotNull( nameof( second ), second ).GetEnumerator() )
+         using ( var thirdEnumerator = ArgumentValidator.ValidateNotNull( nameof( third ), third ).GetEnumerator() )
+         using ( var fourthEnumerator = ArgumentValidator.ValidateNotNull( nameof( fourth ), fourth ).GetEnumerator() )
+         using ( var fifthEnumerator = ArgumentValidator.ValidateNotNull( nameof( fifth ), fifth ).GetEnumerator() )
+         using ( var sixthEnumerator = ArgumentValidator.ValidateNotNull( nameof( sixth ), sixth ).GetEnumerator() )
+         {
+            var secondNotEnded = true;
+            var thirdNotEnded = true;
+            var fourthNotEnded = true;
+            var fifthNotEnded = true;
+            var sixthNotEnded = true;
+            while ( firstEnumerator.MoveNext() )
+            {
+               yield return (
+                  firstEnumerator.Current,
+                  secondNotEnded && ( secondNotEnded = secondEnumerator.MoveNext() ) ? secondEnumerator.Current : default,
+                  thirdNotEnded && ( thirdNotEnded = thirdEnumerator.MoveNext() ) ? thirdEnumerator.Current : default,
+                  fourthNotEnded && ( fourthNotEnded = fourthEnumerator.MoveNext() ) ? fourthEnumerator.Current : default,
+                  fifthNotEnded && ( fifthNotEnded = fifthEnumerator.MoveNext() ) ? fifthEnumerator.Current : default,
+                  sixthNotEnded && ( sixthNotEnded = sixthEnumerator.MoveNext() ) ? sixthEnumerator.Current : default
+                  );
+            }
+         }
+      }
+
+      /// <summary>
+      /// Returns enumerable which will have same items as this enumerable, but paired with maximum same amount of items from given another enumerables.
+      /// </summary>
+      /// <typeparam name="T">The type of items of this enumerable.</typeparam>
+      /// <typeparam name="U">The type of items of second enumerable.</typeparam>
+      /// <typeparam name="V">The type of items of third enumerable.</typeparam>
+      /// <typeparam name="W">The type of items of fourth enumerable.</typeparam>
+      /// <typeparam name="X">The type of items of fifth enumerable.</typeparam>
+      /// <typeparam name="Y">The type of items of sixth enumerable.</typeparam>
+      /// <typeparam name="Z">The type of items of seventh enumerable.</typeparam>
+      /// <param name="first">This enumerable.</param>
+      /// <param name="second">Second enumerable.</param>
+      /// <param name="third">Third enumerable.</param>
+      /// <param name="fourth">Fourth enumerable</param>
+      /// <param name="fifth">Fifth enumerable.</param>
+      /// <param name="sixth">Sixth enumerable.</param>
+      /// <param name="seventh">Seventh enumerable.</param>
+      /// <returns>Enumerable of tuples of <typeparamref name="T"/>, <typeparamref name="U"/>, <typeparamref name="V"/>, <typeparamref name="W"/>, <typeparamref name="X"/>, <typeparamref name="Y"/>, and <typeparamref name="Z"/>. Will always have same amount of items as this enumerable.</returns>
+      /// <exception cref="NullReferenceException">If this enumerable is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If any of the <paramref name="second"/>, <paramref name="third"/>, <paramref name="fourth"/>, <paramref name="fifth"/>, <paramref name="sixth"/>, or <paramref name="seventh"/> enumerable is <c>null</c>.</exception>
+      public static IEnumerable<(T, U, V, W, X, Y, Z)> SideBySideWith<T, U, V, W, X, Y, Z>(
+         this IEnumerable<T> first,
+         IEnumerable<U> second,
+         IEnumerable<V> third,
+         IEnumerable<W> fourth,
+         IEnumerable<X> fifth,
+         IEnumerable<Y> sixth,
+         IEnumerable<Z> seventh
+         )
+      {
+         using ( var firstEnumerator = ArgumentValidator.ValidateNotNullReference( first ).GetEnumerator() )
+         using ( var secondEnumerator = ArgumentValidator.ValidateNotNull( nameof( second ), second ).GetEnumerator() )
+         using ( var thirdEnumerator = ArgumentValidator.ValidateNotNull( nameof( third ), third ).GetEnumerator() )
+         using ( var fourthEnumerator = ArgumentValidator.ValidateNotNull( nameof( fourth ), fourth ).GetEnumerator() )
+         using ( var fifthEnumerator = ArgumentValidator.ValidateNotNull( nameof( fifth ), fifth ).GetEnumerator() )
+         using ( var sixthEnumerator = ArgumentValidator.ValidateNotNull( nameof( sixth ), sixth ).GetEnumerator() )
+         using ( var seventhEnumerator = ArgumentValidator.ValidateNotNull( nameof( seventh ), seventh ).GetEnumerator() )
+         {
+            var secondNotEnded = true;
+            var thirdNotEnded = true;
+            var fourthNotEnded = true;
+            var fifthNotEnded = true;
+            var sixthNotEnded = true;
+            var seventhNotEnded = true;
+            while ( firstEnumerator.MoveNext() )
+            {
+               yield return (
+                  firstEnumerator.Current,
+                  secondNotEnded && ( secondNotEnded = secondEnumerator.MoveNext() ) ? secondEnumerator.Current : default,
+                  thirdNotEnded && ( thirdNotEnded = thirdEnumerator.MoveNext() ) ? thirdEnumerator.Current : default,
+                  fourthNotEnded && ( fourthNotEnded = fourthEnumerator.MoveNext() ) ? fourthEnumerator.Current : default,
+                  fifthNotEnded && ( fifthNotEnded = fifthEnumerator.MoveNext() ) ? fifthEnumerator.Current : default,
+                  sixthNotEnded && ( sixthNotEnded = sixthEnumerator.MoveNext() ) ? sixthEnumerator.Current : default,
+                  seventhNotEnded && ( seventhNotEnded = seventhEnumerator.MoveNext() ) ? seventhEnumerator.Current : default
+                  );
+            }
+         }
+      }
    }
 }

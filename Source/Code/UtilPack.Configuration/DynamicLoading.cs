@@ -15,15 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License. 
  */
-using System.Linq;
-using System.Collections.Generic;
-using System.Reflection;
-using System;
 using Microsoft.Extensions.Configuration;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace UtilPack.Configuration
 {
+   using TConfigurationTypeLoader = Func<TypeInfo, Type>;
+
    /// <summary>
    /// This delegate provides signature for callback used by <see cref="DynamicConfigurableTypeLoader"/> to load a type from <see cref="IConfiguration"/> containing whatever information necessary to load a type dynamically.
    /// </summary>
@@ -50,6 +52,12 @@ namespace UtilPack.Configuration
       private readonly ConstructorConfigurationLoaderDelegate _constructorArgumentsLoader;
 
       /// <summary>
+      /// Gets the callback which will be used by default by <see cref="InstantiateWithConfiguration"/> method.
+      /// </summary>
+      /// <value>The callback which will be used by default by <see cref="InstantiateWithConfiguration"/> method.</value>
+      public static TConfigurationTypeLoader DefaultConfigurationTypeLoaderCallback { get; } = loadedType => loadedType.GetCustomAttribute<ConfigurationTypeAttribute>( true )?.ConfigurationType;
+
+      /// <summary>
       /// Creates new instance of <see cref="DynamicConfigurableTypeLoader"/> with given callbacks.
       /// </summary>
       /// <param name="typeLoader">The type loader callback.</param>
@@ -68,14 +76,17 @@ namespace UtilPack.Configuration
       /// </summary>
       /// <param name="config">The configuration containing type information.</param>
       /// <param name="targetType">The type which should be parent type of the object to be instantiated.</param>
+      /// <param name="configurationTypeLoader">The optional custom callback to load configuration type for given type. By default, the value of <see cref="ConfigurationTypeAttribute.ConfigurationType"/> property of the applied <see cref="ConfigurationTypeAttribute"/> is used.</param>
       /// <returns>The potentially asynchronous operation which results in instantiated object, or <c>null</c>.</returns>
       /// <remarks>
       /// This method takes <see cref="ConfigurationTypeAttribute"/> and <see cref="NestedDynamicConfigurationAttribute"/> attributes into account when instantiating and traversing object.
       /// This method is only asynchronous if <see cref="TypeLoaderDelegate"/> callback provided to this <see cref="DynamicConfigurableTypeLoader"/> is asynchronous.
       /// </remarks>
+      /// <seealso cref="DefaultConfigurationTypeLoaderCallback"/>
       public async ValueTask<Object> InstantiateWithConfiguration(
          IConfiguration config,
-         TypeInfo targetType
+         TypeInfo targetType,
+         TConfigurationTypeLoader configurationTypeLoader = null
          )
       {
          var type = await this._typeLoader( config, targetType );
@@ -84,7 +95,7 @@ namespace UtilPack.Configuration
          if ( type != null && !type.IsInterface && !type.IsAbstract )
          {
             // Type load successful - now figure out constructor and arguments to it
-            (var ctor, var ctorArgs) = this.DeduceConstructor( type, this._constructorArgumentsLoader( config, type ) );
+            (var ctor, var ctorArgs) = this.DeduceConstructor( configurationTypeLoader ?? DefaultConfigurationTypeLoaderCallback, type, this._constructorArgumentsLoader( config, type ) );
             if ( ctor != null )
             {
                Object[] actualCtorArgs;
@@ -92,7 +103,7 @@ namespace UtilPack.Configuration
                {
                   var tuples = ctorArgs( ctor.GetParameters() ).ToArray();
                   await Task.WhenAll( tuples
-                     .Select( tuple => this.ScanForNestedConfigs( tuple.Item1, tuple.Item2 ).AsTask() )
+                     .Select( tuple => this.ScanForNestedConfigs( configurationTypeLoader, tuple.Item1, tuple.Item2 ).AsTask() )
                      .ToArray() );
                   actualCtorArgs = tuples.Select( t => t.Item2 ).ToArray();
 
@@ -110,6 +121,7 @@ namespace UtilPack.Configuration
       }
 
       private (ConstructorInfo, Func<ParameterInfo[], IEnumerable<(IConfigurationSection, Object)>>) DeduceConstructor(
+         TConfigurationTypeLoader configurationTypeLoader,
          TypeInfo loadedType,
          IConfigurationSection ctorConfig
          )
@@ -118,14 +130,14 @@ namespace UtilPack.Configuration
          Func<ParameterInfo[], IEnumerable<(IConfigurationSection, Object)>> ctorArgs;
          var possibleCtors = loadedType.DeclaredConstructors.Where( ctor => ctor.IsPublic && !ctor.IsStatic );
          Type singleConfigType;
-         if ( ( singleConfigType = loadedType.GetCustomAttribute<ConfigurationTypeAttribute>( true )?.ConfigurationType ) != null )
+         if ( ( singleConfigType = configurationTypeLoader( loadedType ) ) != null )
          {
             suitableCtor = possibleCtors.FirstOrDefault( ctor =>
             {
                var paramz = ctor.GetParameters();
                return paramz.Length == 1 && paramz[0].ParameterType.GetTypeInfo().IsAssignableFrom( singleConfigType.GetTypeInfo() );
             } );
-            ctorArgs = paramz => GetConfigTypeCtorArg( ctorConfig, singleConfigType );
+            ctorArgs = paramz => Enumerable.Repeat( (ctorConfig, ctorConfig.Get( singleConfigType )), 1 );
          }
          else
          {
@@ -174,12 +186,8 @@ namespace UtilPack.Configuration
          return (suitableCtor, ctorArgs);
       }
 
-      private static IEnumerable<(IConfigurationSection, Object)> GetConfigTypeCtorArg( IConfigurationSection config, Type configType )
-      {
-         yield return (config, config.Get( configType ));
-      }
-
       private async ValueTask<Boolean> ScanForNestedConfigs(
+         TConfigurationTypeLoader configurationTypeLoader,
          IConfigurationSection section,
          Object configurationInstance
          )
@@ -195,7 +203,35 @@ namespace UtilPack.Configuration
                {
 
                   var nestedConfigAttribute = configProp.GetCustomAttribute<NestedDynamicConfigurationAttribute>( true );
-                  if ( nestedConfigAttribute == null )
+                  if ( nestedConfigAttribute != null || configProp.PropertyType.GetTypeInfo().IsInterface )
+                  {
+                     // Load as nested configuration
+                     var sectionName = nestedConfigAttribute?.ConfigurationSectionName;
+                     if ( String.IsNullOrEmpty( sectionName ) )
+                     {
+                        sectionName = configProp.Name;
+                     }
+
+                     var nestedConfigInstance = await ForSingleOrArray(
+                        section.GetSection( sectionName ),
+                        configProp.PropertyType,
+                        null,
+                        async ( curConfig, curType, curObject ) => await this.InstantiateWithConfiguration( curConfig, curType.GetTypeInfo(), configurationTypeLoader )
+                        );
+                     if ( nestedConfigInstance != null )
+                     {
+                        try
+                        {
+                           configProp.SetMethod.Invoke( configurationInstance, new[] { nestedConfigInstance } );
+                        }
+                        catch
+                        {
+                           // Ignore, for now...
+                        }
+                     }
+
+                  }
+                  else
                   {
                      // This is normal property - process recursively
                      var nestedSection = section.GetSection( configProp.Name );
@@ -222,38 +258,12 @@ namespace UtilPack.Configuration
                                 && !Equals( curType, typeof( String ) )
                               )
                               {
-                                 return await this.ScanForNestedConfigs( curConfig, curInstance );
+                                 return await this.ScanForNestedConfigs( configurationTypeLoader, curConfig, curInstance );
                               }
 
                               return null;
                            }
                            );
-                     }
-                  }
-                  else
-                  {
-                     // This is nested dynamic configuration property - try to create from configuration
-                     var sectionName = nestedConfigAttribute.ConfigurationSectionName;
-                     if ( !String.IsNullOrEmpty( sectionName ) )
-                     {
-                        var nestedConfigInstance = await ForSingleOrArray(
-                              section.GetSection( sectionName ),
-                              configProp.PropertyType,
-                              null,
-                              async ( curConfig, curType, curObject ) => await this.InstantiateWithConfiguration( curConfig, curType.GetTypeInfo() )
-                              );
-                        if ( nestedConfigInstance != null )
-                        {
-                           try
-                           {
-                              configProp.SetMethod.Invoke( configurationInstance, new[] { nestedConfigInstance } );
-                           }
-                           catch
-                           {
-                              // Ignore, for now...
-                           }
-                        }
-
                      }
                   }
                }

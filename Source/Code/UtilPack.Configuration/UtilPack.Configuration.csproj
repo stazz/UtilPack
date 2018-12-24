@@ -23,7 +23,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.1.0</VersionPrefix>
+    <VersionPrefix>1.2.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Description>Library containing DynamicConfigurableTypeLoader class, which dynamically loads and instantiates types using information in Microsoft.Extensions.Configuration.IConfiguration object.</Description>
@@ -34,7 +34,7 @@
     <PackageId>$(AssemblyName)</PackageId>
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
-    <PackageReleaseNotes>Added .NET Standard 2.0 to targets, in order to reduce build and restore speeds for compatible target frameworks.</PackageReleaseNotes>
+    <PackageReleaseNotes>Making it possible to load based on configurations which do not reference this package at all.</PackageReleaseNotes>
     <PackageTags>utility nuget extensions configuration dynamically load assembly type</PackageTags>
     <Title>Dynamic Configuration</Title>
   </PropertyGroup>

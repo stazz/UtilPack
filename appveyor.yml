@@ -45,7 +45,8 @@ build_script:
   - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_NUGET_PACKAGE_DIR}"'
 
 test_script:
-  - sh: '"${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/test.sh" "${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/appveyor/add_tests.sh"'
+  # Fix auto-detection of AppVeyor: in Ubuntu image, these properties are all-lowercase, but the codecov script checks for first letter uppercase.
+  - sh: 'CI=True APPVEYOR=True "${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/test.sh" "${APPVEYOR_BUILD_FOLDER}/git/${CI_FOLDER}/appveyor/add_tests.sh"'
   - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_CS_OUTPUT}"'
   - sh: 'sudo chown -R `id -u` "${APPVEYOR_BUILD_FOLDER}/${RELATIVE_NUGET_PACKAGE_DIR}"'
 

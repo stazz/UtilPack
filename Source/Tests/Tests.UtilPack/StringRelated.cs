@@ -21,7 +21,7 @@ using System.Collections.Generic;
 using System.Text;
 using UtilPack;
 
-namespace UtilPack.Tests.UtilPack
+namespace Tests.UtilPack
 {
    [TestClass]
    public class StringRelatedTest

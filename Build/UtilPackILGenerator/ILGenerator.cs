@@ -25,7 +25,8 @@ namespace UtilPackILGenerator
       public const String SIZE_OF_TYPE = "Type";
       public const String SIZE_OF_TYPE_TTYPE = "TType";
 
-      public const String EXTENSIONS = "UtilPack.UtilPackExtensions";
+      // We must name this differently in order not to disturb order of MethodDef table
+      public const String EXTENSIONS = "UtilPack.UtilPackExtensionsAdditional";
       public const String EXTENSIONS_INVOKE_ALL_HANDLERS = "InvokeAllEventHandlers";
       public const String EXTENSIONS_INVOKE_ALL_HANDLERS_TDELEGATE = "TDelegate";
       public const String EXTENSIONS_INVOKE_ALL_HANDLERS_PARAM_DEL = "del";

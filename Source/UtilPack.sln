@@ -17,7 +17,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Logging", "Code\Ut
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Documentation", "Code\UtilPack.Documentation\UtilPack.Documentation.csproj", "{F0606F42-2A0E-40BB-B7AE-691EB5995A9D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UtilPack.Tests", "Tests\UtilPack.Tests\UtilPack.Tests.csproj", "{9F1E8C76-8B7E-43B1-821B-6D7854680B09}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests.UtilPack", "Tests\Tests.UtilPack\Tests.UtilPack.csproj", "{9F1E8C76-8B7E-43B1-821B-6D7854680B09}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests.UtilPack.TabularData", "Tests\Tests.UtilPack.TabularData\Tests.UtilPack.TabularData.csproj", "{59394102-BC30-439D-9710-4C3E04E4CCF3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -57,6 +59,10 @@ Global
 		{9F1E8C76-8B7E-43B1-821B-6D7854680B09}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9F1E8C76-8B7E-43B1-821B-6D7854680B09}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9F1E8C76-8B7E-43B1-821B-6D7854680B09}.Release|Any CPU.Build.0 = Release|Any CPU
+		{59394102-BC30-439D-9710-4C3E04E4CCF3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{59394102-BC30-439D-9710-4C3E04E4CCF3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{59394102-BC30-439D-9710-4C3E04E4CCF3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{59394102-BC30-439D-9710-4C3E04E4CCF3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

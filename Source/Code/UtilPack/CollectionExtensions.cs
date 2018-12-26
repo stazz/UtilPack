@@ -1924,5 +1924,18 @@ namespace UtilPack
             }
          }
       }
+
+      /// <summary>
+      /// This is ease-of-life method to invoke <see cref="Enumerable.Distinct{TSource}(IEnumerable{TSource}, IEqualityComparer{TSource})"/> when there is need to pass equality comparison functions instead of making own class.
+      /// </summary>
+      /// <typeparam name="T">The type of items of this enumerable.</typeparam>
+      /// <param name="enumerable">This enumerable.</param>
+      /// <param name="equality">The callback to check when two items are the same.</param>
+      /// <param name="hashCode">The callback to get hash code from an item.</param>
+      /// <returns>Enumerable with distinct elements as its items.</returns>
+      /// <exception cref="NullReferenceException">If this enumerable is <c>null</c>.</exception>
+      /// <exception cref="ArgumentNullException">If either of <paramref name="equality"/> or <paramref name="hashCode"/> is <c>null</c>.</exception>
+      public static IEnumerable<T> Distinct<T>( this IEnumerable<T> enumerable, Equality<T> equality, HashCode<T> hashCode )
+         => ArgumentValidator.ValidateNotNullReference( enumerable ).Distinct( ComparerFromFunctions.NewEqualityComparer( equality, hashCode ) );
    }
 }

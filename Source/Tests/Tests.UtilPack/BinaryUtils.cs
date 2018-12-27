@@ -18,13 +18,14 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using UtilPack;
 
 namespace Tests.UtilPack
 {
    [TestClass]
-   public class NumericTest
+   public class BinaryUtilsTest
    {
 
       [TestMethod]
@@ -47,6 +48,30 @@ namespace Tests.UtilPack
          Assert.AreEqual( 18, BinaryUtils.Log10( 9999999999999999999UL ) );
          Assert.AreEqual( 19, BinaryUtils.Log10( 10000000000000000000UL ) );
          Assert.AreEqual( 19, BinaryUtils.Log10( 18446744073709551615UL ) );  // 2^64
+      }
+
+      [TestMethod]
+      public void TestLog2()
+      {
+         Assert.AreEqual( -1, BinaryUtils.Log2( 0 ) );
+
+         foreach ( var i in Enumerable.Range( 1, 31 ) )
+         {
+            var number = unchecked((UInt32) 1 << i);
+            Assert.AreEqual( i, BinaryUtils.Log2( number ) );
+            Assert.AreEqual( i - 1, BinaryUtils.Log2( number - 1 ) );
+         }
+         Assert.AreEqual( 31, BinaryUtils.Log2( UInt32.MaxValue ) );
+
+         Assert.AreEqual( -1, BinaryUtils.Log2( 0UL ) );
+
+         foreach ( var i in Enumerable.Range( 1, 31 ) )
+         {
+            var number = unchecked((UInt64) 1L << i);
+            Assert.AreEqual( i, BinaryUtils.Log2( number ) );
+            Assert.AreEqual( i - 1, BinaryUtils.Log2( number - 1 ) );
+         }
+         Assert.AreEqual( 63, BinaryUtils.Log2( UInt64.MaxValue ) );
       }
    }
 }

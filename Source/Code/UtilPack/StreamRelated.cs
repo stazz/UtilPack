@@ -45,12 +45,12 @@ namespace UtilPack
 
    /// <summary>
    /// This interface provides methods to read from the underlying <see cref="Stream"/>.
-   /// The basic principle is that there is a marker index (accessible by <see cref="ReadBytesCount"/>), which can be expanded by <see cref="TryReadMoreAsync(int)"/> method.
-   /// The <see cref="TryReadAsync(int)"/> method will discard any bytes previously read into buffer and read the next bytes starting from <c>0</c> index.
+   /// The basic principle is that there is a marker index (accessible by <see cref="ReadBytesCount"/>), which can be expanded by <see cref="TryReadMoreAsync(Int32)"/> method.
+   /// The <see cref="TryReadAsync(Int32)"/> method will discard any bytes previously read into buffer and read the next bytes starting from <c>0</c> index.
    /// The amount of useable bytes of <see cref="AbstractStreamWithResizableBuffer.Buffer"/> will always be <see cref="ReadBytesCount"/>, starting from <c>0</c> index of <see cref="AbstractStreamWithResizableBuffer.Buffer"/>.
    /// </summary>
    /// <remarks>
-   /// The default implementation <see cref="StreamReaderWithResizableBufferImpl"/> will read underlying <see cref="Stream"/> in chunks, therefore the return types of <see cref="TryReadAsync(int)"/> and <see cref="TryReadMoreAsync(int)"/> are <see cref="ValueTask{TResult}"/>, since asynchrony will happen only when it is actually needed to read from stream.
+   /// The default implementation <see cref="StreamReaderWithResizableBufferImpl"/> will read underlying <see cref="Stream"/> in chunks, therefore the return types of <see cref="TryReadAsync(Int32)"/> and <see cref="TryReadMoreAsync(Int32)"/> are <see cref="ValueTask{TResult}"/>, since asynchrony will happen only when it is actually needed to read from stream.
    /// <see cref="StreamFactory"/> class provides methods to create objects implementing this interface.
    /// </remarks>
    public interface StreamReaderWithResizableBuffer : AbstractStreamWithResizableBuffer
@@ -117,7 +117,7 @@ namespace UtilPack
       void UnreadBytes( Int32 amount = -1 );
 
       /// <summary>
-      /// Gets amount of bytes that is used as starting point when determining how many bytes to read from underlying stream for one call of <see cref="TryReadAsync(int)"/> or <see cref="TryReadMoreAsync(int)"/>.
+      /// Gets amount of bytes that is used as starting point when determining how many bytes to read from underlying stream for one call of <see cref="TryReadAsync(Int32)"/> or <see cref="TryReadMoreAsync(Int32)"/>.
       /// </summary>
       /// <value>The amount of bytes that is used as starting point when determining how many bytes to read from underlying stream.</value>
       Int32 ChunkSize { get; }
@@ -829,7 +829,7 @@ namespace UtilPack
          return new ValueTask<Boolean>( amount <= 0 );
       }
 
-      public ValueTask<Boolean> TryReadMoreAsync( int amount )
+      public ValueTask<Boolean> TryReadMoreAsync( Int32 amount )
       {
          return new ValueTask<Boolean>( amount <= 0 );
       }
@@ -1223,9 +1223,16 @@ namespace UtilPack
       // Theraot.Core does not provide (yet?) extension methods for async write/read for streams
 
       /// <todo />
-      public static Task<Int32> ReadAsync( this Stream stream, Byte[] buffer, Int32 offset, Int32 count, CancellationToken token )
+      public static Task<Int32> ReadAsync(
+         this Stream stream,
+         Byte[] buffer,
+         Int32 offset,
+         Int32 count,
+         CancellationToken token
+         )
       {
          token.ThrowIfCancellationRequested();
+         // Bind parameters to tuple to avoid allocation of delegate class
          var readArgs = (stream, buffer, offset, count);
          return Task.Factory.FromAsync(
            ( rArgs, cb, state ) => rArgs.Item1.BeginRead( rArgs.Item2, rArgs.Item3, rArgs.Item4, cb, state ),
@@ -1236,9 +1243,16 @@ namespace UtilPack
       }
 
       /// <todo />
-      public static Task WriteAsync( this Stream stream, Byte[] buffer, Int32 offset, Int32 count, CancellationToken token )
+      public static Task WriteAsync(
+         this Stream stream,
+         Byte[] buffer,
+         Int32 offset,
+         Int32 count,
+         CancellationToken token
+         )
       {
          token.ThrowIfCancellationRequested();
+         // Bind parameters to tuple to avoid allocation of delegate class
          var writeArgs = (stream, buffer, offset, count);
          return Task.Factory.FromAsync(
            ( wArgs, cb, state ) => wArgs.Item1.BeginWrite( wArgs.Item2, wArgs.Item3, wArgs.Item4, cb, state ),
@@ -1249,8 +1263,12 @@ namespace UtilPack
       }
 
       /// <todo />
-      public static Task FlushAsync( this Stream stream, CancellationToken token )
+      public static Task FlushAsync(
+         this Stream stream,
+         CancellationToken token
+         )
       {
+         token.ThrowIfCancellationRequested();
          return TaskEx.Run( () => stream.Flush(), token );
       }
 
@@ -1261,8 +1279,10 @@ namespace UtilPack
          System.Security.Cryptography.X509Certificates.X509CertificateCollection clientCertificates,
          System.Security.Authentication.SslProtocols enabledSslProtocols,
          Boolean checkCertificateRevocation
+         // TODO no CancellationToken in official API but maybe we could provide it?
          )
       {
+         // Bind parameters to tuple to avoid allocation of delegate class
          var authArgs = (stream, targetHost, clientCertificates, enabledSslProtocols, checkCertificateRevocation);
          return Task.Factory.FromAsync(
             ( aArgs, cb, state ) => aArgs.stream.BeginAuthenticateAsClient( aArgs.targetHost, aArgs.clientCertificates, aArgs.enabledSslProtocols, aArgs.checkCertificateRevocation, cb, state ),
@@ -1280,7 +1300,7 @@ namespace UtilPack
    /// <summary>
    /// This class describes which range of the <see cref="ResizableArray{T}"/> contains read data, and how much of that read data has been read.
    /// </summary>
-   /// <seealso cref="E_UtilPack.ReadUntilMaybeAsync(Stream, ResizableArray{byte}, BufferAdvanceState, byte[], int)"/>
+   /// <seealso cref="E_UtilPack.ReadUntilMaybeAsync(Stream, ResizableArray{Byte}, BufferAdvanceState, Byte[], Int32)"/>
    public sealed class BufferAdvanceState
    {
       /// <summary>
@@ -1391,7 +1411,8 @@ public static partial class E_UtilPack
       var chunkSize = ArgumentValidator.ValidateNotNullReference( stream ).ChunkSize;
       if ( chunkSize > 0 )
       {
-         while ( await stream.TryReadMoreAsync( chunkSize ) ) ;
+         while ( await stream.TryReadMoreAsync( chunkSize ) )
+            ;
          // One more time, since TryReadMoreAsync returns false even if it read 1 byte less than given.
          await stream.TryReadMoreAsync( chunkSize );
       }
@@ -1421,7 +1442,8 @@ public static partial class E_UtilPack
       var chunkSize = ArgumentValidator.ValidateNotNullReference( stream ).ChunkSize;
       if ( chunkSize > 0 )
       {
-         while ( await stream.TryReadAsync( chunkSize ) ) ;
+         while ( await stream.TryReadAsync( chunkSize ) )
+            ;
          // One more time, since TryReadAsync returns false even if it read 1 byte less than given.
          await stream.TryReadAsync( chunkSize );
       }
@@ -1435,7 +1457,7 @@ public static partial class E_UtilPack
    /// <param name="count">The amount of bytes to read and append to buffer.</param>
    /// <returns>Task which completes when last of the required bytes has been read into <see cref="AbstractStreamWithResizableBuffer.Buffer"/>, always returning <c>true</c>.</returns>
    /// <exception cref="NullReferenceException">If this <paramref name="stream"/> is <c>null</c>.</exception>
-   /// <exception cref="EndOfStreamException">If <see cref="StreamReaderWithResizableBuffer.TryReadMoreAsync(int)"/> method returns <c>false</c>.</exception>
+   /// <exception cref="EndOfStreamException">If <see cref="StreamReaderWithResizableBuffer.TryReadMoreAsync(Int32)"/> method returns <c>false</c>.</exception>
    public static async ValueTask<Boolean> ReadMoreOrThrow( this StreamReaderWithResizableBuffer stream, Int32 count )
    {
       if ( !await ArgumentValidator.ValidateNotNullReference( stream ).TryReadMoreAsync( count ) )
@@ -1471,7 +1493,7 @@ public static partial class E_UtilPack
    /// <param name="count">The amount of bytes to read and overwrite to buffer.</param>
    /// <returns>Task which completes when last of the required bytes has been read into <see cref="AbstractStreamWithResizableBuffer.Buffer"/>, always returning <c>true</c>.</returns>
    /// <exception cref="NullReferenceException">If this <paramref name="stream"/> is <c>null</c>.</exception>
-   /// <exception cref="EndOfStreamException">If <see cref="StreamReaderWithResizableBuffer.TryReadAsync(int)"/> returns <c>false</c>.</exception>
+   /// <exception cref="EndOfStreamException">If <see cref="StreamReaderWithResizableBuffer.TryReadAsync(Int32)"/> returns <c>false</c>.</exception>
    public static async ValueTask<Boolean> ReadOrThrow( this StreamReaderWithResizableBuffer stream, Int32 count )
    {
       if ( !await ArgumentValidator.ValidateNotNullReference( stream ).TryReadAsync( count ) )
@@ -1693,12 +1715,12 @@ public static partial class E_UtilPack
    }
 
    /// <summary>
-   /// This is helper method to call <see cref="BufferAdvanceState.TryAdvance(int)"/> and throw and exception if <c>false</c> is returned.
+   /// This is helper method to call <see cref="BufferAdvanceState.TryAdvance(Int32)"/> and throw and exception if <c>false</c> is returned.
    /// </summary>
    /// <param name="state">This <see cref="BufferAdvanceState"/>.</param>
    /// <param name="amount">The amount to add to <see cref="BufferAdvanceState.BufferOffset"/>.</param>
    /// <exception cref="NullReferenceException">If this <see cref="BufferAdvanceState"/> is <c>null</c>.</exception>
-   /// <exception cref="ArgumentException">If <see cref="BufferAdvanceState.TryAdvance(int)"/> returns <c>false</c> for given <paramref name="amount"/>.</exception>
+   /// <exception cref="ArgumentException">If <see cref="BufferAdvanceState.TryAdvance(Int32)"/> returns <c>false</c> for given <paramref name="amount"/>.</exception>
    public static void Advance( this BufferAdvanceState state, Int32 amount )
    {
       if ( !state.TryAdvance( amount ) )
@@ -1708,12 +1730,12 @@ public static partial class E_UtilPack
    }
 
    /// <summary>
-   /// This is helper method to call <see cref="BufferAdvanceState.TryReadMore(int)"/> and throw and exception if <c>false</c> is returned.
+   /// This is helper method to call <see cref="BufferAdvanceState.TryReadMore(Int32)"/> and throw and exception if <c>false</c> is returned.
    /// </summary>
    /// <param name="state">This <see cref="BufferAdvanceState"/>.</param>
    /// <param name="amount">The amount to add to <see cref="BufferAdvanceState.BufferTotal"/>.</param>
    /// <exception cref="NullReferenceException">If this <see cref="BufferAdvanceState"/> is <c>null</c>.</exception>
-   /// <exception cref="ArgumentException">If <see cref="BufferAdvanceState.TryReadMore(int)"/> returns <c>false</c> for given <paramref name="amount"/>.</exception>
+   /// <exception cref="ArgumentException">If <see cref="BufferAdvanceState.TryReadMore(Int32)"/> returns <c>false</c> for given <paramref name="amount"/>.</exception>
    public static void ReadMore( this BufferAdvanceState state, Int32 amount )
    {
       if ( !state.TryReadMore( amount ) )

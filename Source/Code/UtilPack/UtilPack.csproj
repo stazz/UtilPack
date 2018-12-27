@@ -5,12 +5,6 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
-    <TreatSpecificWarningsAsErrors />
-    <LangVersion>latest</LangVersion>
-  </PropertyGroup>
-  
-  <PropertyGroup>
     <DefineConstants Condition=" '$(TargetFramework)' != 'net40' and '$(TargetFramework)' != 'net45' ">$(DefineConstants);IS_NETSTANDARD</DefineConstants>
   </PropertyGroup>
 
@@ -25,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == 'net40' ">
-    <PackageReference Include="Theraot.Core" Version="1.0.5" />
+    <PackageReference Include="Theraot.Core" Version="2.2.0" />
   </ItemGroup>
   
   <!-- Assembly information stuff -->

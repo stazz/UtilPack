@@ -202,7 +202,7 @@ namespace UtilPack
       /// <param name="defaultValue">The value to return if no value exists for <paramref name="key"/> in <paramref name="dic"/>.</param>
       /// <returns>The value for <paramref name="key"/> in <paramref name="dic"/>, or <paramref name="defaultValue"/> if <paramref name="dic"/> does not have value associated for <paramref name="key"/>.</returns>
       /// <exception cref="NullReferenceException">If <paramref name="dic"/> is <c>null</c>.</exception>
-      public static TValue GetOrDefault<TKey, TValue>( this IDictionary<TKey, TValue> dic, TKey key, TValue defaultValue = default( TValue ) )
+      public static TValue GetOrDefault<TKey, TValue>( this IDictionary<TKey, TValue> dic, TKey key, TValue defaultValue = default )
       {
          TValue value;
          return dic.TryGetValue( key, out value ) ? value : defaultValue;
@@ -438,7 +438,7 @@ namespace UtilPack
             }
             else
             {
-               first = default( T );
+               first = default;
             }
          }
 

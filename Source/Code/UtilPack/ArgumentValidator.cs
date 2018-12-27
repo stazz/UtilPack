@@ -36,6 +36,21 @@ namespace UtilPack
       static class ArgumentValidator
    {
       /// <summary>
+      /// This message will be the error message of exception thrown by <see cref="ValidateNotNullReference"/>.
+      /// </summary>
+      public const String NULLREF_MESSAGE = "Extension method 'this' parameter is null.";
+
+      /// <summary>
+      /// The parameter name will be suffixed by this string when throwing an error inside <see cref="ValidateNotEmpty(String, String)"/>.
+      /// </summary>
+      public const String EMPTY_STRING_SUFFIX = " was empty string.";
+
+      /// <summary>
+      /// The parameter name will be suffixed by this string when throwing an error inside <see cref="ValidateNotEmpty{T}(String, IEnumerable{T})"/> or <see cref="ValidateNotEmpty{T}(String, T[])"/>.
+      /// </summary>
+      public const String EMPTY_SUFFIX = " was empty.";
+
+      /// <summary>
       /// Checks whether a method parameter is <c>null</c>.
       /// </summary>
       /// <typeparam name="T">Type of parameter, must be class; to ensure that this method won't be called for struct parameters.</typeparam>
@@ -75,7 +90,7 @@ namespace UtilPack
       {
          if ( value == null )
          {
-            throw new NullReferenceException( "Extension method 'this' parameter is null." );
+            throw new NullReferenceException( NULLREF_MESSAGE );
          }
          return value;
       }
@@ -97,7 +112,7 @@ namespace UtilPack
          ValidateNotNull( parameterName, value );
          if ( !value.Any() )
          {
-            throw new ArgumentException( parameterName + " was empty." );
+            throw new ArgumentException( parameterName + EMPTY_SUFFIX );
          }
          return value;
       }
@@ -119,7 +134,7 @@ namespace UtilPack
          ValidateNotNull( parameterName, value );
          if ( value.Length <= 0 )
          {
-            throw new ArgumentException( parameterName + " was empty." );
+            throw new ArgumentException( parameterName + EMPTY_SUFFIX );
          }
          return value;
       }
@@ -140,7 +155,7 @@ namespace UtilPack
          ValidateNotNull( parameterName, value );
          if ( value.Length == 0 )
          {
-            throw new ArgumentException( parameterName + " was empty string." );
+            throw new ArgumentException( parameterName + EMPTY_STRING_SUFFIX );
          }
          return value;
       }

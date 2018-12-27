@@ -292,6 +292,20 @@ namespace UtilPack
       }
 
       /// <summary>
+      /// Reads a single byte at specified index in byte array.
+      /// </summary>
+      /// <param name="array">The byte array.</param>
+      /// <param name="idx">The index to read byte at.</param>
+      /// <returns>The byte at specified index.</returns>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Byte ReadByteFromBytesNoRef( this Byte[] array, Int32 idx )
+      {
+         return array[idx];
+      }
+
+      /// <summary>
       /// Reads a single byte as <see cref="SByte"/> at specified index in byte array.
       /// </summary>
       /// <param name="array">The byte array.</param>
@@ -303,7 +317,22 @@ namespace UtilPack
 #endif
       public static SByte ReadSByteFromBytes( this Byte[] array, ref Int32 idx )
       {
-         return (SByte) array[idx++];
+         return unchecked((SByte) array[checked(idx++)]);
+      }
+
+      /// <summary>
+      /// Reads a single byte as <see cref="SByte"/> at specified index in byte array.
+      /// </summary>
+      /// <param name="array">The byte array.</param>
+      /// <param name="idx">The index to read byte at.</param>
+      /// <returns>The byte at specified index casted to <see cref="SByte"/>.</returns>
+      [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static SByte ReadSByteFromBytesNoRef( this Byte[] array, Int32 idx )
+      {
+         return unchecked((SByte) array[idx]);
       }
 
       #region Little-Endian Conversions
@@ -1134,8 +1163,8 @@ namespace UtilPack
       {
          if ( BitConverter.IsLittleEndian )
          {
-            // Read little-endian Int32, get bytes for it, and convert back to single
-            return BitConverter.ToSingle( BitConverter.GetBytes( array.ReadInt32LEFromBytes( ref idx ) ), 0 );
+            // Read big-endian Int32, get bytes for it, and convert back to single
+            return BitConverter.ToSingle( BitConverter.GetBytes( array.ReadInt32BEFromBytes( ref idx ) ), 0 );
          }
          else
          {
@@ -1594,7 +1623,7 @@ namespace UtilPack
 
       /// <summary>
       /// Helper method to write the given ASCII string (as byte array) to this byte array.
-      /// Essentially, this is call-through to <see cref="Array.Copy(Array, int, Array, int, int)"/>.
+      /// Essentially, this is call-through to <see cref="Array.Copy(Array, Int32, Array, Int32, Int32)"/>.
       /// </summary>
       /// <param name="array">This array where to write ASCII string to.</param>
       /// <param name="idx">The index in this array where to start writing.</param>
@@ -1824,6 +1853,22 @@ namespace UtilPack
       }
 
       /// <summary>
+      /// Sets a single byte in byte array at specified offset to given value.
+      /// </summary>
+      /// <param name="array">The byte array.</param>
+      /// <param name="idx">The offset to set byte.</param>
+      /// <param name="aByte">The value to set.</param>
+      /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Byte[] WriteByteToBytesNoRef( this Byte[] array, Int32 idx, Byte aByte )
+      {
+         array[idx] = aByte;
+         return array;
+      }
+
+      /// <summary>
       /// Sets a single byte in byte array at specified offset to given value, and increments the offset.
       /// </summary>
       /// <param name="array">The byte array.</param>
@@ -1836,7 +1881,24 @@ namespace UtilPack
 #endif
       public static Byte[] WriteSByteToBytes( this Byte[] array, ref Int32 idx, SByte sByte )
       {
-         array[idx++] = sByte < 0 ? (Byte) ( 256 + sByte ) : (Byte) sByte;
+         array[idx++] = unchecked(sByte < 0 ? (Byte) ( 256 + sByte ) : (Byte) sByte);
+         return array;
+      }
+
+      /// <summary>
+      /// Sets a single byte in byte array at specified offset to given value.
+      /// </summary>
+      /// <param name="array">The byte array.</param>
+      /// <param name="idx">The offset to set byte.</param>
+      /// <param name="sByte">The value to set. Even though it is integer, it is interpreted as signed byte.</param>
+      /// <returns>The <paramref name="array"/>.</returns>
+      [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Byte[] WriteSByteToBytesNoRef( this Byte[] array, Int32 idx, SByte sByte )
+      {
+         array[idx] = unchecked(sByte < 0 ? (Byte) ( 256 + sByte ) : (Byte) sByte);
          return array;
       }
 
@@ -1942,7 +2004,7 @@ namespace UtilPack
          // Int32 encoded as 1-5 bytes. If highest bit set -> more bytes to follow.
          var retVal = 0;
          var shift = 0;
-         byte b;
+         Byte b;
          do
          {
             if ( shift > 32 )  // 5 bytes max per Int32, shift += 7
@@ -1985,7 +2047,7 @@ namespace UtilPack
          // Int64 encoded as 1-9 bytes. If highest bit set -> more bytes to follow.
          var retVal = 0L;
          var shift = 0;
-         byte b;
+         Byte b;
          do
          {
             if ( shift > 64 )  // 9 bytes max per Int64, shift += 7
@@ -2078,7 +2140,7 @@ namespace UtilPack
          // Int32 encoded as 1-5 bytes. If highest bit set -> more bytes to follow.
          var retVal = 0;
          var shift = 0;
-         byte b;
+         Byte b;
          do
          {
             if ( shift > 32 )  // 5 bytes max per Int32, shift += 7
@@ -2121,7 +2183,7 @@ namespace UtilPack
          // Int64 encoded as 1-9 bytes. If highest bit set -> more bytes to follow.
          var retVal = 0L;
          var shift = 0;
-         byte b;
+         Byte b;
          do
          {
             if ( shift > 64 )  // 9 bytes max per Int64, shift += 7

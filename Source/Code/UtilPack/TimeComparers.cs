@@ -27,24 +27,10 @@ namespace UtilPack
    /// </summary>
    public sealed class DateTimeComparer : IEqualityComparer<DateTime>, System.Collections.IEqualityComparer
    {
-      private static IEqualityComparer<DateTime> DEFAULT = null;
-
       /// <summary>
       /// Gets the default comparer for <see cref="DateTime"/>, which preforms exact equality check.
       /// </summary>
-      public static IEqualityComparer<DateTime> Default
-      {
-         get
-         {
-            var retVal = DEFAULT;
-            if ( retVal == null )
-            {
-               retVal = new DateTimeComparer( TimeSpan.Zero );
-               DEFAULT = retVal;
-            }
-            return retVal;
-         }
-      }
+      public static IEqualityComparer<DateTime> Default { get; } = new DateTimeComparer( TimeSpan.Zero );
 
       /// <summary>
       /// Creates a new equality comparer which will truncate both <see cref="DateTime"/>s to certain precision before performing equality check.
@@ -76,7 +62,7 @@ namespace UtilPack
 
       Boolean System.Collections.IEqualityComparer.Equals( Object x, Object y )
       {
-         return ( x == null && y == null ) || ( x is DateTime && y is DateTime && ( (IEqualityComparer<DateTime>) this ).Equals( (DateTime) x, (DateTime) y ) );
+         return ( x == null && y == null ) || ( x is DateTime xdt && y is DateTime ydt && ( (IEqualityComparer<DateTime>) this ).Equals( xdt, ydt ) );
       }
 
       Int32 System.Collections.IEqualityComparer.GetHashCode( Object obj )

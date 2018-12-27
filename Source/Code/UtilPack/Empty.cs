@@ -33,8 +33,6 @@ namespace UtilPack
 #endif
       static class Empty<T>
    {
-      private static readonly IEnumerable<T> ENUMERABLE = System.Linq.Enumerable.Empty<T>();
-
       /// <summary>
       /// Returns instance of array with zero elements.
       /// </summary>

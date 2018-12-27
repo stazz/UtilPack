@@ -5,10 +5,7 @@
   </PropertyGroup>
 
    <PropertyGroup>
-      <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
-      <TreatSpecificWarningsAsErrors />
       <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
-      <LangVersion>latest</LangVersion>
    </PropertyGroup>
 
    <ItemGroup>

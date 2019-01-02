@@ -64,11 +64,7 @@ namespace UtilPack
       public static T ValidateNotNull<T>( String parameterName, T value )
          where T : class
       {
-         if ( value == null )
-         {
-            throw new ArgumentNullException( parameterName );
-         }
-         return value;
+         return value ?? throw new ArgumentNullException( parameterName );
       }
 
       /// <summary>
@@ -88,11 +84,7 @@ namespace UtilPack
       public static T ValidateNotNullReference<T>( T value )
          where T : class
       {
-         if ( value == null )
-         {
-            throw new NullReferenceException( NULLREF_MESSAGE );
-         }
-         return value;
+         return value ?? throw new NullReferenceException( NULLREF_MESSAGE );
       }
 
       /// <summary>

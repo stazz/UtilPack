@@ -226,7 +226,7 @@ namespace UtilPack
       /// Reads a whole stream and returns its contents as single byte array.
       /// </summary>
       /// <param name="stream">The stream to read.</param>
-      /// <param name="buffer">The optional buffer to use. If not specified, then a buffer of <c>1024</c> bytes will be used. The buffer will only be used if stream does not support querying length and position.</param><
+      /// <param name="buffer">The optional buffer to use. If not specified, then a buffer of <c>1024</c> bytes will be used. The buffer will only be used if stream does not support querying length and position.</param>
       /// <param name="token">The <see cref="CancellationToken"/>.</param>
       /// <returns>The stream contents as single byte array.</returns>
       /// <exception cref="NullReferenceException">If <paramref name="stream"/> is <c>null</c>.</exception>

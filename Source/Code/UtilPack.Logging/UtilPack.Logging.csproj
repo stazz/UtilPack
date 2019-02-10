@@ -6,9 +6,6 @@
    
    <PropertyGroup>
       <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
-      <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
-      <TreatSpecificWarningsAsErrors />
-      <LangVersion>latest</LangVersion>
       <DefineConstants>$(DefineConstants);INTERNALIZE</DefineConstants>
    </PropertyGroup>
    

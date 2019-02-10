@@ -15,12 +15,12 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-using UtilPack;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using UtilPack;
 
 namespace UtilPack
 {
@@ -31,7 +31,6 @@ namespace UtilPack
    /// <typeparam name="T">The type of elements in the array.</typeparam>
    public class ResizableArray<T>
    {
-      private readonly Int32 _maxLimit;
       private Int32 _exponentialResize;
       private Int32 _currentCapacity;
       private T[] _array;
@@ -49,9 +48,10 @@ namespace UtilPack
          {
             initialSize = 0;
          }
-         this._maxLimit = maxLimit;
+         this.MaximumSize = maxLimit;
          this._currentCapacity = initialSize;
          this._array = new T[initialSize];
+         this.ExponentialResize = exponentialResize;
       }
 
       /// <summary>
@@ -104,13 +104,7 @@ namespace UtilPack
       /// <summary>
       /// Gets the maximum size for this <see cref="ResizableArray{T}"/>, as specified in constructor.
       /// </summary>
-      public Int32 MaximumSize
-      {
-         get
-         {
-            return this._maxLimit;
-         }
-      }
+      public Int32 MaximumSize { get; }
 
       /// <summary>
       /// Gets the reference to the current array of this <see cref="ResizableArray{T}"/>.
@@ -129,7 +123,7 @@ namespace UtilPack
 
       private void EnsureArraySize( Int32 size, Int32 currentCapacity )
       {
-         var max = this._maxLimit;
+         var max = this.MaximumSize;
          if ( max < 0 || size <= max )
          {
             var array = this._array;
@@ -143,7 +137,7 @@ namespace UtilPack
                   {
                      newLen *= 2;
                   } while ( newLen < size );
-                  if ( newLen > max )
+                  if ( max >= 0 && newLen > max )
                   {
                      newLen = max;
                   }

@@ -18,10 +18,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Reflection;
 using UtilPack;
 using UtilPack.TabularData;
 
@@ -48,7 +48,7 @@ namespace UtilPack.TabularData
       }
 
       /// <summary>
-      /// Implements the <see cref="DataRow{TDataColumn, TDataColumnMetaData}.GetColumn(int)"/> method.
+      /// Implements the <see cref="DataRow{TDataColumn, TDataColumnMetaData}.GetColumn(Int32)"/> method.
       /// </summary>
       /// <param name="index">The <c>0</c>-based column index.</param>
       /// <returns>The <see cref="AsyncDataColumn"/> at given <c>0</c>-basd index in <see cref="Columns"/> array.</returns>
@@ -116,7 +116,7 @@ namespace UtilPack.TabularData
       /// <returns>A task which will on completion contain <see cref="ResultOrNone{TResult}"/> struct describing the data.</returns>
       /// <seealso cref="ResultOrNone{TResult}"/>
       /// <remarks>
-      /// If value reading has already been started by <see cref="ReadBytesAsync(byte[], int, int)"/> method and not yet finished, this method will return <see cref="ResultOrNone{TResult}"/> such that its <see cref="ResultOrNone{TResult}.HasResult"/> property is <c>false</c>.
+      /// If value reading has already been started by <see cref="ReadBytesAsync(Byte[], Int32, Int32)"/> method and not yet finished, this method will return <see cref="ResultOrNone{TResult}"/> such that its <see cref="ResultOrNone{TResult}.HasResult"/> property is <c>false</c>.
       /// </remarks>
       public async ValueTask<ResultOrNone<Object>> TryGetValueAsync()
       {
@@ -151,7 +151,7 @@ namespace UtilPack.TabularData
                   }
                }
             }
-            retVal = this._state == FAULTED ? default( ResultOrNone<Object> ) : new ResultOrNone<Object>( this._value );
+            retVal = this._state == FAULTED ? default : new ResultOrNone<Object>( this._value );
          }
 
          return retVal;
@@ -226,12 +226,12 @@ namespace UtilPack.TabularData
       protected abstract ValueTask<Object> PerformReadAsValueAsync();
 
       /// <summary>
-      /// This method should be overridden in derived class, and is called by <see cref="ReadBytesAsync(byte[], int, int)"/> after checks for concurrency and parameters pass.
+      /// This method should be overridden in derived class, and is called by <see cref="ReadBytesAsync(Byte[], Int32, Int32)"/> after checks for concurrency and parameters pass.
       /// </summary>
       /// <param name="array">The byte array where to read the data to.</param>
       /// <param name="offset">The offset in <paramref name="array"/> where to start writing bytes.</param>
       /// <param name="count">The maximum amount of bytes to write.</param>
-      /// <param name="isInitialRead">Whether this is first call to <see cref="ReadBytesAsync(byte[], int, int)"/> method.</param>
+      /// <param name="isInitialRead">Whether this is first call to <see cref="ReadBytesAsync(Byte[], Int32, Int32)"/> method.</param>
       /// <returns>A task which should return how many bytes has written to <paramref name="array"/>, and whether whole data reading is complete.</returns>
       protected abstract ValueTask<(Int32 BytesRead, Boolean IsComplete)> PerformReadToBytes( Byte[] array, Int32 offset, Int32 count, Boolean isInitialRead );
 
@@ -284,7 +284,7 @@ namespace UtilPack.TabularData
       public Int32 ColumnCount => this.ColumnMetaDatas.Length;
 
       /// <summary>
-      /// This method implements the <see cref="DataRowMetaData.GetIndexFor(string)"/> method.
+      /// This method implements the <see cref="DataRowMetaData.GetIndexFor(String)"/> method.
       /// Tries to get an index for column with given label.
       /// </summary>
       /// <param name="columnName">The column label.</param>
@@ -303,7 +303,7 @@ namespace UtilPack.TabularData
       protected TColumnMetaData[] ColumnMetaDatas { get; }
 
       /// <summary>
-      /// Implements <see cref="DataRowMetaData{TColumnMetaData}.GetColumnMetaData(int)"/>
+      /// Implements <see cref="DataRowMetaData{TColumnMetaData}.GetColumnMetaData(Int32)"/>
       /// Gets the <see cref="DataColumnMetaData"/> for given column index.
       /// </summary>
       /// <param name="columnIndex">The index of the column in <see cref="ColumnMetaDatas"/> array.</param>
@@ -317,7 +317,7 @@ namespace UtilPack.TabularData
 
    /// <summary>
    /// This class provides straightforward implementation for <see cref="DataColumnMetaData"/>.
-   /// The <see cref="ColumnCLRType"/> and <see cref="Label"/> are read-only properties, and the <see cref="ChangeType(object, Type)"/> method is left <c>abstract</c>.
+   /// The <see cref="ColumnCLRType"/> and <see cref="Label"/> are read-only properties, and the <see cref="ChangeType(Object, Type)"/> method is left <c>abstract</c>.
    /// </summary>
    public abstract class AbstractDataColumnMetaData : DataColumnMetaData
    {
@@ -351,7 +351,7 @@ namespace UtilPack.TabularData
       public String Label { get; }
 
       /// <summary>
-      /// Implements signature of <see cref="DataColumnMetaData.ChangeType(object, Type)"/> method, but leaves implementation for derived classes.
+      /// Implements signature of <see cref="DataColumnMetaData.ChangeType(Object, Type)"/> method, but leaves implementation for derived classes.
       /// </summary>
       /// <param name="value">The data that was acquired from <see cref="AsyncDataColumn"/> this <see cref="DataColumnMetaData"/> was obtained from.</param>
       /// <param name="targetType">The type to transform the <paramref name="value"/> to.</param>
@@ -364,7 +364,7 @@ namespace UtilPack.TabularData
    }
 
    /// <summary>
-   /// This class provides straightforward implementation for <see cref="AsyncDataColumnMetaData"/>, by extending <see cref="AbstractDataColumnMetaData"/> and leaving <see cref="ConvertFromBytesAsync(Stream, int)"/> method <c>abstract</c>.
+   /// This class provides straightforward implementation for <see cref="AsyncDataColumnMetaData"/>, by extending <see cref="AbstractDataColumnMetaData"/> and leaving <see cref="ConvertFromBytesAsync(Stream, Int32)"/> method <c>abstract</c>.
    /// </summary>
    public abstract class AbstractAsyncDataColumnMetaData : AbstractDataColumnMetaData, AsyncDataColumnMetaData
    {
@@ -382,7 +382,7 @@ namespace UtilPack.TabularData
       }
 
       /// <summary>
-      /// Implements signature of <see cref="AsyncDataColumnMetaData.ConvertFromBytesAsync(Stream, int)"/> method, but leaves implementation for derived classes.
+      /// Implements signature of <see cref="AsyncDataColumnMetaData.ConvertFromBytesAsync(Stream, Int32)"/> method, but leaves implementation for derived classes.
       /// </summary>
       /// <param name="stream">The stream containing raw byte data representation.</param>
       /// <param name="byteCount">The amount of bytes to read from the stream.</param>
@@ -433,10 +433,10 @@ namespace UtilPack.TabularData
       /// <summary>
       /// Overrides <see cref="AbstractAsyncDataColumn.PerformReadAsValueAsync"/> to first force all previous columns to be read by calling <see cref="E_UtilPack.SkipBytesAsync(AsyncDataColumn, Byte[])"/> method for previous column, if it was given.
       /// Then, the amount of bytes the data takes is read from the stream by calling <see cref="ReadByteCountAsync"/> method.
-      /// If the byte count is greater or equal to <c>0</c>, then the <see cref="ReadValueAsync(int)"/> method is called to read actual value, and that is returned.
+      /// If the byte count is greater or equal to <c>0</c>, then the <see cref="ReadValueAsync(Int32)"/> method is called to read actual value, and that is returned.
       /// Otherwise, <c>null</c> is returned.
       /// </summary>
-      /// <returns>A task which on completion will have the value of <see cref="ReadValueAsync(int)"/> or <c>null</c>.</returns>
+      /// <returns>A task which on completion will have the value of <see cref="ReadValueAsync(Int32)"/> or <c>null</c>.</returns>
       /// <remarks>
       /// The values of all previous columns are forced to read because the underlying <see cref="Stream"/> is assumed to be unseekable.
       /// Therefore, if user first tries to get value of e.g. 3rd column, the 1st and 2nd column values must be read before that in order for the stream to be in correct position to read value for 3rd column.
@@ -458,16 +458,16 @@ namespace UtilPack.TabularData
       }
 
       /// <summary>
-      /// Overrides <see cref="AbstractAsyncDataColumn.PerformReadToBytes(byte[], int, int, bool)"/> to first, if <paramref name="isInitialRead"/> is <c>true</c>, force all previous columns to be read by calling <see cref="E_UtilPack.SkipBytesAsync(AsyncDataColumn, Byte[])"/> method for previous column, if it was given.
+      /// Overrides <see cref="AbstractAsyncDataColumn.PerformReadToBytes(Byte[], Int32, Int32, Boolean)"/> to first, if <paramref name="isInitialRead"/> is <c>true</c>, force all previous columns to be read by calling <see cref="E_UtilPack.SkipBytesAsync(AsyncDataColumn, Byte[])"/> method for previous column, if it was given.
       /// Then, if <paramref name="isInitialRead"/> is <c>true</c>, the amount of bytes the data takes is read from the stream by calling <see cref="ReadByteCountAsync"/> method.
-      /// Otherwise the byte count is what was calculated to remain from previous <see cref="PerformReadToBytes(byte[], int, int, bool)"/>.
-      /// If the byte count is greater or equal to <c>0</c>, then the <see cref="ReadValueAsync(int)"/> method is called, and the return value of that is returned.
+      /// Otherwise the byte count is what was calculated to remain from previous <see cref="PerformReadToBytes(Byte[], Int32, Int32, Boolean)"/>.
+      /// If the byte count is greater or equal to <c>0</c>, then the <see cref="ReadValueAsync(Int32)"/> method is called, and the return value of that is returned.
       /// Otherwise, <c>0</c> is returned.
       /// </summary>
       /// <param name="array">The byte array where to read the data to.</param>
       /// <param name="offset">The offset in <paramref name="array"/> where to start writing bytes.</param>
       /// <param name="count">The maximum amount of bytes to write.</param>
-      /// <param name="isInitialRead">Whether this is first call to <see cref="AbstractAsyncDataColumn.ReadBytesAsync(byte[], int, int)"/> method.</param>
+      /// <param name="isInitialRead">Whether this is first call to <see cref="AbstractAsyncDataColumn.ReadBytesAsync(Byte[], Int32, Int32)"/> method.</param>
       /// <returns>A task which returns how many bytes has written to <paramref name="array"/>, and whether whole data reading is complete.</returns>
       /// <remarks>
       /// The values of all previous columns are forced to read because the underlying <see cref="Stream"/> is assumed to be unseekable.
@@ -505,14 +505,14 @@ namespace UtilPack.TabularData
       protected abstract ValueTask<Object> ReadValueAsync( Int32 byteCount );
 
       /// <summary>
-      /// This method is called by <see cref="PerformReadToBytes(byte[], int, int, bool)"/> in order to read data as raw bytes from underlying <see cref="Stream"/>.
+      /// This method is called by <see cref="PerformReadToBytes(Byte[], Int32, Int32, Boolean)"/> in order to read data as raw bytes from underlying <see cref="Stream"/>.
       /// </summary>
       /// <param name="array">The byte array where to read the data to.</param>
       /// <param name="offset">The offset in <paramref name="array"/> where to start writing bytes.</param>
       /// <param name="count">The maximum amount of bytes to write.</param>
       /// <returns>The amount of bytes read.</returns>
       /// <remarks>
-      /// The <see cref="PerformReadToBytes(byte[], int, int, bool)"/> will take care of putting up correct <paramref name="count"/> value.
+      /// The <see cref="PerformReadToBytes(Byte[], Int32, Int32, Boolean)"/> will take care of putting up correct <paramref name="count"/> value.
       /// </remarks>
       protected abstract ValueTask<Int32> DoReadFromStreamAsync( Byte[] array, Int32 offset, Int32 count );
 
@@ -535,10 +535,10 @@ namespace UtilPack.TabularData
 public static partial class E_UtilPack
 {
    /// <summary>
-   /// Helper method to call <see cref="AsyncDataColumn.TryGetValueAsync"/> if <paramref name="rawBytes"/> is <c>null</c>, or keep reading raw bytes into <paramref name="rawBytes"/>  using <see cref="AsyncDataColumn.ReadBytesAsync(byte[], int, int)"/> until all required bytes have been read.
+   /// Helper method to call <see cref="AsyncDataColumn.TryGetValueAsync"/> if <paramref name="rawBytes"/> is <c>null</c>, or keep reading raw bytes into <paramref name="rawBytes"/>  using <see cref="AsyncDataColumn.ReadBytesAsync(Byte[], Int32, Int32)"/> until all required bytes have been read.
    /// </summary>
    /// <param name="stream">This <see cref="AsyncDataColumn"/>.</param>
-   /// <param name="rawBytes">The byte array to read to using <see cref="AsyncDataColumn.ReadBytesAsync(byte[], int, int)"/>, or <c>null</c> to use <see cref="AsyncDataColumn.TryGetValueAsync"/> instead.</param>
+   /// <param name="rawBytes">The byte array to read to using <see cref="AsyncDataColumn.ReadBytesAsync(Byte[], Int32, Int32)"/>, or <c>null</c> to use <see cref="AsyncDataColumn.TryGetValueAsync"/> instead.</param>
    /// <returns>A task which will always return <c>true</c> on completion.</returns>
    public static async ValueTask<Boolean> SkipBytesAsync( this AsyncDataColumn stream, Byte[] rawBytes )
    {
@@ -549,7 +549,8 @@ public static partial class E_UtilPack
       }
       else
       {
-         while ( ( ( await stream.ReadBytesAsync( rawBytes, 0, rawBytes.Length ) ) ?? 0 ) != 0 ) ;
+         while ( ( ( await stream.ReadBytesAsync( rawBytes, 0, rawBytes.Length ) ) ?? 0 ) != 0 )
+            ;
       }
       return false;
    }

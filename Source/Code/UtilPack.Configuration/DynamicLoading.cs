@@ -91,11 +91,16 @@ namespace UtilPack.Configuration
       {
          var type = await this._typeLoader( config, targetType );
 
+         if ( configurationTypeLoader == null )
+         {
+            configurationTypeLoader = DefaultConfigurationTypeLoaderCallback;
+         }
+
          Object retVal = null;
          if ( type != null && !type.IsInterface && !type.IsAbstract )
          {
             // Type load successful - now figure out constructor and arguments to it
-            (var ctor, var ctorArgs) = this.DeduceConstructor( configurationTypeLoader ?? DefaultConfigurationTypeLoaderCallback, type, this._constructorArgumentsLoader( config, type ) );
+            (var ctor, var ctorArgs) = this.DeduceConstructor( configurationTypeLoader, type, this._constructorArgumentsLoader( config, type ) );
             if ( ctor != null )
             {
                Object[] actualCtorArgs;

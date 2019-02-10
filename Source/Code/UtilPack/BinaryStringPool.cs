@@ -18,6 +18,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using UtilPack;
 
 namespace UtilPack
 {
@@ -54,7 +55,7 @@ namespace UtilPack
       /// <summary>
       /// Creates a new instance of <see cref="BinaryStringPool"/> which will perform correctly in single-threaded scenarios only.
       /// </summary>
-      /// <param name="encoding">The encoding to use when deserializing strings. If <c>null</c>, then <see cref="UTF8Encoding"/> will be used, passing <c>false</c> to both parameters of <see cref="UTF8Encoding(bool, bool)"/></param>
+      /// <param name="encoding">The encoding to use when deserializing strings. If <c>null</c>, then <see cref="UTF8Encoding"/> will be used, passing <c>false</c> to both parameters of <see cref="UTF8Encoding(Boolean, Boolean)"/></param>
       /// <returns>A new instance of <see cref="BinaryStringPool"/> which will perform correctly in single-threaded scenarios only.</returns>
       public static BinaryStringPool NewNotConcurrentBinaryStringPool( Encoding encoding = null )
       {
@@ -67,7 +68,7 @@ namespace UtilPack
       /// <summary>
       /// Creates a new instance of <see cref="BinaryStringPool"/> which will perform correctly in both single- and multi-threaded scenarios.
       /// </summary>
-      /// <param name="encoding">The encoding to use when deserializing strings. If <c>null</c>, then <see cref="UTF8Encoding"/> will be used, passing <c>false</c> to both parameters of <see cref="UTF8Encoding(bool, bool)"/></param>
+      /// <param name="encoding">The encoding to use when deserializing strings. If <c>null</c>, then <see cref="UTF8Encoding"/> will be used, passing <c>false</c> to both parameters of <see cref="UTF8Encoding(Boolean, Boolean)"/></param>
       /// <returns>A new instance of <see cref="BinaryStringPool"/> which will perform correctly in single-threaded scenarios only.</returns>
       public static BinaryStringPool NewConcurrentBinaryStringPool( Encoding encoding = null )
       {
@@ -231,4 +232,20 @@ namespace UtilPack
       }
    }
 #endif
+}
+
+public static partial class E_UtilPack
+{
+   /// <summary>
+   /// This is helper method to invoke <see cref="BinaryStringPool.GetString"/> giving whole array as argumnent.
+   /// </summary>
+   /// <param name="pool">This <see cref="BinaryStringPool"/>.</param>
+   /// <param name="array">The array containing serialized string.</param>
+   /// <returns>Newly created or cached string.</returns>
+   public static String GetString(
+      this BinaryStringPool pool,
+      Byte[] array )
+   {
+      return pool.GetString( array, 0, ArgumentValidator.ValidateNotNull( nameof( array ), array ).Length );
+   }
 }

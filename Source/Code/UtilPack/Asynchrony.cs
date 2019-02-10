@@ -22,6 +22,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using UtilPack;
 
+using TTaskExt = System.Threading.Tasks.
+#if NET40
+   TaskEx
+#else
+   Task
+#endif
+   ;
+
 namespace UtilPack
 {
    /// <summary>
@@ -64,7 +72,7 @@ namespace UtilPack
       /// <summary>
       /// Gets the task which is completed.
       /// </summary>
-      public static System.Threading.Tasks.Task CompletedTask { get; }
+      public static Task CompletedTask { get; }
 
       /// <summary>
       /// Gets the task which is completed to a boolean value <c>true</c>.
@@ -80,25 +88,13 @@ namespace UtilPack
 
       static TaskUtils()
       {
-         var src = new System.Threading.Tasks.TaskCompletionSource<Object>();
+         var src = new TaskCompletionSource<Object>();
          src.SetResult( null );
 
          CompletedTask = src.Task;
 
-         True =
-#if NET40
-            TaskEx
-#else
-            Task
-#endif
-            .FromResult( true );
-         False =
-#if NET40
-            TaskEx
-#else
-            Task
-#endif
-            .FromResult( false );
+         True = TTaskExt.FromResult( true );
+         False = TTaskExt.FromResult( false );
       }
 
       /// <summary>
@@ -147,9 +143,122 @@ namespace UtilPack
          {
             throw new ArgumentException( nameof( token ) );
          }
-         return new Task<T>( () => default( T ), token, TaskCreationOptions.None );
+         return new Task<T>( () => default, token, TaskCreationOptions.None );
       }
 
+   }
+
+   public static partial class UtilPackExtensions
+   {
+      /// <summary>
+      /// This is helper method to return task which will throw a <see cref="TimeoutException"/> if this task has not completed in given timeout.
+      /// </summary>
+      /// <param name="task">This task.</param>
+      /// <param name="timeout">The maximum of time to wait for this task to complete.</param>
+      /// <param name="token">The <see cref="CancellationToken"/> to use.</param>
+      /// <returns>A task which either completes when this task does, or throws an <see cref="TimeoutException"/>.</returns>
+      /// <exception cref="TimeoutException">If given amount of time has passed before this task completes.</exception>
+      /// <exception cref="OperationCanceledException">If <paramref name="token"/> gets canceled before this task completes and before timeout has expired.</exception>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Task TimeoutAfter( this Task task, TimeSpan timeout, CancellationToken token )
+      {
+         if ( task.IsCompleted || timeout == TimeSpan.FromMilliseconds( -1 ) )
+         {
+            // The task is done or will never timeout anyway
+            return task;
+         }
+         else if ( timeout == TimeSpan.Zero || token.IsCancellationRequested )
+         {
+            // We have already timeouted
+#if NET40 || NET45 || NETSTANDARD1_0 || NETSTANDARD1_1
+            var tsc = new TaskCompletionSource<Boolean>();
+            tsc.SetException( new TimeoutException() );
+            return tsc.Task;
+#else
+            return Task.FromException( new TimeoutException() );
+#endif
+         }
+         else
+         {
+            return task.TimeoutAfterImpl( timeout, token );
+         }
+
+      }
+
+      private static async Task TimeoutAfterImpl( this Task task, TimeSpan timeout, CancellationToken token )
+      {
+         using ( var linked = CancellationTokenSource.CreateLinkedTokenSource( token ) )
+         {
+
+            if ( ReferenceEquals( task, await TTaskExt.WhenAny( task, TTaskExt.Delay( timeout, linked.Token ) ) ) )
+            {
+               // Task completed before the timeout, cancel timeout (thus disposing of timer)
+               linked.Cancel();
+               await task;
+            }
+            else
+            {
+               throw new TimeoutException();
+            }
+         }
+      }
+
+      /// <summary>
+      /// This is helper method to return task which will throw a <see cref="TimeoutException"/> if this task has not completed in given timeout.
+      /// </summary>
+      /// <param name="task">This task.</param>
+      /// <param name="timeout">The maximum of time to wait for this task to complete.</param>
+      /// <param name="token">The <see cref="CancellationToken"/> to use.</param>
+      /// <returns>A task which either completes when this task does, or throws an <see cref="TimeoutException"/>.</returns>
+      /// <exception cref="TimeoutException">If given amount of time has passed before this task completes.</exception>
+      /// <exception cref="OperationCanceledException">If <paramref name="token"/> gets canceled before this task completes and before timeout has expired.</exception>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Task<T> TimeoutAfter<T>( this Task<T> task, TimeSpan timeout, CancellationToken token )
+      {
+         if ( task.IsCompleted || timeout == TimeSpan.FromMilliseconds( -1 ) )
+         {
+            // The task is done or will never timeout anyway
+            return task;
+         }
+         else if ( timeout == TimeSpan.Zero || token.IsCancellationRequested )
+         {
+            // We have already timeouted
+#if NET40 || NET45 || NETSTANDARD1_0 || NETSTANDARD1_1
+            var tsc = new TaskCompletionSource<T>();
+            tsc.SetException( new TimeoutException() );
+            return tsc.Task;
+#else
+            return Task.FromException<T>( new TimeoutException() );
+#endif
+         }
+         else
+         {
+            return task.TimeoutAfterImpl( timeout, token );
+         }
+
+      }
+
+      private static async Task<T> TimeoutAfterImpl<T>( this Task<T> task, TimeSpan timeout, CancellationToken token )
+      {
+         using ( var linked = CancellationTokenSource.CreateLinkedTokenSource( token ) )
+         {
+
+            if ( ReferenceEquals( task, await TTaskExt.WhenAny( task, TTaskExt.Delay( timeout, linked.Token ) ) ) )
+            {
+               // Task completed before the timeout, cancel timeout (thus disposing of timer)
+               linked.Cancel();
+               return await task;
+            }
+            else
+            {
+               throw new TimeoutException();
+            }
+         }
+      }
    }
 
    /// <summary>
@@ -252,27 +361,9 @@ namespace UtilPack
       public AsyncLock()
       {
          this._semaphore = new SemaphoreSlim( 1, 1 );
-         this._completed =
-#if NET40
-            TaskEx
-#else
-            Task
-#endif
-            .FromResult( new LockUseScope( this ) );
-         this._completedNullable =
-#if NET40
-            TaskEx
-#else
-            Task
-#endif
-            .FromResult<LockUseScope?>( new LockUseScope( this ) );
-         this._notCompletedNullable =
-#if NET40
-            TaskEx
-#else
-            Task
-#endif
-            .FromResult<LockUseScope?>( null );
+         this._completed = TTaskExt.FromResult( new LockUseScope( this ) );
+         this._completedNullable = TTaskExt.FromResult<LockUseScope?>( new LockUseScope( this ) );
+         this._notCompletedNullable = TTaskExt.FromResult<LockUseScope?>( null );
       }
 
       /// <summary>
@@ -429,13 +520,7 @@ public static partial class E_UtilPack
          if ( ( awaitables = args?.GetAwaitableArray() ) != null )
          {
 
-            await
-#if NET40
-               TaskEx
-#else
-               Task
-#endif
-               .WhenAll( awaitables );
+            await TTaskExt.WhenAll( awaitables );
          }
       }
    }
@@ -492,7 +577,10 @@ public static partial class E_UtilPack
    /// <remarks>
    /// At least current implementation is most likely not very efficient...
    /// </remarks>
-   public static async Task WaitAsync( this SemaphoreSlim semaphore, Int32 tick = 100 )
+   public static async Task WaitAsync(
+      this SemaphoreSlim semaphore,
+      Int32 tick = 100
+      )
    {
       while ( !semaphore.Wait( 0 ) )
       {
@@ -512,12 +600,19 @@ public static partial class E_UtilPack
    /// <remarks>
    /// At least current implementation is most likely not very efficient...
    /// </remarks>
-   public static async Task<Boolean> WaitAsync( this SemaphoreSlim semaphore, TimeSpan timeout, CancellationToken token = default, Int32 tick = 100 )
+   public static async Task<Boolean> WaitAsync(
+      this SemaphoreSlim semaphore,
+      TimeSpan timeout,
+      CancellationToken token = default,
+      Int32 tick = 100
+      )
    {
       var curTimeout = 0L;
       Boolean retVal;
-      while ( !( retVal = semaphore.Wait( 0 ) ) && curTimeout < timeout.TotalMilliseconds )
+      var noTimeout = TimeSpan.FromMilliseconds( -1 ) == timeout;
+      while ( !( retVal = semaphore.Wait( 0 ) ) && ( noTimeout || curTimeout < timeout.TotalMilliseconds ) )
       {
+         // Delay is not precise (waits _at least_ given amount), TODO refactor this to use DateTime.UtcNow
          await TaskEx.Delay( tick, token );
          curTimeout += tick;
       }

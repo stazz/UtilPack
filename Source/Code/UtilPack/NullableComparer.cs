@@ -32,27 +32,11 @@ namespace UtilPack
    public sealed class NullableEqualityComparer<T> : IEqualityComparer<T?>
       where T : struct
    {
-      private static IEqualityComparer<T?> INSTANCE = null;
-
       /// <summary>
       /// Returns the equality comparer for nullable type <typeparamref name="T"/> which uses the default equality comparer when comparing actual values.
       /// </summary>
       /// <value>The equality comparer for nullable type <typeparamref name="T"/> which uses the default equality comparer when comparing actual values.</value>
-      public static IEqualityComparer<T?> DefaultComparer
-      {
-         get
-         {
-            var retVal = INSTANCE;
-            if ( retVal == null )
-            {
-               retVal = new NullableEqualityComparer<T>( null, 0 );
-               INSTANCE = retVal;
-            }
-
-            return retVal;
-         }
-      }
-
+      public static IEqualityComparer<T?> DefaultComparer { get; } = new NullableEqualityComparer<T>( null, 0 );
       private readonly IEqualityComparer<T> _itemComparer;
       private readonly Int32 _hashCodeForNoValue;
 

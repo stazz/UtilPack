@@ -5,12 +5,6 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
-    <TreatSpecificWarningsAsErrors />
-    <LangVersion>latest</LangVersion>
-  </PropertyGroup>
-  
-  <PropertyGroup>
     <DefineConstants Condition=" '$(TargetFramework)' != 'net40' and '$(TargetFramework)' != 'net45' ">$(DefineConstants);IS_NETSTANDARD</DefineConstants>
   </PropertyGroup>
 
@@ -25,12 +19,12 @@
   </ItemGroup>
 
   <ItemGroup Condition=" '$(TargetFramework)' == 'net40' ">
-    <PackageReference Include="Theraot.Core" Version="1.0.5" />
+    <PackageReference Include="Theraot.Core" Version="2.2.0" />
   </ItemGroup>
   
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.7.1</VersionPrefix>
+    <VersionPrefix>1.7.2</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <AssemblyTitle>UtilPack.Common</AssemblyTitle>
     <Description>Library containing useful and generic methods, which are missing from one or more BCL.</Description>
@@ -41,7 +35,7 @@
     <PackageId>$(AssemblyName)</PackageId>
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
-    <PackageReleaseNotes>Removed Prepend and Append extension methods for IEnumerable&lt;T&gt; from netstandard2.0 version.</PackageReleaseNotes>
+    <PackageReleaseNotes>Restored method to read the remaining bytes in stream into single byte array.</PackageReleaseNotes>
     <PackageTags>bcl utility binary serialization collection extensions</PackageTags>
     <Title>Utility Package for CLR</Title>
   </PropertyGroup>

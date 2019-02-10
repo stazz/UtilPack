@@ -20,6 +20,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using UtilPack;
 
 namespace UtilPack
@@ -220,62 +222,63 @@ namespace UtilPack
       //      return (Byte) b;
       //   }
 
-      //   /// <summary>
-      //   /// Reads a whole stream and returns its contents as single byte array.
-      //   /// </summary>
-      //   /// <param name="stream">The stream to read.</param>
-      //   /// <param name="buffer">The optional buffer to use. If not specified, then a buffer of <c>1024</c> bytes will be used. The buffer will only be used if stream does not support querying length and position.</param>
-      //   /// <returns>The stream contents as single byte array.</returns>
-      //   /// <exception cref="NullReferenceException">If <paramref name="stream"/> is <c>null</c>.</exception>
-      //#if !NET40
-      //   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
-      //#endif
-      //   public static Byte[] ReadUntilTheEnd( this Stream stream, Byte[] buffer = null )
-      //   {
-      //      Int64 arrayLen = -1;
-      //      if ( stream.CanSeek )
-      //      {
-      //         try
-      //         {
-      //            arrayLen = stream.Length - stream.Position;
-      //         }
-      //         catch ( NotSupportedException )
-      //         {
-      //            // stream can't be queried for length or position
-      //         }
-      //      }
+      /// <summary>
+      /// Reads a whole stream and returns its contents as single byte array.
+      /// </summary>
+      /// <param name="stream">The stream to read.</param>
+      /// <param name="buffer">The optional buffer to use. If not specified, then a buffer of <c>1024</c> bytes will be used. The buffer will only be used if stream does not support querying length and position.</param>
+      /// <param name="token">The <see cref="CancellationToken"/>.</param>
+      /// <returns>The stream contents as single byte array.</returns>
+      /// <exception cref="NullReferenceException">If <paramref name="stream"/> is <c>null</c>.</exception>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static async Task<Byte[]> ReadUntilTheEndAsync( this Stream stream, CancellationToken token, Byte[] buffer = null )
+      {
+         Int64 arrayLen = -1;
+         if ( stream.CanSeek )
+         {
+            try
+            {
+               arrayLen = stream.Length - stream.Position;
+            }
+            catch ( NotSupportedException )
+            {
+               // stream can't be queried for length or position
+            }
+         }
 
-      //      Byte[] retVal;
-      //      if ( arrayLen < 0 )
-      //      {
-      //         // Have to read using the buffer.
-      //         if ( buffer == null )
-      //         {
-      //            buffer = new Byte[1024];
-      //         }
+         Byte[] retVal;
+         if ( arrayLen < 0 )
+         {
+            // Have to read using the buffer.
+            if ( buffer == null )
+            {
+               buffer = new Byte[1024];
+            }
 
-      //         using ( var ms = new MemoryStream() )
-      //         {
-      //            Int32 read;
-      //            while ( ( read = stream.Read( buffer, 0, buffer.Length ) ) > 0 )
-      //            {
-      //               ms.Write( buffer, 0, read );
-      //            }
-      //            retVal = ms.ToArray();
-      //         }
-      //      }
-      //      else if ( arrayLen == 0 )
-      //      {
-      //         retVal = Empty<Byte>.Array;
-      //      }
-      //      else
-      //      {
-      //         retVal = new Byte[arrayLen];
-      //         stream.ReadWholeArray( retVal );
-      //      }
+            using ( var ms = new MemoryStream() )
+            {
+               Int32 read;
+               while ( ( read = await stream.ReadAsync( buffer, 0, buffer.Length, token ) ) > 0 )
+               {
+                  ms.Write( buffer, 0, read );
+               }
+               retVal = ms.ToArray();
+            }
+         }
+         else if ( arrayLen == 0 )
+         {
+            retVal = Empty<Byte>.Array;
+         }
+         else
+         {
+            retVal = new Byte[arrayLen];
+            await stream.ReadAtLeastAsync( retVal, 0, retVal.Length, retVal.Length, token );
+         }
 
-      //      return retVal;
-      //   }
+         return retVal;
+      }
 
       /// <summary>
       /// Reads a single byte at specified index in byte array.
@@ -292,6 +295,20 @@ namespace UtilPack
       }
 
       /// <summary>
+      /// Reads a single byte at specified index in byte array.
+      /// </summary>
+      /// <param name="array">The byte array.</param>
+      /// <param name="idx">The index to read byte at.</param>
+      /// <returns>The byte at specified index.</returns>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Byte ReadByteFromBytesNoRef( this Byte[] array, Int32 idx )
+      {
+         return array[idx];
+      }
+
+      /// <summary>
       /// Reads a single byte as <see cref="SByte"/> at specified index in byte array.
       /// </summary>
       /// <param name="array">The byte array.</param>
@@ -303,7 +320,22 @@ namespace UtilPack
 #endif
       public static SByte ReadSByteFromBytes( this Byte[] array, ref Int32 idx )
       {
-         return (SByte) array[idx++];
+         return unchecked((SByte) array[checked(idx++)]);
+      }
+
+      /// <summary>
+      /// Reads a single byte as <see cref="SByte"/> at specified index in byte array.
+      /// </summary>
+      /// <param name="array">The byte array.</param>
+      /// <param name="idx">The index to read byte at.</param>
+      /// <returns>The byte at specified index casted to <see cref="SByte"/>.</returns>
+      [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static SByte ReadSByteFromBytesNoRef( this Byte[] array, Int32 idx )
+      {
+         return unchecked((SByte) array[idx]);
       }
 
       #region Little-Endian Conversions
@@ -1134,8 +1166,8 @@ namespace UtilPack
       {
          if ( BitConverter.IsLittleEndian )
          {
-            // Read little-endian Int32, get bytes for it, and convert back to single
-            return BitConverter.ToSingle( BitConverter.GetBytes( array.ReadInt32LEFromBytes( ref idx ) ), 0 );
+            // Read big-endian Int32, get bytes for it, and convert back to single
+            return BitConverter.ToSingle( BitConverter.GetBytes( array.ReadInt32BEFromBytes( ref idx ) ), 0 );
          }
          else
          {
@@ -1594,7 +1626,7 @@ namespace UtilPack
 
       /// <summary>
       /// Helper method to write the given ASCII string (as byte array) to this byte array.
-      /// Essentially, this is call-through to <see cref="Array.Copy(Array, int, Array, int, int)"/>.
+      /// Essentially, this is call-through to <see cref="Array.Copy(Array, Int32, Array, Int32, Int32)"/>.
       /// </summary>
       /// <param name="array">This array where to write ASCII string to.</param>
       /// <param name="idx">The index in this array where to start writing.</param>
@@ -1824,6 +1856,22 @@ namespace UtilPack
       }
 
       /// <summary>
+      /// Sets a single byte in byte array at specified offset to given value.
+      /// </summary>
+      /// <param name="array">The byte array.</param>
+      /// <param name="idx">The offset to set byte.</param>
+      /// <param name="aByte">The value to set.</param>
+      /// <returns>The <paramref name="array"/>.</returns>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Byte[] WriteByteToBytesNoRef( this Byte[] array, Int32 idx, Byte aByte )
+      {
+         array[idx] = aByte;
+         return array;
+      }
+
+      /// <summary>
       /// Sets a single byte in byte array at specified offset to given value, and increments the offset.
       /// </summary>
       /// <param name="array">The byte array.</param>
@@ -1836,7 +1884,24 @@ namespace UtilPack
 #endif
       public static Byte[] WriteSByteToBytes( this Byte[] array, ref Int32 idx, SByte sByte )
       {
-         array[idx++] = sByte < 0 ? (Byte) ( 256 + sByte ) : (Byte) sByte;
+         array[idx++] = unchecked(sByte < 0 ? (Byte) ( 256 + sByte ) : (Byte) sByte);
+         return array;
+      }
+
+      /// <summary>
+      /// Sets a single byte in byte array at specified offset to given value.
+      /// </summary>
+      /// <param name="array">The byte array.</param>
+      /// <param name="idx">The offset to set byte.</param>
+      /// <param name="sByte">The value to set. Even though it is integer, it is interpreted as signed byte.</param>
+      /// <returns>The <paramref name="array"/>.</returns>
+      [CLSCompliant( false )]
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static Byte[] WriteSByteToBytesNoRef( this Byte[] array, Int32 idx, SByte sByte )
+      {
+         array[idx] = unchecked(sByte < 0 ? (Byte) ( 256 + sByte ) : (Byte) sByte);
          return array;
       }
 
@@ -1942,7 +2007,7 @@ namespace UtilPack
          // Int32 encoded as 1-5 bytes. If highest bit set -> more bytes to follow.
          var retVal = 0;
          var shift = 0;
-         byte b;
+         Byte b;
          do
          {
             if ( shift > 32 )  // 5 bytes max per Int32, shift += 7
@@ -1985,7 +2050,7 @@ namespace UtilPack
          // Int64 encoded as 1-9 bytes. If highest bit set -> more bytes to follow.
          var retVal = 0L;
          var shift = 0;
-         byte b;
+         Byte b;
          do
          {
             if ( shift > 64 )  // 9 bytes max per Int64, shift += 7
@@ -2078,7 +2143,7 @@ namespace UtilPack
          // Int32 encoded as 1-5 bytes. If highest bit set -> more bytes to follow.
          var retVal = 0;
          var shift = 0;
-         byte b;
+         Byte b;
          do
          {
             if ( shift > 32 )  // 5 bytes max per Int32, shift += 7
@@ -2121,7 +2186,7 @@ namespace UtilPack
          // Int64 encoded as 1-9 bytes. If highest bit set -> more bytes to follow.
          var retVal = 0L;
          var shift = 0;
-         byte b;
+         Byte b;
          do
          {
             if ( shift > 64 )  // 9 bytes max per Int64, shift += 7

@@ -44,6 +44,11 @@ find "${UTILPACK_DIR}/" -mindepth 1 -maxdepth 1 -type d -exec "${DOTNET_DIR}/ila
   -quiet \
   "{}/UtilPack.il" \
   "{}/AdditionalIL.il" \;
+
+# ilasm removes (!) .pdb file, so re-copy it from obj folder
+find "/repo-dir/BuildTarget/Release/obj/UtilPack/" -mindepth 1 -maxdepth 1 -type d -exec sh -c 'mv "{}/UtilPack.pdb" "/repo-dir/BuildTarget/Release/bin/UtilPack/$(basename {})/UtilPack.pdb"' \;
+
+# TODO We actually need to add the debug directory to the resulting PE image. Right now the resulting .DLL does not have link to the .PDB file.
   
 # Check that the IL code actually got into assembly, since find does not return error code if -exec'ed command fails
 "${DOTNET_DIR}/ildasm" "-out=/repo-dir/tmpout/UtilPack.il" -utf8 -all "${UTILPACK_DIR}/net40/UtilPack.dll"

@@ -20,6 +20,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using UtilPack;
 
 namespace UtilPack
@@ -220,62 +222,63 @@ namespace UtilPack
       //      return (Byte) b;
       //   }
 
-      //   /// <summary>
-      //   /// Reads a whole stream and returns its contents as single byte array.
-      //   /// </summary>
-      //   /// <param name="stream">The stream to read.</param>
-      //   /// <param name="buffer">The optional buffer to use. If not specified, then a buffer of <c>1024</c> bytes will be used. The buffer will only be used if stream does not support querying length and position.</param>
-      //   /// <returns>The stream contents as single byte array.</returns>
-      //   /// <exception cref="NullReferenceException">If <paramref name="stream"/> is <c>null</c>.</exception>
-      //#if !NET40
-      //   [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
-      //#endif
-      //   public static Byte[] ReadUntilTheEnd( this Stream stream, Byte[] buffer = null )
-      //   {
-      //      Int64 arrayLen = -1;
-      //      if ( stream.CanSeek )
-      //      {
-      //         try
-      //         {
-      //            arrayLen = stream.Length - stream.Position;
-      //         }
-      //         catch ( NotSupportedException )
-      //         {
-      //            // stream can't be queried for length or position
-      //         }
-      //      }
+      /// <summary>
+      /// Reads a whole stream and returns its contents as single byte array.
+      /// </summary>
+      /// <param name="stream">The stream to read.</param>
+      /// <param name="buffer">The optional buffer to use. If not specified, then a buffer of <c>1024</c> bytes will be used. The buffer will only be used if stream does not support querying length and position.</param><
+      /// <param name="token">The <see cref="CancellationToken"/>.</param>
+      /// <returns>The stream contents as single byte array.</returns>
+      /// <exception cref="NullReferenceException">If <paramref name="stream"/> is <c>null</c>.</exception>
+#if !NET40
+      [System.Runtime.CompilerServices.MethodImpl( System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining )]
+#endif
+      public static async Task<Byte[]> ReadUntilTheEndAsync( this Stream stream, CancellationToken token, Byte[] buffer = null )
+      {
+         Int64 arrayLen = -1;
+         if ( stream.CanSeek )
+         {
+            try
+            {
+               arrayLen = stream.Length - stream.Position;
+            }
+            catch ( NotSupportedException )
+            {
+               // stream can't be queried for length or position
+            }
+         }
 
-      //      Byte[] retVal;
-      //      if ( arrayLen < 0 )
-      //      {
-      //         // Have to read using the buffer.
-      //         if ( buffer == null )
-      //         {
-      //            buffer = new Byte[1024];
-      //         }
+         Byte[] retVal;
+         if ( arrayLen < 0 )
+         {
+            // Have to read using the buffer.
+            if ( buffer == null )
+            {
+               buffer = new Byte[1024];
+            }
 
-      //         using ( var ms = new MemoryStream() )
-      //         {
-      //            Int32 read;
-      //            while ( ( read = stream.Read( buffer, 0, buffer.Length ) ) > 0 )
-      //            {
-      //               ms.Write( buffer, 0, read );
-      //            }
-      //            retVal = ms.ToArray();
-      //         }
-      //      }
-      //      else if ( arrayLen == 0 )
-      //      {
-      //         retVal = Empty<Byte>.Array;
-      //      }
-      //      else
-      //      {
-      //         retVal = new Byte[arrayLen];
-      //         stream.ReadWholeArray( retVal );
-      //      }
+            using ( var ms = new MemoryStream() )
+            {
+               Int32 read;
+               while ( ( read = await stream.ReadAsync( buffer, 0, buffer.Length, token ) ) > 0 )
+               {
+                  ms.Write( buffer, 0, read );
+               }
+               retVal = ms.ToArray();
+            }
+         }
+         else if ( arrayLen == 0 )
+         {
+            retVal = Empty<Byte>.Array;
+         }
+         else
+         {
+            retVal = new Byte[arrayLen];
+            await stream.ReadAtLeastAsync( retVal, 0, retVal.Length, retVal.Length, token );
+         }
 
-      //      return retVal;
-      //   }
+         return retVal;
+      }
 
       /// <summary>
       /// Reads a single byte at specified index in byte array.

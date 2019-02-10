@@ -1626,6 +1626,7 @@ public static partial class E_UtilPack
    }
 
 
+   // TODO remove this method in 2.0, as there is overload with cancellation token which should be used.
    /// <summary>
    /// Using given chunk read size, read at least the given amount of bytes into the given array from this stream.
    /// </summary>
@@ -1641,6 +1642,32 @@ public static partial class E_UtilPack
       while ( minAmount > 0 )
       {
          var readCount = await stream.ReadAsync( array, offset, chunkCount, default );
+         if ( readCount <= 0 )
+         {
+            throw new EndOfStreamException();
+         }
+         minAmount -= readCount;
+         offset += readCount;
+      }
+      return offset - originalOffset;
+   }
+
+   /// <summary>
+   /// Using given chunk read size, read at least the given amount of bytes into the given array from this stream.
+   /// </summary>
+   /// <param name="stream">This stream.</param>
+   /// <param name="array">The byte array to write data to.</param>
+   /// <param name="offset">The offset in <paramref name="array"/> where to start writing.</param>
+   /// <param name="minAmount">The minimum amount to read.</param>
+   /// <param name="chunkCount">The maximum amount of bytes to read at a time.</param>
+   /// <param name="token">The <see cref="CancellationToken"/> to use.</param>
+   /// <returns>Asynchronously returns amount of bytes read.</returns>
+   public static async Task<Int32> ReadAtLeastAsync( this Stream stream, Byte[] array, Int32 offset, Int32 minAmount, Int32 chunkCount, CancellationToken token )
+   {
+      var originalOffset = offset;
+      while ( minAmount > 0 )
+      {
+         var readCount = await stream.ReadAsync( array, offset, chunkCount, token );
          if ( readCount <= 0 )
          {
             throw new EndOfStreamException();

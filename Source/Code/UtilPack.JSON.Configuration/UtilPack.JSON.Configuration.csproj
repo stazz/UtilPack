@@ -1,0 +1,50 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard1.3;netstandard2.0;net451</TargetFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../UtilPack/UtilPack.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <MicrosoftConfigurationVersion Condition=" '$(TargetFramework)' == 'net451' Or '$(TargetFramework)' == 'netstandard1.3' ">1.1.2</MicrosoftConfigurationVersion>
+    <MicrosoftConfigurationVersion Condition=" '$(TargetFramework)' != 'net451' And '$(TargetFramework)' != 'netstandard1.3'">2.2.0</MicrosoftConfigurationVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="$(MicrosoftConfigurationVersion)" />
+  </ItemGroup>  
+
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net45' ">
+    <Reference Include="System.Runtime" />
+    <Reference Include="System.Threading.Tasks" />
+  </ItemGroup>
+
+ 
+  <!-- Assembly information stuff -->
+  <PropertyGroup>
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionSuffix></VersionSuffix>
+    <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
+    <Description>Small library containing extension methods for Microsoft.Extensions.Configuiration.Json package, including methods to add JSON contents as string or byte array.</Description>
+  </PropertyGroup>
+   
+  <!-- NuGet package stuff -->
+  <PropertyGroup>
+    <PackageId>$(AssemblyName)</PackageId>
+    <PackageVersion>$(VersionPrefix)</PackageVersion>
+    <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
+    <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
+    <PackageTags>json utility microsoft configuration extensions json</PackageTags>
+    <Title>UtilPack: Extensions for Microsoft.Extensions.Configuration.Json</Title>
+  </PropertyGroup>
+  
+  <Import Project="$(CIPropsFilePath)" Condition=" '$(CIPropsFilePath)' != '' and Exists('$(CIPropsFilePath)') " />
+
+</Project>

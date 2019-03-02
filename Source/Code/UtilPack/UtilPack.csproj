@@ -24,7 +24,7 @@
   
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.7.2</VersionPrefix>
+    <VersionPrefix>1.8.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <AssemblyTitle>UtilPack.Common</AssemblyTitle>
     <Description>Library containing useful and generic methods, which are missing from one or more BCL.</Description>
@@ -35,7 +35,7 @@
     <PackageId>$(AssemblyName)</PackageId>
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
-    <PackageReleaseNotes>Restored method to read the remaining bytes in stream into single byte array.</PackageReleaseNotes>
+    <PackageReleaseNotes>Added API and implementation for shutdown semaphore functionality.</PackageReleaseNotes>
     <PackageTags>bcl utility binary serialization collection extensions</PackageTags>
     <Title>Utility Package for CLR</Title>
   </PropertyGroup>

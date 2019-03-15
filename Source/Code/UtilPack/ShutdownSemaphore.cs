@@ -67,7 +67,7 @@ namespace UtilPack
    /// </summary>
    public static class ShutdownSemaphoreFactory
    {
-      private const String SEMAPHORE_PREFIX = @"Global\";
+      private const String GLOBAL_SEMAPHORE_PREFIX = @"Global\";
 
       /// <summary>
       /// Creates a new <see cref="ShutdownSemaphoreSignaller"/> with given semaphore name.
@@ -108,7 +108,7 @@ namespace UtilPack
 #else
             Semaphore.TryOpenExisting(
 #endif
-               SEMAPHORE_PREFIX + semaphoreName
+               GLOBAL_SEMAPHORE_PREFIX + semaphoreName
 #if !NET40
                , out semaphore
 #endif
@@ -135,7 +135,7 @@ namespace UtilPack
 #endif
       private static Semaphore CreateSemaphore( String semaphoreName )
       {
-         semaphoreName = SEMAPHORE_PREFIX + semaphoreName;
+         semaphoreName = GLOBAL_SEMAPHORE_PREFIX + semaphoreName;
          var retVal = new Semaphore( 0, Int32.MaxValue, semaphoreName, out var createdNewSemaphore );
          if ( !createdNewSemaphore )
          {

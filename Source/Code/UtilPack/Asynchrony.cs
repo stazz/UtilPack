@@ -88,10 +88,17 @@ namespace UtilPack
 
       static TaskUtils()
       {
+#if NETSTANDARD1_0 || NETSTANDARD1_1 || NET45
          var src = new TaskCompletionSource<Object>();
          src.SetResult( null );
-
-         CompletedTask = src.Task;
+#endif
+         CompletedTask =
+#if NETSTANDARD1_0 || NETSTANDARD1_1 || NET45
+            src.Task
+#else
+            TTaskExt.CompletedTask
+#endif
+            ;
 
          True = TTaskExt.FromResult( true );
          False = TTaskExt.FromResult( false );
@@ -116,15 +123,19 @@ namespace UtilPack
       /// <returns>A new instance of <see cref="Task"/> which has already been canceled.</returns>
       /// <exception cref="ArgumentException">If <see cref="CancellationToken.IsCancellationRequested"/> of given <paramref name="token"/> returns <c>false</c>.</exception>
       /// <remarks>
-      /// Due to limitations of public async API, the private state bits of returned task will be slightly different than the ones returned by framework's own corresponding method.
+      /// Due to limitations of public async API, the private state bits of returned task, on some platforms, will be slightly different than the ones returned by framework's own corresponding method.
       /// </remarks>
       public static Task FromCanceled( CancellationToken token )
       {
+#if NETSTANDARD1_0 || NETSTANDARD1_1 || NET45
          if ( !token.IsCancellationRequested )
          {
             throw new ArgumentException( nameof( token ) );
          }
          return new Task( () => { }, token, TaskCreationOptions.None );
+#else
+         return TTaskExt.FromCanceled( token );
+#endif
       }
 
       /// <summary>
@@ -135,15 +146,20 @@ namespace UtilPack
       /// <returns>A new instance of <see cref="Task{T}"/> which has already been canceled.</returns>
       /// <exception cref="ArgumentException">If <see cref="CancellationToken.IsCancellationRequested"/> of given <paramref name="token"/> returns <c>false</c>.</exception>
       /// <remarks>
-      /// Due to limitations of public async API, the private state bits of returned task will be slightly different than the ones returned by framework's own corresponding method.
+      /// Due to limitations of public async API, the private state bits of returned task, on some platforms, will be slightly different than the ones returned by framework's own corresponding method.
       /// </remarks>
       public static Task<T> FromCanceled<T>( CancellationToken token )
       {
+#if NETSTANDARD1_0 || NETSTANDARD1_1 || NET45
+
          if ( !token.IsCancellationRequested )
          {
             throw new ArgumentException( nameof( token ) );
          }
          return new Task<T>( () => default, token, TaskCreationOptions.None );
+#else
+         return TTaskExt.FromCanceled<T>( token );
+#endif
       }
 
    }
@@ -172,12 +188,12 @@ namespace UtilPack
          else if ( timeout == TimeSpan.Zero || token.IsCancellationRequested )
          {
             // We have already timeouted
-#if NET40 || NET45 || NETSTANDARD1_0 || NETSTANDARD1_1
+#if NET45 || NETSTANDARD1_0 || NETSTANDARD1_1
             var tsc = new TaskCompletionSource<Boolean>();
             tsc.SetException( new TimeoutException() );
             return tsc.Task;
 #else
-            return Task.FromException( new TimeoutException() );
+            return TTaskExt.FromException( new TimeoutException() );
 #endif
          }
          else
@@ -565,59 +581,4 @@ public static partial class E_UtilPack
          }
       }
    }
-
-#if NET40
-   /// <summary>
-   /// Helper extension method to wait for <see cref="SemaphoreSlim"/> asynchronously in .NET 4.0.
-   /// </summary>
-   /// <param name="semaphore">This <see cref="SemaphoreSlim"/>.</param>
-   /// <param name="tick">The tick to wait between checking on <see cref="SemaphoreSlim"/>.</param>
-   /// <returns>Task which will complete when it acquies this <see cref="SemaphoreSlim"/> access.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="SemaphoreSlim"/> is <c>null</c>.</exception>
-   /// <remarks>
-   /// At least current implementation is most likely not very efficient...
-   /// </remarks>
-   public static async Task WaitAsync(
-      this SemaphoreSlim semaphore,
-      Int32 tick = 100
-      )
-   {
-      while ( !semaphore.Wait( 0 ) )
-      {
-         await TaskEx.Delay( tick );
-      }
-   }
-
-   /// <summary>
-   /// Helper extension method to wait for <see cref="SemaphoreSlim"/> asynchronously in .NET 4.0.
-   /// </summary>
-   /// <param name="semaphore">This <see cref="SemaphoreSlim"/>.</param>
-   /// <param name="timeout">Maximum amount to wait for the lock.</param>
-   /// <param name="token">The optional <see cref="CancellationToken"/> to use.</param>
-   /// <param name="tick">The tick to wait between checking on <see cref="SemaphoreSlim"/>.</param>
-   /// <returns>Task which will complete when it acquies this <see cref="SemaphoreSlim"/> access.</returns>
-   /// <exception cref="NullReferenceException">If this <see cref="SemaphoreSlim"/> is <c>null</c>.</exception>
-   /// <remarks>
-   /// At least current implementation is most likely not very efficient...
-   /// </remarks>
-   public static async Task<Boolean> WaitAsync(
-      this SemaphoreSlim semaphore,
-      TimeSpan timeout,
-      CancellationToken token = default,
-      Int32 tick = 100
-      )
-   {
-      var curTimeout = 0L;
-      Boolean retVal;
-      var noTimeout = TimeSpan.FromMilliseconds( -1 ) == timeout;
-      while ( !( retVal = semaphore.Wait( 0 ) ) && ( noTimeout || curTimeout < timeout.TotalMilliseconds ) )
-      {
-         // Delay is not precise (waits _at least_ given amount), TODO refactor this to use DateTime.UtcNow
-         await TaskEx.Delay( tick, token );
-         curTimeout += tick;
-      }
-
-      return retVal && curTimeout < timeout.TotalMilliseconds;
-   }
-#endif
 }

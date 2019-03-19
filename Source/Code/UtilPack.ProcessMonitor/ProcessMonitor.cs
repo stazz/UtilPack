@@ -39,26 +39,284 @@ using TaskEx = System.Threading.Tasks.
 
 namespace UtilPack.ProcessMonitor
 {
-
-   public static class ProcessUtils
+   /// <summary>
+   /// This static class provides methods for executing processes while keeping an eye on given <see cref="CancellationToken"/>.
+   /// </summary>
+   /// <remarks>
+   /// The invokable process is assumed to implement graceful shutdown whenever semaphore with given name detects cancellation signal from this process.
+   /// See <see cref="ShutdownSemaphoreFactory"/> and <see cref="ShutdownSemaphoreAwaiter"/> for more details about implementing such functionality in the invoked process.
+   /// </remarks>
+   public static class ProcessMonitorWithGracefulCancelability
    {
+      /// <summary>
+      /// The default maximum time to wait for process to gracefully terminate after the cancellation token is canceled.
+      /// The value is 1 second.
+      /// </summary>
+      public static TimeSpan DefaultShutdownSemaphoreWaitTime = TimeSpan.FromSeconds( 1 );
 
-      public static Process CreateProcess(
-         String fileName,
+      /// <summary>
+      /// Asynchronously starts process at given path, optionally writes input to it, then waits for it to exit while keeping an eye for given <see cref="CancellationToken"/>, and invokes given deserialization callback on contents of standard output, if the execution was successful.
+      /// </summary>
+      /// <typeparam name="TOutput">The deserialized type of standard output.</typeparam>
+      /// <param name="processPath">The path to the process executable.</param>
+      /// <param name="processArguments">The parameters for the process.</param>
+      /// <param name="shutdownSemaphoreName">The name of the semaphore used to signal graceful shutdown after <paramref name="token"/> cancellation. Do not use <c>"Global\"</c> prefix.</param>
+      /// <param name="outputDeserializer">The callback to deserialize <typeparamref name="TOutput"/> from standard output, in case process returned successfully.</param>
+      /// <param name="token">The <see cref="CancellationToken"/> to use to check on cancellation.</param>
+      /// <param name="inputWriter">The optional callback to write input to the process. If no value is specified, the process will not have standard input.</param>
+      /// <param name="shutdownSemaphoreMaxWaitTime">The maximum time to wait for process to gracefully terminate after the cancellation token is canceled. By default, is value of <see cref="DefaultShutdownSemaphoreWaitTime"/>.</param>
+      /// <returns>Asynchronously returns either deserialized instance of <typeparamref name="TOutput"/>, or error string. The error string will be <c>null</c> if given <paramref name="token"/> is canceled, otherwise it will be either contents of standard error, or fixed error message.</returns>
+      public static async Task<EitherOr<TOutput, String>> CallProcessAndGetResultAsync<TOutput>(
+         String processPath,
          String
 #if !NET40 && !NET45 && !NETSTANDARD2_0 && !NETCOREAPP1_1 && !NETCOREAPP2_0
             []
 #endif
-            arguments,
+            processArguments,
+         String shutdownSemaphoreName,
+         Func<StringBuilder, TOutput> outputDeserializer,
+         CancellationToken token,
+         Func<StreamWriter, Task> inputWriter = null,
+         TimeSpan? shutdownSemaphoreMaxWaitTime = default
+         )
+      {
+
+         (var stdinWriter, var stdinSuccess) = inputWriter == null ? default : GetStdInWriter( inputWriter );
+         (var exitCode, var stdout, var stderr) = await CallProcessAndCollectOutputToString(
+            processPath,
+            processArguments,
+            shutdownSemaphoreName,
+            token,
+            stdinWriter: stdinWriter,
+            shutdownSemaphoreMaxWaitTime: shutdownSemaphoreMaxWaitTime
+            );
+
+         String GetErrorString()
+         {
+            var errorString = stderr.ToString();
+            return exitCode.HasValue ?
+               ( String.IsNullOrEmpty( errorString ) ? ( exitCode == 0 ? "Unspecified error" : $"Non-zero return code of {processPath}" ) : errorString )
+               : null;
+         }
+
+         return stderr.Length > 0 || !CheckStdInSuccess( stdinSuccess ) || !exitCode.HasValue || exitCode.Value != 0 ?
+            new EitherOr<TOutput, String>( GetErrorString() ) :
+            outputDeserializer( stdout );
+      }
+
+      //      /// <summary>
+      //      /// Asynchronously starts process at given path, optionally writes input to it, then waits for it to exit while keeping an eye for given <see cref="CancellationToken"/>, and streaming standard output and error streams.
+      //      /// </summary>
+      //      /// <param name="processPath">The path to the process executable.</param>
+      //      /// <param name="processArguments">The parameters for the process.</param>
+      //      /// <param name="shutdownSemaphoreName">The name of the semaphore used to signal graceful shutdown after <paramref name="token"/> cancellation. Do not use <c>"Global\"</c> prefix.</param>
+      //      /// <param name="onStdOutOrErrLine">The callback invoked on each event of <see cref="Process.OutputDataReceived"/>. The tuple first item is the string, the tuple second item is <c>true</c> if the string originates from error stream, and third item is the UTC <see cref="DateTime"/> when it was received by <see cref="Process.OutputDataReceived"/>.</param>
+      //      /// <param name="token">The <see cref="CancellationToken"/> to use to check on cancellation.</param>
+      //      /// <param name="inputWriter">The optional callback to write input to the process. If no value is specified, the process will not have standard input.</param>
+      //      /// <param name="shutdownSemaphoreMaxWaitTime">The maximum time to wait for process to gracefully terminate after the cancellation token is canceled. By default, is value of <see cref="DefaultShutdownSemaphoreWaitTime"/>.</param>
+      //      /// <returns>Asynchronously returns the process exit code. Will return <c>null</c> if given <paramref name="token"/> is canceled.</returns>
+      //      /// <exception cref="InvalidOperationException">If the given <paramref name="inputWriter"/> was specified, but did not complete successfully.</exception>
+      //      public static async Task<Int32?> CallProcessAndStreamOutputAsync(
+      //         String processPath,
+      //         String
+      //#if !NET40 && !NET45 && !NETSTANDARD2_0 && !NETCOREAPP1_1 && !NETCOREAPP2_0
+      //            []
+      //#endif
+      //            processArguments,
+      //         String shutdownSemaphoreName,
+      //         Func<(String Data, Boolean IsError, DateTime Timestamp), Task> onStdOutOrErrLine,
+      //         CancellationToken token,
+      //         Func<StreamWriter, Task> inputWriter = null,
+      //         TimeSpan? shutdownSemaphoreMaxWaitTime = default
+      //         )
+      //      {
+      //         (var stdinWriter, var stdinSuccess) = inputWriter == null ? default : GetStdInWriter( inputWriter );
+      //         var returnCode = await processPath.CallProcessWithRedirects(
+      //               processArguments,
+      //               shutdownSemaphoreName,
+      //               token,
+      //               stdinWriter: stdinWriter,
+      //               shutdownSemaphoreMaxWaitTime: shutdownSemaphoreMaxWaitTime,
+      //               onStdOutOrErrLine: onStdOutOrErrLine
+      //               );
+
+      //         return CheckStdInSuccess( stdinSuccess ) ?
+      //            returnCode :
+      //            throw new InvalidOperationException( "Standard input writer did not complete successfully." );
+      //      }
+
+      private static Boolean CheckStdInSuccess(
+         Func<Boolean> stdInSuccess
+         )
+      {
+         return stdInSuccess == null || stdInSuccess();
+      }
+
+      private static (Func<StreamWriter, Task> StdInWriter, Func<Boolean> StdInSuccess) GetStdInWriter(
+         Func<StreamWriter, Task> inputWriter
+         )
+      {
+         var stdinSuccess = false;
+         return (
+            async stdin =>
+            {
+               try
+               {
+                  await inputWriter( stdin );
+                  stdinSuccess = true;
+               }
+               catch
+               {
+                  // Ignore
+               }
+            }
+         ,
+            () => stdinSuccess
+         );
+      }
+
+
+
+      /// <summary>
+      /// Asynchronously starts process at given path, optionally writes input to it, then waits for it to exit while keeping an eye for given <see cref="CancellationToken"/>, and streaming standard output and error streams.
+      /// </summary>
+      /// <param name="processPath">The path to the process executable.</param>
+      /// <param name="processArguments">The parameters for the process.</param>
+      /// <param name="shutdownSemaphoreName">The name of the semaphore used to signal graceful shutdown after <paramref name="token"/> cancellation. Do not use <c>"Global\"</c> prefix.</param>
+      /// <param name="token">The <see cref="CancellationToken"/> to use to check on cancellation.</param>
+      /// <param name="stdinWriter">The optional callback to write input to the process. If no value is specified, the process will not have standard input.</param>
+      /// <param name="shutdownSemaphoreMaxWaitTime">The maximum time to wait for process to gracefully terminate after the cancellation token is canceled. By default, is value of <see cref="DefaultShutdownSemaphoreWaitTime"/>.</param>
+      /// <returns>Asynchronously returns the process exit code. Will return <c>null</c> if given <paramref name="token"/> is canceled. Along with the exit code are also returned standard output and error <see cref="StringBuilder"/> instances.</returns>
+      public static async Task<(Int32? ReturnCode, StringBuilder StdOut, StringBuilder StdErr)> CallProcessAndCollectOutputToString(
+         String processPath,
+         String
+#if !NET40 && !NET45 && !NETSTANDARD2_0 && !NETCOREAPP1_1 && !NETCOREAPP2_0
+            []
+#endif
+            processArguments,
+         String shutdownSemaphoreName,
+         CancellationToken token,
+         Func<StreamWriter, Task> stdinWriter = null,
+         TimeSpan? shutdownSemaphoreMaxWaitTime = null
+         )
+      {
+         var stdout = new StringBuilder();
+         var stderr = new StringBuilder();
+         var retVal = await CallProcessWithRedirects(
+            processPath,
+            processArguments,
+            shutdownSemaphoreName,
+            token,
+            stdinWriter: stdinWriter,
+            shutdownSemaphoreMaxWaitTime: shutdownSemaphoreMaxWaitTime,
+            onStdOutOrErrLine: tuple =>
+            {
+               (var line, var isError, var timestamp) = tuple;
+               ( isError ? stderr : stdout ).Append( line ).Append( '\n' );
+               return null;
+            } );
+         return (retVal, stdout, stderr);
+      }
+
+
+      /// <summary>
+      /// Asynchronously starts process at given path, optionally writes input to it, then waits for it to exit while keeping an eye for given <see cref="CancellationToken"/>, and streaming standard output and error streams.
+      /// </summary>
+      /// <param name="processPath">The path to the process executable.</param>
+      /// <param name="processArguments">The parameters for the process.</param>
+      /// <param name="shutdownSemaphoreName">The name of the semaphore used to signal graceful shutdown after <paramref name="token"/> cancellation. Do not use <c>"Global\"</c> prefix.</param>
+      /// <param name="token">The <see cref="CancellationToken"/> to use to check on cancellation.</param>
+      /// <param name="stdinWriter">The optional callback to write input to the process. If no value is specified, the process will not have standard input.</param>
+      /// <param name="shutdownSemaphoreMaxWaitTime">The maximum time to wait for process to gracefully terminate after the cancellation token is canceled. By default, is value of <see cref="DefaultShutdownSemaphoreWaitTime"/>.</param>
+      /// <returns>Asynchronously returns the process exit code. Will return <c>null</c> if given <paramref name="token"/> is canceled.</returns>
+      public static async Task<Int32?> CallProcessWithRedirects(
+         String processPath,
+         String
+#if !NET40 && !NET45 && !NETSTANDARD2_0 && !NETCOREAPP1_1 && !NETCOREAPP2_0
+            []
+#endif
+            processArguments,
+         String shutdownSemaphoreName,
+         CancellationToken token,
+         Func<StreamWriter, Task> stdinWriter = null,
+         TimeSpan? shutdownSemaphoreMaxWaitTime = null,
+         Func<(String Data, Boolean IsError, DateTime Timestamp), Task> onStdOutOrErrLine = null
+         )
+      {
+         var processOutput = new ConcurrentQueue<(String Data, Boolean IsError, DateTime Timestamp)>();
+         try
+         {
+            return await ProcessUtils.StartAndWaitForExitAsync(
+               ProcessUtils.CreateProcess(
+                  processPath,
+                  processArguments,
+                  onStdOutLine: outLine => processOutput.Enqueue( (outLine, false, DateTime.UtcNow) ),
+                  onStdErrLine: errLine => processOutput.Enqueue( (errLine, true, DateTime.UtcNow) ) ),
+               shutdownSemaphoreName,
+               token,
+               stdinWriter: stdinWriter,
+               onTick: async () => await ProcessOutput( processOutput, onStdOutOrErrLine ),
+               shutdownSemaphoreMaxWaitTime: shutdownSemaphoreMaxWaitTime
+               );
+         }
+         finally
+         {
+            // Flush any 'leftover' messages
+            await ProcessOutput( processOutput, onStdOutOrErrLine );
+         }
+      }
+
+      private static async Task ProcessOutput(
+         ConcurrentQueue<(String Data, Boolean IsError, DateTime Timestamp)> processOutput,
+         Func<(String Data, Boolean IsError, DateTime Timestamp), Task> onStdOutOrErrLine
+         )
+      {
+         if ( onStdOutOrErrLine == null )
+         {
+            onStdOutOrErrLine = ( tuple ) => ( tuple.IsError ? Console.Error : Console.Out ).WriteLineAsync( tuple.Data );
+         }
+
+         while ( processOutput.TryDequeue( out var output ) )
+         {
+            var t = onStdOutOrErrLine( output );
+            if ( t != null )
+            {
+               await t;
+            }
+         }
+      }
+
+   }
+
+   /// <summary>
+   /// This class is mainly for internal usage, but is exposed in case some functionality is needed from other libraries.
+   /// </summary>
+   public static class ProcessUtils
+   {
+      /// <summary>
+      /// Creates a new instance of <see cref="Process"/> but doesn't start it.
+      /// </summary>
+      /// <param name="processPath">The path to the process executable.</param>
+      /// <param name="processArguments">The parameters for the process.</param>
+      /// <param name="onStdOutLine">The optional callback to invoke when standard output has been received.</param>
+      /// <param name="onStdErrLine">The optional callback to invoke when standard error output has been received.</param>
+      /// <returns></returns>
+      public static Process CreateProcess(
+         String processPath,
+         String
+#if !NET40 && !NET45 && !NETSTANDARD2_0 && !NETCOREAPP1_1 && !NETCOREAPP2_0
+            []
+#endif
+            processArguments,
          Action<String> onStdOutLine = null,
          Action<String> onStdErrLine = null
          )
       {
          var startInfo = new ProcessStartInfo()
          {
-            FileName = fileName,
+            FileName = processPath,
 #if NET40 || NET45 || NETSTANDARD2_0 || NETCOREAPP1_1 || NETCOREAPP2_0
-            Arguments = arguments,
+            Arguments = processArguments,
 #endif
             UseShellExecute = false,
             CreateNoWindow = true,
@@ -66,7 +324,7 @@ namespace UtilPack.ProcessMonitor
             RedirectStandardError = onStdErrLine != null,
          };
 #if !NET40 && !NET45 && !NETSTANDARD2_0 && !NETCOREAPP1_1 && !NETCOREAPP2_0
-         foreach ( var arg in arguments )
+         foreach ( var arg in processArguments )
          {
             startInfo.ArgumentList.Add( arg );
          }
@@ -100,6 +358,12 @@ namespace UtilPack.ProcessMonitor
          return p;
       }
 
+      /// <summary>
+      /// Starts this process and asynchronously writes data to standard input, if <paramref name="stdinWriter"/> parameter is specified.
+      /// </summary>
+      /// <param name="p">The <see cref="Process"/>.</param>
+      /// <param name="stdinWriter">Optional callback to write to input.</param>
+      /// <returns>Asynchronously returns <c>void</c>.</returns>
       public static async Task StartProcessAsync(
          Process p,
          Func<StreamWriter, Task> stdinWriter = null
@@ -111,7 +375,6 @@ namespace UtilPack.ProcessMonitor
          p.BeginOutputReadLine();
          p.BeginErrorReadLine();
 
-         // Pass serialized configuration via stdin
          if ( redirectStdIn )
          {
             using ( var stdin = p.StandardInput )
@@ -120,116 +383,33 @@ namespace UtilPack.ProcessMonitor
             }
          }
       }
-   }
 
-   public static class ProcessMonitorWithGracefulCancelability
-   {
-      public static TimeSpan DefaultShutdownSemaphoreWaitTime = TimeSpan.FromSeconds( 1 );
-
-      public static async Task<EitherOr<TOutput, String>> CallProcessAndGetResultAsync<TOutput>(
-         String processPath,
-         String shutdownSemaphoreName,
-         String
-#if !NET40 && !NET45 && !NETSTANDARD2_0 && !NETCOREAPP1_1 && !NETCOREAPP2_0
-            []
-#endif
-            processArguments,
-         Func<StreamWriter, Task> inputWriter,
-         Func<StringBuilder, TOutput> outputDeserializer,
-         CancellationToken token,
-         TimeSpan? shutdownSemaphoreWaitTime = default
-         )
-      {
-
-         (var stdinWriter, var stdinSuccess) = GetStdInWriter( inputWriter );
-         (var exitCode, var stdout, var stderr) = await processPath.ExecuteAsFileAtThisPathWithCancelabilityCollectingOutputToString(
-            processArguments,
-            token,
-            shutdownSemaphoreName,
-            shutdownSemaphoreWaitTime ?? DefaultShutdownSemaphoreWaitTime,
-            stdinWriter: stdinWriter
-            );
-
-         String GetErrorString()
-         {
-            var errorString = stderr.ToString();
-            return String.IsNullOrEmpty( errorString ) ?
-               ( exitCode == 0 ? "Unspecified error" : $"Non-zero return code of {processPath}" ) :
-               errorString;
-         }
-
-         return stderr.Length > 0 || !stdinSuccess() || exitCode != 0 ?
-            new EitherOr<TOutput, String>( GetErrorString() ) :
-            outputDeserializer( stdout );
-      }
-
-      public static async Task<Int32?> CallProcessAndStreamOutputAsync(
-         String processPath,
-         String shutdownSemaphoreName,
-         String
-#if !NET40 && !NET45 && !NETSTANDARD2_0 && !NETCOREAPP1_1 && !NETCOREAPP2_0
-            []
-#endif
-            processArguments,
-         Func<StreamWriter, Task> inputWriter,
-         Func<String, Boolean, Task> onStdOutOrErrLine,
-         CancellationToken token,
-         TimeSpan? shutdownSemaphoreWaitTime = default
-         )
-      {
-         (var stdinWriter, var stdinSuccess) = GetStdInWriter( inputWriter );
-         var returnCode = await processPath.ExecuteAsFileAtThisPathWithCancelabilityAndRedirects(
-               processArguments,
-               token,
-               shutdownSemaphoreName,
-               shutdownSemaphoreWaitTime ?? DefaultShutdownSemaphoreWaitTime,
-               stdinWriter: stdinWriter,
-               onStdOutOrErrLine: onStdOutOrErrLine
-               );
-
-         return stdinSuccess() ?
-            returnCode :
-            default;
-      }
-
-      private static (Func<StreamWriter, Task> StdInWriter, Func<Boolean> StdInSuccess) GetStdInWriter(
-         Func<StreamWriter, Task> inputWriter
-         )
-      {
-         var stdinSuccess = false;
-         return (
-            async stdin =>
-            {
-               try
-               {
-                  await inputWriter( stdin );
-                  stdinSuccess = true;
-               }
-               catch
-               {
-                  // Ignore
-               }
-            }
-         ,
-            () => stdinSuccess
-         );
-      }
-
-
+      /// <summary>
+      /// This utility method will start the given <see cref="Process"/> and then will wait for it to complete, while keeping an eye for the given <see cref="CancellationToken"/>.
+      /// </summary>
+      /// <param name="process">This <see cref="Process"/>.</param>
+      /// <param name="shutdownSemaphoreName">The name of the semaphore used to signal graceful shutdown after <paramref name="token"/> cancellation. Do not use <c>"Global\"</c> prefix.</param>
+      /// <param name="token">The <see cref="CancellationToken"/> to use.</param>
+      /// <param name="stdinWriter">The optional callback to write input to the process. If no value is specified, the process will not have standard input.</param>
+      /// <param name="shutdownSemaphoreWaitTime">The maximum time to wait for process to gracefully terminate after the cancellation token is canceled. By default, is value of <see cref="DefaultShutdownSemaphoreWaitTime"/>.</param>
+      /// <param name="onTick">The optional callback to perform some action between polling for process state.</param>
+      /// <returns>Asynchronously returns the process exit code. Will return <c>null</c> if given <paramref name="token"/> is canceled.</returns>
+      /// <remarks>
+      /// Typically the <paramref name="process"/> to start is created by <see cref="ProcessUtils.CreateProcess"/>.
+      /// </remarks>
       public static async Task<Int32?> StartAndWaitForExitAsync(
-         this Process process, // Typically created by  ProcessMonitor.CreateProcess(), just don't start it!
-                               // String shutdownSemaphoreArgumentName,
-         CancellationToken token,
+         Process process,
          String shutdownSemaphoreName,
-         TimeSpan shutdownSemaphoreMaxWaitTime,
-         // Boolean cancelabilityIsOptional = false,
+         CancellationToken token,
          Func<StreamWriter, Task> stdinWriter = null,
+         TimeSpan? shutdownSemaphoreMaxWaitTime = null,
          Func<Task> onTick = null
          )
       {
          Int32? exitCode = null;
+         var maxTime = shutdownSemaphoreMaxWaitTime ?? ProcessMonitorWithGracefulCancelability.DefaultShutdownSemaphoreWaitTime;
          using ( var shutdownSemaphore = token.CanBeCanceled ? ShutdownSemaphoreFactory.CreateSignaller( shutdownSemaphoreName ) : default )
-         using ( process ) // var process = ProcessMonitor.CreateProcess( fileName, arguments, onStdOutLine, onStdErrLine ) )
+         using ( process )
          {
             process.EnableRaisingEvents = true;
 
@@ -295,7 +475,7 @@ namespace UtilPack.ProcessMonitor
                         // Now, check if restart semaphore has been signalled
                         // restart = restartSemaphore != null && restartSemaphore.WaitOne( 0 );
                      }
-                     else if ( shutdownSignalledTime.HasValue && DateTime.UtcNow - shutdownSignalledTime.Value > shutdownSemaphoreMaxWaitTime )
+                     else if ( shutdownSignalledTime.HasValue && DateTime.UtcNow - shutdownSignalledTime.Value > maxTime )
                      {
                         // We have signalled shutdown, but process has not exited in time
                         try
@@ -324,13 +504,16 @@ namespace UtilPack.ProcessMonitor
                }
             }
 
-            try
+            if ( !token.IsCancellationRequested )
             {
-               exitCode = process.ExitCode;
-            }
-            catch
-            {
-               // Ignore
+               try
+               {
+                  exitCode = process.ExitCode;
+               }
+               catch
+               {
+                  // Ignore
+               }
             }
 
          }
@@ -338,92 +521,5 @@ namespace UtilPack.ProcessMonitor
          return exitCode;
 
       }
-
-      public static async Task<(Int32? ReturnCode, StringBuilder StdOut, StringBuilder StdErr)> ExecuteAsFileAtThisPathWithCancelabilityCollectingOutputToString(
-         this String fileName,
-         String
-#if !NET40 && !NET45 && !NETSTANDARD2_0 && !NETCOREAPP1_1 && !NETCOREAPP2_0
-            []
-#endif
-            arguments,
-         CancellationToken token,
-         String shutdownSemaphoreName,
-         TimeSpan shutdownSemaphoreMaxWaitTime,
-         Func<StreamWriter, Task> stdinWriter = null
-         )
-      {
-         var stdout = new StringBuilder();
-         var stderr = new StringBuilder();
-         var retVal = await fileName.ExecuteAsFileAtThisPathWithCancelabilityAndRedirects(
-            arguments,
-            token,
-            shutdownSemaphoreName,
-            shutdownSemaphoreMaxWaitTime,
-            stdinWriter: stdinWriter,
-            onStdOutOrErrLine: ( line, isError ) =>
-            {
-               ( isError ? stderr : stdout ).Append( line ).Append( '\n' );
-               return null;
-            } );
-         return (retVal, stdout, stderr);
-      }
-
-      public static async Task<Int32?> ExecuteAsFileAtThisPathWithCancelabilityAndRedirects(
-         this String fileName,
-         String
-#if !NET40 && !NET45 && !NETSTANDARD2_0 && !NETCOREAPP1_1 && !NETCOREAPP2_0
-            []
-#endif
-            arguments,
-         CancellationToken token,
-         String shutdownSemaphoreName,
-         TimeSpan shutdownSemaphoreMaxWaitTime,
-         Func<StreamWriter, Task> stdinWriter = null,
-         Func<String, Boolean, Task> onStdOutOrErrLine = null
-         )
-      {
-         var processOutput = new ConcurrentQueue<(Boolean IsError, DateTime Timestamp, String Data)>();
-         try
-         {
-            return await ProcessUtils.CreateProcess(
-               fileName,
-               arguments,
-               onStdOutLine: outLine => processOutput.Enqueue( (false, DateTime.UtcNow, outLine) ),
-               onStdErrLine: errLine => processOutput.Enqueue( (true, DateTime.UtcNow, errLine) ) )
-               .StartAndWaitForExitAsync(
-                  token,
-                  shutdownSemaphoreName,
-                  shutdownSemaphoreMaxWaitTime,
-                  stdinWriter: stdinWriter,
-                  onTick: async () => await ProcessOutput( processOutput, onStdOutOrErrLine )
-               );
-         }
-         finally
-         {
-            // Flush any 'leftover' messages
-            await ProcessOutput( processOutput, onStdOutOrErrLine );
-         }
-      }
-
-      private static async Task ProcessOutput(
-         ConcurrentQueue<(Boolean IsError, DateTime Timestamp, String Data)> processOutput,
-         Func<String, Boolean, Task> onStdOutOrErrLine
-         )
-      {
-         if ( onStdOutOrErrLine == null )
-         {
-            onStdOutOrErrLine = ( line, isError ) => ( isError ? Console.Error : Console.Out ).WriteLineAsync( line );
-         }
-
-         while ( processOutput.TryDequeue( out var output ) )
-         {
-            var t = onStdOutOrErrLine( output.Data, output.IsError );
-            if ( t != null )
-            {
-               await t;
-            }
-         }
-      }
-
    }
 }

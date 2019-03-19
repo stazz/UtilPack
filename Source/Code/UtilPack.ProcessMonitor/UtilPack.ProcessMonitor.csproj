@@ -22,7 +22,7 @@
     <VersionPrefix>1.0.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
-    <Description>Easy-to-use API for spawning processes and waiting for their exit while keeping an eye on CancellationToken.</Description>
+    <Description>Easy-to-use API for spawning processes and waiting for their exit while keeping an eye on CancellationToken. Typically, extension and utitily methods of ProcessMonitorWithGracefulCancelability class from this package are used.</Description>
   </PropertyGroup>
 
   <!-- NuGet package stuff -->

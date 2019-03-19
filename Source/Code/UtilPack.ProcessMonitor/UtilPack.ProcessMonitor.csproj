@@ -19,7 +19,7 @@
 
   <!-- Assembly information stuff -->
   <PropertyGroup>
-    <VersionPrefix>1.0.0</VersionPrefix>
+    <VersionPrefix>2.0.0</VersionPrefix>
     <VersionSuffix></VersionSuffix>
     <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
     <Description>Easy-to-use API for spawning processes and waiting for their exit while keeping an eye on CancellationToken. Typically, extension and utitily methods of ProcessMonitorWithGracefulCancelability class from this package are used.</Description>
@@ -30,7 +30,7 @@
     <PackageId>$(AssemblyName)</PackageId>
     <PackageVersion>$(VersionPrefix)</PackageVersion>
     <PackageVersion Condition=" '$(VersionSuffix)' != ''">$(PackageVersion)-$(VersionSuffix)</PackageVersion>
-    <PackageReleaseNotes>Initial release.</PackageReleaseNotes>
+    <PackageReleaseNotes>Complete rewrite of this library.</PackageReleaseNotes>
     <PackageTags>utility async tabular data</PackageTags>
     <Title>Process Monitoring</Title>
   </PropertyGroup>

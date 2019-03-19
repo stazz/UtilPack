@@ -228,6 +228,7 @@ namespace UtilPack.ProcessMonitor
       /// <param name="token">The <see cref="CancellationToken"/> to use to check on cancellation.</param>
       /// <param name="stdinWriter">The optional callback to write input to the process. If no value is specified, the process will not have standard input.</param>
       /// <param name="shutdownSemaphoreMaxWaitTime">The maximum time to wait for process to gracefully terminate after the cancellation token is canceled. By default, is value of <see cref="DefaultShutdownSemaphoreWaitTime"/>.</param>
+      /// <param name="onStdOutOrErrLine">The optional callback invoked on each event of <see cref="Process.OutputDataReceived"/>. The tuple first item is the string, the tuple second item is <c>true</c> if the string originates from error stream, and third item is the UTC <see cref="DateTime"/> when it was received by <see cref="Process.OutputDataReceived"/>.</param>
       /// <returns>Asynchronously returns the process exit code. Will return <c>null</c> if given <paramref name="token"/> is canceled.</returns>
       public static async Task<Int32?> CallProcessWithRedirects(
          String processPath,
@@ -391,7 +392,7 @@ namespace UtilPack.ProcessMonitor
       /// <param name="shutdownSemaphoreName">The name of the semaphore used to signal graceful shutdown after <paramref name="token"/> cancellation. Do not use <c>"Global\"</c> prefix.</param>
       /// <param name="token">The <see cref="CancellationToken"/> to use.</param>
       /// <param name="stdinWriter">The optional callback to write input to the process. If no value is specified, the process will not have standard input.</param>
-      /// <param name="shutdownSemaphoreWaitTime">The maximum time to wait for process to gracefully terminate after the cancellation token is canceled. By default, is value of <see cref="DefaultShutdownSemaphoreWaitTime"/>.</param>
+      /// <param name="shutdownSemaphoreMaxWaitTime">The maximum time to wait for process to gracefully terminate after the cancellation token is canceled. By default, is value of <see cref="ProcessMonitorWithGracefulCancelability.DefaultShutdownSemaphoreWaitTime"/>.</param>
       /// <param name="onTick">The optional callback to perform some action between polling for process state.</param>
       /// <returns>Asynchronously returns the process exit code. Will return <c>null</c> if given <paramref name="token"/> is canceled.</returns>
       /// <remarks>

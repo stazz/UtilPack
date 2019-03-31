@@ -1202,7 +1202,7 @@ public static partial class E_UtilPack
    public static Boolean IsNullable( this Type type, out Type paramType )
    {
       paramType = IsNullable( type ) ? type.
-#if IS_NETSTANDARD
+#if NETSTANDARD
          GenericTypeArguments
 #else
 
@@ -1223,7 +1223,7 @@ public static partial class E_UtilPack
    public static Boolean IsLazy( this Type type )
    {
       return ( type?.
-#if IS_NETSTANDARD
+#if NETSTANDARD
          GetTypeInfo()?.
 #endif
          IsGenericType ?? false ) && Equals( type.GetGenericTypeDefinition(), typeof( Lazy<> ) );
@@ -1243,7 +1243,7 @@ public static partial class E_UtilPack
    {
 
       paramType = IsLazy( type ) ? type.
-#if IS_NETSTANDARD
+#if NETSTANDARD
          GenericTypeArguments
 #else
 
@@ -1264,7 +1264,7 @@ public static partial class E_UtilPack
    public static Boolean IsNullable( this Type type )
    {
       return ( type?.
-#if IS_NETSTANDARD
+#if NETSTANDARD
          GetTypeInfo()?.
 #endif
          IsGenericType ?? false ) && Equals( type.GetGenericTypeDefinition(), typeof( Nullable<> ) );

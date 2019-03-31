@@ -20,6 +20,8 @@ using System.Collections.Generic;
 using System.Linq;
 using UtilPack;
 
+// TODO!! All extensions for IEnumerable to be put into separate namespace, e.g. UtilPack.EnumerableExtensions. To make life easier when things conflict.
+
 namespace UtilPack
 {
    /// <summary>
@@ -1495,7 +1497,7 @@ namespace UtilPack
          }
       }
 
-#if !NETSTANDARD1_6 && !NETSTANDARD2_0 && !NETCOREAPP1_1
+#if NETSTANDARD1_0 || NETSTANDARD1_1 || NETSTANDARD1_5 || NET40 || NET45
 
       /// <summary>
       /// Returns enumerable which will return all items in this enumerable, and then concatenate a single item at the end.

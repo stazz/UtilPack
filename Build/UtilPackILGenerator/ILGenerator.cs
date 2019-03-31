@@ -74,6 +74,7 @@ namespace UtilPackILGenerator
                break;
             case "net40":
             case "net45":
+            case "net471":
                delegateAssembly = equalityComparerAssembly = objectAssembly = actionAssembly = exceptionAssembly = ienumerableAssembly = aggregateExceptionAssembly = "mscorlib";
                linkedListAssembly = "System";
                extensionAssembly = enumerableAssembly = "System.Core";

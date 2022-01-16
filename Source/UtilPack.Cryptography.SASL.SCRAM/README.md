@@ -1,13 +1,13 @@
 # UtilPack.Cryptography.SASL.SCRAM
 
-This is library implementing SCRAM-(SHA128|256|512) protocol without dynamically allocating any strings.
-The SCRAM protocol handlers are accessible via extension methods for `BlockDigestAlgorithm` interface of [UtilPack.Cryptography.Digest](../UtilPack.Cryptography.Digest) project.
+This is library implementing SCRAM-(SHA-1|SHA-256|SHA-512) protocol without dynamically allocating any strings.
+The SCRAM protocol handlers are accessible via extension methods for BlockDigestAlgorithm interface of UtilPack.Cryptography.Digest project.
 
 Here is an example for authenticating as a client:
 ```csharp
 using UtilPack.Cryptography.Digest;
 
-// Example of using SCRAM-SHA256
+// Example of using SCRAM-SHA-256
 // Variables username, password, and stream are assumed to be coming from elsewhere in this example.
 using ( var client = new SHA256().CreateSASLClientSCRAM() )
 {
@@ -33,7 +33,7 @@ using ( var client = new SHA256().CreateSASLClientSCRAM() )
 
   // Read server-first message
   var readBytes = new Byte[10000]; // Assume static max size for this small example
-  var readCount = await stream.ReadAsync( readBytes, 0, readBytes.Length ); // Assume this simple and naïve read for this small example
+  var readCount = await stream.ReadAsync( readBytes, 0, readBytes.Length ); // Assume this simple and naÃ¯ve read for this small example
 
   // Create client-final message
   (bytesWritten, challengeResult) = await client.ChallengeOrThrowOnErrorAsync( credentials.CreateChallengeArguments(
@@ -45,7 +45,7 @@ using ( var client = new SHA256().CreateSASLClientSCRAM() )
     encoding
     ) );
 
-  // At this point, credentials.PasswordDigest will contain result of PBKDF2 iteration, if cleartext password as specified earlier
+  // At this point, credentials.PasswordDigest will contain result of PBKDF2 iteration, if cleartext password was specified earlier
 
   // Write client-final message
   await stream.WriteAsync( writeArray.Array, 0, bytesWritten );

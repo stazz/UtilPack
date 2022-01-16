@@ -1,7 +1,7 @@
 # UtilPack.Cryptography.SASL.SCRAM
 
 This is library implementing SCRAM-(SHA-1|SHA-256|SHA-512) protocol without dynamically allocating any strings.
-The SCRAM protocol handlers are accessible via extension methods for BlockDigestAlgorithm interface of UtilPack.Cryptography.Digest project.
+The SCRAM protocol handlers are accessible via extension methods for `BlockDigestAlgorithm` interface of [UtilPack.Cryptography.Digest](../UtilPack.Cryptography.Digest) project.
 
 Here is an example for authenticating as a client:
 ```csharp
